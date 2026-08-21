@@ -34,5 +34,5 @@
 **Link:** https://github.com/seymanurakti/fight-detection-surv-dataset
 
 **Content:** Contains 300 two-second clips, including 150 fight and 150 non-fight clips. Fight scenes include kicking, hitting, wrestling and hitting with objects.
-
-**Licence:** The repository is published under an MIT licence, and the authors request citation of the associated paper. However, the README states that the fight clips were collected from YouTube, so the copyright status of the underlying footage should be treated cautiously.
+*Original links to the full YouTube videos are provided in the `video.txt` file.*
+**Licence:** The repository is published under an MIT licence, and the authors request citation of the associated paper. 
