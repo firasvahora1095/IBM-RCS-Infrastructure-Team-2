@@ -4,9 +4,11 @@
 # Persona Snapshot — New Hire "Jules"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Jules](./Jules.jpeg)
+
 **Naming note:** "Jules" is a team-invented name (gender-neutral, deliberately non-specific).
 
 ---

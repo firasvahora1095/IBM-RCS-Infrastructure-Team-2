@@ -4,9 +4,11 @@
 # Persona Snapshot — Senior Reviewer "Theo"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Theo](./Theo.jpeg)
+
 **Naming note:** "Theo" is a team-invented name. Unlike Maya, no source document names or describes a second auditor archetype — this persona exists to represent a genuinely different tenure/calibration profile within the same role, not to duplicate Maya under a new name.
 
 ---

@@ -4,9 +4,11 @@
 # Persona Snapshot — Proactive Oversight Lead "Reese"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Reese](./Reese.jpeg)
+
 **Naming note:** "Reese" is a team-invented name (gender-neutral, deliberately non-specific), distinct from "Jordan" and "Sam."
 
 ---

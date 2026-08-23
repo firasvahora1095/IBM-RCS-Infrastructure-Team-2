@@ -4,9 +4,11 @@
 # Persona Snapshot — Frontline Reviewer "Maya"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Maya](./Maya.jpeg)
+
 **Naming note:** "Maya" is not an invented name — she is the named example reviewer in IBM's own project brief ("Maya reviews flagged video for a safety team eight hours a day..."). Using the client's own persona name keeps this snapshot directly traceable to source material rather than introducing a competing fictional identity.
 
 ---

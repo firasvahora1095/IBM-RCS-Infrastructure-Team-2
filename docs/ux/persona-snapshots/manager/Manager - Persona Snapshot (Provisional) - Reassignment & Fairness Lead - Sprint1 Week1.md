@@ -4,9 +4,11 @@
 # Persona Snapshot — Reassignment & Fairness Lead "Sam"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Sam](./Sam.jpeg)
+
 **Naming note:** "Sam" is a team-invented name (gender-neutral, deliberately non-specific), distinct from "Jordan" and "Reese."
 
 ---

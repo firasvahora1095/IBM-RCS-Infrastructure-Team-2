@@ -4,9 +4,11 @@
 # Persona Snapshot — Reactive Incident Lead "Jordan"
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 1 · **Owner:** Aleeya Ahmad (UX)
+
 **Photo:**
 
 ![Jordan](./Jordan.jpeg)
+
 **Naming note:** "Jordan" is a team-invented name (gender-neutral, deliberately non-specific) — the brief and kickoff notes never name or describe the manager directly, only their responsibilities.
 
 ---
