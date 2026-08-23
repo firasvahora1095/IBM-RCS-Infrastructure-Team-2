@@ -46,6 +46,26 @@ Responsible for:
 - Uploaded media
 - Processed artefacts
 
+Folder Structure:
+```
+cases/
+└── {caseId}/
+    ├── original/
+    │   └── video.mp4
+    ├── processed/
+    │   └── blur-greyscale-video.mp4
+    ├── metadata/
+    │   └── case.json
+    ├── analysis/
+    │   ├── transcript.json
+    │   └── severity-rating.json
+    └── review/
+        ├── assessment.json
+        └── decision.json
+
+Note: caseId could be kept simple with iterative numbering (001, 002) or use generated ids.
+```
+
 ### watsonx.ai
 Responsible for:
 - AI/ML processing and experimentation
