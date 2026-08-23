@@ -65,6 +65,12 @@ cases/
 
 Note: caseId could be kept simple with iterative numbering (001, 002) or use generated ids.
 ```
+Considerations:
+- The original video should be kept seperate to processed versions
+- Case Id's need to be unique
+- The generated severity and transcriptis kept seperate, stored in analysis
+- Auditor decisions and assessment are kept seperate, stored in review.
+- case.json keeps track of all relevant details to the case, including its current status
 
 ### watsonx.ai
 Responsible for:
