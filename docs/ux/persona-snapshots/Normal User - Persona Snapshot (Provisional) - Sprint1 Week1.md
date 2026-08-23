@@ -16,9 +16,9 @@
 ---
 
 ### Background
-Casey is **27, works as a marketing coordinator, and lives in Melbourne.** She's an everyday, confident social-media user — active on Instagram and TikTok daily, comfortable with common app flows and mobile-first interactions — but has no technical background and isn't especially tech-savvy beyond that. Based on our research, this is the demographic the public-reporting flow should be designed around: an ordinary social-media user, not a technical or professional audience.
+Casey is **27, works as a marketing coordinator, and lives in Melbourne.** She's an everyday, confident social-media user — active on Instagram and TikTok daily, comfortable with common app flows and mobile-first interactions — but has no technical background and isn't especially tech-savvy beyond that. Based on our research, Casey is an ordinary, non-technical social-media user — one Normal User variant, not the definition of the whole public-reporting audience.
 
-Casey is a **concerned bystander**: she came across the flagged video content mid-scroll on social media — not searching for it, not personally targeted by it — and decided it needed reporting. She's reporting on behalf of the situation, not as someone directly harmed by the content herself. This is our working definition of "the public" for this platform; if the client later narrows this further, the persona gets revisited, but this is the team's confident starting point, not an open question we're waiting on them to answer.
+Casey is a **concerned bystander**: she came across the flagged video content mid-scroll on social media — not searching for it, not personally targeted by it — and decided it needed reporting. She's reporting on behalf of the situation, not as someone directly harmed by the content herself. Casey is one Normal User **variant**, alongside Marcus (directly affected) and Priya (reporting on behalf of someone else) — not a standalone definition of "the public." Of the three, she's the strongest fit with the original Week 1 concerned-bystander research; if the client later narrows the target audience further, all three variants get revisited together.
 
 ### Goals
 - Report the content quickly, without having to create an account or hand over personal details.
@@ -40,13 +40,13 @@ Casey is a **concerned bystander**: she came across the flagged video content mi
 3. Return later and use the case ID to check the case's status.
 
 ### Context of Use
-A single, spontaneous session on her phone, mid-scroll — Casey didn't plan to be here today. She arrives at the reporting flow moments after seeing the content, in a heightened emotional state rather than a calm, exploratory one. She wants the reporting step itself to be short; she will not tolerate friction like account creation. She'll likely check the status page once or twice afterward on the same phone, not repeatedly.
+A single, spontaneous session on her phone, mid-scroll — Casey didn't plan to be here today. She arrives at the reporting flow moments after seeing the content, in a heightened emotional state rather than a calm, exploratory one. She wants the reporting step itself to be short; she will not tolerate friction like account creation. As a deliberate team-defined characteristic for this scenario (not an inferred or observed behaviour), we're assuming she checks the status page on the same phone a small number of times afterward, rather than repeatedly.
 
 ### Constraints
-- No account/login — must be able to complete the entire flow anonymously (confirmed: UR-VU-02).
-- Sole recovery path for tracking is the case ID itself, unless she opts into email/SMS (deprioritised to Nice-to-Have in the requirements doc).
+- No account/login required to complete the flow (confirmed: UR-VU-02) — this confirms no account is required, not that the full flow is anonymous end-to-end.
+- The case ID is her main credential for tracking the case; Copy Case ID and local browser storage support retaining it (UR-ID-04, UR-ID-06, UR-ID-07), unless she opts into email/SMS (deprioritised to Nice-to-Have in the requirements doc). UR-ID-09 covers the specific warning before leaving the confirmation screen without saving it.
 - Comfortable everyday smartphone/app user, not tech-savvy beyond that — no familiarity assumed with terms like "case assignment" or "AI processing" (informs plain-language requirement UR-NFR-01).
-- Content sensitivity means UI must avoid re-traumatising Casey (e.g. no unprompted re-display of the reported content — see UR-NTH-06).
+- Content sensitivity: if her submitted content is ever displayed back to her, it should sit behind a content warning to avoid unnecessary re-exposure (UR-NTH-06) — this doesn't mean the content can never be shown again, only that it must be gated when it is.
 
 ### Illustrative Quote
 > *"I don't know if this is a big deal enough to report, but it didn't feel right. I just want to know someone's actually looking at it."*
@@ -58,17 +58,17 @@ A single, spontaneous session on her phone, mid-scroll — Casey didn't plan to 
 ## Assumptions & Validation Needed *(required per GStack Stage 3 + Planner acceptance criteria)*
 
 **Assumptions used:**
-- Casey represents a "concerned bystander" reading of "the public" — narrower than the full possible range the client may intend (see kickoff note flag below).
+- Casey represents a "concerned bystander" **variant** of the Normal User role — one of several reporting motivations now represented as separate personas (alongside Marcus and Priya), not a definition of "the public" itself.
 - Demographics (27, marketing coordinator, Melbourne, daily Instagram/TikTok user, non-technical) are a **team-defined working profile**, presented confidently per Emily Chin's 21 Aug guidance ("this is the demographic we are focused on") rather than left blank pending client input.
 - Emotional-state assumptions (anxiety, self-doubt, silent-middle distrust) come from Aleeya's own Week 1 research notes, which are themselves assumption-based, not from real user interviews.
 - The privacy/surveillance concern is carried over from Marielle Lee's expert opinion — one expert's view, not validated research.
-- Single-session, low-repeat usage pattern is inferred from the anonymous/no-account design, not observed.
+- Single-session, low-repeat usage pattern is a **team-defined characteristic** inferred from the no-account design, not an observed behaviour.
 
 **Still requires validation:**
 - No real reporters have been interviewed — every pain point above is a hypothesis.
-- Whether "concerned bystander" vs. "person reporting content that affects them directly" is the right split, or whether both need distinct personas, is unresolved and materially changes the emotional stakes involved.
+- The "concerned bystander" vs. "directly affected" split now exists as separate Casey/Marcus personas (plus Priya for third-party reporting); whether further sub-splits are needed, or whether these three fully cover "the public," remains open.
 - Actual tech-literacy range, device mix, and session behaviour are unknown.
-- Whether an ETA/status-notification design actually relieves the "silent middle" anxiety in practice. Per the 21 Aug 2026 Support Session decision (Emily Chin, Meeting No. 1), client-side interviews are ruled out (delay/penalty risk), so validation must come from a **synthetic AI-agent persona profile**, optionally benchmarked against public government reporting workflows (e.g. VicHealth), rather than real-user recruitment.
+- Whether an ETA/status-notification design actually relieves the "silent middle" anxiety in practice. Per the 21 Aug 2026 Support Session decision (Emily Chin, Meeting No. 1), client-side interviews are ruled out (delay/penalty risk), so the available route is a **synthetic AI-agent persona profile** used as a proxy to stress-test and refine these assumptions — not to validate real user behaviour — optionally benchmarked against public government reporting workflows (e.g. VicHealth).
 
 **If the client later clarifies a narrower target sub-group within "the public,"** this persona should be revisited — this note is carried over directly from the Week 1 research notes handover to Jana and still applies here.
 
@@ -76,5 +76,5 @@ A single, spontaneous session on her phone, mid-scroll — Casey didn't plan to 
 
 ### Traceability
 - Builds on: `Research User Persona` (Week 1) research notes and `Conduct Expert Interview` (Marielle Lee) synthesis.
-- Feeds into: `Normal User Requirements` (UR-NFR-01 plain-language/accessibility requirement, UR-ID-09 case-ID-loss warning, UR-ST-09 estimated timeframe, UR-NTH-06 content-warning re-display — all trace back to pain points 1–4 above).
+- Feeds into: `Normal User Requirements` — pain point 1 (trust at reporting) → UR-VU-04, UR-NFR-02; pain point 2 (case ID tether) → UR-ID-04, UR-ID-06, UR-ID-07, UR-ID-09; pain point 3 (silent middle) → UR-ST-02, UR-ST-09; pain point 4 (privacy/surveillance anxiety) → UR-NFR-02, UR-NTH-06.
 - **Action for UX:** add a one-line pointer to this persona snapshot in the Sprint 1 master proposal doc's persona/Target Users section, so it's discoverable.

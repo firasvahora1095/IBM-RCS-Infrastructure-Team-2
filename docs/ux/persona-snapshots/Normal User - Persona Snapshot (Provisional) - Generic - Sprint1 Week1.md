@@ -37,10 +37,10 @@ This persona represents **any member of the public** who arrives at the reportin
 A session on a personal device, arriving at the reporting flow after encountering the content rather than through planned, exploratory browsing. Session length is short and single-purpose: the reporting step itself needs to be quick, with low tolerance for friction such as account creation. The reporter will likely check the status page a small number of times afterward, not repeatedly.
 
 ### Constraints
-- No account/login — the entire flow must be completable anonymously (confirmed: UR-VU-02).
-- Case ID is the sole recovery path for tracking, unless the user opts into email/SMS (deprioritised to Nice-to-Have).
+- No account/login required to complete the flow (confirmed: UR-VU-02) — this confirms no account is required, not that the flow is anonymous end-to-end.
+- The case ID is the reporter's main credential for tracking the case; Copy Case ID and local browser storage support retaining it (UR-ID-04, UR-ID-06, UR-ID-07), unless the user opts into email/SMS (deprioritised to Nice-to-Have). UR-ID-09 covers the specific warning before leaving the confirmation screen without saving it.
 - Plain-language requirement (UR-NFR-01) — no familiarity assumed with terms like "case assignment" or "AI processing."
-- Content sensitivity requires avoiding unprompted re-display of reported content (UR-NTH-06).
+- Content sensitivity: if submitted content is ever displayed back to the reporter, it should sit behind a content warning rather than being shown unprompted (UR-NTH-06).
 
 ### Illustrative Quote
 > *"I don't need an account, and I don't need my name on it — I just want to know this gets looked at."*
@@ -61,11 +61,11 @@ A session on a personal device, arriving at the reporting flow after encounterin
 - No real reporters have been interviewed — every pain point above is a hypothesis.
 - Whether these goals, frustrations, and constraints hold once the Normal User role's more specific reporting motivations are fully scoped out in requirements — see the role's other dedicated personas for that detail.
 - Actual tech-literacy range, device mix, and session behaviour are unknown.
-- Per the 21 Aug 2026 Support Session ruling, real-user interviews are ruled out for this project; validation route is a synthetic AI-agent persona profile, consistent with the rest of the Normal User persona set.
+- Per the 21 Aug 2026 Support Session ruling, real-user interviews are ruled out for this project; the available route is a synthetic AI-agent persona profile, used as a proxy to stress-test and refine these assumptions rather than to validate real user behaviour, consistent with the rest of the Normal User persona set.
 
 ---
 
 ### Traceability
 - Builds on: `Research User Persona` (Week 1) research notes and `Conduct Expert Interview` (Marielle Lee) synthesis.
-- Feeds into: `Normal User Requirements` (UR-NFR-01, UR-ID-09, UR-ST-09, UR-NTH-06).
+- Feeds into: `Normal User Requirements` — pain point 1 (trust at reporting) → UR-VU-04, UR-NFR-02; pain point 2 (case ID tether) → UR-ID-04, UR-ID-06, UR-ID-07, UR-ID-09; pain point 3 (silent middle) → UR-ST-02, UR-ST-09; pain point 4 (privacy/surveillance anxiety) → UR-NFR-02, UR-NTH-06.
 - **Action for UX:** use this file (not any single specific persona) as the pointer in any document that needs one general Normal User reference — e.g. the master proposal document's Target Users section.
