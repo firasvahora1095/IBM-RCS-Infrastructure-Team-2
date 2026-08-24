@@ -20,7 +20,7 @@
 | :- | :---- | :---- |
 | 1 | 2–3 hypotheses documented and flagged for client validation | [Section 1 — Hypotheses Beyond the Confirmed Manager Baseline](#1-hypotheses-beyond-the-confirmed-manager-baseline) — 3 hypotheses, each with its reasoning stated for defending to Naresh |
 | 2 | Manager's core flow briefly mapped before wireframing | [Section 2 — Manager's Core Journey](#2-managers-core-journey--sos-flow-mapped-before-wireframing) — 6-stage SOS flow table, confirmed vs. team-designed status per stage |
-| 3 | Brief note on Manager's likely background/context | [Section 3 — Manager's Likely Background/Context](#3-managers-likely-backgroundcontext-brief-note) (Section 4 covers the Auditor's likely background/context as supporting grounding) |
+| 3 | Brief note on Manager's likely background/context | [Section 3 — Manager's Likely Background/Context](#3-managers-likely-backgroundcontext-brief-note) (the Auditor's likely background/context has moved to the companion `auditor-assumptions-note-sprint1-week2.md`) |
 | 4 | Master documents (requirements, architecture, or persona files, as applicable) updated to reflect this deliverable | All three Manager persona variants (Jordan, Reese, Sam) and the Manager Generic snapshot now cross-reference this note in their own Traceability sections |
 
 ---
@@ -72,12 +72,7 @@ The Manager sits one level above the Auditor day-to-day: typically promoted from
 
 ---
 
-## 4. Auditor's Likely Background/Context (Brief Note)
-
-The manager flow above exists to support a specific person having a specific experience, so it shouldn't be designed in isolation from that. In brief: an auditor works through a queue of AI-pre-processed cases against a daily exposure cap measured in time, with blur-by-default and a mandatory cooldown after high-severity exposure. They have a right to decline a case, but per our Week 1 auditor research they may not be confident that declining is genuinely judgment-free rather than a quietly-tracked performance signal, which matters directly for how a manager's declined-case reassignment and outcome-logging should be handled: treating a decline as a routine, expected outcome rather than something to scrutinise is central to the client's "wellbeing always wins" ruling. If the AI under-tags content and the auditor is unexpectedly exposed, SOS is their only confirmed recourse, and the auditor's motivation in that moment is an urgent need for visible, immediate acknowledgement that a human will follow up, not just confirmation that an email was sent somewhere. This is the emotional weight sitting behind the SOS flow above, and it's why Hypothesis 1's in-app urgent-state indicator is framed as closing a trust gap for the auditor, not just a manager convenience.
-
----
-
 ### Traceability
 - Feeds into: Manager Requirements (not yet drafted), Manager dashboard/SOS-inbox/report-review wireframes ("Sketch Manager Wireframe," Week 2).
+- The Auditor's likely background/context (formerly Section 4 here) now lives in the companion `auditor-assumptions-note-sprint1-week2.md`, where it grounds that document's own click-path mapping.
 - **Action for UX:** carry Hypotheses 1–3 into wireframing as the team's working design intention; be ready to walk Naresh through the reasoning if he asks, rather than waiting on his confirmation first.
