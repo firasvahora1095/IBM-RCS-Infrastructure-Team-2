@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.storage import verify_storage_connection
 
 app = FastAPI(title="IBM RCS Backend")
 
