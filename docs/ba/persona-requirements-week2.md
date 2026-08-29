@@ -14,7 +14,7 @@ Defines and consolidates the requirements for the Normal User, Auditor and Manag
 
 ![MVP Workflow Diagram](mvp-workflow-diagram.png)
 
-### MVP End-to-End Workflow Map
+### End-to-End Workflow Map
 
-![MVP End-to-End Workflow Map](end-to-end-workflow-map.png)
+![End-to-End Workflow Map](end-to-end-workflow-map.png)
 
