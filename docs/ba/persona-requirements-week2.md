@@ -8,10 +8,13 @@ Defines and consolidates the requirements for the Normal User, Auditor and Manag
 
 ## Workflow Diagrams
 
-### MVP End-to-End Workflow Map
-
-![MVP End-to-End Workflow Map](end-to-end-workflow-map.png)
+> **Current implementation focus:** The MVP workflow is the scope being developed in this sprint. The end-to-end workflow is included for broader system context and future-state reference only.
 
 ### MVP Workflow Diagram
 
 ![MVP Workflow Diagram](mvp-workflow-diagram.png)
+
+### MVP End-to-End Workflow Map
+
+![MVP End-to-End Workflow Map](end-to-end-workflow-map.png)
+
