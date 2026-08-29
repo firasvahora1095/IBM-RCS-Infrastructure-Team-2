@@ -1,2 +1,4 @@
 fastapi
 uvicorn[standard]
+ibm-cos-sdk
+python-dotenv
