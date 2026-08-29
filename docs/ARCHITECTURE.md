@@ -46,6 +46,33 @@ Responsible for:
 - Uploaded media
 - Processed artefacts
 
+Folder Structure:
+```
+cases/
+└── {caseId}/
+    ├── original/
+    │   └── video.mp4
+    ├── processed/
+    │   └── blur-greyscale-video.mp4
+    ├── metadata/
+    │   └── case.json
+    ├── analysis/
+    │   ├── transcript.json
+    │   └── severity-rating.json
+    └── review/
+        ├── assessment.json
+        └── decision.json
+
+Note: caseId will use generated ids rather than iterative numbering.
+```
+Considerations:
+- The original video should be kept seperate to processed versions
+- Case Id's need to be unique
+- The generated severity and transcriptis kept seperate, stored in analysis
+- Auditor decisions and assessment are kept seperate, stored in review
+- case.json keeps track of all relevant details to the case, including its current status
+- The folder structure may be updated to account for changes in the project
+
 ### watsonx.ai
 Responsible for:
 - AI/ML processing and experimentation
