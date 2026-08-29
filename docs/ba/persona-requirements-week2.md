@@ -2,7 +2,7 @@
 
 **Owner:** Janataarah Begum
 
-**Deliverable:** [Persona Requirements](https://docs.google.com/document/d/1VrQGkNYEAd849gMMxLy8atYuAYg6u3NAOvUbZnb-np4/edit?usp=sharing)
+**Deliverable:** [Persona Requirements](https://docs.google.com/document/d/1VrQGkNYEAd849qMMxLy8atYuAYg6u3NAOvUbZnb-np4/edit?usp=sharing)
 
 Defines and consolidates the requirements for the Normal User, Auditor and Manager personas, incorporating confirmed client decisions from the Week 1 session.
 
