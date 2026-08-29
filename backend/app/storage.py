@@ -21,3 +21,19 @@ def get_environment_variable(variable_name):
 
     return value
 
+
+def create_cos_client():
+    return ibm_boto3.client(
+        "s3",
+        ibm_api_key_id=get_environment_variable(
+            "IBM_CLOUD_API_KEY"
+        ),
+        ibm_service_instance_id=get_environment_variable(
+            "COS_INSTANCE_CRN"
+        ),
+        config=Config(signature_version="oauth"),
+        endpoint_url=get_environment_variable(
+            "COS_ENDPOINT"
+        )
+    )
+
