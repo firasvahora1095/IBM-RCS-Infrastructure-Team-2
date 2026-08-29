@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from app.storage import verify_storage_connection
 
 app = FastAPI(title="IBM RCS Backend")
@@ -18,6 +18,17 @@ def health():
         "status": "ok",
         "service": "ibm-rcs-backend"
     }
+
+
+@app.get("/storage-check")
+def storage_check():
+    try:
+        return verify_storage_connection()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Storage connection check failed"
+        ) from error
 
 
 @app.get("/api/reports/{case_id}")
