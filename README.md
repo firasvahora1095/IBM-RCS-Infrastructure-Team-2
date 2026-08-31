@@ -48,5 +48,5 @@ These technology choices may evolve as the project progresses.
 frontend/     Frontend application
 backend/      Backend services and assignment logic
 docs/         Architecture, requirements and technical documentation
-scripts/      Development and deployment utilities
+*/scripts/      Development and deployment utilities
 .github/      GitHub Actions workflows

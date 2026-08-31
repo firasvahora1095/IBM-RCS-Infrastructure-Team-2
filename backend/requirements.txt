@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+ibm-cos-sdk
+ibm-watson
+python-dotenv
