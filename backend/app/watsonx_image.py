@@ -55,3 +55,66 @@ def validate_image(image_data, content_type):
         raise ValueError(
             f"The file contents do not match {content_type}"
         )
+
+
+def analyse_image(image_file, content_type, prompt, client=None):
+    # clean and detect prompt
+    if not prompt or not prompt.strip():
+        raise ValueError("An image analysis prompt is required")
+
+    # read, validate and encode image
+    image_data = image_file.read()
+    validate_image(image_data, content_type)
+    encoded_image = encode_image(BytesIO(image_data))
+
+    # create and send the message to watsonx
+    if client is None:
+        client = create_watsonx_image_client()
+
+    model_id = get_environment_variable("WATSONX_VISION_MODEL_ID")
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt.strip(),
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": (
+                            f"data:{content_type};base64,{encoded_image}"
+                        )
+                    },
+                },
+            ],
+        }
+    ]
+
+    response = client.chat(
+        messages=messages,
+        params={
+            "max_tokens": 600,
+            "temperature": 0.2,
+        },
+    )
+
+    # extract response
+
+    try:
+        analysis = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as error:
+        raise RuntimeError(
+            "watsonx.ai returned an unexpected response"
+        ) from error
+
+    if not analysis:
+        raise RuntimeError("watsonx.ai returned an empty analysis")
+
+    return {
+        "model": model_id,
+        "analysis": analysis,
+        "raw_response": response,
+    }
