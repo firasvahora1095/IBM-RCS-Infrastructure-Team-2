@@ -47,3 +47,10 @@ python scripts/WATSON_STT_TEST.py <audio.file>
 
 Note: backend/scripts/stt_test.wav is included for testing purposes only.
 The test requires watson environment variables, network access and a supported audio file. A successful result prints the selected model, the combined transcript and Watson's original result.
+
+## For use in infrastructure
+
+There are multiple points that must be taken into consideration when using this code later in development:
+- .recognize() is synchronous. Live infrastructure should use .create_job() which is aysnc.
+- different models can be specified. Multimedia is the next generation and improves its accuracy in comparison to Large Test en-AU model. different english's can also be specified.
+- profanity filtering is enabled by default, so it must be specifically disabled when creating the client connection.
