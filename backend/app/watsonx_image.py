@@ -3,7 +3,11 @@ import os
 from io import BytesIO
 
 from ibm_watsonx_ai import Credentials
+from dotenv import load_dotenv
 from ibm_watsonx_ai.foundation_models import ModelInference
+
+
+load_dotenv()
 
 
 SUPPORTED_IMAGE_SIGNATURES = {
