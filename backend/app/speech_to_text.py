@@ -41,7 +41,8 @@ def transcribe(file, file_type):
         model=speech_model,
         smart_formatting=True,
         word_confidence=True,
-        timestamps=True
+        timestamps=True,
+        profanity_filter=False
     ).get_result()
 
     transcript_parts = []
