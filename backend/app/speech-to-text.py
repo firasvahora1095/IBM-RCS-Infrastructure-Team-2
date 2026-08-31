@@ -30,3 +30,33 @@ def create_stt_client():
     client.set_service_url(stt_service_url)
 
     return client
+
+def transcribe(file, file_type):
+    client = create_stt_client()
+    speech_model = get_environment_variable("SPEECH_TO_TEXT_MODEL")
+
+    response = client.recognize(
+        audio=file,
+        content_type=file_type,
+        model=speech_model,
+        smart_formatting=True,
+        word_confidence=True,
+        timestamps=True
+    ).get_result()
+
+    transcript_parts = []
+
+    for result in response.get("results", []):
+        alternatives = result.get("alternatives", [])
+
+        if alternatives:
+            transcript_parts.append(
+                # alternative 0 is the most confident version
+                alternatives[0].get("transcript", "").strip()
+            )
+
+    return {
+        "model": speech_model,
+        "transcript": " ".join(transcript_parts),
+        "results": response.get("results", []) 
+    }
