@@ -1,4 +1,6 @@
+import base64
 import os
+from io import BytesIO
 
 from ibm_watsonx_ai import Credentials
 from ibm_watsonx_ai.foundation_models import ModelInference
@@ -32,3 +34,24 @@ def create_watsonx_image_client():
         credentials=watsonx_credentials,
         project_id=get_environment_variable("WATSONX_PROJECT_ID"),
     )
+
+
+def encode_image(image_file):
+    image_data = image_file.read()
+
+    if not image_data:
+        raise ValueError("The image file is empty")
+
+    return base64.b64encode(image_data).decode("utf-8")
+
+
+def validate_image(image_data, content_type):
+    if content_type not in SUPPORTED_IMAGE_SIGNATURES:
+        raise ValueError("Only PNG and JPEG images are supported")
+
+    expected_signature = SUPPORTED_IMAGE_SIGNATURES[content_type]
+
+    if not image_data.startswith(expected_signature):
+        raise ValueError(
+            f"The file contents do not match {content_type}"
+        )
