@@ -23,7 +23,7 @@ Test | Expected Result | Result | Pass/Fail
 
 ## Watson STT
 ### 31st August 2026
-**Tester:** Dev 2 Aiden Brundell
+**Tester:** Dev 2 Aiden Brundell  
 **Tested file(s):** backend/app/speech_to_text.py, using backend/scripts/stt_test.wav
 
 Test | Expected Result | Result | Pass/Fail
@@ -53,4 +53,38 @@ Snippet of connection log:
               1.28,
               1.46
             ],
+```
+
+## Watsonx AI
+### 1st September 2026
+
+**Tester:** Dev 2 Aiden Brundell  
+**Tested file(s):** backend/app/watsonx_image.py, using backend/scripts/watsonx_image_test.jpg
+
+Test | Expected Result | Result | Pass/Fail
+- Image file reasoning | Uploads image file to watsonx and receives output | watsonx_image_test.jpg successfully uploaded and received output | Passed
+- Reasoning accuracy | Model reasoning clearly understands there is a blue circle, green triangle and yellow square as a benign test image | Model reasoning largely accurate to the image | Passed
+- Correct model | The model supplied in the environment file is used | LLama 4 Maverick used | Passed
+
+Snippet of connection log:
+
+```
+"model": "meta-llama/llama-4-maverick-17b-128e-instruct-fp8",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```json\n{\n  \"summary\": \"A simple graphic with three shapes: a blue circle, a yellow square, and a green triangle.\",\n  \"visible_objects\": [\"blue circle\", \"yellow square\", \"green triangle\"],\n  \"visible_text\": [\"BENIGN TEST IMAGE\", \"blue circle - yellow square - green triangle\"],\n  \"risk_indicators\": [],\n  \"requires_human_review\": false\n}\n```"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "created": 1788193263,
+    "model_version": "4.0.0",
+    "created_at": "2026-08-31T16:21:04.728Z",
+    "usage": {
+      "completion_tokens": 87,
+      "prompt_tokens": 858,
+      "total_tokens": 945
 ```
