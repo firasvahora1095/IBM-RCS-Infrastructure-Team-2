@@ -11,10 +11,10 @@ This document records the verification history of our infrastructure.
 Test | Expected Result | Result | Pass/Fail
 - Backend Health Endpoint | HTTP 200 with service status | HTTP 200 with {"status":"ok","service":"ibm-rcs-backend"} | Passed
 
-### 29th Agusut 2026  
+### 29th August 2026  
 
 **Tester:** Dev 2 Aiden Brundell  
-**Tested endpoint:** http://127.0.0.1:8000/
+**Tested endpoint:** http://127.0.0.1:8000/storage-check
 
 Test | Expected Result | Result | Pass/Fail
 - (Local) Backend COS object write | Backend uploads a testing object | Testing object uploaded | Passed
