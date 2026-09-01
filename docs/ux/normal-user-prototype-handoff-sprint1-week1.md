@@ -1,5 +1,5 @@
-> ⚠️ **PROVISIONAL — SEVERAL COPY/CATEGORY DECISIONS STILL OPEN**
-> This prototype implements the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` (owner: Janataarah Begum, BA). Status-stage wording, outcome categories, file limits, and retention duration are all flagged pending in that source doc and inherited here as **provisional** — see "Assumptions & Open Decisions" below before treating any specific number or category label as final.
+> ℹ️ **UPDATED FOR SPRINT 1 WEEK 2 — MOST OPEN ITEMS NOW CLOSED**
+> This prototype was built against the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` and has since been reconciled against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`. Status-stage wording, the format/duration baseline, and the data-retention rule are now closed decisions; only the exact wording of the second outcome category, the max raw-video file size, and the leave-without-saving mechanism remain genuinely open — see "Assumptions & Open Decisions" below.
 
 # Normal User Prototype — Handoff (Sprint 1, Week 1)
 
@@ -28,13 +28,25 @@ A visual-only pass — no new features, fields, screens, or copy changes to anyt
 - **Documentation clearly separated from shippable UI.** The per-screen "Requirements traced on this screen" panels and the floating "ALTERNATE STATE —" canvas labels used to sit right next to the real screens with nothing marking them as non-product. Kept the original white panel / IBM-blue requirement-ID chips as-is (that palette read well and there was no reason to change it) and added a single small dark "INTERNAL — NOT PART OF THE UI" tag above each panel heading, plus an "INTERNAL —" prefix on each floating alternate-state label. That's the only change — same familiar colours, now unambiguously marked as reference material rather than UI.
 - **Elevation audit.** Checked every Content Card and modal for consistent Carbon-style elevation (8px corner radius, subtle drop shadow). All of them already had it — no changes needed there.
 
+## Round 4 update (Sprint 2 Week 2 requirements reconciliation)
+
+A traceability-and-copy pass reconciling this prototype against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`, which closed or partially closed several items that were open when this file was first built. No new screens or top-level structure changes — same 3 screens, same 3-stage status model.
+
+- **Duration/size guidance corrected.** Screen 1's helper text previously read "Max length: 30 minutes (placeholder)," framing duration as a hard cap with a fabricated number. The Week 2 baseline confirms a ~10–15 minute **target** for Sprint 2 testing — explicitly *not* a hard maximum (UR-VU-07) — so the copy now states that target and drops the invented "2GB" file-size placeholder entirely in favour of an honest "to be confirmed with Dev" note, since no real number exists yet (a genuine Week 3 Dev follow-up).
+- **Status wording and outcome categories updated to closed/partially-closed.** UR-ST-02's "Received → Being Reviewed → Complete" wording is now closed and final, not pending. UR-ST-03 is partially closed: "No Violation Found" is now a confirmed literal outcome label; the exact wording of the second (action-taken) category is still open, and an escalated case is never shown as "Escalated" — it stays "Being Reviewed" until a final outcome exists. The outcome-preview mockup's disclaimer was rewritten accordingly.
+- **Two new NFRs traced.** UR-NFR-04 (encryption in transit/at rest) and UR-NFR-05 (case ID as a sensitive access token — no exposure via URL query strings, analytics, or logs) are new since the Week 1 baseline. UR-NFR-04 is satisfied by the existing "encrypted and securely processed" notice on Screen 1 (previously mistagged against UR-NFR-02/03 — corrected). UR-NFR-05 is documented as a new Dev-facing annotation on Screen 3a, following the same pattern already used for UR-ST-07's rate-limiting note.
+- **UR-VU-09 acknowledged.** This is a testing/QA requirement (validate the pipeline across varying video durations), not a UI element — added to the traceability table with an explicit "out of visual scope" note rather than leaving it silently absent.
+- **Data-retention rule closed.** UR-NFR-03 is now a settled provisional project rule (12 months post-closure, then eligible for deletion/de-identification), not a pending Week 2 decision. It remains correctly out of visual scope — no exact figure is shown to end users.
+- **Bug fix, not a requirement change:** the lock icon next to the Screen 1 encryption notice had a stray solid Blue 60 fill rendering as a plain blue square on a static, non-interactive element. Cleared the fill; the icon shapes underneath (already the correct neutral Gray 70) now render as intended.
+
 ## File structure
 
-The Figma file has 4 pages, matching the systemization pattern used on the team's Login Restyle reference file:
+The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
 1. **00 — Cover** — project title, flow description, pointers to the requirements doc and this handoff doc.
 2. **01 — Foundations** — every colour token actually used across the 3 screens as a swatch + token-name + token-meta row (with computed WCAG contrast ratios per pairing, not estimates), the type scale as spec+sample pairs, and an **Accessibility** section documenting tab order per screen, focus-state behaviour, and the colour-never-alone rule.
 3. **02 — Components** — real Figma component sets with named variants: `Button / Primary` (Default/Hover/Pressed/Focused/Disabled), `Button / Tertiary` (Default/Hover/Disabled), `Button / Ghost` (Default/Hover/Disabled), `Text Input` (Default/Focused/Filled/Error/Disabled), `Inline Notification` (Error/Warning/Success, each with a real nested `Icon Badge` instance), `Icon Badge` (Success/Warning/Error/Info — real vector glyphs, not text characters).
 4. **Normal User Prototype** — the 5 flow frames, built from **instances** of the components above (not one-off static shapes), plus on-canvas text annotations below each frame citing the requirement ID(s) each element satisfies — the same dev-note pattern originally used only on Screen 3c, now applied consistently across all 3 screens.
+5. **03 — Annotations & Handoff** — the design-rationale, requirement-traceability, accessibility-report, open-decisions, developer-handoff, and iteration-history panels consolidated onto their own page, off-canvas from the shippable screens.
 
 ## The 3 screens (5 frames total — Screen 3 covers 3 sub-states)
 
@@ -62,10 +74,11 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-VU-02 | Submit without an account | All screens | Included |
 | UR-VU-03 | Submission enters review without a content decision at intake | Screen 1 (system behaviour) | Included |
 | UR-VU-04 | Immediate confirmation or error on submit | Screen 1 → Screen 2 / inline error | Included |
-| UR-VU-05 | Support MP4/MOV/WEBM/AVI | Screen 1 helper text | Included — provisional, pending Dev confirmation |
+| UR-VU-05 | Support MP4/MOV/WEBM/AVI | Screen 1 helper text | Included — **closed**, final Sprint 2 baseline |
 | UR-VU-06 | Inform + guide on unsupported format | Screen 1 inline error | Included |
-| UR-VU-07 | Enforce max file size/duration | Screen 1 helper text | Included — provisional, pending Dev confirmation |
-| UR-VU-08 | Basic file-integrity validation | Screen 1 (system behaviour; surfaces via same error pattern) | Included |
+| UR-VU-07 | Target duration for Sprint 2 testing (~10–15 min, not a hard max); max file size TBD | Screen 1 helper text | Included — duration target **closed** (client-confirmed); max file size still open, Week 3 Dev follow-up |
+| UR-VU-08 | Basic file-integrity validation (malware scanning optional, not MVP) | Screen 1 (system behaviour; surfaces via same error pattern) | Included |
+| UR-VU-09 | Validate across varying video durations | — | Included by design omission — testing/QA requirement, not a UI element |
 | UR-ID-01 | Auto-generate unique case ID | Screen 2 (system behaviour) | Included |
 | UR-ID-02 | Display case ID immediately after submission | Screen 2 | Included |
 | UR-ID-03 | Case ID usable to retrieve case | Screen 3a | Included |
@@ -76,8 +89,8 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-ID-08 | Non-sequential, non-guessable case ID format | Screen 2 (ID string styled as random alphanumeric, not a counter) | Included |
 | UR-ID-09 | Warn before navigating away without saving | Screen 2 modal (annotated interaction) | Included — Nice-to-Have |
 | UR-ST-01 | Retrieve status using case ID | Screen 3a | Included |
-| UR-ST-02 | Update status through user-facing stages | Screen 3b, 3-step progress indicator | Included — wording ("Received → Being Reviewed → Complete") taken directly from the BA doc's own draft proposal, not invented |
-| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — placeholder copy, outcome categories pending Week 2 internal decision |
+| UR-ST-02 | Update status through user-facing stages | Screen 3b, 3-step progress indicator | Included — wording ("Received → Being Reviewed → Complete") is now **closed and final** for Sprint 2 |
+| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **partially closed**: "No Violation Found" is a confirmed literal label; the alternate action-taken category's exact wording is still open; "Escalated" is never shown as a public outcome |
 | UR-ST-04 | No auditor identity / internal logic exposed | Screen 3b (deliberately omitted) | Included |
 | UR-ST-05 | Email/SMS status updates | Screen 2, small opt-in field | Included — Nice-to-Have, genuinely functional (captures email/phone), styled small/secondary below the case ID |
 | UR-ST-06 | Secure link/code for email/SMS updates | Screen 2, opt-in field note | Included — Nice-to-Have, stated in copy ("we'll text or email you a secure one-time link"); actual token/link generation is a Dev implementation detail |
@@ -92,22 +105,26 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-NTH-06 | Content warning before re-displaying submitted content | — | Included by design omission — none of the 3 screens ever re-display the user's submitted content, so no warning mechanism is needed in this flow |
 | UR-NFR-01 | Plain language, screen-reader support, no colour-only status | All screens | Included |
 | UR-NFR-02 | Consent/privacy notice at submission | Screen 1 | Included |
-| UR-NFR-03 | Data-retention policy | — | Out of visual scope — policy decision pending Week 2, not a UI element |
+| UR-NFR-03 | Data-retention policy | — | Out of visual scope — **closed** as a provisional 12-month post-closure project rule; not a UI element |
+| UR-NFR-04 | Encryption in transit/at rest | Screen 1, encryption/security notice near Submit | Included — corrected from an earlier mistag against UR-NFR-02/03 |
+| UR-NFR-05 | Case ID treated as a sensitive access token (no exposure via URL/analytics/logs) | Screen 3a, Dev-facing annotation | Included as annotation — new requirement since Week 1, same treatment pattern as UR-ST-07 |
 
 ---
 
 ## Assumptions & Open Decisions (for the client)
 
-1. **Status-stage wording** (UR-ST-02) — used the BA doc's own draft proposal ("Received → Being Reviewed → Complete") verbatim. Not yet confirmed with the client as final.
-2. **Outcome categories** (UR-ST-03) — placeholder copy only; exact categories (e.g. Content Removed / No Violation Found / Escalated) are explicitly deferred to a Week 2 internal decision in the source doc.
-3. **File format/size limits** (UR-VU-05, UR-VU-07) — the proposed format list is shown as helper text; exact size/duration limits are left as "to be confirmed with Dev" copy since no number exists yet.
-4. **Data retention duration** (UR-NFR-03) — not surfaced in the UI; policy pending Week 2 review.
-5. **Leave-without-saving warning** (UR-ID-09) — modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.
-6. **Rate-limiting** (UR-ST-07) — annotated as a Dev-facing note on the not-found frame rather than built as a visible UI state, since the 5-attempts/15-minute logic is session/IP-driven backend behavior.
+1. **Status-stage wording** (UR-ST-02) — **CLOSED.** "Received → Being Reviewed → Complete" is now the confirmed, final wording for Sprint 2. No longer open for re-litigation without a scope conversation.
+2. **Outcome categories** (UR-ST-03) — **PARTIALLY CLOSED.** "No Violation Found" is now a confirmed public-facing outcome label. The exact wording of the alternate action-taken category is still open. "Escalated" must never be shown as a public outcome — an escalated case stays "Being Reviewed" until a final outcome exists.
+3. **File format / duration / size** (UR-VU-05, UR-VU-07) — **MOSTLY CLOSED.** Format list (MP4/MOV/WEBM/AVI) is now a final Sprint 2 baseline. Duration target of ~10–15 minutes is client-confirmed for Sprint 2 testing (not a hard maximum). Max file size remains OPEN — a Week 3 Dev follow-up for Firas/Aiden to validate through the real pipeline test.
+4. **Data retention duration** (UR-NFR-03) — **CLOSED** as a provisional project rule: retain closed case records for 12 months post-closure, then eligible for deletion/de-identification unless a legal/business need applies. Not a claim of legal mandate. Still not surfaced as an exact figure in the UI.
+5. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.
+6. **Rate-limiting** (UR-ST-07) — largely **CLOSED**. The BA doc now proposes a specific threshold (5 invalid attempts / 10 min → 15-minute lockout), annotated as a Dev-facing note on the not-found frame rather than built as a visible UI state. Dev may still adjust the exact numbers if needed.
+7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a.
 
 ---
 
 ### Traceability
-- Builds on: `Normal User Persona Requirements-BA.md` (Jana, BA) and the 4 persona snapshots in `/persona snapshots`.
+- Originally built on: `Normal User Persona Requirements-BA.md` (Jana, BA, Sprint 1 Week 1) and the 4 persona snapshots in `/persona snapshots`.
+- Reconciled as of Round 4 against: `Requirements-BA.md` (Jana, BA, Sprint 1 Week 2 — Final BA baseline for Sprint 2 handover), Normal User Requirements section.
 - IBM branding directive sourced from the 21 Aug 2026 non-tech support session minutes (Meeting No. 1, decision #4). "Design your own" directive sourced from the client Sprint 1 Q&A notes (Naresh Olladapu, Q11).
-- **Action for Dev:** treat the traceability table above as the build spec; anything marked Deferred is deliberately out of this sprint's scope, not an oversight.
+- **Action for Dev:** treat the traceability table above as the build spec; anything marked Deferred is deliberately out of this sprint's scope, not an oversight. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
