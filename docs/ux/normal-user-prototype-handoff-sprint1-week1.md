@@ -39,6 +39,14 @@ A traceability-and-copy pass reconciling this prototype against Jana's finalised
 - **Data-retention rule closed.** UR-NFR-03 is now a settled provisional project rule (12 months post-closure, then eligible for deletion/de-identification), not a pending Week 2 decision. It remains correctly out of visual scope — no exact figure is shown to end users.
 - **Bug fix, not a requirement change:** the lock icon next to the Screen 1 encryption notice had a stray solid Blue 60 fill rendering as a plain blue square on a static, non-interactive element. Cleared the fill; the icon shapes underneath (already the correct neutral Gray 70) now render as intended.
 
+## Round 5 update (housekeeping pass, cross-referenced against the Auditor prototype build)
+
+A small cleanup pass while building out the companion Auditor prototype file surfaced two loose ends in this file worth closing, plus one structural addition for parity between the two files' Handoff pages.
+
+- **Removed the untouched "Option 2" exploration.** Five frames re-exploring Screens 1/2/3a/3b/3c sat on the Prototype canvas with no documentation anywhere and no prototype links pointing to them — ambiguous whether they were a live alternate exploration or a stale leftover. Confirmed with Aleeya as stale; deleted outright.
+- **Bug fix, not a requirement change:** the "PREVIEW" badge on the outcome-preview mockup (Screen 3b, "what Complete looks like") had a static, non-interactive fill in Blue 60 — the same class of bug as Round 4's lock-icon fix, just missed that pass. Recoloured to neutral Gray 20 fill / Gray 70 text.
+- **Added a full per-ID traceability table directly on the Figma Handoff page** ("03 — Annotations & Handoff"), alongside the existing grouped-narrative traceability panel. Same 38 rows as the Traceability Table below, now visible on-canvas as well as in this doc — brought in for consistency with the equivalent table built into the new Auditor prototype file's own Handoff page.
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
@@ -46,7 +54,7 @@ The Figma file has 5 pages, matching the systemization pattern used on the team'
 2. **01 — Foundations** — every colour token actually used across the 3 screens as a swatch + token-name + token-meta row (with computed WCAG contrast ratios per pairing, not estimates), the type scale as spec+sample pairs, and an **Accessibility** section documenting tab order per screen, focus-state behaviour, and the colour-never-alone rule.
 3. **02 — Components** — real Figma component sets with named variants: `Button / Primary` (Default/Hover/Pressed/Focused/Disabled), `Button / Tertiary` (Default/Hover/Disabled), `Button / Ghost` (Default/Hover/Disabled), `Text Input` (Default/Focused/Filled/Error/Disabled), `Inline Notification` (Error/Warning/Success, each with a real nested `Icon Badge` instance), `Icon Badge` (Success/Warning/Error/Info — real vector glyphs, not text characters).
 4. **Normal User Prototype** — the 5 flow frames, built from **instances** of the components above (not one-off static shapes), plus on-canvas text annotations below each frame citing the requirement ID(s) each element satisfies — the same dev-note pattern originally used only on Screen 3c, now applied consistently across all 3 screens.
-5. **03 — Annotations & Handoff** — the design-rationale, requirement-traceability, accessibility-report, open-decisions, developer-handoff, and iteration-history panels consolidated onto their own page, off-canvas from the shippable screens.
+5. **03 — Annotations & Handoff** — the design-rationale, requirement-traceability (grouped narrative *and*, as of Round 5, a full per-ID table), accessibility-report, open-decisions, developer-handoff, and iteration-history panels consolidated onto their own page, off-canvas from the shippable screens.
 
 ## The 3 screens (5 frames total — Screen 3 covers 3 sub-states)
 
