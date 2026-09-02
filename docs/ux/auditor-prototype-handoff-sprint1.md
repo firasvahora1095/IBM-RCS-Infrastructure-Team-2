@@ -36,6 +36,25 @@ Both items flagged to Jana in Draft 1's "Assumptions & Open Decisions" have been
 
 - **AI Summary and Audio-intensity accordions added to the Review Workspace (4.3).** 4.2 stays the deliberate staging screen for first exposure — that structure is unchanged. But the context rail on 4.3 now has two more collapsible sections, alongside the existing Transcript accordion: **AI Summary** (the same narrative already established on 4.2) and **Audio intensity** (the same timestamped bar chart, resized to fit the rail). An Auditor can now recall either without leaving the workspace. Propagated to the two screens cloned from Review Workspace (Session-expired-reauth, Connection-lost) so neither silently missed the update.
 
+## Round 5 update (informed-choice gap at 4.1, consent checkbox, entities on 4.3)
+
+Four pieces of team feedback landed together, all really pointing at one underlying issue:
+
+> "It'd be nice to add more to warning for a more wellbeing focus, if it makes logical sense... we should add a feature to go back to previous page, or they should complete up to 4.2 then make the choice to proceed or decline... Also in this flow, we need more information before deciding to proceed or decline so auditor can make a reasonable choice. Right now, it literally just says 'Graphic Violence,' which doesn't give them enough context to pick reasons like 'Content more severe than AI indicated,' 'Personal trigger,' or 'Other'... Naresh's example had auditor rights too — [a checkbox reading approximately] 'I understand this video contains disturbing material. I am trained to review this content and I consent to proceed.' Was that also our requirement?... What is your design rationale for not adding incident timeline and flagged entities to 4.3 from 4.2? If no good design rationale, add it too."
+
+**The real finding, working through this carefully:** the Decline Reason Modal's own option list includes "Content more severe than AI indicated" — but that's only truthfully selectable if the Auditor has actually seen the AI's indication (severity tier + tags) *before* deciding. They hadn't — 4.1 showed only the flag-reason line. This was a genuine internal-consistency gap, not a stylistic nitpick, and it's the same root cause behind the first two points of feedback.
+
+**What changed, with reasoning for each:**
+
+- **Added severity tier + CVI + detected-tag pills to 4.1** (`physical_violence`, `weapon_present`, etc.) — categorical/abstract classification only, not narrative description or raw content, so it doesn't cross the line `AR-PV-07`/Marielle Lee's guidance protects. This closes the internal-consistency gap and directly answers the "not enough context" and "more wellbeing focus" feedback in one change. Tagged `[UX/BA judgment call]` — no `AR-*` ID mandates tags specifically at this screen.
+- **Did not add a back/dismiss option at 4.1, and did not move the decision point past 4.2** (the two options offered). Reasoning: a back/dismiss path would reintroduce exactly the implicit-default escape hatch `AR-PV-02` and the "no backdrop dismiss, no X" decision were built to avoid — Decline already *is* the exit-without-proceeding path. Moving the decision point past the narrative-summary screen isn't necessary once severity+tags are visible at 4.1, and would delay `AR-AI-02`'s "narrative summary only after a deliberate proceed" gate for no remaining reason.
+- **Added the consent checkbox**, informed by Naresh's own reference example — confirmed absent from `docs/ba/persona-requirements-week2.md`, so tagged `[UX/BA judgment call]`, not `[FINAL]`. Gates **Proceed only**, never Decline: requiring "consent to review" before declining would be logically backwards, and adding friction only to the exposure path (never the exit path) is consistent with `AR-WB-08` (wellbeing takes precedence), not in tension with it.
+- **Added Flagged entities to 4.3's context rail.** Honest answer: there wasn't a good rationale for excluding them — added using the same recall-tier reasoning already applied to AI Summary/Audio intensity last round. Incident timeline, by contrast, **is** already on 4.3 — the scrubber marker ticks overlaid on the video — just not visually labeled as "the incident timeline," which is worth saying plainly rather than adding a redundant list.
+- **Defined the three-tier "what shows where" criteria**, now documented on the Handoff page's Design rationale section:
+  - **Tier 1 (4.1, before Proceed/Decline):** category/severity metadata only — flag reason, S-tier + CVI, tags. No narrative, no raw content.
+  - **Tier 2 (4.2, after Proceed, before raw content):** full AI output, shown fresh for the first and only time — narrative summary, incident timeline (labeled list), entities, transcript, audio-intensity graph.
+  - **Tier 3 (4.3, during review):** raw video + everything from Tier 2 available for recall, never fresh disclosure.
+
 ---
 
 ## File structure
@@ -115,7 +134,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-AI-02 | Narrative summary before raw-content review | AI Analysis Summary; Review Workspace (recall, collapsible AI Summary accordion) | Included |
 | AR-AI-03 | Incident timeline with timestamps | AI Analysis Summary; Review Workspace | Included |
 | AR-AI-04 | Timeline marks every flagged incident, no minimum duration | AI Analysis Summary | Included |
-| AR-AI-05 | Flagged entities linked to timestamps | AI Analysis Summary | Included |
+| AR-AI-05 | Flagged entities linked to timestamps | AI Analysis Summary; Content Warning Modal (tag pills, classification only); Review Workspace (recall) | Included |
 | AR-AI-06 | Transcript + audio-intensity graph | AI Analysis Summary; Review Workspace (transcript + collapsible audio-intensity accordion) | Included |
 | AR-AI-07 | Auditor may override CVI; comment required if changed | Severity Adjustment & Comment | Included |
 | AR-AI-08 | Both AI and Auditor-adjusted values stored | Severity Adjustment & Comment; Submission Confirmation | Included |
@@ -132,9 +151,9 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-WB-07 | Unexpected exposure logs, applies protections, emails Manager | SOS Trigger & Confirmation; AI/STT Failure State (mid-review variant) | Included |
 | AR-WB-08 | Wellbeing outranks moderation speed | Reflected throughout — most explicitly Cooldown, SOS, Exposure Limit Reached | Included |
 | AR-WB-09 | SOS pauses playback, returns to protected state, requires new Proceed to resume | SOS Trigger & Confirmation | Included |
-| AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); AI Analysis Summary; Cooldown Screen | Included |
+| AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); Content Warning Modal (S-tier + CVI); AI Analysis Summary; Cooldown Screen | Included |
 | AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state) | Included — review-block window value still open, see below |
-| AR-WB-15 | Worst-tier-wins whole-case severity | Dashboard (severity tag); AI Analysis Summary | Included |
+| AR-WB-15 | Worst-tier-wins whole-case severity | Dashboard (severity tag); Content Warning Modal; AI Analysis Summary | Included |
 | AR-WB-16 (Nice-to-Have) | Optional, low-friction wellbeing check-in, distinct from SOS | Wellbeing Check-in (illustrative); entry points at Review Workspace and Cooldown Screen | Included |
 | AR-DF-01 | Auditor may decline instead of proceeding | Content Warning Modal (Decline path) | Included |
 | AR-DF-02 | Declined case routes directly to Manager, no auto-reassignment | Decline Confirmation | Included |
