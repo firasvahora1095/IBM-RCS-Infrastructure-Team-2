@@ -87,6 +87,13 @@ Team feedback surfaced two real problems: "how do you get to 5.2 Wellbeing Check
 - **5.4 Exposure Limit Reached (At-limit)'s header exposure bar was visually wrong.** Its text correctly read "120 / 120 min today" and its fill color had been changed to warning-yellow, but the fill's *width* was still the shared placeholder value every other screen uses (~52%, matching "62/120") — so it displayed as roughly half-full while claiming to be at the cap. Fixed to render fully filled.
 - **Found a real Blue-60-interactive-only violation, across every other screen.** The persistent header's exposure `ProgressBar` fill is a purely decorative status indicator, not clickable — but it was built using interactive Blue 60, the exact rule this file has enforced everywhere else. Fixed at the `ProgressBar/Exposure` master component level and swept across all 17 screen instances, recoloured to Support Info Blue 70 — close enough in hue that it doesn't read as a visual change, but now semantically correct.
 
+## Round 10 update (re-synced against the latest Requirements-BA-FINAL.md)
+
+Re-checked this file against Jana's current requirements doc to confirm nothing drifted. Every `AR-*` ID cited in Rounds 6–9 (`AR-PV-08`, `AR-AI-12`/`13`/`14`, `AR-WB-16`) still matches exactly — no changes needed there.
+
+- **New: "Staff Access & Authentication" (`SR-SA-01`–`05`)**, added by Jana since this file's screens were built. Not finalised yet (exact staff access method still "to be confirmed") — per Aleeya's direction, **not built this round**. Logged as item 6 under Assumptions & Open Decisions below, to be designed once Jana closes it out.
+- **Minor:** `AR-AI-09`'s Notes column now has an added clarification tying standard-case submission to `MR-CR-06` (no active Manager approval needed) — this doesn't change how this file traces `AR-AI-09`, just adds confirming context. Also noticed a stray trailing character in that same Note (".xf") in Jana's file — not ours to fix, flagged to her directly rather than silently worked around.
+
 ---
 
 ## File structure
@@ -205,6 +212,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 3. **Login lockout threshold** — exact failed-attempt count and lockout duration not yet specified; `AR-AS-06` explicitly defers this to a later security spec. The Locked-out screen uses illustrative copy only.
 4. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User file's `UR-VU-07`). Affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget.
 5. **No companion Manager Figma file exists yet.** Every screen in this file that describes a Manager-side destination — "moved to your manager's review queue" (Submission Confirmation), "notified your manager" (SOS), "your manager will review it directly" (Decline Confirmation) — is copy-only; there's nothing to click through to on the Manager side yet. `MR-OV-*`, `MR-SOS-*`, and `MR-CR-*` all remain unbuilt in Figma.
+6. **New "Staff Access & Authentication" requirements (`SR-SA-01`–`05`) — not yet built.** Jana added this section to `docs/ba/persona-requirements-week2.md` after this file's screens were already built. It formalises a separate staff portal, login, role-based restriction, and sign-out for both Auditor and Manager — generalising what `AR-AS-06` already covered for the Auditor specifically. **Not finalised** (`SR-SA-01`'s own Notes say the exact access method is still "to be confirmed"), so no screens have been changed for it yet. [3.1 Login](#31-login) as built still only satisfies `AR-AS-06`, not the newer staff-portal-separation/role-restriction/sign-out requirements. Genuinely **OPEN**, to be designed once Jana finalises the wording.
 
 ---
 
