@@ -30,6 +30,12 @@ Both items flagged to Jana in Draft 1's "Assumptions & Open Decisions" have been
 - **`docs/ba/persona-requirements-week2.md` cross-reference bug — RESOLVED.** `AR-WB-16` and `MR-SOS-07` now correctly point at each other in both directions.
 - **Severity-scale doc contradiction — RESOLVED.** The conflicting "no tag imposes a hard floor" statement is gone, replaced by one consistent rule, and the floor mechanic is now unambiguous (raises the numeric CVI to 65, not just the displayed tier — closing one of the two gaps originally flagged). One item remains genuinely open, not a new problem: the confidence/qualification mechanism for "credible" `weapon_use` detection is still TBD with Aiden.
 
+## Round 4 update (team feedback incorporated)
+
+> Team feedback: "having 4.2 as a separate staging step for the psychological buffer is great, but I think that content should also be accessible on screen 4.3 alongside the video — similar to what Naresh showed us. Right now, 4.3 feels a bit too sparse, and if auditors want to re-check the AI narrative summary or audio graph while reviewing the footage, they currently have no way to access them."
+
+- **AI Summary and Audio-intensity accordions added to the Review Workspace (4.3).** 4.2 stays the deliberate staging screen for first exposure — that structure is unchanged. But the context rail on 4.3 now has two more collapsible sections, alongside the existing Transcript accordion: **AI Summary** (the same narrative already established on 4.2) and **Audio intensity** (the same timestamped bar chart, resized to fit the rail). An Auditor can now recall either without leaving the workspace. Propagated to the two screens cloned from Review Workspace (Session-expired-reauth, Connection-lost) so neither silently missed the update.
+
 ---
 
 ## File structure
@@ -106,11 +112,11 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-PV-06 | Independent audio mute | Review Workspace | Included |
 | AR-PV-07 | Content revealed only after deliberate proceed | Content Warning Modal → Review Workspace (blur slider is the deliberate reveal act) | Included |
 | AR-AI-01 | Display AI severity/CVI rating | AI Analysis Summary; Severity Adjustment & Comment | Included |
-| AR-AI-02 | Narrative summary before raw-content review | AI Analysis Summary | Included |
+| AR-AI-02 | Narrative summary before raw-content review | AI Analysis Summary; Review Workspace (recall, collapsible AI Summary accordion) | Included |
 | AR-AI-03 | Incident timeline with timestamps | AI Analysis Summary; Review Workspace | Included |
 | AR-AI-04 | Timeline marks every flagged incident, no minimum duration | AI Analysis Summary | Included |
 | AR-AI-05 | Flagged entities linked to timestamps | AI Analysis Summary | Included |
-| AR-AI-06 | Transcript + audio-intensity graph | AI Analysis Summary; Review Workspace | Included |
+| AR-AI-06 | Transcript + audio-intensity graph | AI Analysis Summary; Review Workspace (transcript + collapsible audio-intensity accordion) | Included |
 | AR-AI-07 | Auditor may override CVI; comment required if changed | Severity Adjustment & Comment | Included |
 | AR-AI-08 | Both AI and Auditor-adjusted values stored | Severity Adjustment & Comment; Submission Confirmation | Included |
 | AR-AI-09 | Auditor submits assessment to Manager queue | Submission Confirmation | Included |
