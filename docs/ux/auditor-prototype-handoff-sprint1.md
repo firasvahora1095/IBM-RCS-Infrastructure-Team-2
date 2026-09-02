@@ -1,5 +1,5 @@
 > ℹ️ **DRAFT 1 — SPRINT 1 WEEK 3**
-> This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 42 `AR-*` IDs in `Requirements-BA-FINAL.md` are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
+> This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 42 `AR-*` IDs in [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA) are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
 
 # Auditor Prototype — Handoff (Sprint 1, Week 3)
 
@@ -127,16 +127,16 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 
 ## Assumptions & Open Decisions (for the team)
 
-1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`Requirements-BA-FINAL.md` Week 3 follow-up #6). Still **OPEN**.
+1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**.
 2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — open pending Aiden's real pipeline schema. The Week 3 severity-scale working doc proposes a narrow `weapon_use` → S3 floor (`OD-03`), but that directly contradicts the same doc's `TAG-02` ("no individual tag shall impose a hard minimum floor") — **flagged to Jana**, needs resolution before Dev builds either version.
 3. **Login lockout threshold** — exact failed-attempt count and lockout duration not yet specified; `AR-AS-06` explicitly defers this to a later security spec. The Locked-out screen uses illustrative copy only.
 4. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User file's `UR-VU-07`). Affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget.
-5. **`Requirements-BA-FINAL.md` cross-reference bug** — `AR-WB-16`'s Notes column points to a Manager-side "MR-WB-01" that doesn't exist anywhere else in the document; `MR-SOS-07`'s Notes column points to an Auditor-side "AR-WB-17" that also doesn't exist. Both almost certainly should read `AR-WB-16` ↔ `MR-SOS-07`. **Flagged to Jana directly** — not something this Figma file can fix, since it's a BA-doc-owned correction.
+5. **`docs/ba/persona-requirements-week2.md` cross-reference bug** — `AR-WB-16`'s Notes column points to a Manager-side "MR-WB-01" that doesn't exist anywhere else in the document; `MR-SOS-07`'s Notes column points to an Auditor-side "AR-WB-17" that also doesn't exist. Both almost certainly should read `AR-WB-16` ↔ `MR-SOS-07`. **Flagged to Jana directly** — not something this Figma file can fix, since it's a BA-doc-owned correction.
 6. **No companion Manager Figma file exists yet.** Every screen in this file that describes a Manager-side destination — "moved to your manager's review queue" (Submission Confirmation), "notified your manager" (SOS), "your manager will review it directly" (Decline Confirmation) — is copy-only; there's nothing to click through to on the Manager side yet. `MR-OV-*`, `MR-SOS-*`, and `MR-CR-*` all remain unbuilt in Figma.
 
 ---
 
 ### Traceability
-- Built from: `auditor-prototype-plan.md` (Aleeya Ahmad, UX — reviewed and signed off by Jana Begum, BA, 1 Sep 2026), itself built on `Requirements-BA-FINAL.md` (Jana Begum, BA) and the `docs/ux/auditor-assumptions-note-sprint1-week2.md` research note in this repo.
-- All 42 `AR-*` IDs in `Requirements-BA-FINAL.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
+- Built from: `auditor-prototype-plan.md` (Aleeya Ahmad, UX — reviewed and signed off by Jana Begum, BA, 1 Sep 2026), itself built on `docs/ba/persona-requirements-week2.md` (Jana Begum, BA) and the `docs/ux/auditor-assumptions-note-sprint1-week2.md` research note in this repo.
+- All 42 `AR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
