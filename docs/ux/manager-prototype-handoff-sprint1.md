@@ -1,0 +1,135 @@
+> ℹ️ This is the first full build of the Manager prototype, from a planning document (`manager-prototype-plan.md`, Aleeya Ahmad, UX) built on `Requirements-BA-FINAL.md` (Jana Begum, BA). All 22 `MR-*` IDs are traced. The client explicitly declined to demo the Manager role and told the team to design it from imagination, so this file carries more `[UX judgment call]` decisions than the Auditor file — each one is called out below, not silently absorbed. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft.
+
+# Manager Prototype — Handoff (Sprint 1, Week 3)
+
+**Track:** Design / Product · **Sprint:** Sprint 1, Week 3 · **Owner:** Aleeya Ahmad (UX)
+**Figma file:** [RCS Manager Prototype — Sprint 1](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse)
+**Planning source:** `manager-prototype-plan.md` (Aleeya Ahmad, UX — built on `Requirements-BA-FINAL.md`, Jana Begum, BA)
+
+---
+
+## What this is
+
+A clickable Figma prototype of the Manager (oversight lead) flow: exposure/workload monitoring across roughly ten Auditors, SOS alert response, and declined-case reassignment. Unlike the Auditor's single linear click-path, the Manager's flow is fundamentally **a dashboard the Manager returns to repeatedly**, with independent sub-flows branching off it rather than one start-to-finish journey — Oversight, SOS, Case Review/Reassignment, and Exceptional Raw-Content Access. The design principle carried over unchanged from the Auditor file: wellbeing outranks moderation speed (`MR-OV-06`, `MR-CR-05`) — the Manager makes almost every routine decision from structured AI/Auditor context, **without needing to view raw harmful content by default**.
+
+No real Managers were interviewed for this project — the client deliberately left the role undesigned as a genuine gap, not an oversight — so the three working postures behind this design (Jordan: reactive/incident-centred, Reese: proactive/oversight-centred, Sam: reassignment-and-fairness-centred) are a team-defined working hypothesis, not validated fact. Reese's calm, glanceable "default working register," punctuated only occasionally by the urgent register Jordan's SOS persona lives in, is the reasoning behind keeping SOS alerts visually loud and routine wellbeing check-ins deliberately quiet — the same screen shouldn't ask the Manager to context-switch into "emergency mode" for something that isn't one.
+
+Built on IBM Carbon Design System (v11) tokens throughout — the same token set as the Auditor file, reused directly rather than hand-reconstructed, to guarantee visual consistency across the two prototypes. Blue 60 is reserved exclusively for interactive/actionable elements — never applied to static text, badges, or non-interactive decoration.
+
+**Platform assumption:** standard responsive web application, desktop-first (1280px-wide build canvas, following Carbon's 16-column grid), not mobile-first — the requirements doc doesn't mandate a device, same assumption as the Auditor file.
+
+---
+
+## Build & self-review notes (pre-Draft-1 QA)
+
+Before this draft went to the team, it went through the same kind of review pass the Auditor file received across its Round 2–13 iterations — done in one internal sweep here since there's no team feedback yet to respond to round-by-round. Documented honestly so the team can see what's already been checked, not just what's being asked about:
+
+- **No dead ends — full click-graph audit.** Every screen's actual wired `reactions` were catalogued, not just visual appearance. Found and fixed one real dead end: Login — Error state's "Log in" button had zero wired reactions; wired it to Dashboard, simulating a successful retry after correcting credentials. Login — Locked-out correctly has **no** wired action — the button is disabled during lockout, which is accurate security behaviour, not a gap.
+- **Accessibility — two real WCAG 2.2 AA contrast failures found and fixed.** (1) Warning-yellow (`#f1c21b`) used as raw text fill on white background in four places — measured ~1.7:1, badly failing the 4.5:1 minimum. Fixed by switching to Gray 100 text; the colour-coding is still conveyed via the adjacent Tag/chip component, consistent with the file's "colour is never the sole signal" principle. (2) The Header's "Sign out" link used interactive Blue 60 text on the dark Gray 100 header background — Blue 60 is calibrated for light backgrounds (5.04:1 on white) but only ~3.49:1 on dark Gray 100, failing 4.5:1. Fixed at the `Header=Manager` master component (propagates everywhere): white text + underline instead of colour-only signalling.
+- **InlineNotification contrast — two further failures found on top of the above**, since this file inherited the component by direct reuse from the Auditor file: Success-tone and Error-tone prefix text used their accent colour on a pale tint background, measuring ~3.0:1 and ~4.28:1 respectively. Fixed at the master component and at every individual instance already placed on real screens (Login Error, Login Locked-out, both 6A.2 edge-case screens) — master-level propagation alone did not reach existing instances. The same fix was carried back to the source Auditor file, since it inherited the bug there too (see the Auditor handoff doc's Round 13 entry).
+- **Row-highlight contrast convention.** The flagged-row background on Case Oversight (Gray 20, `#e0e0e0`) numerically passed WCAG AA (~13:1) but is conventionally reserved for borders/disabled states in Carbon, not full-row highlight tints — too heavy a wash regardless of passing contrast math. Lightened to Gray 10 (`#f4f4f4`); still clearly distinguishable via the tint + left-accent bar + flag chip together.
+- **Button hierarchy — one Primary per screen, with one documented exception.** Auditor Detail's exposure-limit and break-request actions both started as Primary buttons. Resolved to **Approve = Primary, Save limit = Secondary** — Approve (responding to an actual pending break request) is the action a Manager landing on this screen right now is more likely to have come to complete, versus Save limit, a routine/optional admin task not necessarily needed on any given visit. "Primary action" here means the action that completes the user's current goal, not necessarily the one named in the screen's title. Content Warning Modal's Proceed/Decline (5.4a) is a deliberate, justified exception — both genuinely equal-weight per `AR-PV-02`'s "genuine choices" requirement, not an oversight.
+- **Back-navigation, added where justified, mirroring the Auditor file's `AR-AI-13` pattern.** Added an explicit "← Back to SOS Alert Detail" tertiary button on SOS Acknowledge & Follow-up (previously the only way back was a breadcrumb that jumped past the immediate previous step straight to SOS Inbox), and "← Back to Case Review Detail" on Reassignment Action, near the decision panel — justified because the Manager may be mid-way through the Auditor-selection dropdown and want to recheck the decline comment. Two intentional exceptions, verified against the same Auditor-file precedent rather than assumed: the Exceptional Raw-Content Access AI Analysis Summary screen (5.4b) has no back-link, mirroring the Auditor file's own considered Round 5 decision not to add one at the equivalent full-disclosure screen (avoids a re-disclosure loophole); the Content Warning Modal (5.4a) has no back/dismiss, since Decline itself *is* the exit-without-proceeding path.
+- **Sign-out wiring completeness.** "Sign out" is baked into the `Header=Manager` master component, so it's visually present on every header-bearing screen — but an initial pass had only wired the click reaction on the screens built up to that point in the session, leaving 7 screens built afterward with a Sign out link that looked clickable but did nothing. A full-file interactive-element audit (not just spot checks) found and fixed all 7; all 14 header-bearing screens now navigate to Login on sign-out.
+- **No emoji.** A full scan across all five pages confirmed zero emoji-range characters; the Search and Overflow-menu icons are real vector glyphs, not text-character stand-ins.
+
+---
+
+## File structure
+
+The Figma file has 5 pages, matching the same systemization pattern used on the Auditor and Normal User files:
+
+1. **00 — Cover** — project title, scope, flow summary, and pointers to the plan/requirements docs and this handoff doc.
+2. **01 — Foundations** — the same Carbon token set as the Auditor file, carried over directly: 16 colours (interactive Blue 60, grayscale, 4 support/status colours, 4 severity-tier colours), 9 spacing values (Carbon 2×Grid), 9 text styles (IBM Plex Sans/Mono productive type ramp).
+3. **02 — Components** — the Auditor file's real component library, reused directly, plus Manager-specific additions: Button (Primary/Secondary/Tertiary/Danger), Tag (S1–S4 severity + Info/Success/Warning/Error status), InlineNotification (4 tones), ProgressBar (exposure indicator), Toggle, IconButton, blur-intensity Slider, RadioButton, TextArea, SOS Button, Header/UIShell (Manager variant, persistent nav + exposure/oversight indicator), Modal shell, DataTable row, Breadcrumb, the Requirements Panel annotation component — plus new Manager-only components: `TopNav` (5 tabs: Dashboard / Case Oversight / SOS Inbox / Reassignment Queue / Validation), `OverflowMenu`, `Search`, `Filter`, `SOSBanner` (persistent, urgent-tone), and a lightweight Carbon-token `ValidationBarChart` (built as a `DataTable` + CSS bars, not the separate `@carbon/charts` library, per the plan's own resolved decision to keep the dependency footprint light).
+4. **03 — Prototype** — 19 screens/states across 4 build phases plus 1 documentation-only reference frame (20 built frames total), each with its own on-canvas Requirements Panel directly below it — same annotation convention as the Auditor and Normal User files. Fully click-linked as a Figma prototype, flow starting point set to Login.
+5. **04 — Handoff** — Design rationale, Open Decisions, a full 22-row `MR-*` traceability matrix, an Accessibility report, and a Handoff-for-the-developer section, consolidated onto their own page, off-canvas from the shippable screens. (No separate Iteration History section yet, since this is Draft 1 — that section will be added once team-feedback rounds begin, matching the Auditor file's own convention.)
+
+---
+
+## The screens (19 screens/states, Login + 4 build phases)
+
+**Login:**
+1. **Login** — Default, Error (invalid credentials), and Locked-out states — shared Login/auth pattern with the Auditor file.
+
+**Phase M1 — Oversight core:**
+2. **Oversight Dashboard** — Auditors under this Manager's oversight, exposure progress bars, Under/Approaching/At-limit visual states, active-cooldown rows.
+3. **Auditor Detail** — per-Auditor drill-down: exposure/limit summary, individually adjustable exposure limit, recent activity, pattern-flagged marker, embedded Wellbeing Check-in section (routine check-ins + break requests, distinct from SOS).
+4. **Consolidated Case Oversight** — broader case-level visibility across all Auditors, with flagged (SOS/Declined) rows visually distinguished, search/filter.
+
+**Phase M2 — SOS:**
+5. **SOS Alert Banner** *(documentation reference frame, not a standalone screen — the banner itself is a persistent element retrofitted onto Dashboard/Auditor Detail/Case Oversight/SOS Inbox)*.
+6. **SOS Inbox** — unacknowledged, acknowledged-in-progress, and resolved SOS events in one queue.
+7. **SOS Alert Detail** — exposure/case/AI-severity context for the affected Auditor, without requiring raw source-video viewing, Acknowledge action.
+8. **SOS Acknowledge & Follow-up** — follow-up note + structured outcome options, logs the response.
+
+**Phase M3 — Case review & reassignment:**
+9. **Case Review Detail** — AI-output panel, Auditor assessment/comment, decline reason, entry point into the reassignment decision.
+10. **Declined/Reassignment Queue** — declined cases awaiting a Manager decision; deliberately **no** aggregated per-Auditor decline-count column (`MR-CR-04`/`AR-DF-03` no-scrutiny principle).
+11. **Reassignment Action** — inline SLA/exposure context for the declining Auditor and candidate Auditors, Reassign-vs-No-reassignment decision panel, low-prominence escape-hatch link to exceptional raw-content access.
+12. **Exceptional Raw-Content Access — Content Warning Modal** — adapted from the Auditor file's own screen, same protections, Manager-appropriate framing.
+13. **Exceptional Raw-Content Access — AI Analysis Summary** — adapted, header swapped to Manager.
+14. **Exceptional Raw-Content Access — Review Workspace** — adapted; SOS button, wellbeing check-in link, and live exposure counter deliberately **removed** (none apply to a Manager's own rare exceptional-viewing session — the plan's resolved decision explicitly rules out an exposure counter/cap here).
+15. **Validation View** — AI pipeline output vs. manually labelled ground truth on the project's synthetic/staged validation set, with a mandatory placeholder/mock-data banner and a text-equivalent panel for the bar chart.
+
+**Phase M4 — Edge cases:**
+16. **Session-expired-reauth** — in-context modal over a paused SOS Follow-up form (preserves in-progress notes, not blur/grayscale state — the Manager equivalent isn't reviewing raw content by default).
+17. **Exposure limit save fails** — InlineNotification error state, entered value retained, retry action.
+18. **Reassignment target unavailable** — InlineNotification error state ("this Auditor is no longer available — please choose another").
+
+*(18 named screens above; Login's 3 states bring the total to the 19 stated at the top of this section — see the Figma file's own screen list for the exact count, plus the 1 documentation-only SOS Banner reference frame.)*
+
+---
+
+## Design system tokens used
+
+- **Colour:** Blue 60 `#0f62fe` (interactive-only — buttons, links, active slider fill/handle, focus states). Gray 10/20/30/50/70/100 (backgrounds, borders, text). Support colours: Red 60 (error), Green 50 (success), Yellow 30 (warning, paired with Gray 100 text), Blue 70 (info, and the exposure ProgressBar's decorative fill — deliberately not interactive Blue 60, since it isn't clickable). Severity tiers: S1 Gray 20, S2 Yellow 30, S3 Carbon Orange 40 `#ff832b`, S4 Red 60 — same resolved palette as the Auditor file.
+- **Type:** IBM Plex Sans (UI text — Regular/Medium/SemiBold), IBM Plex Mono (case IDs, raw CVI numbers, matching Carbon's `code-01`/`code-02` convention).
+- **Spacing/grid:** Carbon 8px 2×Grid (2–48px range), 16-column responsive grid for dashboard/queue layouts.
+- **Component fidelity:** real Carbon-pattern components throughout (see Components page), reused directly from the Auditor file's own component set rather than hand-reconstructed, plus the Manager-only additions listed under File structure above.
+- **Accessibility:** colour is never the sole status signal (every severity tag/notification pairs colour with text/icon; flagged Case Oversight rows pair tint with a left-accent bar and flag chip); the exposure ProgressBar uses Support Info Blue 70, not interactive Blue 60; Sign-out on the dark header uses white text + underline rather than colour alone. Full detail on the Handoff page's Accessibility report and the Build & self-review notes above.
+
+---
+
+## Traceability Table
+
+| ID | Requirement | Screen | Status |
+|---|---|---|---|
+| MR-OV-01 | Dashboard shows Auditors under oversight + workload/exposure info | Oversight Dashboard | Included |
+| MR-OV-02 | Exposure progress indicator per Auditor | Oversight Dashboard | Included |
+| MR-OV-03 | Active cooldown status + remaining time, where applicable | Oversight Dashboard (cooldown-active row) | Included |
+| MR-OV-04 | Manager sets/adjusts individual Auditor exposure limit | Auditor Detail | Included |
+| MR-OV-05 | Visually distinguish comfortably-below / approaching / at limit | Oversight Dashboard (3-state colour system, Approaching = 75%, At Limit = 100%) | Included |
+| MR-OV-06 | Broader role-based visibility than Auditors | Oversight Dashboard; Consolidated Case Oversight | Included |
+| MR-OV-08 | Distinct validation view vs. live oversight, AI output vs. ground truth | Validation View | Included — placeholder/mock data explicitly labelled; pass/fail threshold open, see below |
+| MR-SOS-01 | SOS notifies Manager, event available for follow-up | SOS Inbox; SOS Alert Detail | Included |
+| MR-SOS-02 | Unexpected exposure triggers an email notification to the Manager | — | Included by design omission (background/system behaviour, not a distinct visible screen) |
+| MR-SOS-03 | Unresolved SOS appears as a visually urgent in-app banner | SOS Banner (persistent, on Dashboard/Auditor Detail/Case Oversight/SOS Inbox) | Included |
+| MR-SOS-04 | Manager acknowledges SOS, records follow-up begun | SOS Alert Detail (Acknowledge); SOS Acknowledge & Follow-up | Included |
+| MR-SOS-05 | SOS view shows exposure/case context without requiring raw video by default | SOS Alert Detail | Included |
+| MR-SOS-06 | Manager follows up with the affected Auditor | SOS Acknowledge & Follow-up | Included |
+| MR-SOS-07 (Nice-to-Have) | View an Auditor-raised wellbeing check-in/break request, distinct from SOS | Auditor Detail (embedded Wellbeing Check-in section) | Included |
+| MR-CR-01 | Review AI output, Auditor assessment/comments, adjusted severity/CVI | Case Review Detail | Included |
+| MR-CR-02 | Declined case appears in Manager review/reassignment queue | Declined/Reassignment Queue | Included |
+| MR-CR-03 | Decide reassignment using comments, exposure/SLA info, AI output | Reassignment Action | Included |
+| MR-CR-04 (Nice-to-Have) | Queue displays structured decline reason + optional comments | Declined/Reassignment Queue | Included |
+| MR-CR-05 | Routine reassignment decisions possible without viewing raw footage | Case Review Detail; Reassignment Action | Included |
+| MR-CR-06 | Standard (no SOS/Decline) cases auto-progress to Complete, no active Manager approval; remain visible in consolidated view | Consolidated Case Oversight (2 example rows) | Included |
+| MR-CR-07 | Reassignment workflow remains lower implementation priority | — | Priority/sequencing note, not a screen-level requirement |
+| MR-CR-08 | Exceptional Manager raw-content access passes through the same content-warning/exposure protections as an Auditor | Exceptional Raw-Content Access (Content Warning Modal / AI Analysis Summary / Review Workspace, adapted from the Auditor file) | Included |
+
+---
+
+## Assumptions & Open Decisions (for the team)
+
+1. **Login lockout threshold** — exact failed-attempt count and lockout duration not yet specified, same open item as the Auditor file's shared Login pattern. The Locked-out screen uses illustrative copy only.
+2. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User and Auditor files' own open item). Relevant here specifically for Exceptional Raw-Content Access, the one real path where a Manager might view a full raw video.
+3. **"Staff Access & Authentication" requirements (`SR-SA-01`–`05`).** `SR-SA-01` (dedicated staff URL, organisation-provisioned) and `SR-SA-05` (secure sign-out) are both built — see the Build & self-review notes above. `SR-SA-02`–`04` (require auth before the portal, restrict functionality by role, block public self-registration) remain **OPEN** as distinct Dev-implementation items: this prototype satisfies them structurally (Login gates every screen; no sign-up link exists anywhere; `MR-OV-06`'s broader role-based visibility covers the role-scoping principle) but none of the three has its own dedicated UI beyond that, consistent with them being backend/session concerns rather than additional screens — same framing as the Auditor file's equivalent item.
+4. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, pending real pipeline results. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data is explicitly labelled as such, per the plan's own non-negotiable instruction not to present a preliminary figure (including any 90% recall candidate) as an adopted requirement.
+
+---
+
+### Traceability
+- Built from: `manager-prototype-plan.md` (Aleeya Ahmad, UX), itself built on `Requirements-BA-FINAL.md` (Jana Begum, BA) and the `docs/ux/manager-assumptions-note-sprint1-week2.md` / `docs/ux/research-notes-manager-persona-week1.md` research notes in this repo.
+- All 22 `MR-*` IDs in `Requirements-BA-FINAL.md` are accounted for above — none silently dropped; `MR-CR-07` is a priority/sequencing note, not a screen-level requirement, and `MR-SOS-02` is a background/system-behaviour requirement with no distinct screen, both flagged as such rather than omitted.
+- **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.

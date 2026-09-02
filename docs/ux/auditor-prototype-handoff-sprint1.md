@@ -1,5 +1,4 @@
-> ℹ️ **DRAFT 1 — SPRINT 1 WEEK 3**
-> This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 46 `AR-*` IDs in [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA) are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
+> ℹ️ This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 46 `AR-*` IDs in [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA) are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
 
 # Auditor Prototype — Handoff (Sprint 1, Week 3)
 
