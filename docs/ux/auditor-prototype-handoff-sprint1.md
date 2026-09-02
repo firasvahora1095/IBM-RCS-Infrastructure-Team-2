@@ -94,6 +94,14 @@ Re-checked this file against Jana's current requirements doc to confirm nothing 
 - **New: "Staff Access & Authentication" (`SR-SA-01`–`05`)**, added by Jana since this file's screens were built. Not finalised yet (exact staff access method still "to be confirmed") — per Aleeya's direction, **not built this round**. Logged as item 6 under Assumptions & Open Decisions below, to be designed once Jana closes it out.
 - **Minor:** `AR-AI-09`'s Notes column now has an added clarification tying standard-case submission to `MR-CR-06` (no active Manager approval needed) — this doesn't change how this file traces `AR-AI-09`, just adds confirming context. Also noticed a stray trailing character in that same Note (".xf") in Jana's file — not ours to fix, flagged to her directly rather than silently worked around.
 
+## Round 11 update (6.1 reauth modal — security/UX review)
+
+Asked directly whether the Session-expired-reauth modal (6.1) was a sound security/UX decision. The core idea — preserving blur/grayscale/mute state rather than treating an idle timeout as a fresh content-reveal decision — holds up well. Two real gaps found and fixed:
+
+- **No visible label, no stated identity.** The password field previously showed only placeholder dots, and the one thing that would have implied whose password it wanted (the persistent header) sits behind the modal's own 55%-opacity scrim. Added a "Password" label and rewrote the copy to explicitly read "...to continue as [Name]."
+- **No decline path.** A password-only reauth that can't be refused assumes the same physical person is still at the device — not a safe assumption if someone else has since sat down. Added a "Not you? Log out" link, routing to the full Login screen.
+- **Flagged, not built (this is a static prototype):** this modal is a second password-entry surface and needs to share Login's Locked-out/failed-attempt protection — it must never ship as a separate, unprotected login path. Noted directly in the Requirements Panel and the plan document for Dev's attention.
+
 ---
 
 ## File structure
