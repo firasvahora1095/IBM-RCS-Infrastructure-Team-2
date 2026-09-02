@@ -55,7 +55,7 @@ Raised as an open question while building out the Auditor prototype: nothing def
 
 - **Updated the outcome-preview mockup's own annotation and Screen 3b's Requirements panel** to state the now-defined mechanism explicitly, rather than leaving "how is this decided" unaddressed. No visible copy on Screen 3b itself changed — the two possible outcome labels were already correct; this closes the *mechanism* question behind them.
 - **Narrowed the Open Decisions panel's `UR-ST-03` item** from "partially closed" to "mechanism now closed" — the only thing still open is the exact wording of the second (action-taken) outcome category.
-- On the Auditor side, this is implemented as a new **Final case outcome** selector on the Severity Adjustment & Comment screen (`AR-AI-14`) — see `auditor-prototype-handoff-sprint1.md`'s Round 6 update for the full picture, including a flagged `AR-AI-14` ID-reuse issue worth Jana's confirmation.
+- On the Auditor side, this is implemented as a new **Final case outcome** selector on the Severity Adjustment & Comment screen (`AR-AI-14`) — see `auditor-prototype-handoff-sprint1.md`'s Round 6/Round 7 updates for the full picture. The `AR-AI-14` ID-reuse concern flagged in Round 6 is now resolved: Jana restored the displaced audit-history requirement under `AR-AI-12`, so no content was lost.
 
 ## File structure
 
