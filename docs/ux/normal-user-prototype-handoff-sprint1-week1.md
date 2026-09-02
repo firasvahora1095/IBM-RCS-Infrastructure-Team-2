@@ -47,6 +47,16 @@ A small cleanup pass while building out the companion Auditor prototype file sur
 - **Bug fix, not a requirement change:** the "PREVIEW" badge on the outcome-preview mockup (Screen 3b, "what Complete looks like") had a static, non-interactive fill in Blue 60 — the same class of bug as Round 4's lock-icon fix, just missed that pass. Recoloured to neutral Gray 20 fill / Gray 70 text.
 - **Added a full per-ID traceability table directly on the Figma Handoff page** ("03 — Annotations & Handoff"), alongside the existing grouped-narrative traceability panel. Same 38 rows as the Traceability Table below, now visible on-canvas as well as in this doc — brought in for consistency with the equivalent table built into the new Auditor prototype file's own Handoff page.
 
+## Round 6 update (Auditor-to-Normal-User outcome mechanism closed)
+
+Raised as an open question while building out the Auditor prototype: nothing defined how an Auditor's assessment maps to what a reporting user actually sees on completion. Jana closed it directly in `docs/ba/persona-requirements-week2.md`, updating `UR-ST-03`:
+
+> "The system shall display the final public-facing outcome of the submitted report when the case reaches Complete. For standard cases with no SOS or Decline flag, the public-facing outcome shall be derived from the Auditor's submitted final case outcome." Notes: "Internal severity/CVI, Auditor comments and Auditor identity shall not be exposed to the Normal User. The exact positive public-facing outcome label remains to be confirmed."
+
+- **Updated the outcome-preview mockup's own annotation and Screen 3b's Requirements panel** to state the now-defined mechanism explicitly, rather than leaving "how is this decided" unaddressed. No visible copy on Screen 3b itself changed — the two possible outcome labels were already correct; this closes the *mechanism* question behind them.
+- **Narrowed the Open Decisions panel's `UR-ST-03` item** from "partially closed" to "mechanism now closed" — the only thing still open is the exact wording of the second (action-taken) outcome category.
+- On the Auditor side, this is implemented as a new **Final case outcome** selector on the Severity Adjustment & Comment screen (`AR-AI-14`) — see `auditor-prototype-handoff-sprint1.md`'s Round 6 update for the full picture, including a flagged `AR-AI-14` ID-reuse issue worth Jana's confirmation.
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
@@ -98,7 +108,7 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-ID-09 | Warn before navigating away without saving | Screen 2 modal (annotated interaction) | Included — Nice-to-Have |
 | UR-ST-01 | Retrieve status using case ID | Screen 3a | Included |
 | UR-ST-02 | Update status through user-facing stages | Screen 3b, 3-step progress indicator | Included — wording ("Received → Being Reviewed → Complete") is now **closed and final** for Sprint 2 |
-| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **partially closed**: "No Violation Found" is a confirmed literal label; the alternate action-taken category's exact wording is still open; "Escalated" is never shown as a public outcome |
+| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **mechanism now closed** (2 Sep 2026): for standard cases, derived from the Auditor's own final-case-outcome selection at submission (`AR-AI-14`); "No Violation Found" is a confirmed literal label; the alternate action-taken category's exact wording is still open; "Escalated" is never shown as a public outcome |
 | UR-ST-04 | No auditor identity / internal logic exposed | Screen 3b (deliberately omitted) | Included |
 | UR-ST-05 | Email/SMS status updates | Screen 2, small opt-in field | Included — Nice-to-Have, genuinely functional (captures email/phone), styled small/secondary below the case ID |
 | UR-ST-06 | Secure link/code for email/SMS updates | Screen 2, opt-in field note | Included — Nice-to-Have, stated in copy ("we'll text or email you a secure one-time link"); actual token/link generation is a Dev implementation detail |
@@ -122,7 +132,7 @@ All frames are wired with real Figma prototype connections (click reactions), no
 ## Assumptions & Open Decisions (for the client)
 
 1. **Status-stage wording** (UR-ST-02) — **CLOSED.** "Received → Being Reviewed → Complete" is now the confirmed, final wording for Sprint 2. No longer open for re-litigation without a scope conversation.
-2. **Outcome categories** (UR-ST-03) — **PARTIALLY CLOSED.** "No Violation Found" is now a confirmed public-facing outcome label. The exact wording of the alternate action-taken category is still open. "Escalated" must never be shown as a public outcome — an escalated case stays "Being Reviewed" until a final outcome exists.
+2. **Outcome categories** (UR-ST-03) — **MECHANISM NOW CLOSED (2 Sep 2026).** For standard cases (no SOS/Decline flag), the outcome is derived directly from the Auditor's own final-case-outcome selection at submission (`AR-AI-14`). "No Violation Found" is now a confirmed public-facing outcome label. Still **OPEN**: the exact wording of the alternate action-taken category. "Escalated" must never be shown as a public outcome — an escalated case stays "Being Reviewed" until a final outcome exists.
 3. **File format / duration / size** (UR-VU-05, UR-VU-07) — **MOSTLY CLOSED.** Format list (MP4/MOV/WEBM/AVI) is now a final Sprint 2 baseline. Duration target of ~10–15 minutes is client-confirmed for Sprint 2 testing (not a hard maximum). Max file size remains OPEN — a Week 3 Dev follow-up for Firas/Aiden to validate through the real pipeline test.
 4. **Data retention duration** (UR-NFR-03) — **CLOSED** as a provisional project rule: retain closed case records for 12 months post-closure, then eligible for deletion/de-identification unless a legal/business need applies. Not a claim of legal mandate. Still not surfaced as an exact figure in the UI.
 5. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.

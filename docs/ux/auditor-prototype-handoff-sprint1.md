@@ -55,6 +55,16 @@ Four pieces of team feedback landed together, all really pointing at one underly
   - **Tier 2 (4.2, after Proceed, before raw content):** full AI output, shown fresh for the first and only time — narrative summary, incident timeline (labeled list), entities, transcript, audio-intensity graph.
   - **Tier 3 (4.3, during review):** raw video + everything from Tier 2 available for recall, never fresh disclosure.
 
+## Round 6 update (Auditor-to-Normal-User outcome mechanism closed)
+
+Raised as an open question last round: nothing defined how an Auditor's assessment maps to what the Normal User actually sees on completion. Jana closed it directly in `docs/ba/persona-requirements-week2.md`:
+
+> `AR-AI-14`: "The Auditor shall select a final case outcome as part of submitting a standard completed assessment. For cases with no SOS or Decline flag, this outcome shall determine the public-facing result and the case shall automatically progress to Complete. Internal severity/CVI, comments and Auditor details shall not be displayed to the Normal User."
+
+- **Added a Final case outcome selector to Severity Adjustment & Comment (4.4)** — two options ("No Violation Found" / the still-unconfirmed second category, reusing the Normal User file's own illustrative placeholder rather than inventing a new label), separate from the CVI/severity control. Noted this only applies to standard (no SOS/Decline) cases — a flagged case's outcome is still decided by the Manager per `MR-CR-06`.
+- **Submission Confirmation (4.8)** now records the selected outcome in the "What was recorded" summary and states the automatic-progression-to-Complete rule explicitly.
+- **Flagged an ID-reuse issue to Jana, not silently absorbed:** `AR-AI-14` previously meant the timestamped audit-history requirement ("preserve a timestamped audit history of changes to AI-generated severity/CVI assessments, Auditor overrides, comments and case-status changes"). That content is gone from `docs/ba/persona-requirements-week2.md` now, not renumbered elsewhere — Jana appears to have reused the ID rather than assigned a new one. Logged under Needs Team Review on the Handoff page pending her confirmation either way.
+
 ---
 
 ## File structure
@@ -141,7 +151,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-AI-09 | Auditor submits assessment to Manager queue | Submission Confirmation | Included |
 | AR-AI-10 | AI/STT pre-screen failure → max blur, explicit failure state, deliberate choice | AI/STT Failure State | Included |
 | AR-AI-11 | Mid-review AI/STT failure treated as unexpected exposure | AI/STT Failure State (mid-review variant, treated as SOS-equivalent) | Included |
-| AR-AI-14 | Timestamped audit history of severity/override/comment/status changes | Severity Adjustment; Submission Confirmation (data-handling requirement, not a distinct visible screen) | Included as annotation |
+| AR-AI-14 | Auditor selects a final case outcome for standard (no SOS/Decline) cases — determines the public-facing result (`UR-ST-03`) | Severity Adjustment & Comment (selector); Submission Confirmation (recorded in summary) | Included — ⚠️ ID reused, see Round 6 note above |
 | AR-WB-01 | Track daily exposure time, display progress | Header exposure indicator, all screens; Dashboard; Review Workspace (per-case breakdown) | Included |
 | AR-WB-02 | 120-minute default daily cap | Header exposure indicator | Included |
 | AR-WB-03 | At-limit blocks further normal assignment | Exposure Limit Reached | Included |
@@ -171,6 +181,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 4. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User file's `UR-VU-07`). Affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget.
 5. ~~`docs/ba/persona-requirements-week2.md` cross-reference bug~~ — **RESOLVED (2 Sep 2026).** `AR-WB-16` and `MR-SOS-07` previously pointed at IDs that didn't exist ("MR-WB-01" / "AR-WB-17"); Jana corrected both directions, they now match cleanly.
 6. **No companion Manager Figma file exists yet.** Every screen in this file that describes a Manager-side destination — "moved to your manager's review queue" (Submission Confirmation), "notified your manager" (SOS), "your manager will review it directly" (Decline Confirmation) — is copy-only; there's nothing to click through to on the Manager side yet. `MR-OV-*`, `MR-SOS-*`, and `MR-CR-*` all remain unbuilt in Figma.
+7. **`AR-AI-14` ID reuse — needs Jana's confirmation.** This ID previously meant the timestamped audit-history requirement; her 2 Sep 2026 update replaced it with the new final-case-outcome requirement under the same ID, and the audit-history content is now gone from `docs/ba/persona-requirements-week2.md`, not renumbered elsewhere. Worth confirming whether that was intentional or whether audit-history needs a new ID of its own.
 
 ---
 
