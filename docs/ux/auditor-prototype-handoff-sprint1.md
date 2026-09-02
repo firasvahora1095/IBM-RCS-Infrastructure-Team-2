@@ -19,6 +19,12 @@ Built on IBM Carbon Design System (v11) tokens throughout. Blue 60 is reserved e
 
 ---
 
+## Round 2 update (team feedback incorporated)
+
+- **Mute/unmute icon clarity.** Team feedback on Draft 1: the audio mute/unmute `IconButton` on the Review Workspace was a plain coloured dot — nothing about it read as an audio control. Rebuilt both states as a real speaker glyph: **Muted** now shows the speaker with an X; **Unmuted** shows the speaker with sound-wave arcs. Fixed once at the master component level (`02 — Components`), so it propagated automatically to every instance across the file (Review Workspace, Session-expired-reauth, Connection-lost).
+
+---
+
 ## File structure
 
 The Figma file has 5 pages, matching the same systemization pattern used on the Normal User Prototype file:
