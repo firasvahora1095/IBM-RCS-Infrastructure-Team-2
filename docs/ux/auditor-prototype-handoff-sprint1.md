@@ -78,6 +78,15 @@ A pass over the "all IDs accounted for" claim turned up two `AR-*` IDs that exis
 
 Both are now in the Traceability table below. The "all IDs accounted for" count is corrected from 42 to 46 — the true total in `docs/ba/persona-requirements-week2.md`.
 
+## Round 9 update (5.2 wired into the click-through; a leftover AR-WB-17 citation fixed; 5.4 exposure-bar bug fixed)
+
+Team feedback surfaced two real problems: "how do you get to 5.2 Wellbeing Check-in, and why is there no way back?", and "5.4's exposure bar says at-limit but only shows half full."
+
+- **5.2 Wellbeing Check-in was completely disconnected from the prototype.** Despite the Traceability table claiming "entry points at Review Workspace and Cooldown Screen," neither actually had a click reaction wired to it — it was an isolated illustrative frame with zero incoming or outgoing connections. Wired Review Workspace's (4.3) "Something about this one? Talk to your manager" text to navigate to 5.2 on click, and added a "← Return to Review Workspace" link on 5.2 back to 4.3. (No equivalent link exists on the Cooldown Screen (5.1) — its only wellbeing-adjacent element is the S4-mandatory check-in, which the plan document explicitly says is a *different* thing from this optional check-in, so nothing there was wired.) Updated the on-canvas documentation captions on 5.2 accordingly, since they used to say this screen was "not a screen the Auditor navigates to... shown here standalone for documentation purposes" — no longer accurate.
+- **Found a leftover `AR-WB-17` citation** on 5.2's own Requirements Panel — the ID-reuse correction made earlier this session (Jana confirmed the check-in is `AR-WB-16`, not `AR-WB-17`) never reached this specific panel. Corrected.
+- **5.4 Exposure Limit Reached (At-limit)'s header exposure bar was visually wrong.** Its text correctly read "120 / 120 min today" and its fill color had been changed to warning-yellow, but the fill's *width* was still the shared placeholder value every other screen uses (~52%, matching "62/120") — so it displayed as roughly half-full while claiming to be at the cap. Fixed to render fully filled.
+- **Found a real Blue-60-interactive-only violation, across every other screen.** The persistent header's exposure `ProgressBar` fill is a purely decorative status indicator, not clickable — but it was built using interactive Blue 60, the exact rule this file has enforced everywhere else. Fixed at the `ProgressBar/Exposure` master component level and swept across all 17 screen instances, recoloured to Support Info Blue 70 — close enough in hue that it doesn't read as a visual change, but now semantically correct.
+
 ---
 
 ## File structure
@@ -180,7 +189,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); Content Warning Modal (S-tier + CVI); AI Analysis Summary; Cooldown Screen | Included |
 | AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state) | Included — review-block window value still open, see below |
 | AR-WB-15 | Worst-tier-wins whole-case severity | Dashboard (severity tag); Content Warning Modal; AI Analysis Summary | Included |
-| AR-WB-16 (Nice-to-Have) | Optional, low-friction wellbeing check-in, distinct from SOS | Wellbeing Check-in (illustrative); entry points at Review Workspace and Cooldown Screen | Included |
+| AR-WB-16 (Nice-to-Have) | Optional, low-friction wellbeing check-in, distinct from SOS | Wellbeing Check-in; real click-through entry point at Review Workspace, with a return path back | Included |
 | AR-DF-01 | Auditor may decline instead of proceeding | Content Warning Modal (Decline path) | Included |
 | AR-DF-02 | Declined case routes directly to Manager, no auto-reassignment | Decline Confirmation | Included |
 | AR-DF-03 | Structured decline reason + optional free text, no default | Decline Reason Modal | Included |
