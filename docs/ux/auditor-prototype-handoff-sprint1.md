@@ -23,6 +23,13 @@ Built on IBM Carbon Design System (v11) tokens throughout. Blue 60 is reserved e
 
 - **Mute/unmute icon clarity.** Team feedback on Draft 1: the audio mute/unmute `IconButton` on the Review Workspace was a plain coloured dot — nothing about it read as an audio control. Rebuilt both states as a real speaker glyph: **Muted** now shows the speaker with an X; **Unmuted** shows the speaker with sound-wave arcs. Fixed once at the master component level (`02 — Components`), so it propagated automatically to every instance across the file (Review Workspace, Session-expired-reauth, Connection-lost).
 
+## Round 3 update (BA-doc fixes verified and incorporated)
+
+Both items flagged to Jana in Draft 1's "Assumptions & Open Decisions" have been fixed on her side and verified directly against the actual files — see the updated status on items 2 and 5 below.
+
+- **`docs/ba/persona-requirements-week2.md` cross-reference bug — RESOLVED.** `AR-WB-16` and `MR-SOS-07` now correctly point at each other in both directions.
+- **Severity-scale doc contradiction — RESOLVED.** The conflicting "no tag imposes a hard floor" statement is gone, replaced by one consistent rule, and the floor mechanic is now unambiguous (raises the numeric CVI to 65, not just the displayed tier — closing one of the two gaps originally flagged). One item remains genuinely open, not a new problem: the confidence/qualification mechanism for "credible" `weapon_use` detection is still TBD with Aiden.
+
 ---
 
 ## File structure
@@ -134,10 +141,10 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 ## Assumptions & Open Decisions (for the team)
 
 1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**.
-2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — open pending Aiden's real pipeline schema. The Week 3 severity-scale working doc proposes a narrow `weapon_use` → S3 floor (`OD-03`), but that directly contradicts the same doc's `TAG-02` ("no individual tag shall impose a hard minimum floor") — **flagged to Jana**, needs resolution before Dev builds either version.
+2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — **partially resolved (2 Sep 2026).** Jana fixed the severity-scale doc's internal contradiction: a qualifying `weapon_use` detection applies a minimum S3 floor, and if the model's original CVI is below 65 it's now explicitly raised to 65 so the tier and numeric score stay consistent. Still **OPEN**: the exact confidence/qualification mechanism for "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output.
 3. **Login lockout threshold** — exact failed-attempt count and lockout duration not yet specified; `AR-AS-06` explicitly defers this to a later security spec. The Locked-out screen uses illustrative copy only.
 4. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User file's `UR-VU-07`). Affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget.
-5. **`docs/ba/persona-requirements-week2.md` cross-reference bug** — `AR-WB-16`'s Notes column points to a Manager-side "MR-WB-01" that doesn't exist anywhere else in the document; `MR-SOS-07`'s Notes column points to an Auditor-side "AR-WB-17" that also doesn't exist. Both almost certainly should read `AR-WB-16` ↔ `MR-SOS-07`. **Flagged to Jana directly** — not something this Figma file can fix, since it's a BA-doc-owned correction.
+5. ~~`docs/ba/persona-requirements-week2.md` cross-reference bug~~ — **RESOLVED (2 Sep 2026).** `AR-WB-16` and `MR-SOS-07` previously pointed at IDs that didn't exist ("MR-WB-01" / "AR-WB-17"); Jana corrected both directions, they now match cleanly.
 6. **No companion Manager Figma file exists yet.** Every screen in this file that describes a Manager-side destination — "moved to your manager's review queue" (Submission Confirmation), "notified your manager" (SOS), "your manager will review it directly" (Decline Confirmation) — is copy-only; there's nothing to click through to on the Manager side yet. `MR-OV-*`, `MR-SOS-*`, and `MR-CR-*` all remain unbuilt in Figma.
 
 ---
