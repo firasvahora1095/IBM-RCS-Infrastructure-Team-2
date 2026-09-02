@@ -1,5 +1,5 @@
 > ℹ️ **DRAFT 1 — SPRINT 1 WEEK 3**
-> This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 42 `AR-*` IDs in [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA) are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
+> This is the first full build of the Auditor prototype, from a planning document (`auditor-prototype-plan.md`, Aleeya Ahmad, UX) that was reviewed and signed off by both UX and BA on 1 Sep 2026. All 46 `AR-*` IDs in [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA) are traced. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation or a BA-doc correction — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft — see the accompanying Teams message.
 
 # Auditor Prototype — Handoff (Sprint 1, Week 3)
 
@@ -69,6 +69,15 @@ Raised as an open question last round: nothing defined how an Auditor's assessme
 
 Jana has confirmed and pushed the fix: `AR-AI-12` (previously unused in this sequence) now carries the restored timestamped audit-history requirement, and `AR-AI-14` cleanly keeps the final-case-outcome meaning from Round 6. No content was lost, no ID collision remains. This closes item 6 from "Assumptions & Open Decisions" — removed below, not left marked resolved, per the Handoff page's own pending-items convention. Traceability table updated: `AR-AI-14`'s row no longer carries the ID-reuse caveat, and a new `AR-AI-12` row is added.
 
+## Round 8 update (two untraced IDs found and closed — AR-PV-08, AR-AI-13)
+
+A pass over the "all IDs accounted for" claim turned up two `AR-*` IDs that exist in `docs/ba/persona-requirements-week2.md` but weren't traced anywhere in this file or the plan document — a real gap in the traceability claim, independent of the Round 7 fix above.
+
+- **`AR-PV-08`** ("the system shall require the Auditor to actively acknowledge the content warning before raw source content is revealed... required when raw content is first accessed and whenever the review has returned to a protected state before raw content is revealed again"). This turned out to already be built: the consent checkbox added at 4.1/4.6 back in Round 5 ("I understand this video contains disturbing material. I am trained to review this content and I consent to proceed"), tagged `[UX/BA judgment call]` at the time because no formal ID covered it yet. Retagged as `AR-PV-08` — no design change needed, just closing the traceability gap. The "returns to a protected state" clause is satisfied structurally: every resumption of raw-content review (post-SOS, post-decline-cancel, re-entering a case from the queue) already routes back through the Content Warning Modal rather than resuming directly into the Review Workspace.
+- **`AR-AI-13`** ("the Auditor shall be able to return to the previous step or screen during an active case review without losing their current review progress or entered information"). This one was a genuine, unbuilt gap — no back-navigation existed anywhere in the flow. Added a "← Back to AI Analysis Summary" link on Review Workspace (4.3) and a "← Back to Review Workspace" link on Severity Adjustment & Comment (4.4), both `Ghost`/tertiary weight so they don't compete visually with the primary review controls. Neither auto-replays raw content on return (per `AR-AI-13`'s own Notes), and 4.4's link preserves the CVI value/comment already entered rather than resetting the screen. Scoped deliberately to *within* an active review (4.2↔4.3↔4.4) — does not extend back before the Content Warning Modal, consistent with the Round 5 decision to reject a back/dismiss option there.
+
+Both are now in the Traceability table below. The "all IDs accounted for" count is corrected from 42 to 46 — the true total in `docs/ba/persona-requirements-week2.md`.
+
 ---
 
 ## File structure
@@ -78,7 +87,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 1. **00 — Cover** — project title, scope, flow summary, and pointers to the plan/requirements docs and this handoff doc.
 2. **01 — Foundations** — every Carbon token actually used, as real Figma variables: 16 colours (interactive Blue 60, grayscale, 4 support/status colours, 4 severity-tier colours), 9 spacing values (Carbon 2×Grid), 9 text styles (IBM Plex Sans/Mono productive type ramp). Documented visually with swatches, severity-tier previews, spacing bars, and type specimens.
 3. **02 — Components** — a real component library, not one-off shapes: Button (Primary/Secondary/Tertiary/Danger), Tag (S1–S4 severity + Info/Success/Warning/Error status), InlineNotification (4 tones), ProgressBar (exposure indicator), Toggle, IconButton (mute/unmute), blur-intensity Slider (AI-reference marker, defaults to 100%), RadioButton, TextArea, SOS Button, Header/UIShell (persistent nav with exposure ProgressBar), Modal shell, DataTable row, Breadcrumb, and the Requirements Panel annotation component used on every screen.
-4. **03 — Prototype** — all 21 screens/states, each with its own on-canvas Requirements Panel directly below it (internal-label pill, req-tag pills, element name, rationale — same convention as the Normal User file). Fully click-linked as a Figma prototype (17 connections), flow starting point set to Login.
+4. **03 — Prototype** — all 21 screens/states, each with its own on-canvas Requirements Panel directly below it (internal-label pill, req-tag pills, element name, rationale — same convention as the Normal User file). Fully click-linked as a Figma prototype (19 connections, +2 in Round 8 for the new AR-AI-13 back-navigation links), flow starting point set to Login.
 5. **04 — Handoff** — Design rationale (per screen), Open Decisions, a full per-ID Traceability table, Needs-Team-Review, Noticed-Elsewhere (cross-persona gaps), Accessibility & cross-cutting notes, a Handoff-for-the-developer section, and an Iteration History log — consolidated onto their own page, off-canvas from the shippable screens.
 
 ---
@@ -144,6 +153,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-PV-05 | Grayscale toggle | Review Workspace | Included |
 | AR-PV-06 | Independent audio mute | Review Workspace | Included |
 | AR-PV-07 | Content revealed only after deliberate proceed | Content Warning Modal → Review Workspace (blur slider is the deliberate reveal act) | Included |
+| AR-PV-08 | Active acknowledgement required before raw content is revealed, and again after returning to a protected state | Content Warning Modal (consent checkbox); AI/STT Failure State (same checkbox, severity-unknown variant) | Included |
 | AR-AI-01 | Display AI severity/CVI rating | AI Analysis Summary; Severity Adjustment & Comment | Included |
 | AR-AI-02 | Narrative summary before raw-content review | AI Analysis Summary; Review Workspace (recall, collapsible AI Summary accordion) | Included |
 | AR-AI-03 | Incident timeline with timestamps | AI Analysis Summary; Review Workspace | Included |
@@ -156,6 +166,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 | AR-AI-10 | AI/STT pre-screen failure → max blur, explicit failure state, deliberate choice | AI/STT Failure State | Included |
 | AR-AI-11 | Mid-review AI/STT failure treated as unexpected exposure | AI/STT Failure State (mid-review variant, treated as SOS-equivalent) | Included |
 | AR-AI-12 | Timestamped audit history of severity/override/comment/status changes | Severity Adjustment & Comment; Submission Confirmation (data-handling requirement, not a distinct visible screen) | Included |
+| AR-AI-13 | Return to previous review step without losing progress; no auto-replay of raw content | Review Workspace (Back to AI Analysis Summary); Severity Adjustment & Comment (Back to Review Workspace, preserves CVI/comment) | Included |
 | AR-AI-14 | Auditor selects a final case outcome for standard (no SOS/Decline) cases — determines the public-facing result (`UR-ST-03`) | Severity Adjustment & Comment (selector); Submission Confirmation (recorded in summary) | Included |
 | AR-WB-01 | Track daily exposure time, display progress | Header exposure indicator, all screens; Dashboard; Review Workspace (per-case breakdown) | Included |
 | AR-WB-02 | 120-minute default daily cap | Header exposure indicator | Included |
@@ -190,5 +201,5 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 
 ### Traceability
 - Built from: `auditor-prototype-plan.md` (Aleeya Ahmad, UX — reviewed and signed off by Jana Begum, BA, 1 Sep 2026), itself built on `docs/ba/persona-requirements-week2.md` (Jana Begum, BA) and the `docs/ux/auditor-assumptions-note-sprint1-week2.md` research note in this repo.
-- All 42 `AR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
+- All 46 `AR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
