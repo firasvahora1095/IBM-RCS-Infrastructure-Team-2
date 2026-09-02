@@ -1,10 +1,10 @@
-> ℹ️ This is the first full build of the Manager prototype, from a planning document (`manager-prototype-plan.md`, Aleeya Ahmad, UX) built on `Requirements-BA-FINAL.md` (Jana Begum, BA). All 22 `MR-*` IDs are traced. The client explicitly declined to demo the Manager role and told the team to design it from imagination, so this file carries more `[UX judgment call]` decisions than the Auditor file — each one is called out below, not silently absorbed. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft.
+> ℹ️ This is the first full build of the Manager prototype, from a planning document (`manager-prototype-plan.md`, Aleeya Ahmad, UX) built on [`docs/ba/persona-requirements-week2.md`](https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2/blob/main/docs/ba/persona-requirements-week2.md) (Jana Begum, BA). All 22 `MR-*` IDs are traced. The client explicitly declined to demo the Manager role and told the team to design it from imagination, so this file carries more `[UX judgment call]` decisions than the Auditor file — each one is called out below, not silently absorbed. A handful of items are genuinely still open pending Week 3 Dev/pipeline confirmation — see "Assumptions & Open Decisions" below. Team feedback is being requested on this draft.
 
 # Manager Prototype — Handoff (Sprint 1, Week 3)
 
 **Track:** Design / Product · **Sprint:** Sprint 1, Week 3 · **Owner:** Aleeya Ahmad (UX)
 **Figma file:** [RCS Manager Prototype — Sprint 1](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse)
-**Planning source:** `manager-prototype-plan.md` (Aleeya Ahmad, UX — built on `Requirements-BA-FINAL.md`, Jana Begum, BA)
+**Planning source:** `manager-prototype-plan.md` (Aleeya Ahmad, UX — built on `docs/ba/persona-requirements-week2.md`, Jana Begum, BA)
 
 ---
 
@@ -130,6 +130,6 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 ---
 
 ### Traceability
-- Built from: `manager-prototype-plan.md` (Aleeya Ahmad, UX), itself built on `Requirements-BA-FINAL.md` (Jana Begum, BA) and the `docs/ux/manager-assumptions-note-sprint1-week2.md` / `docs/ux/research-notes-manager-persona-week1.md` research notes in this repo.
-- All 22 `MR-*` IDs in `Requirements-BA-FINAL.md` are accounted for above — none silently dropped; `MR-CR-07` is a priority/sequencing note, not a screen-level requirement, and `MR-SOS-02` is a background/system-behaviour requirement with no distinct screen, both flagged as such rather than omitted.
+- Built from: `manager-prototype-plan.md` (Aleeya Ahmad, UX), itself built on `docs/ba/persona-requirements-week2.md` (Jana Begum, BA) and the `docs/ux/manager-assumptions-note-sprint1-week2.md` / `docs/ux/research-notes-manager-persona-week1.md` research notes in this repo.
+- All 22 `MR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `MR-CR-07` is a priority/sequencing note, not a screen-level requirement, and `MR-SOS-02` is a background/system-behaviour requirement with no distinct screen, both flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
