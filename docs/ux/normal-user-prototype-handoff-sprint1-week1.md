@@ -1,5 +1,5 @@
 > ℹ️ **UPDATED FOR SPRINT 1 WEEK 2 — MOST OPEN ITEMS NOW CLOSED**
-> This prototype was built against the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` and has since been reconciled against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`. Status-stage wording, the format/duration baseline, the data-retention rule, and the max raw-video file size (500MB placeholder, Round 7) are now closed decisions; only the exact wording of the second outcome category (plus its newer no-reassignment-path counterpart), and the leave-without-saving mechanism remain genuinely open — see "Assumptions & Open Decisions" below.
+> This prototype was built against the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` and has since been reconciled against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`. Status-stage wording, the format/duration baseline, the data-retention rule, and the max raw-video file size (500MB placeholder, Round 7) are now closed decisions; only the exact wording of the second outcome category and the leave-without-saving mechanism remain genuinely open — see "Assumptions & Open Decisions" below.
 
 # Normal User Prototype — Handoff (Sprint 1, Week 1)
 
@@ -145,8 +145,9 @@ All frames are wired with real Figma prototype connections (click reactions), no
 
 ## Assumptions & Open Decisions (for the client)
 
-1. **Outcome categories** (UR-ST-03) — still **OPEN**: the exact wording of the alternate action-taken category for standard cases. Mechanism is settled (derived from the Auditor's final-case-outcome selection, `AR-AI-14`) and "No Violation Found" is confirmed; "Escalated" must never be shown as a public outcome. ~~Separate open question (Round 7): outcome text for a Manager's "no reassignment needed" path~~ — **RESOLVED, Round 8.** Dedicated third label: "This case has been reviewed and closed. No further action is required from you." — content-neutral, distinct from the two Auditor-determined labels.
-2. ~~Max raw-video file size~~ (UR-VU-07) — **RESOLVED, Round 7.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Auditor and Manager files, both updated to match. (Format list and duration target remain settled — MP4/MOV/WEBM/AVI, ~10–15 min target, not a hard maximum.)
+*(Items resolved in Rounds 7–8 — max raw-video file size, the Manager no-reassignment path's outcome text — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here.)*
+
+1. **Outcome categories** (UR-ST-03) — still **OPEN**: the exact wording of the alternate action-taken category for standard cases. Mechanism is settled (derived from the Auditor's final-case-outcome selection, `AR-AI-14`) and "No Violation Found" is confirmed; "Escalated" must never be shown as a public outcome.
 3. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.
 7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a.
 

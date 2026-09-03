@@ -197,12 +197,9 @@ Closes the narrower question Round 4 surfaced rather than guessed at: what outco
 
 ## Assumptions & Open Decisions (for the team)
 
-1. ~~Login lockout threshold~~ — **RESOLVED, Round 4.** 5 failed attempts, 15-minute lockout, aligned with `UR-ST-07`'s rate-limiting precedent. Locked-out screen copy updated to match.
-2. ~~Max raw-video file size~~ — **RESOLVED, Round 4.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Auditor and Normal User files, both updated to match.
-3. ~~"Staff Access & Authentication" requirements (`SR-SA-01`–`05`)~~ — **RESOLVED, Round 4.** `SR-SA-01`/`05` were already built (see Build & self-review notes). `SR-SA-02`–`04` are sufficiently addressed by standard token/session-based authentication — deliberately not naming a specific stack here, per PM direction that pinning implementation choices into requirements/ACs is too rigid.
-4. ~~`MR-OV-08` validation acceptance threshold~~ — **RESOLVED (retargeted), Round 4.** No longer a Sprint 2 blocker — setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's explicitly retargeted to Sprint 3. The Validation View's placeholder/mock data stays labelled as such until then.
-5. ~~No-reassignment outcome text for the public status lookup~~ — **RESOLVED, Round 5.** A dedicated third outcome label, distinct from both Auditor-determined ones: *"This case has been reviewed and closed. No further action is required from you."* — deliberately content-neutral, since this path is a Manager process decision, not a raw-content verdict. Cross-referenced in the Normal User doc's Round 8 update.
-6. ~~Exceptional-access exit routing is entry-point-agnostic~~ — **RESOLVED (owned by Dev), Round 4.** PM's call: Dev implements the conditional "return to actual origin screen" logic in code — not a design/Figma problem. The prototype's single hardcoded destination (always Reassignment Action) remains as a known, accepted static-prototype limitation, not a gap needing further design work.
+*(Items resolved across Rounds 4–5 — login lockout, max file size, `SR-SA-02`–`04`, no-reassignment outcome text, exceptional-access exit routing — have been removed from this list; the decisions and reasoning behind each are preserved in their respective Round update entries above, not repeated here.)*
+
+1. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, retargeted to Sprint 3 (Round 4): setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's no longer a Sprint 2 blocker. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data stays explicitly labelled as such until a real number exists.
 
 ---
 

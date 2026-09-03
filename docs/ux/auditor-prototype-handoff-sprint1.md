@@ -247,11 +247,10 @@ Items 1–2 below (`AR-WB-12`, `AR-WB-11`) are unaffected — not addressed by t
 
 ## Assumptions & Open Decisions (for the team)
 
+*(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — have been removed from this list; the decisions and reasoning are preserved in the Round 15 update entry above, not repeated here.)*
+
 1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**.
 2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.)
-3. ~~Login lockout threshold~~ — **RESOLVED, Round 15.** 5 failed attempts, 15-minute lockout, aligned with the Normal User file's `UR-ST-07` rate-limiting precedent. Locked-out screen copy updated to match.
-4. ~~Max raw-video file size~~ — **RESOLVED, Round 15.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Manager and Normal User files, both updated to match. Still affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget — that comparison logic is a Dev implementation detail, unaffected by this round.
-5. ~~"Staff Access & Authentication" requirements (`SR-SA-01`–`05`)~~ — **RESOLVED, Round 15.** `SR-SA-01`/`05` were already built (Round 13). `SR-SA-02`–`04` are sufficiently addressed by standard token/session-based authentication — deliberately not naming a specific stack here, per PM direction that pinning implementation choices into requirements/ACs is too rigid.
 
 ---
 
