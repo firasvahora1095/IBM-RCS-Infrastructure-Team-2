@@ -42,12 +42,12 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 1. **00 — Cover** — project title, scope, flow summary, and pointers to the plan/requirements docs and this handoff doc.
 2. **01 — Foundations** — the same Carbon token set as the Auditor file, carried over directly: 16 colours (interactive Blue 60, grayscale, 4 support/status colours, 4 severity-tier colours), 9 spacing values (Carbon 2×Grid), 9 text styles (IBM Plex Sans/Mono productive type ramp).
 3. **02 — Components** — the Auditor file's real component library, reused directly, plus Manager-specific additions: Button (Primary/Secondary/Tertiary/Danger), Tag (S1–S4 severity + Info/Success/Warning/Error status), InlineNotification (4 tones), ProgressBar (exposure indicator), Toggle, IconButton, blur-intensity Slider, RadioButton, TextArea, SOS Button, Header/UIShell (Manager variant, persistent nav + exposure/oversight indicator), Modal shell, DataTable row, Breadcrumb, the Requirements Panel annotation component — plus new Manager-only components: `TopNav` (5 tabs: Dashboard / Case Oversight / SOS Inbox / Reassignment Queue / Validation), `OverflowMenu`, `Search`, `Filter`, `SOSBanner` (persistent, urgent-tone), and a lightweight Carbon-token `ValidationBarChart` (built as a `DataTable` + CSS bars, not the separate `@carbon/charts` library, per the plan's own resolved decision to keep the dependency footprint light).
-4. **03 — Prototype** — 19 screens/states across 4 build phases plus 1 documentation-only reference frame (20 built frames total), each with its own on-canvas Requirements Panel directly below it — same annotation convention as the Auditor and Normal User files. Fully click-linked as a Figma prototype, flow starting point set to Login.
-5. **04 — Handoff** — Design rationale, Open Decisions, a full 22-row `MR-*` traceability matrix, an Accessibility report, and a Handoff-for-the-developer section, consolidated onto their own page, off-canvas from the shippable screens. (No separate Iteration History section yet, since this is Draft 1 — that section will be added once team-feedback rounds begin, matching the Auditor file's own convention.)
+4. **03 — Prototype** — 20 screens/states across 4 build phases plus 1 documentation-only reference frame (21 built frames total), each with its own on-canvas Requirements Panel directly below it — same annotation convention as the Auditor and Normal User files. Fully click-linked as a Figma prototype, flow starting point set to Login.
+5. **04 — Handoff** — Design rationale, Open Decisions, a full 22-row `MR-*` traceability matrix, an Accessibility report, a Handoff-for-the-developer section, and (new as of Round 2) an Iteration History log, consolidated onto their own page, off-canvas from the shippable screens — matching the Auditor file's own convention of starting that log once team-feedback rounds begin.
 
 ---
 
-## The screens (19 screens/states, Login + 4 build phases)
+## The screens (20 screens/states, Login + 4 build phases)
 
 **Login:**
 1. **Login** — Default, Error (invalid credentials), and Locked-out states — shared Login/auth pattern with the Auditor file.
@@ -66,10 +66,10 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 **Phase M3 — Case review & reassignment:**
 9. **Case Review Detail** — AI-output panel, Auditor assessment/comment, decline reason, entry point into the reassignment decision.
 10. **Declined/Reassignment Queue** — declined cases awaiting a Manager decision; deliberately **no** aggregated per-Auditor decline-count column (`MR-CR-04`/`AR-DF-03` no-scrutiny principle).
-11. **Reassignment Action** — inline SLA/exposure context for the declining Auditor and candidate Auditors, Reassign-vs-No-reassignment decision panel, low-prominence escape-hatch link to exceptional raw-content access.
+11. **Reassignment Action** — inline SLA/exposure context for the declining Auditor and candidate Auditors, Reassign-vs-No-reassignment decision panel, low-prominence escape-hatch link to exceptional raw-content access. A required note field and a second state, **Reassignment Action — No-Reassignment Confirmation** (5.3b, added Round 2), now gate the "Confirm no reassignment" action instead of it navigating straight to the queue with no confirmation.
 12. **Exceptional Raw-Content Access — Content Warning Modal** — adapted from the Auditor file's own screen, same protections, Manager-appropriate framing.
 13. **Exceptional Raw-Content Access — AI Analysis Summary** — adapted, header swapped to Manager.
-14. **Exceptional Raw-Content Access — Review Workspace** — adapted; SOS button, wellbeing check-in link, and live exposure counter deliberately **removed** (none apply to a Manager's own rare exceptional-viewing session — the plan's resolved decision explicitly rules out an exposure counter/cap here).
+14. **Exceptional Raw-Content Access — Review Workspace** — adapted; SOS button, wellbeing check-in link, and live exposure counter deliberately **removed** (none apply to a Manager's own rare exceptional-viewing session — the plan's resolved decision explicitly rules out an exposure counter/cap here). Its exit button's wiring was already correct (back to Reassignment Action) but was labelled with leftover Auditor-file terminology ("Continue to severity & comment," a screen that doesn't exist here); relabelled to "Return to reassignment decision" (Round 2 fix).
 15. **Validation View** — AI pipeline output vs. manually labelled ground truth on the project's synthetic/staged validation set, with a mandatory placeholder/mock-data banner and a text-equivalent panel for the bar chart.
 
 **Phase M4 — Edge cases:**
@@ -77,7 +77,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 17. **Exposure limit save fails** — InlineNotification error state, entered value retained, retry action.
 18. **Reassignment target unavailable** — InlineNotification error state ("this Auditor is no longer available — please choose another").
 
-*(18 named screens above; Login's 3 states bring the total to the 19 stated at the top of this section — see the Figma file's own screen list for the exact count, plus the 1 documentation-only SOS Banner reference frame.)*
+*(18 named screens above; Login's 3 states and Reassignment Action's 2 states (Round 2 addition) bring the total to the 20 stated at the top of this section — see the Figma file's own screen list for the exact count, plus the 1 documentation-only SOS Banner reference frame, for 21 built frames total.)*
 
 ---
 
@@ -88,6 +88,33 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 - **Spacing/grid:** Carbon 8px 2×Grid (2–48px range), 16-column responsive grid for dashboard/queue layouts.
 - **Component fidelity:** real Carbon-pattern components throughout (see Components page), reused directly from the Auditor file's own component set rather than hand-reconstructed, plus the Manager-only additions listed under File structure above.
 - **Accessibility:** colour is never the sole status signal (every severity tag/notification pairs colour with text/icon; flagged Case Oversight rows pair tint with a left-accent bar and flag chip); the exposure ProgressBar uses Support Info Blue 70, not interactive Blue 60; Sign-out on the dark header uses white text + underline rather than colour alone. Full detail on the Handoff page's Accessibility report and the Build & self-review notes above.
+
+---
+
+## Round 2 update (team feedback incorporated)
+
+Two pieces of team feedback landed on Draft 1, both pointing at real gaps rather than surface nitpicks — assessed and fixed directly in the Figma file, not just written up here.
+
+**No-reassignment outcome was genuinely unclear — real gap, now closed.**
+
+> Team feedback (Firas): "If the Manager clicks 'Confirm No Reassignment', does that mean the case is just closed as is? Right now, it just redirects to the dashboard, which means the case is finalized based on the initial AI output?"
+
+Confirmed directly against the live prototype: Reassignment Action's "No reassignment needed" option had caption copy promising a required audit-trail note ("A brief required note is captured for the audit trail if this option is chosen instead") with no actual text-input field to enter one, and "Confirm no reassignment" navigated straight back to the Declined/Reassignment Queue with zero confirmation step — nothing shown, nothing logged, no stated outcome. That's exactly what made it read as "closed on the initial AI output alone." Neither `MR-CR-03` nor `MR-CR-04` specify a post-decision outcome, but `MR-CR-06`'s framing (standard cases auto-progress "with no active Manager approval" — implying declined cases specifically *do* need it) rules out silent AI-only closure as correct behaviour here.
+
+What changed:
+- **Added a required `TextArea` field** (reused directly from the file's own component set — the same component already used on Auditor Detail's Wellbeing Check-in section, not a new one) under the "No reassignment needed" option, so the note the caption already promised can actually be entered. Tightened the caption to match reality.
+- **"Confirm no reassignment" no longer navigates straight to the queue.** It now opens a new state, **Reassignment Action — No-Reassignment Confirmation (5.3b)**, which echoes back the case ID and the Manager's note verbatim, states plainly the case is not auto-closed/marked Complete by this action, and only then offers a "Return to Dashboard" button. Modelled on this file's own SOS Acknowledge & Follow-up ("logs the response") pattern and the Auditor file's Submission Confirmation ("what was recorded" echo-back) pattern — reusing established patterns, not inventing a new one.
+- **`[UX judgment call]`: what "no reassignment" means downstream is deliberately left open, not hard-coded.** The literal semantic opposite of "Confirm reassignment" (move to a different Auditor) most naturally reads as "return this case to the original declining Auditor" — but the Auditor file's own Decline Reason Modal includes wellbeing-motivated decline reasons (e.g. "Personal trigger"), and unconditionally routing a case back to the Auditor who declined it for that reason would cut directly against this file's own north-star principle (`AR-WB-08`/`MR-OV-06`: wellbeing outranks moderation speed). Rather than silently picking a rule the BA doc doesn't specify and a static prototype can't enforce conditionally, 5.3b's copy deliberately does **not** assert a specific downstream owner — it states only that the decision and note are logged and the case remains active, not Complete. Logged as a new, genuinely open item below.
+
+**Exceptional raw-content access exists but the exit button was mislabelled — real bug, now fixed.**
+
+> Team feedback: "As mentioned in MR-CR-08, viewing the raw footage is allowed in exceptional cases. Are we excluding these exceptional cases from the prototype for now?"
+
+Not excluded — all three screens (Content Warning Modal, AI Analysis Summary, Review Workspace) already existed and are listed as screens 12–14, reachable via a real, if intentionally low-prominence, link on Reassignment Action ("View raw content (exceptional access, same protections as an Auditor)"), consistent with `MR-CR-05`/`MR-CR-08`. Tracing the flow to its actual end turned up why it reads as excluded: the Review Workspace's exit button was labelled **"Continue to severity & comment"** — literal Auditor-file terminology, describing a screen ("Severity Adjustment & Comment") that doesn't exist anywhere in the Manager screen set. Checked the button's actual wiring before touching it: it was **already correctly wired back to Reassignment Action** — only the label was wrong, not a dead click. A Manager reaching the end of the one flow this feedback asks about would still land somewhere correct, but the label itself made the flow look broken or borrowed from the wrong prototype.
+
+What changed:
+- **Relabelled the button** from "Continue to severity & comment" to "Return to reassignment decision." No rewiring needed — the destination was already right.
+- Confirmed no other Manager-inappropriate Auditor terminology exists on the Content Warning Modal, AI Analysis Summary, or Review Workspace screens, and that the "Back to AI Analysis Summary" button on Review Workspace was already correct and unaffected.
 
 ---
 
@@ -126,6 +153,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 2. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User and Auditor files' own open item). Relevant here specifically for Exceptional Raw-Content Access, the one real path where a Manager might view a full raw video.
 3. **"Staff Access & Authentication" requirements (`SR-SA-01`–`05`).** `SR-SA-01` (dedicated staff URL, organisation-provisioned) and `SR-SA-05` (secure sign-out) are both built — see the Build & self-review notes above. `SR-SA-02`–`04` (require auth before the portal, restrict functionality by role, block public self-registration) remain **OPEN** as distinct Dev-implementation items: this prototype satisfies them structurally (Login gates every screen; no sign-up link exists anywhere; `MR-OV-06`'s broader role-based visibility covers the role-scoping principle) but none of the three has its own dedicated UI beyond that, consistent with them being backend/session concerns rather than additional screens — same framing as the Auditor file's equivalent item.
 4. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, pending real pipeline results. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data is explicitly labelled as such, per the plan's own non-negotiable instruction not to present a preliminary figure (including any 90% recall candidate) as an adopted requirement.
+5. **No-reassignment downstream routing (new, Round 2).** Confirming "No reassignment needed" now requires and logs a Manager note and shows an explicit non-auto-closed confirmation state (5.3b) — but who actually completes the case afterward (the original declining Auditor, standard-queue reassignment, or a Manager-mediated path) is deliberately left unspecified in the prototype copy, since defaulting to "same Auditor" could conflict with `AR-WB-08`/`MR-OV-06` when the original decline was wellbeing-motivated. Needs a BA/Dev-confirmed, ideally decline-reason-aware rule before this is locked in. Genuinely **OPEN**.
 
 ---
 
