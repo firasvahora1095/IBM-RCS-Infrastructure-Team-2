@@ -199,7 +199,7 @@ Closes the narrower question Round 4 surfaced rather than guessed at: what outco
 
 *(Items resolved across Rounds 4–5 — login lockout, max file size, `SR-SA-02`–`04`, no-reassignment outcome text, exceptional-access exit routing — have been removed from this list; the decisions and reasoning behind each are preserved in their respective Round update entries above, not repeated here.)*
 
-1. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, retargeted to Sprint 3 (Round 4): setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's no longer a Sprint 2 blocker. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data stays explicitly labelled as such until a real number exists.
+1. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, retargeted to Sprint 3 (Round 4): setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's no longer a Sprint 2 blocker. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data stays explicitly labelled as such until a real number exists. **Owner:** Dev (Firas/Aiden) to build the continuous-testing pipeline; Jana (BA) to sign off the final threshold once real results exist — not a UX/Figma decision, nothing left to design here.
 
 ---
 

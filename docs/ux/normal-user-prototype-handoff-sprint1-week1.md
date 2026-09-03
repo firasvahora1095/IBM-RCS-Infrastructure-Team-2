@@ -152,12 +152,12 @@ All frames are wired with real Figma prototype connections (click reactions), no
 
 ---
 
-## Assumptions & Open Decisions (for the client)
+## Assumptions & Open Decisions (for the team)
 
 *(Items resolved in Rounds 7–9 — max raw-video file size, the Manager no-reassignment path's outcome text, the action-taken outcome category wording — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here.)*
 
-3. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.
-7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a.
+3. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here. **Owner:** Dev — the modal itself is designed and built; only the browser-level detection mechanism is undecided, and that has no visible UI difference either way.
+7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a. **Owner:** Dev — routing/logging hygiene, not a UX/Figma concern.
 
 ---
 

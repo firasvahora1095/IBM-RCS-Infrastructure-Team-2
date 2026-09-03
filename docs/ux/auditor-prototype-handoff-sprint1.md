@@ -249,8 +249,8 @@ Items 1–2 below (`AR-WB-12`, `AR-WB-11`) are unaffected — not addressed by t
 
 *(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — have been removed from this list; the decisions and reasoning are preserved in the Round 15 update entry above, not repeated here.)*
 
-1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**.
-2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.)
+1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**. **Owner:** Jana (BA) to confirm the final value — already tracked in her own Week 3 follow-up list; Dev implements once set. Not a UX/Figma decision — the trigger is background logic with no visible UI to design.
+2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.) **Owner:** Aiden (Dev) — a pipeline/ML confidence-scoring question, not a UX/Figma one; how it's *displayed* is already built and unaffected by how it's resolved.
 
 ---
 
