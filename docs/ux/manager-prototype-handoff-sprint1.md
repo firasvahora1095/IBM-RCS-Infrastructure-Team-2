@@ -83,7 +83,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 
 ## Design system tokens used
 
-- **Colour:** Blue 60 `#0f62fe` (interactive-only — buttons, links, active slider fill/handle, focus states). Gray 10/20/30/50/70/100 (backgrounds, borders, text). Support colours: Red 60 (error), Green 50 (success), Yellow 30 (warning, paired with Gray 100 text), Blue 70 (info, and the exposure ProgressBar's decorative fill — deliberately not interactive Blue 60, since it isn't clickable). Severity tiers: S1 Gray 20, S2 Yellow 30, S3 Carbon Orange 40 `#ff832b`, S4 Red 60 — same resolved palette as the Auditor file.
+- **Colour:** Blue 60 `#0f62fe` (interactive-only — buttons, links, active slider fill/handle, focus states). Gray 10/20/30/50/70/100 (backgrounds, borders, text). Support colours: Red 60 (error), Green 50 (success), Yellow 30 (warning, paired with Gray 100 text), Blue 70 (info, and the exposure ProgressBar's decorative fill — deliberately not interactive Blue 60, since it isn't clickable). InlineNotification tint backgrounds: Blue 10 `#edf5ff`, Green 10 `#defbe6`, Yellow 10 `#fcf4d6`, Red 10 `#fff1f1` — verified authentic Carbon v11 values, Round 6 (see that update for the fabricated colours they replaced). Severity tiers: S1 Gray 20, S2 Yellow 30, S3 Carbon Orange 40 `#ff832b`, S4 Red 60 — same resolved palette as the Auditor file.
 - **Type:** IBM Plex Sans (UI text — Regular/Medium/SemiBold), IBM Plex Mono (case IDs, raw CVI numbers, matching Carbon's `code-01`/`code-02` convention).
 - **Spacing/grid:** Carbon 8px 2×Grid (2–48px range), 16-column responsive grid for dashboard/queue layouts.
 - **Component fidelity:** real Carbon-pattern components throughout (see Components page), reused directly from the Auditor file's own component set rather than hand-reconstructed, plus the Manager-only additions listed under File structure above.
@@ -163,6 +163,17 @@ Closes the narrower question Round 4 surfaced rather than guessed at: what outco
 - **Resolution: a dedicated third outcome label, not a reuse of either Auditor-determined one.** Reusing "No Violation Found" would assert a content verdict nobody actually made — the Manager's decision is a process call (whether reassignment is warranted), not a raw-content review, and the Reassignment Queue's own decline reasons aren't always about content (e.g. "Near my exposure limit," "Personal trigger"). Making the copy decline-reason-aware was considered and rejected — it just relocates the same problem into more copy variants instead of resolving it, and reintroduces exactly the branching-logic question Round 2 already declined to solve for downstream routing.
 - **The label:** *"This case has been reviewed and closed. No further action is required from you."* — deliberately content-neutral, same for every decline reason. `5.3b`'s Success notification now states this is what the public status lookup shows, alongside the internal Complete/audit-trail confirmation.
 - Cross-referenced in the Normal User handoff doc's own Round 8 update, where the same label was added to the outcome-preview mockup and Screen 3b's Requirements panel.
+
+---
+
+## Round 6 update (IBM Carbon colour audit — InlineNotification tints were never authentic Carbon values)
+
+Prompted by a cross-file consistency check against the Normal User file's own Foundations page, which surfaced a real, previously-unnoticed bug: this file's `InlineNotification` component's four tint backgrounds were fabricated approximations, not genuine IBM Carbon v11 tokens, despite the doc's own claim that this file is built entirely on Carbon tokens.
+
+- **The bug:** Info/Success/Warning/Error tint backgrounds were `#eff2ff` / `#e7f6ec` / `#fff9e1` / `#fce9ea` — none of these are real Carbon values. The authentic Carbon v11 tokens (verified against Normal User's own correctly-built `InlineNotification` component, which already used them) are **Blue 10** `#edf5ff`, **Green 10** `#defbe6`, **Yellow 10** `#fcf4d6`, **Red 10** `#fff1f1`.
+- **Fixed at the master component**, then swept every screen in the prototype for detached instances that wouldn't inherit the fix — found and fixed 2 (Login — Error, Login — Locked-out), matching the exact failure mode Round 13 already documented for the Auditor file. Verified by screenshot, not assumed from the master-level edit alone.
+- **Foundations page (`01 — Foundations`) was also incomplete** — the four tint tokens above were used throughout the file's own components but never catalogued as swatches. Added all four to the Colour section, matching the swatch style already used there.
+- Same bug, same fix, applied to the Auditor file in its own Round 16 update — both files now use identical, verified-authentic Carbon values for every notification tone.
 
 ---
 

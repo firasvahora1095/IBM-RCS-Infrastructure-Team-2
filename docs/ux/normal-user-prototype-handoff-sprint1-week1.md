@@ -80,6 +80,13 @@ Client direction: anything closeable with solid reasoning is clear to implement 
 - **Matches industry precedent for reporter-facing (not subject-facing) outcome notices.** Major platforms consistently keep the report-outcome label shown to the person who *filed* a report generic ("violates policy" / "doesn't violate policy"), reserving specific enforcement detail for the party being actioned — the same restraint `UR-ST-04` already commits this file to (no auditor identity/internal logic exposed to the Normal User).
 - **Updated copy:** the outcome-preview mockup's body text now reads "Violation Found. This content was reviewed against our content policy and confirmed to violate it. Appropriate action has been taken — no further action is needed from you. This case is now closed." Screen 3b's Requirements panel and the mockup's own annotation updated to state both labels as confirmed.
 
+## Round 10 update (Foundations page completeness — cross-file colour audit)
+
+A cross-file consistency check against the Manager and Auditor files' own Foundations pages worked in this file's favour: this file's `InlineNotification` component (Error `#fff1f1`, Warning `#fcf4d6`, Success `#defbe6`) was already using authentic Carbon v11 tint values — it was the *other two* files whose notification tints turned out to be fabricated approximations (see their own Round 6/16 entries). Two real, smaller gaps found in this file's own Foundations page and closed:
+
+- **`color/green-10` (`#defbe6`) was missing from the Colour section** despite being the exact background this file's own Success notification already used — added, matching the existing swatch style and computed-contrast-ratio pattern (Gray 100 text on this bg: 16.4:1, passes AAA).
+- **`color/blue-70` (`#0043ce`) was used but never catalogued** — it's the Primary button's hover-state fill, confirmed by inspecting the actual component, not assumed. Added as a swatch noting its specific role, since it isn't used for text/icon fills anywhere in this flow the way it is in the Auditor/Manager files (there, it also doubles as the Info support colour).
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:

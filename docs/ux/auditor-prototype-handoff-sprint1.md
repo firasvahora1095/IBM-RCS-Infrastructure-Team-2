@@ -66,7 +66,7 @@ The Figma file has 5 pages, matching the same systemization pattern used on the 
 
 ## Design system tokens used
 
-- **Colour:** Blue 60 `#0f62fe` (interactive-only — buttons, links, active slider fill/handle, focus states). Gray 10/20/30/50/70/100 (backgrounds, borders, text). Support colours: Red 60 (error), Green 50 (success), Yellow 30 (warning, paired with Gray 100 text), Blue 70 (info). Severity tiers: S1 Gray 20, S2 Yellow 30, S3 **Carbon Orange 40 `#ff832b`** (resolved during this build, per the plan's own explicit delegation to UX — reads distinct from S2/S4), S4 Red 60.
+- **Colour:** Blue 60 `#0f62fe` (interactive-only — buttons, links, active slider fill/handle, focus states). Gray 10/20/30/50/70/100 (backgrounds, borders, text). Support colours: Red 60 (error), Green 50 (success), Yellow 30 (warning, paired with Gray 100 text), Blue 70 (info). InlineNotification tint backgrounds: Blue 10 `#edf5ff`, Green 10 `#defbe6`, Yellow 10 `#fcf4d6`, Red 10 `#fff1f1` — verified authentic Carbon v11 values, Round 16 (see that update for the fabricated colours they replaced). Severity tiers: S1 Gray 20, S2 Yellow 30, S3 **Carbon Orange 40 `#ff832b`** (resolved during this build, per the plan's own explicit delegation to UX — reads distinct from S2/S4), S4 Red 60.
 - **Type:** IBM Plex Sans (UI text — Regular/Medium/SemiBold), IBM Plex Mono (STT transcript timestamps, case IDs, raw CVI numbers only, matching Carbon's `code-01`/`code-02` convention).
 - **Spacing/grid:** Carbon 8px 2×Grid (2–48px range), 16-column responsive grid for dashboard/queue layouts, fixed 2-column split for the Review Workspace.
 - **Component fidelity:** real Carbon-pattern components throughout (see Components page), not static shapes — Button, Tag, Modal, Slider, ProgressBar, InlineNotification all built with token bindings, not hardcoded values.
@@ -189,6 +189,16 @@ Hyuna (PM) sent a batch of decisions resolving several items shared across the M
 - **`SR-SA-02`–`04` (Staff Access & Authentication) — closed generically.** Standard token/session-based authentication is sufficient; deliberately **not** naming a specific stack in the requirements/handoff docs, per PM's own direction that pinning implementation choices into ACs is too rigid. No design change — already satisfied structurally.
 
 Items 1–2 below (`AR-WB-12`, `AR-WB-11`) are unaffected — not addressed by this round's decisions, still awaiting their own separate confirmations.
+
+---
+
+## Round 16 update (IBM Carbon colour audit — InlineNotification tints were never authentic Carbon values)
+
+Same bug found and fixed in the companion Manager file's own Round 6 — prompted by a cross-file consistency check against the Normal User file's Foundations page.
+
+- **The bug:** this file's `InlineNotification` Info/Success/Warning/Error tint backgrounds were `#eff2ff` / `#e7f6ec` / `#fff9e1` / `#fce9ea` — fabricated approximations, not genuine Carbon v11 tokens, despite this file's own claim to be built entirely on Carbon. The authentic values, verified against the Normal User file's own correctly-built component: **Blue 10** `#edf5ff`, **Green 10** `#defbe6`, **Yellow 10** `#fcf4d6`, **Red 10** `#fff1f1`.
+- **Fixed at the master component**, then swept every screen in this prototype for detached instances (the exact failure mode Round 13 already documented here) — found zero; every instance was still a live, linked component, so the master-level fix alone corrected the entire file.
+- **Foundations page** was missing these four tint tokens as catalogued swatches despite the components using them — added, matching the existing swatch style.
 
 ---
 
