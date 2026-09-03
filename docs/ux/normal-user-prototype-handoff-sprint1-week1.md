@@ -1,5 +1,5 @@
 > ℹ️ **UPDATED FOR SPRINT 1 WEEK 2 — MOST OPEN ITEMS NOW CLOSED**
-> This prototype was built against the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` and has since been reconciled against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`. Status-stage wording, the format/duration baseline, and the data-retention rule are now closed decisions; only the exact wording of the second outcome category, the max raw-video file size, and the leave-without-saving mechanism remain genuinely open — see "Assumptions & Open Decisions" below.
+> This prototype was built against the Sprint 1 Week 1 baseline in `Normal User Persona Requirements-BA.md` and has since been reconciled against Jana's finalised Sprint 1 Week 2 baseline in `Requirements-BA.md`. Status-stage wording, the format/duration baseline, the data-retention rule, and the max raw-video file size (500MB placeholder, Round 7) are now closed decisions; only the exact wording of the second outcome category (plus its newer no-reassignment-path counterpart), and the leave-without-saving mechanism remain genuinely open — see "Assumptions & Open Decisions" below.
 
 # Normal User Prototype — Handoff (Sprint 1, Week 1)
 
@@ -57,6 +57,12 @@ Raised as an open question while building out the Auditor prototype: nothing def
 - **Narrowed the Open Decisions panel's `UR-ST-03` item** from "partially closed" to "mechanism now closed" — the only thing still open is the exact wording of the second (action-taken) outcome category.
 - On the Auditor side, this is implemented as a new **Final case outcome** selector on the Severity Adjustment & Comment screen (`AR-AI-14`) — see `auditor-prototype-handoff-sprint1.md`'s Round 6/Round 7 updates for the full picture. The `AR-AI-14` ID-reuse concern flagged in Round 6 is now resolved: Jana restored the displaced audit-history requirement under `AR-AI-12`, so no content was lost.
 
+## Round 7 update (BA/PM decision extends the Complete mechanism; file-size resolved)
+
+- **A second path to Complete, from the Manager prototype.** PM decided that when a Manager selects "No reassignment needed" on a declined case, it now transitions straight to Complete (rationale note stored to the audit trail, not shown publicly) — not just the Auditor's own final-case-outcome selection at submission (`AR-AI-14`). Updated the outcome-preview mockup's annotation and Screen 3b's Requirements panel to state both paths explicitly.
+- **New, narrower open question, not resolved by this decision.** `UR-ST-03`'s outcome-*text* mechanism was closed in Round 6 for standard cases only — the label comes from the Auditor's final-case-outcome selection. A case completed via the Manager's no-reassignment path never goes through that selector, so while the *stage* reaching Complete is now settled, what *outcome text* actually displays for this path is genuinely undecided — not guessed at here. Logged below, cross-referenced in the Manager handoff doc's own Round 4 update.
+- **Max raw-video file size (`UR-VU-07`) — closed: 500MB temporary placeholder**, assuming a 10–15 min 1080p MP4 baseline; Dev to validate and adjust through the real pipeline. Matches the Auditor and Manager files' own equivalent items, both updated this round. Format list and duration target remain as previously settled (MP4/MOV/WEBM/AVI, ~10–15 min target).
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
@@ -108,7 +114,7 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-ID-09 | Warn before navigating away without saving | Screen 2 modal (annotated interaction) | Included — Nice-to-Have |
 | UR-ST-01 | Retrieve status using case ID | Screen 3a | Included |
 | UR-ST-02 | Update status through user-facing stages | Screen 3b, 3-step progress indicator | Included — wording ("Received → Being Reviewed → Complete") is now **closed and final** for Sprint 2 |
-| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **mechanism now closed** (2 Sep 2026): for standard cases, derived from the Auditor's own final-case-outcome selection at submission (`AR-AI-14`); "No Violation Found" is a confirmed literal label; the alternate action-taken category's exact wording is still open; "Escalated" is never shown as a public outcome |
+| UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **mechanism closed for standard cases** (2 Sep 2026): derived from the Auditor's own final-case-outcome selection at submission (`AR-AI-14`); "No Violation Found" is a confirmed literal label; the alternate action-taken category's exact wording is still open; "Escalated" is never shown as a public outcome. **New (Round 7):** a declined case also reaches Complete via a Manager's "no reassignment needed" decision — that path's own outcome text is a separate, still-open question, see below |
 | UR-ST-04 | No auditor identity / internal logic exposed | Screen 3b (deliberately omitted) | Included |
 | UR-ST-05 | Email/SMS status updates | Screen 2, small opt-in field | Included — Nice-to-Have, genuinely functional (captures email/phone), styled small/secondary below the case ID |
 | UR-ST-06 | Secure link/code for email/SMS updates | Screen 2, opt-in field note | Included — Nice-to-Have, stated in copy ("we'll text or email you a secure one-time link"); actual token/link generation is a Dev implementation detail |
@@ -131,8 +137,8 @@ All frames are wired with real Figma prototype connections (click reactions), no
 
 ## Assumptions & Open Decisions (for the client)
 
-1. **Outcome categories** (UR-ST-03) — still **OPEN**: the exact wording of the alternate action-taken category. Mechanism is settled (derived from the Auditor's final-case-outcome selection, `AR-AI-14`) and "No Violation Found" is confirmed; "Escalated" must never be shown as a public outcome.
-2. **Max raw-video file size** (UR-VU-07) — still **OPEN**. A Week 3 Dev follow-up for Firas/Aiden to validate through the real pipeline test. (Format list and duration target are settled — MP4/MOV/WEBM/AVI, ~10–15 min target, not a hard maximum.)
+1. **Outcome categories** (UR-ST-03) — still **OPEN**: the exact wording of the alternate action-taken category for standard cases. Mechanism is settled (derived from the Auditor's final-case-outcome selection, `AR-AI-14`) and "No Violation Found" is confirmed; "Escalated" must never be shown as a public outcome. **New, separate open question (Round 7):** what outcome text displays for a declined case a Manager marks "No reassignment needed" — that path now reaches Complete (PM decision) but never goes through the Auditor's final-case-outcome selector, so neither of the two labels above was actually decided by anyone for it. Needs its own BA/PM decision.
+2. ~~Max raw-video file size~~ (UR-VU-07) — **RESOLVED, Round 7.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Auditor and Manager files, both updated to match. (Format list and duration target remain settled — MP4/MOV/WEBM/AVI, ~10–15 min target, not a hard maximum.)
 3. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here.
 7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a.
 
