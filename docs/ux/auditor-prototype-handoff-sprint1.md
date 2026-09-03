@@ -180,6 +180,16 @@ Team feedback: "make sure session expiry / connection loss does not reset blur, 
 - **Cooldown/exposure/status-in-text: already sound, no change made.** Checked directly: Cooldown Screen leads with "Cooldown ends at 2:47 PM" and an explicit disabled-button caption ("available at 0:00"), not a bare colour cue; Exposure Limit Reached leads with plain-language copy; case status is a literal text column on the Dashboard. Colour is supplementary everywhere it was checked, matching this file's existing "colour is never the sole signal" rule — this half of the feedback describes an already-implemented principle, not a gap.
 - **Session-interruption state preservation: one real gap, now closed.** The 6.1 reauth modal already states this explicitly on-screen ("Your review — blur level, grayscale, and mute settings — will be exactly as you left it," added in Round 11). The Connection-lost banner (6.2) only implied the same thing in this document's prose, not on the actual screen — so a viewer checking this exact concern against the Figma file itself, not this doc, wouldn't have found it stated anywhere. Fixed: the banner now reads "Connection lost — reconnecting… Your blur, grayscale, and mute settings are unchanged," matching 6.1's pattern. "Review progress" preservation (CVI/comment data) is proven separately and already visibly on the Submission-fails-to-send screen, which shows the actual retained rating/tag/comment text rather than just asserting persistence in copy — no change needed there.
 
+## Round 15 update (BA/PM decisions close 3 shared open items)
+
+Hyuna (PM) sent a batch of decisions resolving several items shared across the Manager, Auditor, and Normal User files' Assumptions & Open Decisions lists — applied here to this file's copy of each shared item.
+
+- **Login lockout threshold — closed: 5 failed attempts, 15-minute lockout**, aligned with the Normal User file's `UR-ST-07` rate-limiting precedent. Locked-out screen's illustrative "12 minutes" placeholder corrected to 15, matching the same fix on the Manager file (shared Login pattern).
+- **Max raw-video file size — closed: 500MB temporary placeholder**, assuming a 10–15 min 1080p MP4 baseline; Dev validates and adjusts through the real pipeline. Matches the Manager and Normal User files' own equivalent items, both updated this round.
+- **`SR-SA-02`–`04` (Staff Access & Authentication) — closed generically.** Standard token/session-based authentication is sufficient; deliberately **not** naming a specific stack in the requirements/handoff docs, per PM's own direction that pinning implementation choices into ACs is too rigid. No design change — already satisfied structurally.
+
+Items 1–2 below (`AR-WB-12`, `AR-WB-11`) are unaffected — not addressed by this round's decisions, still awaiting their own separate confirmations.
+
 ---
 
 ## Traceability Table
@@ -239,9 +249,9 @@ Team feedback: "make sure session expiry / connection loss does not reset blur, 
 
 1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**.
 2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.)
-3. **Login lockout threshold** — exact failed-attempt count and lockout duration not yet specified; `AR-AS-06` explicitly defers this to a later security spec. The Locked-out screen uses illustrative copy only.
-4. **Max raw-video file size** — still a Week 3 Dev follow-up (shared with the Normal User file's `UR-VU-07`). Affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget.
-5. **"Staff Access & Authentication" requirements (`SR-SA-01`–`05`) — partially resolved, Round 13.** `SR-SA-01` (dedicated staff URL, organisation-provisioned) is now resolved in Jana's doc and documented on the Login Requirements Panel as an infra/routing decision, not a distinct screen. `SR-SA-05` (secure sign-out) is now built — see Round 13 above. `SR-SA-02`–`04` (require auth before the portal, restrict functionality by role, block public self-registration) remain **OPEN** as distinct Dev-implementation items: this prototype satisfies them structurally (Login gates every screen; no sign-up link exists anywhere; `AR-AS-06`'s "visibility controlled by user role" covers the role-scoping principle) but none of the three has its own dedicated UI beyond that, consistent with them being backend/session concerns rather than additional screens.
+3. ~~Login lockout threshold~~ — **RESOLVED, Round 15.** 5 failed attempts, 15-minute lockout, aligned with the Normal User file's `UR-ST-07` rate-limiting precedent. Locked-out screen copy updated to match.
+4. ~~Max raw-video file size~~ — **RESOLVED, Round 15.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Manager and Normal User files, both updated to match. Still affects how reliably the Look-Ahead Assignment Check (Exposure Limit Reached) can compare a case's duration against remaining budget — that comparison logic is a Dev implementation detail, unaffected by this round.
+5. ~~"Staff Access & Authentication" requirements (`SR-SA-01`–`05`)~~ — **RESOLVED, Round 15.** `SR-SA-01`/`05` were already built (Round 13). `SR-SA-02`–`04` are sufficiently addressed by standard token/session-based authentication — deliberately not naming a specific stack here, per PM direction that pinning implementation choices into requirements/ACs is too rigid.
 
 ---
 
