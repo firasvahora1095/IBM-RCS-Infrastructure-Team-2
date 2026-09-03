@@ -156,6 +156,16 @@ Hyuna (PM) sent a batch of decisions resolving several items that had sat open i
 
 ---
 
+## Round 5 update (no-reassignment outcome text resolved)
+
+Closes the narrower question Round 4 surfaced rather than guessed at: what outcome text the Normal User sees when a case reaches Complete via a Manager's "No reassignment needed" decision, since that path never goes through the Auditor's own final-case-outcome selection (`AR-AI-14`) the way standard cases do.
+
+- **Resolution: a dedicated third outcome label, not a reuse of either Auditor-determined one.** Reusing "No Violation Found" would assert a content verdict nobody actually made — the Manager's decision is a process call (whether reassignment is warranted), not a raw-content review, and the Reassignment Queue's own decline reasons aren't always about content (e.g. "Near my exposure limit," "Personal trigger"). Making the copy decline-reason-aware was considered and rejected — it just relocates the same problem into more copy variants instead of resolving it, and reintroduces exactly the branching-logic question Round 2 already declined to solve for downstream routing.
+- **The label:** *"This case has been reviewed and closed. No further action is required from you."* — deliberately content-neutral, same for every decline reason. `5.3b`'s Success notification now states this is what the public status lookup shows, alongside the internal Complete/audit-trail confirmation.
+- Cross-referenced in the Normal User handoff doc's own Round 8 update, where the same label was added to the outcome-preview mockup and Screen 3b's Requirements panel.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
@@ -191,7 +201,7 @@ Hyuna (PM) sent a batch of decisions resolving several items that had sat open i
 2. ~~Max raw-video file size~~ — **RESOLVED, Round 4.** 500MB temporary placeholder cap, assuming a 10–15 min 1080p MP4 baseline; Dev to validate/adjust through the real pipeline. Shared with the Auditor and Normal User files, both updated to match.
 3. ~~"Staff Access & Authentication" requirements (`SR-SA-01`–`05`)~~ — **RESOLVED, Round 4.** `SR-SA-01`/`05` were already built (see Build & self-review notes). `SR-SA-02`–`04` are sufficiently addressed by standard token/session-based authentication — deliberately not naming a specific stack here, per PM direction that pinning implementation choices into requirements/ACs is too rigid.
 4. ~~`MR-OV-08` validation acceptance threshold~~ — **RESOLVED (retargeted), Round 4.** No longer a Sprint 2 blocker — setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's explicitly retargeted to Sprint 3. The Validation View's placeholder/mock data stays labelled as such until then.
-5. **No-reassignment outcome text for the public status lookup (new, Round 4 — narrowed from the prior "downstream routing" item).** PM resolved *routing*: "No reassignment needed" now transitions the case to Complete, note stored to the audit trail, shown as "Complete" to the Normal User. What's still genuinely **OPEN**: the Normal User file's `UR-ST-03` outcome-*text* mechanism only covers standard cases (label derived from the Auditor's own final-case-outcome selection, `AR-AI-14`) — a case completed this way never went through that selector, so no outcome label exists for it yet. Needs a BA/PM decision, cross-referenced in the Normal User doc.
+5. ~~No-reassignment outcome text for the public status lookup~~ — **RESOLVED, Round 5.** A dedicated third outcome label, distinct from both Auditor-determined ones: *"This case has been reviewed and closed. No further action is required from you."* — deliberately content-neutral, since this path is a Manager process decision, not a raw-content verdict. Cross-referenced in the Normal User doc's Round 8 update.
 6. ~~Exceptional-access exit routing is entry-point-agnostic~~ — **RESOLVED (owned by Dev), Round 4.** PM's call: Dev implements the conditional "return to actual origin screen" logic in code — not a design/Figma problem. The prototype's single hardcoded destination (always Reassignment Action) remains as a known, accepted static-prototype limitation, not a gap needing further design work.
 
 ---
