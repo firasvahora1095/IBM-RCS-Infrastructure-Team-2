@@ -222,6 +222,12 @@ No changes were needed to the Manager or Normal User Figma files this round — 
 
 ---
 
+## Round 18 update (`AR-WB-12` review-block window closed)
+
+Hyuna (PM) authorized Jana to pick a final value directly rather than wait further. Closing it now with reasoning, not just a bare number: **45 minutes** — the more protective end of the previously-cited 45–50 minute working range (itself sourced from the Albulescu et al. 2022 microbreak-recovery-window literature already cited in the assumptions note), consistent with `CV-04`'s unconditional wellbeing-priority ruling. No new number was invented — this picks a side of an already-cited range rather than introducing fresh, uncited figures. No Figma change needed: the review-block window is background trigger logic (2+ S2 cases within the window) with no value rendered on any screen. This closes item 1 in "Assumptions & Open Decisions" below — removed from that list per this doc's own convention of pruning resolved items rather than leaving them marked closed indefinitely.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
@@ -264,7 +270,7 @@ No changes were needed to the Manager or Normal User Figma files this round — 
 | AR-WB-08 | Wellbeing outranks moderation speed | Reflected throughout — most explicitly Cooldown, SOS, Exposure Limit Reached | Included |
 | AR-WB-09 | SOS pauses playback, returns to protected state, requires new Proceed to resume | SOS Trigger & Confirmation | Included |
 | AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); Content Warning Modal (S-tier + CVI); AI Analysis Summary; Cooldown Screen | Included |
-| AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state); SOS Trigger & Confirmation (routes here, added Round 17) | Included — review-block window value still open, see below |
+| AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state); SOS Trigger & Confirmation (routes here, added Round 17) | Included — review-block window closed at 45 minutes (Round 18) |
 | AR-WB-15 | Worst-tier-wins whole-case severity | Dashboard (severity tag); Content Warning Modal; AI Analysis Summary | Included |
 | AR-WB-16 (Nice-to-Have) | Optional, low-friction wellbeing check-in, distinct from SOS | Wellbeing Check-in; real click-through entry point at Review Workspace, with a return path back | Included |
 | AR-DF-01 | Auditor may decline instead of proceeding | Content Warning Modal (Decline path) | Included |
@@ -277,10 +283,9 @@ No changes were needed to the Manager or Normal User Figma files this round — 
 
 ## Assumptions & Open Decisions (for the team)
 
-*(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — have been removed from this list; the decisions and reasoning are preserved in the Round 15 update entry above, not repeated here.)*
+*(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — and Round 18 — `AR-WB-12` review-block window, closed at 45 minutes — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here.)*
 
-1. **`AR-WB-12` review-block window** — the working range is ~45–50 minutes; needs one final agreed value before Dev implements the S2 repeated-exposure trigger (`docs/ba/persona-requirements-week2.md` Week 3 follow-up #6). Still **OPEN**. **Owner:** Jana (BA) to confirm the final value — already tracked in her own Week 3 follow-up list; Dev implements once set. Not a UX/Figma decision — the trigger is background logic with no visible UI to design.
-2. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.) **Owner:** Aiden (Dev) — a pipeline/ML confidence-scoring question, not a UX/Figma one; how it's *displayed* is already built and unaffected by how it's resolved.
+1. **`AR-WB-11` tag-to-tier / minimum-severity floor taxonomy** — still **OPEN**: the exact confidence/qualification mechanism for a "credible" vs. staged/toy `weapon_use` detection remains to be confirmed with Aiden against the real pipeline output. (The tag-floor rule itself is settled — see the severity-scale doc.) **Owner:** Aiden (Dev) — a pipeline/ML confidence-scoring question, not a UX/Figma one; how it's *displayed* is already built and unaffected by how it's resolved. Per Hyuna (PM), targeted for resolution by end of this week — not yet closed as of this doc.
 
 ---
 

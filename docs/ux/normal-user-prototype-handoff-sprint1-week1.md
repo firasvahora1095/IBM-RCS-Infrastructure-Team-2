@@ -135,7 +135,7 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-ID-06 | Inform user they must retain the case ID | Screen 2 warning banner | Included |
 | UR-ID-07 | Retain case ID locally (browser storage) | Screen 2 small-print note | Included |
 | UR-ID-08 | Non-sequential, non-guessable case ID format | Screen 2 (ID string styled as random alphanumeric, not a counter) | Included |
-| UR-ID-09 | Warn before navigating away without saving | Screen 2 modal (annotated interaction) | Included — Nice-to-Have |
+| UR-ID-09 | Warn before navigating away without saving | Screen 2 modal (annotated interaction) | Included — Nice-to-Have. Mechanism (browser `beforeunload` vs. in-app route guard) closed 2026-09-09 (Hyuna/PM): left to Dev's discretion, no visible UI difference either way |
 | UR-ST-01 | Retrieve status using case ID | Screen 3a | Included |
 | UR-ST-02 | Update status through user-facing stages | Screen 3b, 3-step progress indicator | Included — wording ("Received → Being Reviewed → Complete") is now **closed and final** for Sprint 2 |
 | UR-ST-03 | Display final outcome | Screen 3b outcome text | Included — **fully closed** (Round 9): derived from the Auditor's own final-case-outcome selection at submission (`AR-AI-14`); resolves to "No Violation Found" or "Violation Found" (both confirmed literal labels, deliberately parallel construction); "Escalated" is never shown as a public outcome. A declined case reaching Complete via a Manager's "no reassignment needed" decision shows its own dedicated third label instead — "This case has been reviewed and closed. No further action is required from you." — deliberately content-neutral, distinct from the two Auditor-determined labels above (Round 8) |
@@ -155,16 +155,15 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-NFR-02 | Consent/privacy notice at submission | Screen 1 | Included |
 | UR-NFR-03 | Data-retention policy | — | Out of visual scope — **closed** as a provisional 12-month post-closure project rule; not a UI element |
 | UR-NFR-04 | Encryption in transit/at rest | Screen 1, encryption/security notice near Submit | Included — corrected from an earlier mistag against UR-NFR-02/03 |
-| UR-NFR-05 | Case ID treated as a sensitive access token (no exposure via URL/analytics/logs) | Screen 3a, Dev-facing annotation | Included as annotation — new requirement since Week 1, same treatment pattern as UR-ST-07 |
+| UR-NFR-05 | Case ID treated as a sensitive access token (no exposure via URL/analytics/logs) | Screen 3a, Dev-facing annotation | Included as annotation — same treatment pattern as UR-ST-07. Closed 2026-09-09 (Hyuna/PM): implementation mechanism left to Dev's discretion |
 
 ---
 
 ## Assumptions & Open Decisions (for the team)
 
-*(Items resolved in Rounds 7–9 — max raw-video file size, the Manager no-reassignment path's outcome text, the action-taken outcome category wording — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here.)*
+*(Items resolved in Rounds 7–9 — max raw-video file size, the Manager no-reassignment path's outcome text, the action-taken outcome category wording — and closed 2026-09-09 by Hyuna/PM — the leave-without-saving mechanism (UR-ID-09) and case-ID-in-logs (UR-NFR-05), both left to Dev's discretion since neither has a visible UI/behavioural difference to specify at BA level — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here.)*
 
-3. **Leave-without-saving warning** (UR-ID-09) — still **OPEN**. Modeled as a modal triggered on navigate-away; the actual mechanism (browser `beforeunload` vs. in-app route guard) is a Dev implementation decision, annotated but not dictated here. **Owner:** Dev — the modal itself is designed and built; only the browser-level detection mechanism is undecided, and that has no visible UI difference either way.
-7. **Case ID exposure in URLs/logs** (UR-NFR-05) — new mandatory requirement, not previously tracked. Not an open decision so much as a Dev implementation constraint: case ID must not appear in URL query strings, third-party analytics, or unredacted application logs anywhere across the status flow (3a/3b/3c). Documented as a Dev-facing annotation on Screen 3a. **Owner:** Dev — routing/logging hygiene, not a UX/Figma concern.
+No items remain open in this list — every previously-tracked open decision for this file has now been resolved. See the Traceability Table above for what each item's Status column now cites.
 
 ---
 
