@@ -16,3 +16,7 @@
 * [06 - IBM-RCS Infrastructure_Sprint1_Week2_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint1-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint1_Week1_Team_Meeting_Recording.mp4?d=w12c36eee6ba949f69977cc977a93037e&csf=1&web=1&e=xCMJdN)
 
 
+# Sprint 1 - Week 3 Meetings & Documentation
+* [06 - IBM-RCS Infrastructure_Sprint1_Week3_Team_Meeting_Agenda](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint1-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint1_Week3_Team_Meeting_Agenda.docx?d=w950cedf8a0044ad2aa8542c913fb6b04&csf=1&web=1&e=hCU0UB)
+* [06 - IBM-RCS Infrastructure_Sprint1_Week3_Team_Meeting_Minutes](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint1-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint1_Week3_Team_Meeting_Minutes.docx?d=w07c921fe1df64bf6847be4ab0e933f5d&csf=1&web=1&e=fM8jET)
+* [06 - IBM-RCS Infrastructure_Sprint1_Week3_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint1-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint1_Week3_Team_Meeting_Recording.mp4?d=we813ae4ee7864c6e86a91eaf39bd7e9f&csf=1&web=1&e=X8uDQD)
