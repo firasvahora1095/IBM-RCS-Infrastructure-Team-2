@@ -202,6 +202,26 @@ Same bug found and fixed in the companion Manager file's own Round 6 — prompte
 
 ---
 
+## Round 17 update (SOS now routes into the mandatory S4 cooldown; AI-severity floor transparency added)
+
+Prompted by the team's prototype-review pass: Aleeya tested the live SOS flow directly and found that clicking through SOS let the Auditor return to the queue and keep working immediately — no cooldown, no blocking, nothing. Checked against the requirements doc before touching anything: `AR-WB-04` already requires a cooldown after "high-severity **or unexpected harmful exposure**," and SOS is explicitly the "unexpected harmful exposure" case (`AR-WB-07`) — but `AR-WB-12`'s duration table only ever mapped durations to a case's known S1–S4 tier, computed before the Auditor opens it. An SOS event has no such pre-known tier by definition, so it had fallen through a real gap between two requirements that individually looked complete.
+
+- **Fix: SOS now routes into the existing Cooldown Screen, S4-variant**, rather than ending at "no resume path." No new screen was needed — 5.1's S4-variant already had everything required (real end-time, aggregate-only exposure status, mandatory Manager/support check-in, "Stop my shift" option); it just had no entry point from SOS. Reused rather than rebuilt.
+- **SOS Trigger & Confirmation (5.3) copy updated**: added one line — "Because this was unexpected exposure, a mandatory cooldown now applies before you can take on new cases." — so the destination screen isn't a surprise.
+- **Exit button relabelled** from "Return to queue" to "Continue" (it no longer goes straight to the queue) and rewired to navigate to the Cooldown Screen (S4-variant) instead of the Dashboard.
+- **Why S4, not a new tier or number:** an SOS event's severity can't be reliably known in advance, so this reuses the platform's existing default of treating unexpected/unknown severity as maximum-protective — the same logic already governing `AR-AI-10`/`AR-AI-11`'s AI/STT-failure handling — rather than inventing a new duration.
+- **Found and fixed while in there:** this screen's own Requirements Panel had a now-stale row ("No resume option; 'Return to queue' only") describing the old button by name. Corrected to describe the new "Continue → mandatory cooldown" behaviour instead of leaving a citation that no longer matched the screen.
+
+**Separately, a UX-initiated addition — severity-floor transparency.** The Severity Scale doc is being updated (BA-owned, in progress) to split the AI's output into `watson_severity_score` (raw model output) and `effective_severity_score` (after the `weapon_use` minimum-S3 floor is applied, per `AR-WB-11`), specifically so the model's original score is never silently overwritten. That schema change surfaced a UX question worth acting on directly: if a case's score was floor-raised rather than organically scored, should the Auditor know that at the point they're reviewing it?
+
+- **Added a transparency caption to AI Analysis Summary and Severity Adjustment & Comment**, next to the CVI/severity display, explaining that the shown value is the *effective* score and that the model's original pre-floor value is preserved separately in the audit log rather than lost.
+- **Not tied to a formal requirement ID** — tagged `[UX call]` on both screens' Requirements Panels. Reasoning: this directly mitigates a known limitation flagged during the severity-scale review — because case severity uses worst-tier-wins across independently-analysed frames, a single misleading frame could set the whole case's automated severity without genuine sustained threat, and floor-forced scores are exactly the case where that's most likely to look like something it isn't. Giving the Auditor this distinction is a cheap, direct safeguard, not a formal spec requirement.
+- **Deliberately did not fabricate a floor-triggered example into the existing shared case (AR-2026-00417, CVI 71).** That case's numbers are referenced consistently across 11 other screens in this file (Dashboard, Content Warning Modal, Review Workspace, Submission Confirmation, and others) and 71 was never floor-triggered in the first place — changing it to force a "raised from X" example would have meant touching every one of those screens for a fabricated scenario. The caption is written as a standing, always-visible explanation of the mechanism instead, correct for any case regardless of whether that specific case's score was floor-adjusted.
+
+No changes were needed to the Manager or Normal User Figma files this round — checked directly against this feedback pass and confirmed already correct (see the BA-instructions note for the reasoning on each).
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
@@ -237,14 +257,14 @@ Same bug found and fixed in the companion Manager file's own Round 6 — prompte
 | AR-WB-01 | Track daily exposure time, display progress | Header exposure indicator, all screens; Dashboard; Review Workspace (per-case breakdown) | Included |
 | AR-WB-02 | 120-minute default daily cap | Header exposure indicator | Included |
 | AR-WB-03 | At-limit blocks further normal assignment | Exposure Limit Reached | Included |
-| AR-WB-04 | Cooldown enforced after high-severity/unexpected exposure | Cooldown Screen | Included |
+| AR-WB-04 | Cooldown enforced after high-severity/unexpected exposure | Cooldown Screen; SOS Trigger & Confirmation (routes into Cooldown Screen, S4-variant, added Round 17) | Included |
 | AR-WB-05 | Immediately accessible SOS action | Review Workspace (persistent SOS button) | Included |
 | AR-WB-06 | SOS records event, notifies Manager | SOS Trigger & Confirmation | Included |
 | AR-WB-07 | Unexpected exposure logs, applies protections, emails Manager | SOS Trigger & Confirmation; AI/STT Failure State (mid-review variant) | Included |
 | AR-WB-08 | Wellbeing outranks moderation speed | Reflected throughout — most explicitly Cooldown, SOS, Exposure Limit Reached | Included |
 | AR-WB-09 | SOS pauses playback, returns to protected state, requires new Proceed to resume | SOS Trigger & Confirmation | Included |
 | AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); Content Warning Modal (S-tier + CVI); AI Analysis Summary; Cooldown Screen | Included |
-| AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state) | Included — review-block window value still open, see below |
+| AR-WB-12 | Cooldown duration by tier; post-cooldown S3/S4 exclusion | Cooldown Screen (S4-variant); Dashboard (Cooldown-active state); SOS Trigger & Confirmation (routes here, added Round 17) | Included — review-block window value still open, see below |
 | AR-WB-15 | Worst-tier-wins whole-case severity | Dashboard (severity tag); Content Warning Modal; AI Analysis Summary | Included |
 | AR-WB-16 (Nice-to-Have) | Optional, low-friction wellbeing check-in, distinct from SOS | Wellbeing Check-in; real click-through entry point at Review Workspace, with a return path back | Included |
 | AR-DF-01 | Auditor may decline instead of proceeding | Content Warning Modal (Decline path) | Included |
