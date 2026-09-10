@@ -1,0 +1,22 @@
+{
+  "case_id": "case-0042",
+  "frame_num": "frame-00003",
+  "timestamp": 6.0,
+  "tags": [
+    "physical_violence"
+  ],
+  "watson_severity_score": 72,
+  "effective_severity_score": 72,
+  "severity_tier": "S3",
+  "reasoning": "Two people appear to be grappling in a physical confrontation.",
+  "entities": [
+    "person on the left",
+    "person on the right"
+  ],
+  "audit": {
+    "model_id": "meta-llama/llama-4-maverick-17b-128e-instruct-fp8",
+    "model_version": null,
+    "prompt_version": "1.0",
+    "decision_timestamp": "2026-09-10T10:30:00Z"
+  }
+}

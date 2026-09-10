@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WatsonX.ai frame analysis",
+  "description": "One frame result with backend audit fields. Python calculates the effective score and tier before validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "frame_num",
+    "timestamp",
+    "tags",
+    "watson_severity_score",
+    "effective_severity_score",
+    "severity_tier",
+    "reasoning",
+    "entities",
+    "audit"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "frame_num": {
+      "type": "string",
+      "pattern": "^frame-[0-9]{5,}$"
+    },
+    "timestamp": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds from the start of the source video."
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "physical_violence",
+          "weapon_present",
+          "weapon_use",
+          "visible_injury",
+          "multi_person_conflict"
+        ]
+      }
+    },
+    "watson_severity_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "effective_severity_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "severity_tier": {
+      "enum": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    },
+    "reasoning": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "model_version",
+        "prompt_version",
+        "decision_timestamp"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "description": "model version otherwise null."
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -4,3 +4,4 @@ ibm-cos-sdk
 ibm-watson
 ibm-watsonx-ai==1.3.42
 python-dotenv
+jsonschema
