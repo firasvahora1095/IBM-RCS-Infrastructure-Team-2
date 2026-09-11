@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 ibm-cos-sdk
 ibm-watson
+ibm-watson-openscale
 ibm-watsonx-ai==1.3.42
 python-dotenv
 jsonschema
