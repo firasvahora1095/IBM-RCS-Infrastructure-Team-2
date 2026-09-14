@@ -295,7 +295,7 @@ No design or requirement changes — this round is a documentation-consistency f
 
 ## Assumptions & Open Decisions (for the team)
 
-*(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — and Round 18 — `AR-WB-12` review-block window, closed at 45 minutes — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here. `AR-WB-11`'s tag-to-tier confidence mechanism, previously tracked here, has been moved off this list during the Sprint 2 handoff pass (T10) — it's a pipeline/ML confidence-scoring question for Aiden (Dev) against the real pipeline output, not a UX/Figma decision; how it's displayed is already built and unaffected by how it resolves. Tracked going forward in `sprint2-build-scope-handoff.md`'s open-items ownership audit, not repeated here.)*
+*(Items resolved in Round 15 — login lockout, max file size, `SR-SA-02`–`04` — and Round 18 — `AR-WB-12` review-block window, closed at 45 minutes — have been removed from this list; the decisions and reasoning are preserved in those Round update entries above, not repeated here. `AR-WB-11`'s tag-to-tier confidence mechanism, previously tracked here, has been moved off this list during the Final Figma Consistency/Scope Pass (Task 54) — it's a pipeline/ML confidence-scoring question for Aiden (Dev) against the real pipeline output, not a UX/Figma decision; how it's displayed is already built and unaffected by how it resolves. Tracked going forward in `sprint2-build-scope-handoff.md`'s open-items ownership audit, not repeated here.)*
 
 No items remain open in this list that require a UX/Figma decision.
 

@@ -1,13 +1,13 @@
 # Sprint 2 Build-Scope Handoff — All Three Prototypes
 
-**Track:** Design / Product · **Sprint:** Sprint 1, Week 3 (T10) · **Owner:** Aleeya Ahmad (UX)
+**Track:** Design / Product · **Sprint:** Sprint 1, Week 3 (Task 54 — Final Figma Consistency/Scope Pass) · **Owner:** Aleeya Ahmad (UX)
 **For:** Firas (frontend build), and the team generally
 
 ---
 
 ## What this is
 
-All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 19, Manager Round 7, Normal User Round 11). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass (T10): confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
+All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 19, Manager Round 7, Normal User Round 11). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass — Task 54, Final Figma Consistency/Scope Pass: confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
 
 Scope split below is derived directly from the Sprint 2 implementation plan's own stated scope (`sprint2_plan_final_updated.md`, team's local planning doc): Sprint 2 ships upload → case creation → assignment → AI severity/summary/timeline → Auditor confirm/override → final outcome → Complete → public status lookup, plus a **scaffolded, non-live** Manager dashboard. It explicitly defers blur/grayscale/mute, the content-warning/decline flow, exposure-time tracking and cooldown enforcement, SOS logging, declined-case reassignment, ground-truth validation, and full live Manager oversight to Sprint 3. Sprint 2's Auditor reviews AI output only — raw video is not sent to the Auditor browser this sprint.
 
