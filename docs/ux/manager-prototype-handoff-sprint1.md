@@ -183,6 +183,14 @@ The Figma Handoff page's on-canvas Iteration History panel stopped at Round 5 �
 
 ---
 
+## Round 8 update (screen background colour brought in line with the Auditor file)
+
+Flagged directly by Aleeya on review: the Auditor prototype's dashboard/working screens render on a white page background, but the equivalent Manager screens were on Gray 10 (`#f4f4f4`) — a cross-file inconsistency, not a deliberate choice. Checked Auditor's own actual pattern first rather than assuming a fix: Auditor keeps Gray 10 only for its Login screens and its one true modal-over-backdrop screen (Content Warning Modal); every other Auditor screen — Dashboard, AI Analysis Summary, Review Workspace, Severity Adjustment, Submission Confirmation, Cooldown, Wellbeing Check-in, SOS Trigger, Exposure Limit Reached, Connection Lost, Submission Fails, Session-expired-reauth — is White.
+
+Brought Manager into line with that same pattern rather than flattening everything to one colour arbitrarily: kept Gray 10 on Manager's Login screens (Default/Error/Locked-out) and its equivalent true modal screen (`5.4a Content Warning Modal`), and changed the remaining 18 screens to White — Oversight Dashboard, Auditor Detail/Exposure Limit Adjustment (plus its two follow-up states), Consolidated Case Oversight, SOS Alert Banner reference, SOS Inbox, SOS Alert Detail, SOS Acknowledge & Follow-up, Case Review Detail, Declined/Reassignment Queue, Reassignment Action (plus its 5.3b/5.3c confirmation states and the mid-decision edge case), Validation View, Exposure Limit save-fails edge case, and Session-expired-reauth (Manager variant). Verified with fresh screenshots after the change: table headers and card dividers already carry their own Gray 20 borders, so nothing relies on the page background for contrast — no regressions.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
