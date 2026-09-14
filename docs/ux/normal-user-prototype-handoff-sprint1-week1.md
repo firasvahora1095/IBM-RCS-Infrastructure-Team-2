@@ -87,6 +87,24 @@ A cross-file consistency check against the Manager and Auditor files' own Founda
 - **`color/green-10` (`#defbe6`) was missing from the Colour section** despite being the exact background this file's own Success notification already used — added, matching the existing swatch style and computed-contrast-ratio pattern (Gray 100 text on this bg: 16.4:1, passes AAA).
 - **`color/blue-70` (`#0043ce`) was used but never catalogued** — it's the Primary button's hover-state fill, confirmed by inspecting the actual component, not assumed. Added as a swatch noting its specific role, since it isn't used for text/icon fills anywhere in this flow the way it is in the Auditor/Manager files (there, it also doubles as the Info support colour).
 
+## Round 11 update (anonymous-vs-identified reporting choice added, per Marielle Lee's expert interview)
+
+**The gap.** Marielle Lee's expert interview (Q3) recommended giving reporters an explicit choice — stay anonymous, or leave contact details for follow-up — rather than only offering contact fields as a passive, post-submission opt-in. This file's only existing contact-related field, `UR-ID-05` (Screen 2's optional email/SMS opt-in), answers a different question: whether a reporter who has *already submitted* wants a status-update ping. It never actually asks, at the point of reporting, whether the report itself should be anonymous or identified — a real gap between the interview recommendation and what was built, not something previously tracked as open.
+
+**Added to Screen 1**, directly below the optional description field and above the consent checkbox: a labelled choice — *"How would you like to submit this report?"* — using real Carbon RadioButton geometry (18px circle, Gray 70 border unselected / Blue 60 border + filled dot selected, spec matched directly against the Auditor file's own built `RadioButton` component), not the evidence-type chip pattern. A first pass reused the chip-selector style from evidence type (`UR-NTH-01`/`02`/`03`) — caught in review as a real mistake, not a stylistic nitpick: a second solid-Blue-60 pill next to "Upload video" read as a second competing call-to-action alongside "Submit report," violating the one-primary-action-per-screen convention this project follows everywhere else. Rebuilt with radio buttons instead, which is also the correct Carbon component for an exclusive two-option choice in the first place.
+- **"Report anonymously"** — default/selected, consistent with `UR-VU-02`'s no-account baseline; nothing changes for a reporter who ignores this section entirely.
+- **"Include my name & email"** — selecting this reveals two lightweight fields (Name, Email — real `Text Input` component instances, matching the file's existing input styling exactly), matching Marielle's own guidance to keep this "name, email, message," not a full account.
+
+**Deliberately kept separate from `UR-ID-05`.** Reusing that field would have conflated two different questions — "should this report be identified" (asked once, at submission) versus "do you want status updates later" (Screen 2, after a case ID already exists). Collapsing them would mean a reporter who wants to stay anonymous but still get a status ping (or vice versa) couldn't express that combination.
+
+**Tagged `[UX call]`, not a formal requirement ID** — no `UR-*` ID mandates this specifically; it's a direct response to expert-interview evidence, following the same treatment as every other unassigned team judgment call in this file. Documented on Screen 1's Requirements Panel, plus a new alternate-state frame (Screen 1d) showing the "identified" selection with both fields revealed, matching this file's existing convention for evidence-type alternates (1b, 1c).
+
+## Round 12 update (Screen 1 ↔ 1d click-through wired — real gap closed)
+
+Round 11 adopted Screen 1d "matching this file's existing convention for evidence-type alternates (1b, 1c)" — but unlike 1b/1c, the identity-choice radio buttons carried zero prototype reactions on either screen: clicking "Include my name & email" on Screen 1 did nothing, and there was no way back from Screen 1d to Screen 1 either. A real click-through gap, not a documentation gap — the same failure mode the Auditor file's own Round 9 found and fixed for its Wellbeing Check-in screen, and worth calling out precisely because the prototype needs to demonstrate every flow end to end, including Nice-to-Haves, not just the P0 path.
+
+Wired to match the exact pattern already used by the evidence-type chips: Screen 1's "Include my name & email" radio now navigates to Screen 1d (`SMART_ANIMATE`, 0.3s ease-out — identical transition to the 1b/1c chip links); Screen 1d's "Report anonymously" radio navigates back to Screen 1, same transition. Neither already-selected option (Screen 1's "Report anonymously," Screen 1d's "Include my name & email") carries a reaction, matching the no-self-navigation convention the evidence chips already use. Screen 1d's own Submit button and "check case status" link were already correctly wired onward to Screen 2/3a — verified directly, not assumed, before treating this as fully closed.
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
@@ -131,7 +149,8 @@ All frames are wired with real Figma prototype connections (click reactions), no
 | UR-ID-02 | Display case ID immediately after submission | Screen 2 | Included |
 | UR-ID-03 | Case ID usable to retrieve case | Screen 3a | Included |
 | UR-ID-04 | "Copy Case ID" option | Screen 2 primary button | Included |
-| UR-ID-05 | Optional email/SMS opt-in | Screen 2, deprioritized secondary element | Included — Nice-to-Have, styled deliberately smaller than the case ID/copy action |
+| UR-ID-05 | Optional email/SMS opt-in | Screen 2, deprioritized secondary element | Included — Nice-to-Have, styled deliberately smaller than the case ID/copy action. Distinct from the Screen 1 reporting-identity choice below (Round 11) — this is about receiving updates on an already-submitted case, not whether the report itself is identified |
+| *(no ID — `[UX call]`)* | Anonymous-vs-identified reporting choice | Screen 1, below the optional description field; alternate state on Screen 1d | Included — added Round 11, per Marielle Lee's expert interview (Q3); default anonymous, "Include my name & email" reveals lightweight Name/Email fields |
 | UR-ID-06 | Inform user they must retain the case ID | Screen 2 warning banner | Included |
 | UR-ID-07 | Retain case ID locally (browser storage) | Screen 2 small-print note | Included |
 | UR-ID-08 | Non-sequential, non-guessable case ID format | Screen 2 (ID string styled as random alphanumeric, not a counter) | Included |
@@ -172,3 +191,4 @@ No items remain open in this list — every previously-tracked open decision for
 - Reconciled as of Round 4 against: `Requirements-BA.md` (Jana, BA, Sprint 1 Week 2 — Final BA baseline for Sprint 2 handover), Normal User Requirements section.
 - IBM branding directive sourced from the 21 Aug 2026 non-tech support session minutes (Meeting No. 1, decision #4). "Design your own" directive sourced from the client Sprint 1 Q&A notes (Naresh Olladapu, Q11).
 - **Action for Dev:** treat the traceability table above as the build spec; anything marked Deferred is deliberately out of this sprint's scope, not an oversight. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
+- Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.
