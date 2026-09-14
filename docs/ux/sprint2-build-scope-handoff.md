@@ -7,7 +7,7 @@
 
 ## What this is
 
-All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 19, Manager Round 7, Normal User Round 11). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass — Task 54, Final Figma Consistency/Scope Pass: confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
+All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 20, Manager Round 7, Normal User Round 13). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass — Task 54, Final Figma Consistency/Scope Pass: confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
 
 Scope split below is derived directly from the Sprint 2 implementation plan's own stated scope (`sprint2_plan_final_updated.md`, team's local planning doc): Sprint 2 ships upload → case creation → assignment → AI severity/summary/timeline → Auditor confirm/override → final outcome → Complete → public status lookup, plus a **scaffolded, non-live** Manager dashboard. It explicitly defers blur/grayscale/mute, the content-warning/decline flow, exposure-time tracking and cooldown enforcement, SOS logging, declined-case reassignment, ground-truth validation, and full live Manager oversight to Sprint 3. Sprint 2's Auditor reviews AI output only — raw video is not sent to the Auditor browser this sprint.
 
@@ -86,10 +86,20 @@ Every item still open in any of the three handoff docs' "Assumptions & Open Deci
 
 ## Consistency pass (this session)
 
-Spot-checked the Auditor Dashboard, Manager Oversight Dashboard, and Normal User Case ID Confirmation screens for Carbon fidelity, text clipping, and header/nav consistency — all clean. One stale reference found and fixed: Screen 2's "View requirements"/"Contact support" footnote pointed to "see Open Decisions" for its placeholder link destinations, but that section has since been fully closed (Round 9) — reworded to correctly describe it as a Dev-owned detail, not a dangling design decision.
+Two passes were made this session, not one:
+
+**Pass 1 — targeted spot-check.** Checked the Auditor Dashboard, Manager Oversight Dashboard, and Normal User Case ID Confirmation screens for Carbon fidelity, text clipping, and header/nav consistency — all clean. One stale reference found and fixed: Screen 2's "View requirements"/"Contact support" footnote pointed to "see Open Decisions" for its placeholder link destinations, but that section has since been fully closed (Round 9) — reworded to correctly describe it as a Dev-owned detail, not a dangling design decision.
+
+**Pass 2 — full pixel-by-pixel audit, every screen, all three files.** Run separately and explicitly because Pass 1 was a spot-check, not a full re-verification — every frame across all ~65 screens/states in all three Figma files was checked individually (Carbon token fidelity, type scale, spacing, component usage, edge cases, alternate states) rather than sampled. Results:
+
+- **Manager file — fully clean.** No defects found across any screen. No Figma or doc changes needed beyond this note.
+- **Auditor file — 2 real defects found and fixed** (now Round 20 in `auditor-prototype-handoff-sprint1.md`): Cooldown Screen (S4) copy implying an action the auditor has no way to perform, reworded to correctly attribute the mandatory check-in to the manager/support-initiated mechanism; Submission-fails-to-send state rebuilt from a raw hand-built frame into a genuine `Kind=Error` `InlineNotification` component instance, matching every other error state in the file.
+- **Normal User file — 2 real defects found and fixed** (now Round 13 in `normal-user-prototype-handoff-sprint1-week1.md`): the Screen 1d "PREVIEW" tag was still IBM Plex Mono 11px despite Round 5 already fixing its colour — corrected to IBM Plex Sans Regular 12px, matching the file's own Case ID label convention; the "Add more information to this case" modal had three text elements at off-token sizes (13px/13px/11px, none matching this file's own `body-01`=14px or `helper-text-01`=12px) — corrected to 14px/12px/12px respectively, verified against this file's own repeated "(optional)" label pattern rather than guessed.
+
+All fixes were verified visually with a fresh screenshot after each change — no clipping, overlap, or regressions introduced.
 
 ---
 
 ### Traceability
-- Built from: `sprint2_plan_final_updated.md` (team Sprint 2 implementation plan) cross-referenced against the actual screen lists of all three Figma files as of Auditor Round 19 / Manager Round 7 / Normal User Round 11.
+- Built from: `sprint2_plan_final_updated.md` (team Sprint 2 implementation plan) cross-referenced against the actual screen lists of all three Figma files as of Auditor Round 20 / Manager Round 7 / Normal User Round 13.
 - **Action for Firas:** treat the table above as the literal build order for Sprint 2 — everything marked "Build now" is this sprint's job; everything marked "Sprint 3" should not be started yet, even if it's fully designed and sitting right there in the file.

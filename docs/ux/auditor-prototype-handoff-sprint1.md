@@ -240,6 +240,17 @@ No design or requirement changes — this round is a documentation-consistency f
 
 ---
 
+## Round 20 update (pixel-by-pixel pass — two real fixes found and made)
+
+A full screen-by-screen re-check of every Auditor frame (not a spot-check) turned up two genuine defects, both now fixed in Figma:
+
+- **Cooldown Screen (S4) copy implied an action the auditor has no way to perform.** The screen's body copy read as though the mandatory check-in was something the auditor needed to trigger themselves, but there is no control on the screen to do that — because there isn't supposed to be one. This project draws a deliberate line between two separate mechanisms: an *optional*, auditor-initiated wellbeing check-in available elsewhere in the flow, and the *mandatory* S4 cooldown check-in, which is manager- or support-initiated by design. Reworded the copy to state that plainly rather than adding a button that would contradict the established design — title now reads "Your manager will check in before this ends," with body text clarifying "This isn't something you need to trigger — unlike the optional wellbeing check-in elsewhere in this flow, an S4 cooldown includes a mandatory check-in your manager or support initiates."
+- **Submission-fails-to-send state was a hand-built frame, not the real `InlineNotification` component.** Every other error state in this file — Login Error included — uses a proper `Kind=Error` instance of the shared component. This one screen had been built as a one-off `FRAME` with directly-applied red-tinted `SemiBold` text instead, so it wouldn't inherit any future token or copy update made to the real component. Replaced it with a genuine `Kind=Error` instance, matching the verified-correct Login Error pattern exactly: bold gray label + gray message text, red border and pink background carrying the error signal — not red text. Copy: "**Error:** Couldn't submit — check your connection and try again."
+
+No other issues found across the remaining screens in this pass — confirmed clean.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |

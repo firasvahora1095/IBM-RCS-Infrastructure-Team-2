@@ -107,6 +107,15 @@ Wired to match the exact pattern already used by the evidence-type chips: Screen
 
 **Follow-up fix, same pass: Name/Email fields were rendering oversized and in the wrong typeface.** Flagged directly by Aleeya on review — the fields looked "really weird and large" once the identified state was actually visible, not just documented. Root cause, confirmed by inspection: the shared `Text Input` component was originally built for the Case ID lookup field, where 16px IBM Plex Mono is correct per this file's own convention (case IDs are one of the few things Mono is reserved for). Reusing that component for Name/Email on Screen 1d correctly overrode the placeholder *text* but never overrode the *font* — so "Jordan Lee" and "jordan@example.com" were rendering at 16px Mono, the same treatment as a case ID, instead of Carbon's real `body-01` spec (IBM Plex Sans, 14px) that every other input value in this file uses. Fixed on both instances only — the shared master component was left untouched, since 16px Mono is still correct there for its actual Case ID use on Screen 3a.
 
+## Round 13 update (pixel-by-pixel pass — one further font defect found)
+
+A full screen-by-screen re-check of every Normal User frame (not a spot-check) turned up two instances of the same defect class as Round 12's follow-up fix — text set at an off-token size that doesn't match any Carbon type-scale value used elsewhere in this file:
+
+- **"PREVIEW" tag on Screen 1d (node `86:87`)** was still set in IBM Plex Mono at 11px, even though Round 5 had already corrected its fill colour on this same element and moved on without checking the typeface. Compared directly against the verified-correct "Case ID" label elsewhere in the file (12px, IBM Plex Sans, Regular) and fixed to match — IBM Plex Sans Regular, 12px.
+- **"Add more information to this case" modal (node `80:31`, `UR-NTH-05`)** had three text elements at sizes that don't correspond to any token in this file's own type scale: the textarea placeholder at 13px, the "+ Attach a file (optional)" action label at 13px, and the closing disclaimer line at 11px. Checked against a low-confidence flag rather than fixed on a guess — then confirmed as a real defect, not deliberate microcopy, by cross-referencing this file's own repeated pattern for identical element types: every other "(optional)" label in this file (`Add more detail (optional)`, `Email (optional)`, `Phone (optional)`) is set at 12px, matching `helper-text-01`; the placeholder is input-value text, which the file's own convention (see Round 12's Name/Email fix) sets at `body-01` 14px, not 13px. Fixed all three: textarea placeholder → 14px, "+ Attach a file (optional)" → 12px, disclaimer line → 12px. Re-screenshotted after the fix — no clipping or overlap, modal reads cleanly.
+
+No other typography, spacing, or component defects found across the remaining screens in this pass — confirmed clean.
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
