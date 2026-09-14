@@ -15,52 +15,58 @@ Scope split below is derived directly from the Sprint 2 implementation plan's ow
 
 ## Screen-by-screen build map
 
+Figma Node links jump straight to the frame in the file (open the file first, then click through). Node IDs are stable — they don't change if the screen is renamed or moved on the canvas.
+
 ### Normal User — build now (all of it)
 
 The entire public-reporting flow is Sprint 2 P0. Nothing in this file is Sprint 3.
+File: `https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv`
 
-| Screen | Status |
-|---|---|
-| Video Upload (incl. identity-choice section) | **Build now** |
-| Case ID Confirmation | **Build now** |
-| Status/Notification (3a/3b/3c) | **Build now** |
-| Alternate states (1b "paste a link," 1c "add a screenshot," 1d "identified," error variants) | Sprint 3 polish — Nice-to-Have, not P0 |
+| Screen | Figma Node | Status |
+|---|---|---|
+| Video Upload (incl. identity-choice section) | [5:2](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=5-2) | **Build now** |
+| Case ID Confirmation | [6:2](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=6-2) | **Build now** |
+| Status/Notification — 3a lookup / 3b found / 3c not-found | [7:2](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=7-2) / [7:15](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=7-15) / [7:41](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=7-41) | **Build now** |
+| Alt. 1b "paste a link" / 1c "add a screenshot" / 1d "identified" | [72:28](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=72-28) / [72:58](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=72-58) / [418:72](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=418-72) | Sprint 3 polish — Nice-to-Have, not P0 |
+| Error states — consent-required / processing-failed | [73:29](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=73-29) / [73:41](https://www.figma.com/design/WVsLoKZU9y4v75xWWSUNCv?node-id=73-41) | Sprint 3 polish |
 
 ### Auditor
+File: `https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D`
 
-| Screen | Status |
-|---|---|
-| Login (Default/Error/Locked-out) | **Build now** |
-| Dashboard / Case Queue | **Build now** |
-| AI Analysis Summary | **Build now** — severity/summary/timeline only, per Sprint 2's AI-output-only scope |
-| Severity Adjustment & Comment | **Build now** — confirm/override + final-outcome selector |
-| Submission Confirmation (standard-outcome path) | **Build now** |
-| Content Warning Modal | Sprint 3 |
-| Review Workspace (blur/grayscale/mute/SOS) | Sprint 3 |
-| Decline Reason Modal / Decline Confirmation | Sprint 3 |
-| AI/STT Failure State | Sprint 3 |
-| Cooldown Screen | Sprint 3 |
-| Wellbeing Check-in | Sprint 3 |
-| SOS Trigger & Confirmation | Sprint 3 |
-| Exposure Limit Reached | Sprint 3 |
-| Dashboard — Empty / Cooldown-active | Sprint 3 |
-| Session-expired-reauth, Connection-lost, Submission-fails-to-send | Sprint 3 |
+| Screen | Figma Node | Status |
+|---|---|---|
+| Login — Default / Error / Locked-out | [8:2](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=8-2) / [8:22](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=8-22) / [36:129](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=36-129) | **Build now** |
+| Dashboard / Case Queue | [10:6](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=10-6) | **Build now** |
+| AI Analysis Summary | [18:26](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=18-26) | **Build now** — severity/summary/timeline only, per Sprint 2's AI-output-only scope |
+| Severity Adjustment & Comment | [25:53](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=25-53) | **Build now** — confirm/override + final-outcome selector |
+| Submission Confirmation (standard-outcome path) | [25:280](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=25-280) | **Build now** |
+| Content Warning Modal | [16:19](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=16-19) | Sprint 3 |
+| Review Workspace (blur/grayscale/mute/SOS) | [20:35](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=20-35) | Sprint 3 |
+| Decline Reason Modal / Decline Confirmation | [25:137](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=25-137) / [25:353](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=25-353) | Sprint 3 |
+| AI/STT Failure State | [25:212](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=25-212) | Sprint 3 |
+| Cooldown Screen | [31:99](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=31-99) | Sprint 3 |
+| Wellbeing Check-in | [31:188](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=31-188) | Sprint 3 |
+| SOS Trigger & Confirmation | [31:257](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=31-257) | Sprint 3 |
+| Exposure Limit Reached | [34:121](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=34-121) | Sprint 3 |
+| Dashboard — Empty / Cooldown-active | [36:146](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=36-146) / [36:189](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=36-189) | Sprint 3 |
+| Session-expired-reauth / Connection-lost / Submission-fails-to-send | [36:235](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=36-235) / [42:352](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=42-352) / [42:405](https://www.figma.com/design/QGPZWRZRFeKxkl0NApc35D?node-id=42-405) | Sprint 3 |
 
 ### Manager — scaffold only
+File: `https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse`
 
-| Screen | Status |
-|---|---|
-| Login (shared with Auditor) | **Build now** |
-| TopNav shell / page navigation structure | **Build now** |
-| Oversight Dashboard | **Build now** — static/placeholder shell, no live exposure data |
-| Consolidated Case Oversight | **Build now** — static/placeholder shell |
-| Auditor Detail | Sprint 3 |
-| SOS Banner / Inbox / Alert Detail / Acknowledge & Follow-up | Sprint 3 |
-| Case Review Detail | Sprint 3 |
-| Declined/Reassignment Queue, Reassignment Action (+5.3b/5.3c) | Sprint 3 |
-| Exceptional Raw-Content Access (5.4a/b/c) | Sprint 3 |
-| Validation View | Sprint 3 |
-| Edge-case screens (session-expired, exposure-limit-save-fails, reassignment-target-unavailable) | Sprint 3 |
+| Screen | Figma Node | Status |
+|---|---|---|
+| Login (shared with Auditor) | [1:342](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=1-342) | **Build now** |
+| TopNav shell (component, `02 — Components` page) | [94:132](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=94-132) | **Build now** |
+| Oversight Dashboard | [78:69](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=78-69) | **Build now** — static/placeholder shell, no live exposure data |
+| Consolidated Case Oversight | [86:198](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=86-198) | **Build now** — static/placeholder shell |
+| Auditor Detail | [86:94](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=86-94) | Sprint 3 |
+| SOS Banner / Inbox / Alert Detail / Acknowledge & Follow-up | [103:294](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=103-294) / [103:151](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=103-151) / [103:197](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=103-197) / [103:228](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=103-228) | Sprint 3 |
+| Case Review Detail | [118:198](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=118-198) | Sprint 3 |
+| Declined/Reassignment Queue, Reassignment Action (+5.3b/5.3c) | [119:289](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=119-289) / [119:405](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=119-405) | Sprint 3 |
+| Exceptional Raw-Content Access — 5.4a/b/c | [1:454](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=1-454) / [1:512](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=1-512) / [1:612](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=1-612) | Sprint 3 |
+| Validation View | [136:257](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=136-257) | Sprint 3 |
+| Session-expired-reauth / Exposure-limit-save-fails / Reassignment-target-unavailable | [1:1231](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=1-1231) / [197:309](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=197-309) / [197:321](https://www.figma.com/design/0qMhTLDlozGkcdqcgbwyse?node-id=197-321) | Sprint 3 |
 
 ---
 
