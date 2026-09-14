@@ -193,7 +193,7 @@ The Figma Handoff page's on-canvas Iteration History panel stopped at Round 5 �
 | MR-OV-04 | Manager sets/adjusts individual Auditor exposure limit | Auditor Detail | Included |
 | MR-OV-05 | Visually distinguish comfortably-below / approaching / at limit | Oversight Dashboard (3-state colour system, Approaching = 75%, At Limit = 100%) | Included |
 | MR-OV-06 | Broader role-based visibility than Auditors | Oversight Dashboard; Consolidated Case Oversight | Included |
-| MR-OV-08 | Distinct validation view vs. live oversight, AI output vs. ground truth | Validation View | Included — placeholder/mock data explicitly labelled; pass/fail threshold open, see below |
+| MR-OV-08 | Distinct validation view vs. live oversight, AI output vs. ground truth | Validation View | Included — placeholder/mock data explicitly labelled; pass/fail threshold retargeted to Sprint 3, Dev/BA-owned — see `sprint2-build-scope-handoff.md` |
 | MR-SOS-01 | SOS notifies Manager, event available for follow-up | SOS Inbox; SOS Alert Detail | Included |
 | MR-SOS-02 | Unexpected exposure triggers an email notification to the Manager | — | Included by design omission (background/system behaviour, not a distinct visible screen) |
 | MR-SOS-03 | Unresolved SOS appears as a visually urgent in-app banner | SOS Banner (persistent, on Dashboard/Auditor Detail/Case Oversight/SOS Inbox) | Included |
@@ -214,9 +214,9 @@ The Figma Handoff page's on-canvas Iteration History panel stopped at Round 5 �
 
 ## Assumptions & Open Decisions (for the team)
 
-*(Items resolved across Rounds 4–5 — login lockout, max file size, `SR-SA-02`–`04`, no-reassignment outcome text, exceptional-access exit routing — have been removed from this list; the decisions and reasoning behind each are preserved in their respective Round update entries above, not repeated here.)*
+*(Items resolved across Rounds 4–5 — login lockout, max file size, `SR-SA-02`–`04`, no-reassignment outcome text, exceptional-access exit routing — have been removed from this list; the decisions and reasoning behind each are preserved in their respective Round update entries above, not repeated here. `MR-OV-08`'s validation acceptance threshold, previously tracked here, has been moved off this list during the Sprint 2 handoff pass (T10) — it's a Dev/BA-owned item (Firas/Aiden to build the continuous-testing pipeline; Jana to sign off the final threshold once real results exist), not a UX/Figma decision; the Validation View's placeholder/mock data already stays explicitly labelled as such regardless of how it resolves. Tracked going forward in `sprint2-build-scope-handoff.md`'s open-items ownership audit, not repeated here.)*
 
-1. **`MR-OV-08` validation acceptance threshold** — genuinely **OPEN**, retargeted to Sprint 3 (Round 4): setting a defensible pass/fail number needs continuous testing infrastructure this project doesn't have yet, so it's no longer a Sprint 2 blocker. No pass/fail number is shown anywhere in the file; the Validation View's placeholder/mock data stays explicitly labelled as such until a real number exists. **Owner:** Dev (Firas/Aiden) to build the continuous-testing pipeline; Jana (BA) to sign off the final threshold once real results exist — not a UX/Figma decision, nothing left to design here.
+No items remain open in this list that require a UX/Figma decision.
 
 ---
 
