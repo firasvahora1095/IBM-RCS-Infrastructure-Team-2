@@ -177,6 +177,12 @@ Prompted by a cross-file consistency check against the Normal User file's own Fo
 
 ---
 
+## Round 7 update (Figma Iteration History synced)
+
+The Figma Handoff page's on-canvas Iteration History panel stopped at Round 5 — Round 6's Carbon colour-tint audit (above) was never added to it, even though the Foundations page itself already showed the corrected values. Added a condensed Round 6 entry to the on-canvas log so the file's own change history matches this doc. No design or requirement changes.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |

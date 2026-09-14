@@ -228,6 +228,18 @@ Hyuna (PM) authorized Jana to pick a final value directly rather than wait furth
 
 ---
 
+## Round 19 update (documentation-sync pass — Figma brought in line with this doc)
+
+A cross-check between this doc and the Figma file's own on-canvas Handoff page found two places where Figma had drifted from what's written here, plus one further staleness the same pass turned up:
+
+- **`AR-AI-11` traceability row clarified, in both places.** The Figma Handoff page's on-canvas traceability table cited "4.6 AI/STT Failure State (mid-review variant, treated as SOS-equivalent)" without the caveat that 4.6's own Requirements Panel already states plainly: this variant was never built as a separate frame. Updated the on-canvas table row — and this doc's own table below, plus the parallel `AR-WB-07` row — to carry that caveat explicitly, so a reader relying on either traceability table alone doesn't come away believing a distinct screen exists.
+- **Stale `AR-WB-12` Open Decision removed from Figma.** Round 18 (above) closed the review-block window at 45 minutes and removed it from this doc's own Open Decisions list — but the Figma Handoff page's on-canvas Open Decisions panel still showed it as open, with the old 45–50 minute working range. Removed the stale entry from Figma to match.
+- **Figma's own Iteration History panel had stopped at Round 15, and one entry inside it was stale.** Found while fixing the above: the on-canvas Iteration History log on the Handoff page was missing Rounds 16–18 entirely, and its "Handoff — for the developer" section still carried a note reading "NO COMPANION MANAGER FILE YET... MR-OV-*, MR-SOS-*, and MR-CR-* all remain unbuilt in Figma" — true when originally written, false since Round 15 closed that exact item. Added condensed Round 16–18 entries (plus this Round 19 entry) to the on-canvas log, and removed the stale note.
+
+No design or requirement changes — this round is a documentation-consistency fix only, closing the gap between this doc and the Figma file it describes.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
@@ -256,7 +268,7 @@ Hyuna (PM) authorized Jana to pick a final value directly rather than wait furth
 | AR-AI-08 | Both AI and Auditor-adjusted values stored | Severity Adjustment & Comment; Submission Confirmation | Included |
 | AR-AI-09 | Auditor submits assessment to Manager queue | Submission Confirmation | Included |
 | AR-AI-10 | AI/STT pre-screen failure → max blur, explicit failure state, deliberate choice | AI/STT Failure State | Included |
-| AR-AI-11 | Mid-review AI/STT failure treated as unexpected exposure | AI/STT Failure State (mid-review variant, treated as SOS-equivalent) | Included |
+| AR-AI-11 | Mid-review AI/STT failure treated as unexpected exposure | AI/STT Failure State (mid-review variant — not built as a separate frame; treated identically to SOS, per that screen's own Requirements Panel) | Included |
 | AR-AI-12 | Timestamped audit history of severity/override/comment/status changes | Severity Adjustment & Comment; Submission Confirmation (data-handling requirement, not a distinct visible screen) | Included |
 | AR-AI-13 | Return to previous review step without losing progress; no auto-replay of raw content | Review Workspace (Back to AI Analysis Summary); Severity Adjustment & Comment (Back to Review Workspace, preserves CVI/comment) | Included |
 | AR-AI-14 | Auditor selects a final case outcome for standard (no SOS/Decline) cases — determines the public-facing result (`UR-ST-03`) | Severity Adjustment & Comment (selector); Submission Confirmation (recorded in summary) | Included |
@@ -266,7 +278,7 @@ Hyuna (PM) authorized Jana to pick a final value directly rather than wait furth
 | AR-WB-04 | Cooldown enforced after high-severity/unexpected exposure | Cooldown Screen; SOS Trigger & Confirmation (routes into Cooldown Screen, S4-variant, added Round 17) | Included |
 | AR-WB-05 | Immediately accessible SOS action | Review Workspace (persistent SOS button) | Included |
 | AR-WB-06 | SOS records event, notifies Manager | SOS Trigger & Confirmation | Included |
-| AR-WB-07 | Unexpected exposure logs, applies protections, emails Manager | SOS Trigger & Confirmation; AI/STT Failure State (mid-review variant) | Included |
+| AR-WB-07 | Unexpected exposure logs, applies protections, emails Manager | SOS Trigger & Confirmation; AI/STT Failure State (mid-review — not a separate frame) | Included |
 | AR-WB-08 | Wellbeing outranks moderation speed | Reflected throughout — most explicitly Cooldown, SOS, Exposure Limit Reached | Included |
 | AR-WB-09 | SOS pauses playback, returns to protected state, requires new Proceed to resume | SOS Trigger & Confirmation | Included |
 | AR-WB-11 | Four-tier S1–S4 exposure-severity classification | Dashboard (severity tags); Content Warning Modal (S-tier + CVI); AI Analysis Summary; Cooldown Screen | Included |
