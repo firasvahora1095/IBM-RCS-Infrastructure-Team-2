@@ -185,3 +185,4 @@ No items remain open in this list — every previously-tracked open decision for
 - Reconciled as of Round 4 against: `Requirements-BA.md` (Jana, BA, Sprint 1 Week 2 — Final BA baseline for Sprint 2 handover), Normal User Requirements section.
 - IBM branding directive sourced from the 21 Aug 2026 non-tech support session minutes (Meeting No. 1, decision #4). "Design your own" directive sourced from the client Sprint 1 Q&A notes (Naresh Olladapu, Q11).
 - **Action for Dev:** treat the traceability table above as the build spec; anything marked Deferred is deliberately out of this sprint's scope, not an oversight. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
+- Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.

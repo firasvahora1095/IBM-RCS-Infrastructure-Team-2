@@ -224,3 +224,4 @@ The Figma Handoff page's on-canvas Iteration History panel stopped at Round 5 �
 - Built from: `manager-prototype-plan.md` (Aleeya Ahmad, UX), itself built on `docs/ba/persona-requirements-week2.md` (Jana Begum, BA) and the `docs/ux/manager-assumptions-note-sprint1-week2.md` / `docs/ux/research-notes-manager-persona-week1.md` research notes in this repo.
 - All 22 `MR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `MR-CR-07` is a priority/sequencing note, not a screen-level requirement, and `MR-SOS-02` is a background/system-behaviour requirement with no distinct screen, both flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
+- Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.

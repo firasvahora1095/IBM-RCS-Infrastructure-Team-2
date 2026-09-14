@@ -305,3 +305,4 @@ No design or requirement changes — this round is a documentation-consistency f
 - Built from: `auditor-prototype-plan.md` (Aleeya Ahmad, UX — reviewed and signed off by Jana Begum, BA, 1 Sep 2026), itself built on `docs/ba/persona-requirements-week2.md` (Jana Begum, BA) and the `docs/ux/auditor-assumptions-note-sprint1-week2.md` research note in this repo.
 - All 46 `AR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
+- Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.
