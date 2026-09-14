@@ -99,6 +99,12 @@ A cross-file consistency check against the Manager and Auditor files' own Founda
 
 **Tagged `[UX call]`, not a formal requirement ID** — no `UR-*` ID mandates this specifically; it's a direct response to expert-interview evidence, following the same treatment as every other unassigned team judgment call in this file. Documented on Screen 1's Requirements Panel, plus a new alternate-state frame (Screen 1d) showing the "identified" selection with both fields revealed, matching this file's existing convention for evidence-type alternates (1b, 1c).
 
+## Round 12 update (Screen 1 ↔ 1d click-through wired — real gap closed)
+
+Round 11 adopted Screen 1d "matching this file's existing convention for evidence-type alternates (1b, 1c)" — but unlike 1b/1c, the identity-choice radio buttons carried zero prototype reactions on either screen: clicking "Include my name & email" on Screen 1 did nothing, and there was no way back from Screen 1d to Screen 1 either. A real click-through gap, not a documentation gap — the same failure mode the Auditor file's own Round 9 found and fixed for its Wellbeing Check-in screen, and worth calling out precisely because the prototype needs to demonstrate every flow end to end, including Nice-to-Haves, not just the P0 path.
+
+Wired to match the exact pattern already used by the evidence-type chips: Screen 1's "Include my name & email" radio now navigates to Screen 1d (`SMART_ANIMATE`, 0.3s ease-out — identical transition to the 1b/1c chip links); Screen 1d's "Report anonymously" radio navigates back to Screen 1, same transition. Neither already-selected option (Screen 1's "Report anonymously," Screen 1d's "Include my name & email") carries a reaction, matching the no-self-navigation convention the evidence chips already use. Screen 1d's own Submit button and "check case status" link were already correctly wired onward to Screen 2/3a — verified directly, not assumed, before treating this as fully closed.
+
 ## File structure
 
 The Figma file has 5 pages, matching the systemization pattern used on the team's Login Restyle reference file:
