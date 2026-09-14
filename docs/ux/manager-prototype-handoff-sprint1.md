@@ -191,6 +191,18 @@ Brought Manager into line with that same pattern rather than flattening everythi
 
 ---
 
+## Round 9 update (Login and session-expired-reauth redesigned — real Carbon inputs, not decorative boxes)
+
+Same finding and fix as Auditor's Round 21 — flagged directly by Aleeya: the Login screens read as flat and the email/password fields looked too small. Confirmed against Carbon's actual spec rather than taken on opinion: the "TextInput"/"PasswordInput" frames on every Login variant were 320×**18px**, less than half Carbon's real default height (**40px**), bordered on all four sides instead of Carbon's bottom-border-only treatment — this file had no real `TextInput` component to instantiate, same gap as Auditor's.
+
+Rebuilt all three Login states (Default, Error, Locked-out) with real 40px Carbon-spec inputs (Gray 10 fill, 1px Gray 50 bottom border only, 14px `body-01` value text), a wider 480px card with a `heading-05` (28px) headline, eyebrow label, Blue 60 top accent bar and a subtle elevation shadow. The Error variant had a second, separate bug on top of the undersized input: its `Kind=Error` notification was a hand-built frame rather than a real component instance — replaced with a genuine instance, matching the Locked-out variant's (correct) pattern.
+
+**Security/UX catch, same pass:** dropped a first-draft subtext line that described what the portal does ("access oversight and SOS response") — an unauthenticated login page shouldn't describe internal system capabilities to an unauthenticated visitor. Replaced with a neutral line identical across both files and all three states: "Enter your work email and password to continue."
+
+Also fixed the Session-expired-reauth screen (`6A.1`, over paused SOS Follow-up form): same undersized 320×18 password input, and its "Log in to continue" button was a hand-built blue frame rather than a real `Style=Primary` instance — both rebuilt to spec, matching the identical fix made to Auditor's equivalent screen (`6.1`) the same pass. All four affected Manager screens verified visually with fresh screenshots after the rebuild.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |

@@ -7,7 +7,7 @@
 
 ## What this is
 
-All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 20, Manager Round 8, Normal User Round 13). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass — Task 54, Final Figma Consistency/Scope Pass: confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
+All three Figma prototypes — Normal User, Auditor, Manager — are fully built through their latest iteration round (Auditor Round 21, Manager Round 9, Normal User Round 13). This is not new design work. It's the Sprint 1 Week 3 wrap-up pass — Task 54, Final Figma Consistency/Scope Pass: confirm exactly which built screens are this sprint's job versus Sprint 3's, and confirm nothing left open in any handoff doc is actually a UX/Figma problem.
 
 Scope split below is derived directly from the Sprint 2 implementation plan's own stated scope (`sprint2_plan_final_updated.md`, team's local planning doc): Sprint 2 ships upload → case creation → assignment → AI severity/summary/timeline → Auditor confirm/override → final outcome → Complete → public status lookup, plus a **scaffolded, non-live** Manager dashboard. It explicitly defers blur/grayscale/mute, the content-warning/decline flow, exposure-time tracking and cooldown enforcement, SOS logging, declined-case reassignment, ground-truth validation, and full live Manager oversight to Sprint 3. Sprint 2's Auditor reviews AI output only — raw video is not sent to the Auditor browser this sprint.
 
@@ -101,5 +101,5 @@ All fixes were verified visually with a fresh screenshot after each change — n
 ---
 
 ### Traceability
-- Built from: `sprint2_plan_final_updated.md` (team Sprint 2 implementation plan) cross-referenced against the actual screen lists of all three Figma files as of Auditor Round 20 / Manager Round 8 / Normal User Round 13.
+- Built from: `sprint2_plan_final_updated.md` (team Sprint 2 implementation plan) cross-referenced against the actual screen lists of all three Figma files as of Auditor Round 21 / Manager Round 9 / Normal User Round 13.
 - **Action for Firas:** treat the table above as the literal build order for Sprint 2 — everything marked "Build now" is this sprint's job; everything marked "Sprint 3" should not be started yet, even if it's fully designed and sitting right there in the file.

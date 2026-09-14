@@ -251,6 +251,23 @@ No other issues found across the remaining screens in this pass — confirmed cl
 
 ---
 
+## Round 21 update (Login and session-expired-reauth redesigned — real Carbon inputs, not decorative boxes)
+
+Flagged directly by Aleeya: the Login screens looked "bland" and the email/password fields looked too small — a fair call once checked directly against Carbon's own text input spec, not just against how it read as a design opinion. Inspection confirmed the input fields were never built as a proper Carbon `TextInput`: the "TextInput"/"PasswordInput" frames on every Login variant were 320×**18px**, less than half Carbon's real default height (**40px**), with a 1px border on all four sides instead of Carbon's bottom-border-only treatment. This is the same defect class as prior rounds' one-off-frame findings — a hand-built approximation of a component that was never actually built as one, since this file has no real `TextInput` component in its library to instantiate.
+
+Rebuilt all three Login states (Default, Error, Locked-out) with:
+- Real Carbon-spec inputs: 40px height, Gray 10 fill, 1px Gray 50 bottom border only, 16px left padding, 14px `body-01` value text — replacing the undersized all-border boxes.
+- A wider card (400px → 480px) with a `heading-05` (28px) headline instead of the previous 20px, an eyebrow label, a top accent bar in Blue 60, corner radius and a subtle elevation shadow — brings actual IBM/Carbon visual character to what was a flat, cramped card, without inventing new brand assets.
+- The Error/Locked-out variants' notification now uses a genuine `Kind=Error` component instance sized to the new field width (the Manager file's Error variant had the same undersized-input bug *plus* a hand-built notification frame instead of a real component — both fixed the same pass).
+
+**Security/UX catch, same pass:** the first draft of the new card added a subtext line describing what each portal does ("access your case queue" / "access oversight and SOS response"). Caught before shipping — an unauthenticated login page is the wrong place to describe internal system capabilities to whoever loads it; it's reconnaissance information for free. Replaced with a single neutral line identical across both files and all three states: "Enter your work email and password to continue."
+
+Also fixed the Session-expired-reauth modal (`6.1`, over paused Review Workspace) the same way, since it's the same failure mode in a different context: its password input was the same undersized 320×18 box, and its "Log in to continue" button was a hand-built blue frame, not a real `Style=Primary` instance. Widened the modal (400px → 480px), rebuilt the input to the same 40px Carbon spec, and swapped the button for a real component instance. The Manager file's equivalent screen (`6A.1`, over paused SOS Follow-up form) had the identical bug and got the identical fix.
+
+All eight affected screens (Auditor Login ×3, Manager Login ×3, Auditor session-expired-reauth, Manager session-expired-reauth) verified visually with fresh screenshots after the rebuild — no clipping, no overlap, correct component instances throughout.
+
+---
+
 ## Traceability Table
 
 | ID | Requirement | Screen | Status |
