@@ -5,3 +5,8 @@ ibm-watson
 ibm-watsonx-ai==1.3.42
 python-dotenv
 jsonschema
+sqlalchemy
+psycopg2-binary
+passlib
+bcrypt==4.0.1
+python-multipart
