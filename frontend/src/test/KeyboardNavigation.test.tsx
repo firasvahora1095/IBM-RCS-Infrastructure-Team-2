@@ -207,7 +207,10 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await user.keyboard("{Enter}");
 
     const reason = await screen.findByRole("radio", { name: "Personal Trigger" });
-    await tabTo(user, screen.getByRole("radio", { name: "Content more severe than AI indicated" }));
+    // Focus moves into the dialog on its first reason, with nothing selected (9f35a43).
+    const first = screen.getByRole("radio", { name: "Content more severe than AI indicated" });
+    await waitFor(() => expect(first).toHaveFocus());
+    expect(first).not.toBeChecked();
     // Arrow keys move through the radio group; Personal Trigger is the third option.
     await user.keyboard("{ArrowDown}{ArrowDown}");
     await waitFor(() => expect(reason).toBeChecked());
