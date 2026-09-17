@@ -260,15 +260,7 @@ export function AuditorCaseDetailPage() {
               AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis
               Summary for the model&apos;s original pre-floor score.
             </p>
-            <Slider
-              id="cvi-rating"
-              labelText="Your CVI rating (0–100)"
-              min={0}
-              max={100}
-              step={1}
-              value={auditorScore}
-              onChange={({ value }) => setAuditorScore(Math.round(value))}
-            />
+            <CviRatingSlider initialValue={auditorScore} onChange={setAuditorScore} />
             <div className="flex flex-wrap items-center gap-2" aria-live="polite">
               <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>Your rating: {auditorScore} / 100</span>
               <SeverityTag tier={scoreToTier(auditorScore)} />
@@ -409,6 +401,46 @@ export function AuditorCaseDetailPage() {
         </StaffPage>
       )}
     </>
+  );
+}
+
+interface CviRatingSliderProps {
+  /** The rating when the severity step opens (the AI's score, or a restored draft). */
+  initialValue: number;
+  onChange: (score: number) => void;
+}
+
+/**
+ * Carbon's Slider (thumb + number input) for the Auditor's 0–100 rating.
+ *
+ * It's given its starting value once, not on every render. Carbon's Slider
+ * keeps its own internal value and re-syncs to the `value` prop whenever
+ * that prop changes. Feeding the parent's state back in on each change
+ * created a feedback loop: typing "90" reported 9 then 90, and the late
+ * prop update for 9 reset the slider, leaving the thumb at 9 while the page
+ * said 90 (found in live UAT). Changes now flow one way, slider → page.
+ */
+function CviRatingSlider({ initialValue, onChange }: CviRatingSliderProps) {
+  const [startValue] = useState(initialValue);
+  return (
+    <Slider
+      id="cvi-rating"
+      labelText="Your CVI rating (0–100)"
+      min={0}
+      max={100}
+      step={1}
+      value={startValue}
+      onChange={({ value }) => {
+        // While the number field is being edited Carbon can briefly report ""
+        // (despite its `number` type) or an out-of-range number; only a
+        // complete, valid rating updates the page.
+        const raw: unknown = value;
+        const score = typeof raw === "number" ? raw : Number.NaN;
+        if (Number.isFinite(score) && score >= 0 && score <= 100) {
+          onChange(Math.round(score));
+        }
+      }}
+    />
   );
 }
 

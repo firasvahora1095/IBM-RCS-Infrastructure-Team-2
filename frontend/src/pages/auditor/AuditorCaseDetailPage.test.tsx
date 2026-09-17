@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuditorCaseDetailPage } from "./AuditorCaseDetailPage";
@@ -210,5 +211,28 @@ describe("AuditorCaseDetailPage", () => {
 
     // Not re-saved as a "confirmation" draft after submitting either.
     expect(sessionStorage.getItem("rcs_draft_resolution_AR-2026-00417")).toBeNull();
+  });
+
+  it("keeps the slider and the recorded rating in sync while a rating is typed key by key", async () => {
+    // Guards key-by-key entry of a rating. Context: in a real browser, typing
+    // "90" once left the slider at 9 while the page recorded 90, because each
+    // intermediate value was fed back into Carbon's Slider as a new `value`
+    // prop. jsdom runs React effects synchronously, so that timing race does
+    // NOT reproduce here (this test also passes on the old code); the fix was
+    // verified by hand in Chrome. This test still catches a broken or
+    // disconnected slider-to-page update path.
+    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    const user = userEvent.setup();
+    renderPage();
+    await goToSeverityStep();
+
+    const input = screen.getByRole("spinbutton");
+    await user.clear(input);
+    await user.type(input, "90");
+    await user.tab();
+
+    await waitFor(() => expect(screen.getByText("Your rating: 90 / 100")).toBeInTheDocument());
+    expect(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "90");
+    expect(screen.getByRole("spinbutton")).toHaveValue(90);
   });
 });
