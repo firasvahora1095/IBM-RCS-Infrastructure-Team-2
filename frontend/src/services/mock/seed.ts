@@ -1,7 +1,7 @@
 import type { MockCase, MockDb, MockStaff } from "./store";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 4;
+export const MOCK_DB_VERSION = 5;
 
 /**
  * Synthetic demo data for the mock data source.
@@ -55,10 +55,14 @@ function figmaHighSeverityCase(now: number): MockCase {
     // Bar heights from the Figma audio-intensity graph, normalised to 0–1.
     audio_intensity: [5, 9, 21, 27.5, 15, 30, 40, 32.5, 10, 7.5, 17.5, 35, 45, 30, 12.5].map((h) => h / 45),
     ai_failure: null,
+    flag_reason: "Graphic violence",
     final_outcome: null,
     auditor_severity_score: null,
     auditor_comment: null,
     completed_at: null,
+    exposure: { active_seconds: 0, replay_seconds: 0 },
+    manager_flag: null,
+    decline: null,
   };
 }
 
@@ -82,10 +86,14 @@ function baseCase(now: number, overrides: Partial<MockCase> & Pick<MockCase, "ca
     transcript: null,
     audio_intensity: null,
     ai_failure: null,
+    flag_reason: null,
     final_outcome: null,
     auditor_severity_score: null,
     auditor_comment: null,
     completed_at: null,
+    exposure: { active_seconds: 0, replay_seconds: 0 },
+    manager_flag: null,
+    decline: null,
     ...overrides,
   };
 }
@@ -127,6 +135,7 @@ export function createSeedDb(now: number): MockDb {
       ],
       transcript: [{ time: 20, text: "[raised voices]" }],
       audio_intensity: [0.2, 0.3, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1],
+      flag_reason: "Verbal conflict",
     }),
     baseCase(now, {
       case_id: "AR-2026-00420",
@@ -148,6 +157,15 @@ export function createSeedDb(now: number): MockDb {
       ],
       transcript: null,
       audio_intensity: [0.3, 0.6, 0.9, 0.8, 1, 0.7, 0.5, 0.4],
+      flag_reason: "Graphic violence, weapon use",
+    }),
+    // AR-AI-10 pre-screen failure (Figma 25:212): no score, summary or timeline.
+    baseCase(now, {
+      case_id: "AR-2026-00421",
+      assigned_at: minutesAgo(now, 16),
+      duration_seconds: 74,
+      file_name: "uploaded_clip.mov",
+      ai_failure: "vision",
     }),
     baseCase(now, {
       case_id: "AR-2026-00402",
@@ -205,6 +223,11 @@ export function createSeedDb(now: number): MockDb {
     statusLookup: { failureTimes: [], lockedUntil: null },
     statusUpdateRequests: [],
     caseAdditions: [],
+    loginAttempts: {},
+    sosEvents: [],
+    wellbeingRequests: [],
+    auditLog: [],
+    demo: { failNextSubmission: false },
   };
 }
 
@@ -223,8 +246,9 @@ function staffMember(
     role,
     display_name: displayName,
     active_case_count: activeCases,
-    exposure_minutes_today: exposureMinutes,
+    exposure_seconds_today: exposureMinutes * 60,
     exposure_limit_minutes: 120,
+    cases_reviewed_today: role === "auditor" ? Math.round(exposureMinutes / 20) : 0,
     last_assigned_at: lastAssignedMinutesAgo === null ? null : minutesAgo(now, lastAssignedMinutesAgo),
     cooldown: null,
   };

@@ -1,20 +1,26 @@
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
+import { scoreToTier } from "../../design-tokens/severity";
 import { ApiError } from "../types";
 import type {
   AuditorCaseDetail,
   AuditorWellbeing,
   AuditorCaseListItem,
+  CooldownState,
   CreateReportResponse,
   DataService,
+  DeclineReason,
+  ExposureSample,
   FinalOutcome,
   ManagerDashboardResponse,
   PublicStatusResponse,
   ResolveCaseResponse,
+  SeverityTier,
   StaffLoginResponse,
   StatusUpdateContact,
+  WellbeingRequestKind,
 } from "../types";
-import { readDb, updateDb, type MockCase, type MockDb } from "./store";
+import { readDb, updateDb, type MockCase, type MockDb, type MockStaff } from "./store";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -34,7 +40,19 @@ const LOOKUP_MAX_FAILURES = 5;
 const LOOKUP_WINDOW_MS = 10 * 60_000;
 const LOOKUP_LOCKOUT_MS = 15 * 60_000;
 
+/** Staff login lockout (Figma 36:129 "Too many attempts. Try again in 15 minutes."). Same thresholds. */
+const LOGIN_MAX_FAILURES = 5;
+
+/** AR-WB-12 cooldown lengths in minutes. S1 has none. */
+const COOLDOWN_MINUTES: Record<Exclude<SeverityTier, "S1">, number> = { S2: 5, S3: 15, S4: 30 };
+/** AR-WB-12: S2 counts as sustained after ~2 minutes of exposure in one case… */
+const S2_SUSTAINED_SECONDS = 120;
+/** …or on a second S2 case inside the 45-minute review-block window (closed 2026-09-09). */
+const S2_REVIEW_BLOCK_MS = 45 * 60_000;
+
 const CASE_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+const TIER_RANK: Record<SeverityTier, number> = { S1: 1, S2: 2, S3: 3, S4: 4 };
 
 function newCaseId(): string {
   // Non-sequential, non-guessable (UR-ID-08), in the RCS-XXXX-XXXX format
@@ -46,6 +64,10 @@ function newCaseId(): string {
 
 function newToken(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function newId(prefix: string): string {
+  return `${prefix}-${newToken().slice(0, 8)}`;
 }
 
 /** Finishes simulated AI analysis for any case whose time has come. */
@@ -66,6 +88,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         watson_severity_score: 48,
         effective_severity_score: 48,
         severity_tier: "S2",
+        flag_reason: "Physical conflict",
         narrative_summary: "Mock: two people in a heated confrontation; brief pushing detected.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
         flagged_entities: [
@@ -79,6 +102,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         watson_severity_score: 72,
         effective_severity_score: 72,
         severity_tier: "S3",
+        flag_reason: "Graphic violence",
         narrative_summary: "Mock: physical altercation detected between two people.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
         flagged_entities: [{ label: "Person A", start: 10, end: 30 }],
@@ -87,13 +111,28 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
       };
 }
 
-/** AR-AS-02: lowest (0.6 × exposure ratio + 0.4 × case ratio) wins; ties go to whoever waited longest. */
+function exposureMinutes(staff: MockStaff): number {
+  return Math.floor(staff.exposure_seconds_today / 60);
+}
+
+function inCooldown(staff: MockStaff, now = Date.now()): boolean {
+  const cd = staff.cooldown;
+  if (!cd) return false;
+  return Date.parse(cd.ends_at) > now || (cd.requires_check_in && !cd.check_in_completed_at);
+}
+
+/**
+ * AR-AS-02: lowest (0.6 × exposure ratio + 0.4 × case ratio) wins; ties go to
+ * whoever waited longest. At-limit (AR-WB-03) and cooling-down (AR-WB-04)
+ * Auditors are skipped.
+ */
 function selectAuditor(db: MockDb): string | null {
-  const eligible = db.staff.filter((s) => s.role === "auditor" && s.exposure_minutes_today < s.exposure_limit_minutes);
+  const eligible = db.staff.filter(
+    (s) => s.role === "auditor" && exposureMinutes(s) < s.exposure_limit_minutes && !inCooldown(s),
+  );
   if (eligible.length === 0) return null;
-  const score = (s: (typeof eligible)[number]) =>
-    0.6 * (s.exposure_minutes_today / 120) + 0.4 * (s.active_case_count / 10);
-  const lastAssigned = (s: (typeof eligible)[number]) => (s.last_assigned_at ? Date.parse(s.last_assigned_at) : 0);
+  const score = (s: MockStaff) => 0.6 * (exposureMinutes(s) / 120) + 0.4 * (s.active_case_count / 10);
+  const lastAssigned = (s: MockStaff) => (s.last_assigned_at ? Date.parse(s.last_assigned_at) : 0);
   eligible.sort((a, b) => score(a) - score(b) || lastAssigned(a) - lastAssigned(b));
   return eligible[0].staff_id;
 }
@@ -110,6 +149,71 @@ function findOwnCase(db: MockDb, caseId: string, staffId: string): MockCase {
   // AR-AS-01: someone else's case is indistinguishable from a missing one.
   if (!found || found.assigned_auditor !== staffId) throw new ApiError("Case not found", 404);
   return found;
+}
+
+function staffById(db: MockDb, staffId: string): MockStaff {
+  const member = db.staff.find((s) => s.staff_id === staffId);
+  if (!member) throw new ApiError("Not authenticated", 401);
+  return member;
+}
+
+/** AR-AI-12: append-only audit history. */
+function audit(db: MockDb, actor: string, action: string, caseId: string | null, detail: string | null = null): void {
+  db.auditLog.push({ at: new Date().toISOString(), actor, case_id: caseId, action, detail });
+}
+
+function startCooldown(
+  staff: MockStaff,
+  trigger: SeverityTier | "SOS",
+  minutes: number,
+  requiresCheckIn: boolean,
+): CooldownState {
+  const now = Date.now();
+  // A new cooldown never shortens one already running.
+  const existingEnd = staff.cooldown ? Date.parse(staff.cooldown.ends_at) : 0;
+  const cooldown: CooldownState = {
+    started_at: new Date(now).toISOString(),
+    ends_at: new Date(Math.max(existingEnd, now + minutes * 60_000)).toISOString(),
+    trigger,
+    requires_check_in: requiresCheckIn || (staff.cooldown?.requires_check_in ?? false),
+    check_in_completed_at: null,
+  };
+  staff.cooldown = cooldown;
+  return cooldown;
+}
+
+/**
+ * AR-WB-12 / AR-WB-15: the cooldown a completed case earns. Uses the worse of
+ * the AI tier and the Auditor's own rating, so an Auditor who rates a case
+ * higher than the AI still gets the protection (post-submission
+ * reconciliation, Auditor assumptions note 27 Aug 2026).
+ */
+function cooldownForResolvedCase(
+  db: MockDb,
+  c: MockCase,
+  staff: MockStaff,
+  auditorScore: number | null,
+): CooldownState | null {
+  const tiers = [c.severity_tier, auditorScore === null ? null : scoreToTier(auditorScore)].filter(
+    (t): t is SeverityTier => t !== null,
+  );
+  if (tiers.length === 0) return null;
+  const tier = tiers.reduce((worst, t) => (TIER_RANK[t] > TIER_RANK[worst] ? t : worst));
+  if (tier === "S1") return null;
+  if (tier === "S2") {
+    const sustained = c.exposure.active_seconds + c.exposure.replay_seconds >= S2_SUSTAINED_SECONDS;
+    const windowStart = Date.now() - S2_REVIEW_BLOCK_MS;
+    const repeated = db.auditLog.some(
+      (e) =>
+        e.actor === staff.staff_id &&
+        e.action === "CASE_RESOLVED" &&
+        e.detail === "tier:S2" &&
+        e.case_id !== c.case_id &&
+        Date.parse(e.at) >= windowStart,
+    );
+    if (!sustained && !repeated) return null;
+  }
+  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], tier === "S4");
 }
 
 /** Screen 1c placeholder limit: "Max size: 10MB (placeholder) — to be confirmed with Dev." */
@@ -143,21 +247,35 @@ function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: s
     transcript: null,
     audio_intensity: null,
     ai_failure: null,
+    flag_reason: null,
     final_outcome: null,
     auditor_severity_score: null,
     auditor_comment: null,
     completed_at: null,
+    exposure: { active_seconds: 0, replay_seconds: 0 },
+    manager_flag: null,
+    decline: null,
   });
   const auditor = db.staff.find((s) => s.staff_id === assigned);
   if (auditor) {
     auditor.active_case_count += 1;
     auditor.last_assigned_at = now.toISOString();
   }
+  audit(db, "system", "CASE_CREATED", caseId, assigned ? `assigned:${assigned}` : "unassigned");
   return {
     case_id: caseId,
     status: mapStatusToPublicLabel(assigned ? "AI_PROCESSING" : "SUBMITTED"),
     assigned_auditor: assigned,
   };
+}
+
+/** Takes a case off an Auditor's queue and hands it to the Manager (AR-AI-09, AR-DF-02). */
+function routeToManager(db: MockDb, c: MockCase, flag: "DECLINED" | "SOS"): void {
+  const auditor = db.staff.find((s) => s.staff_id === c.assigned_auditor);
+  if (auditor) auditor.active_case_count = Math.max(0, auditor.active_case_count - 1);
+  c.assigned_auditor = null;
+  c.manager_flag = flag;
+  c.updated_at = new Date().toISOString();
 }
 
 export const mockDataService: DataService = {
@@ -271,10 +389,23 @@ export const mockDataService: DataService = {
   async staffLogin(staffId: string, password: string): Promise<StaffLoginResponse> {
     await delay();
     return updateDb((db) => {
+      const key = staffId.trim().toLowerCase();
+      const now = Date.now();
+      const attempts = (db.loginAttempts[key] ??= { failureTimes: [], lockedUntil: null });
+      if (attempts.lockedUntil && now < attempts.lockedUntil) {
+        throw new ApiError("Too many attempts. Try again in 15 minutes.", 429);
+      }
       const member = db.staff.find((s) => s.staff_id === staffId.trim());
       if (!member || member.password !== password) {
+        attempts.failureTimes = [...attempts.failureTimes.filter((t) => now - t < LOOKUP_WINDOW_MS), now];
+        if (attempts.failureTimes.length >= LOGIN_MAX_FAILURES) {
+          attempts.lockedUntil = now + LOOKUP_LOCKOUT_MS;
+          attempts.failureTimes = [];
+          throw new ApiError("Too many attempts. Try again in 15 minutes.", 429);
+        }
         throw new ApiError("Invalid credentials", 401);
       }
+      delete db.loginAttempts[key];
       const token = newToken();
       db.sessions[token] = { staffId: member.staff_id, role: member.role };
       return { token, role: member.role };
@@ -317,7 +448,105 @@ export const mockDataService: DataService = {
         transcript: c.transcript,
         audio_intensity: c.audio_intensity,
         ai_failure: c.ai_failure,
+        flag_reason: c.flag_reason,
       };
+    });
+  },
+
+  async acknowledgeContentWarning(caseId: string, token: string): Promise<{ acknowledged: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const c = findOwnCase(db, caseId, session.staffId);
+      if (inCooldown(staffById(db, session.staffId))) {
+        throw new ApiError("Raw content can't be opened during a cooldown.", 409);
+      }
+      if (c.status === "READY_FOR_REVIEW") c.status = "AUDITOR_REVIEW";
+      c.updated_at = new Date().toISOString();
+      audit(db, session.staffId, "CONTENT_WARNING_ACKNOWLEDGED", caseId);
+      return { acknowledged: true as const };
+    });
+  },
+
+  async declineCase(
+    caseId: string,
+    token: string,
+    reason: DeclineReason,
+    otherText?: string,
+  ): Promise<{ declined: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const c = findOwnCase(db, caseId, session.staffId);
+      c.decline = {
+        reason,
+        other_text: reason === "OTHER" && otherText?.trim() ? otherText.trim() : null,
+        declined_by: session.staffId,
+        declined_at: new Date().toISOString(),
+      };
+      routeToManager(db, c, "DECLINED");
+      audit(db, session.staffId, "CASE_DECLINED", caseId, reason);
+      return { declined: true as const };
+    });
+  },
+
+  async recordExposure(caseId: string, token: string, sample: ExposureSample): Promise<{ recorded: true }> {
+    await delay();
+    const active = Math.max(0, Math.round(sample.active_seconds));
+    const replay = Math.max(0, Math.round(sample.replay_seconds));
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const c = db.cases.find((x) => x.case_id === caseId);
+      if (!c) throw new ApiError("Case not found", 404);
+      c.exposure.active_seconds += active;
+      c.exposure.replay_seconds += replay;
+      staffById(db, session.staffId).exposure_seconds_today += active + replay;
+      return { recorded: true as const };
+    });
+  },
+
+  async triggerSos(caseId: string, token: string): Promise<{ cooldown: CooldownState }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const c = findOwnCase(db, caseId, session.staffId);
+      const now = new Date().toISOString();
+      db.sosEvents.push({
+        id: newId("SOS"),
+        case_id: caseId,
+        auditor_id: session.staffId,
+        triggered_at: now,
+        acknowledged_at: null,
+        acknowledged_by: null,
+        follow_up_notes: null,
+        resolved_at: null,
+      });
+      routeToManager(db, c, "SOS");
+      audit(db, session.staffId, "SOS_TRIGGERED", caseId);
+      // AR-WB-12: SOS follows the S4 protocol — 30 minutes plus a mandatory check-in.
+      const cooldown = startCooldown(staffById(db, session.staffId), "SOS", COOLDOWN_MINUTES.S4, true);
+      return { cooldown };
+    });
+  },
+
+  async requestWellbeingSupport(
+    token: string,
+    kind: WellbeingRequestKind,
+    caseId?: string,
+  ): Promise<{ received: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      db.wellbeingRequests.push({
+        id: newId("WB"),
+        auditor_id: session.staffId,
+        case_id: caseId ?? null,
+        kind,
+        created_at: new Date().toISOString(),
+        resolved_at: null,
+      });
+      audit(db, session.staffId, "WELLBEING_REQUEST", caseId ?? null, kind);
+      return { received: true as const };
     });
   },
 
@@ -329,11 +558,22 @@ export const mockDataService: DataService = {
     auditorComment?: string,
   ): Promise<ResolveCaseResponse> {
     await delay();
+    const failThisTime = updateDb((db) => {
+      const fail = db.demo.failNextSubmission;
+      db.demo.failNextSubmission = false;
+      return fail;
+    });
+    // Demo scenario (Figma 42:405): behaves exactly like a dropped request.
+    if (failThisTime) throw new TypeError("Failed to fetch");
     return updateDb((db) => {
       const session = requireSession(db, token, "auditor");
       const c = findOwnCase(db, caseId, session.staffId);
-      // AR-AI-07: an override needs a comment — mirrors the backend rule.
-      if (auditorSeverityScore !== undefined && !auditorComment?.trim()) {
+      // AR-AI-07: changing the AI's rating needs a comment — mirrors the backend rule.
+      const isOverride =
+        auditorSeverityScore !== undefined &&
+        c.effective_severity_score !== null &&
+        auditorSeverityScore !== c.effective_severity_score;
+      if (isOverride && !auditorComment?.trim()) {
         throw new ApiError("A comment is required when overriding the AI severity score", 400);
       }
       const now = new Date().toISOString();
@@ -345,9 +585,19 @@ export const mockDataService: DataService = {
         completed_at: now,
         updated_at: now,
       });
-      const auditor = db.staff.find((s) => s.staff_id === session.staffId);
-      if (auditor) auditor.active_case_count = Math.max(0, auditor.active_case_count - 1);
-      return { case_id: c.case_id, status: mapStatusToPublicLabel("COMPLETE"), final_outcome: finalOutcome };
+      const auditor = staffById(db, session.staffId);
+      auditor.active_case_count = Math.max(0, auditor.active_case_count - 1);
+      auditor.cases_reviewed_today += 1;
+      const cooldown = cooldownForResolvedCase(db, c, auditor, auditorSeverityScore ?? null);
+      const finalTier =
+        auditorSeverityScore !== undefined ? scoreToTier(auditorSeverityScore) : (c.severity_tier ?? null);
+      audit(db, session.staffId, "CASE_RESOLVED", caseId, finalTier ? `tier:${finalTier}` : null);
+      return {
+        case_id: c.case_id,
+        status: mapStatusToPublicLabel("COMPLETE"),
+        final_outcome: finalOutcome,
+        cooldown,
+      };
     });
   },
 
@@ -356,7 +606,7 @@ export const mockDataService: DataService = {
     const db = readDb();
     return {
       auditors: db.staff.filter((s) => s.role === "auditor").map((s) => ({ auditor_id: s.staff_id })),
-      pending_declined_cases: 0,
+      pending_declined_cases: db.cases.filter((c) => c.manager_flag === "DECLINED").length,
     };
   },
 
@@ -364,15 +614,15 @@ export const mockDataService: DataService = {
     await delay();
     return updateDb((db) => {
       const session = requireSession(db, token, "auditor");
-      const me = db.staff.find((s) => s.staff_id === session.staffId)!;
-      // A cooldown without a required check-in simply ends at its end time.
-      if (me.cooldown && !me.cooldown.requires_check_in && Date.parse(me.cooldown.ends_at) <= Date.now()) {
+      const me = staffById(db, session.staffId);
+      if (me.cooldown && !inCooldown(me)) {
         me.cooldown = null;
       }
       return {
-        exposure_minutes_today: me.exposure_minutes_today,
+        exposure_minutes_today: exposureMinutes(me),
         exposure_limit_minutes: me.exposure_limit_minutes,
         cooldown: me.cooldown,
+        cases_reviewed_today: me.cases_reviewed_today,
       };
     });
   },

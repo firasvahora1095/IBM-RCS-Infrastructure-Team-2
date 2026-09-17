@@ -109,6 +109,8 @@ export interface AuditorCaseDetail {
   audio_intensity?: number[] | null;
   /** Set when AI vision or speech-to-text processing failed (AR-AI-10). */
   ai_failure?: "vision" | "speech_to_text" | null;
+  /** Plain-language flag reason shown in the content warning, e.g. "Graphic violence" (Figma 16:30). */
+  flag_reason?: string | null;
 }
 
 /** Response from POST /api/auditor/cases/{case_id}/resolve. */
@@ -116,6 +118,8 @@ export interface ResolveCaseResponse {
   case_id: string;
   status: string;
   final_outcome: string;
+  /** Optional — UI needs: the cooldown this submission started, if any (AR-WB-12). */
+  cooldown?: CooldownState | null;
 }
 
 /** Response from GET /api/manager/dashboard. */
@@ -138,16 +142,38 @@ export interface AuditorWellbeing {
   /** Applicable daily limit; 120 by default for testing (AR-WB-02, MR-OV-04). */
   exposure_limit_minutes: number;
   cooldown: CooldownState | null;
+  /** Optional — UI needs: cases completed today (Cooldown screen, Figma 31:117). */
+  cases_reviewed_today?: number;
 }
 
 export interface CooldownState {
+  /** ISO 8601 time the cooldown started. Optional: the UI falls back to the tier's standard length. */
+  started_at?: string;
   /** ISO 8601 time the cooldown ends. */
   ends_at: string;
   /** What triggered it: a tier (AR-WB-12) or an SOS, which follows the S4 protocol. */
   trigger: SeverityTier | "SOS";
   /** S4 and SOS require a Manager/support check-in (AR-WB-12). */
   requires_check_in: boolean;
+  /** When the Manager recorded that check-in; the queue stays locked until then. */
+  check_in_completed_at?: string | null;
 }
+
+/** AR-DF-03 structured decline reasons, in the adopted order. None is ever pre-selected. */
+export type DeclineReason = "MORE_SEVERE_THAN_AI" | "NEAR_EXPOSURE_LIMIT" | "PERSONAL_TRIGGER" | "OTHER";
+
+/**
+ * Exposure measured in the Review Workspace since the last report. Only active
+ * source-video playback counts, whatever the blur, grayscale or mute state;
+ * replaying a clip counts again (Auditor assumptions note, adopted 27 Aug 2026).
+ */
+export interface ExposureSample {
+  active_seconds: number;
+  replay_seconds: number;
+}
+
+/** AR-WB-16 low-friction wellbeing check-in, distinct from SOS. */
+export type WellbeingRequestKind = "TALK_TO_MANAGER" | "BREAK_REQUEST";
 
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
@@ -176,6 +202,16 @@ export interface DataService {
   ): Promise<ResolveCaseResponse>;
   getManagerDashboard(): Promise<ManagerDashboardResponse>;
   getMyWellbeing(token: string): Promise<AuditorWellbeing>;
+  /** AR-PV-01/08: records the Auditor's deliberate Proceed and moves the case into review. */
+  acknowledgeContentWarning(caseId: string, token: string): Promise<{ acknowledged: true }>;
+  /** AR-DF-01–03: routes the case straight to the Manager, never auto-reassigned. */
+  declineCase(caseId: string, token: string, reason: DeclineReason, otherText?: string): Promise<{ declined: true }>;
+  /** AR-WB-01: adds measured playback time to the case and the Auditor's daily total. */
+  recordExposure(caseId: string, token: string, sample: ExposureSample): Promise<{ recorded: true }>;
+  /** AR-WB-05/06/09: pauses the case, notifies the Manager and starts the S4-equivalent cooldown. */
+  triggerSos(caseId: string, token: string): Promise<{ cooldown: CooldownState }>;
+  /** AR-WB-16: "Talk to my manager" or a break request, optionally about one case. */
+  requestWellbeingSupport(token: string, kind: WellbeingRequestKind, caseId?: string): Promise<{ received: true }>;
 }
 
 /**

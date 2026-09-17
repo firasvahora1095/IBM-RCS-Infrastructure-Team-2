@@ -30,4 +30,9 @@ export const apiDataService: DataService = {
   addCaseInformation: () => notConnected("addCaseInformation"),
   requestStatusUpdates: () => notConnected("requestStatusUpdates"),
   getMyWellbeing: () => notConnected("getMyWellbeing"),
+  acknowledgeContentWarning: () => notConnected("acknowledgeContentWarning"),
+  declineCase: () => notConnected("declineCase"),
+  recordExposure: () => notConnected("recordExposure"),
+  triggerSos: () => notConnected("triggerSos"),
+  requestWellbeingSupport: () => notConnected("requestWellbeingSupport"),
 };

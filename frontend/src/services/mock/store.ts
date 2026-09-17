@@ -1,6 +1,8 @@
 import type {
   CaseOutcome,
   CooldownState,
+  DeclineReason,
+  WellbeingRequestKind,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -39,10 +41,20 @@ export interface MockCase {
   transcript: TranscriptLine[] | null;
   audio_intensity: number[] | null;
   ai_failure: "vision" | "speech_to_text" | null;
+  flag_reason: string | null;
   final_outcome: CaseOutcome | null;
   auditor_severity_score: number | null;
   auditor_comment: string | null;
   completed_at: string | null;
+  /** Measured playback exposure on this case, all reviewers combined. */
+  exposure: { active_seconds: number; replay_seconds: number };
+  /**
+   * Set when the case left the standard flow and needs a Manager decision
+   * (AR-AI-09). RT-02 has no internal state for this yet, so it is modelled as
+   * a flag alongside the status — flagged for the BA.
+   */
+  manager_flag: "DECLINED" | "SOS" | null;
+  decline: { reason: DeclineReason; other_text: string | null; declined_by: string; declined_at: string } | null;
 }
 
 export interface MockStaff {
@@ -51,10 +63,41 @@ export interface MockStaff {
   role: StaffRole;
   display_name: string;
   active_case_count: number;
-  exposure_minutes_today: number;
+  /** Stored in seconds so short playback sessions add up exactly; shown in whole minutes. */
+  exposure_seconds_today: number;
   exposure_limit_minutes: number;
+  cases_reviewed_today: number;
   last_assigned_at: string | null;
   cooldown: CooldownState | null;
+}
+
+export interface MockSosEvent {
+  id: string;
+  case_id: string;
+  auditor_id: string;
+  triggered_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  follow_up_notes: string | null;
+  resolved_at: string | null;
+}
+
+export interface MockWellbeingRequest {
+  id: string;
+  auditor_id: string;
+  case_id: string | null;
+  kind: WellbeingRequestKind;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+/** AR-AI-12 audit history entry. Never edited or removed once written. */
+export interface MockAuditEntry {
+  at: string;
+  actor: string;
+  case_id: string | null;
+  action: string;
+  detail: string | null;
 }
 
 export interface MockDb {
@@ -69,6 +112,13 @@ export interface MockDb {
   statusUpdateRequests: { case_id: string; email: string | null; phone: string | null; requested_at: string }[];
   /** Follow-up context added to a case by the reporter (UR-NTH-05). File contents are never stored. */
   caseAdditions: { case_id: string; details: string; attachment_name: string | null; added_at: string }[];
+  /** Staff login lockout, keyed by the staff ID that was typed. */
+  loginAttempts: Record<string, { failureTimes: number[]; lockedUntil: number | null }>;
+  sosEvents: MockSosEvent[];
+  wellbeingRequests: MockWellbeingRequest[];
+  auditLog: MockAuditEntry[];
+  /** Edge states forced from the demo scenario menu (mock mode only). */
+  demo: { failNextSubmission: boolean };
 }
 
 const STORAGE_KEY = "rcs_mock_db";

@@ -46,6 +46,11 @@ export const resolveCase = delegate("resolveCase");
 
 // Auditor wellbeing
 export const getMyWellbeing = delegate("getMyWellbeing");
+export const acknowledgeContentWarning = delegate("acknowledgeContentWarning");
+export const declineCase = delegate("declineCase");
+export const recordExposure = delegate("recordExposure");
+export const triggerSos = delegate("triggerSos");
+export const requestWellbeingSupport = delegate("requestWellbeingSupport");
 
 // Manager oversight
 export const getManagerDashboard = delegate("getManagerDashboard");
