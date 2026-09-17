@@ -5,6 +5,8 @@ interface ExposureBarProps {
   surface: "dark" | "light";
   /** Label under the bar, e.g. "62 / 120 min today" (header) or "94 / 120 min" (Manager table). */
   label: string;
+  /** Shorter label shown on phone-width screens instead of `label`, e.g. "62/120 min". */
+  compactLabel?: string;
   /** Header variant switches the fill to Carbon support-warning at the limit (Figma 34:121). */
   warnAtLimit?: boolean;
   width?: number | string;
@@ -28,6 +30,7 @@ export function ExposureBar({
   limit,
   surface,
   label,
+  compactLabel,
   warnAtLimit = false,
   width = 200,
   ariaLabel,
@@ -57,9 +60,17 @@ export function ExposureBar({
           lineHeight: "16px",
           color: surface === "dark" ? "var(--cds-text-primary)" : "var(--cds-text-secondary)",
           fontFamily: surface === "light" ? "'IBM Plex Mono', monospace" : undefined,
+          whiteSpace: "nowrap",
         }}
       >
-        {label}
+        {compactLabel ? (
+          <>
+            <span className="sm:hidden">{compactLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
       </span>
     </div>
   );

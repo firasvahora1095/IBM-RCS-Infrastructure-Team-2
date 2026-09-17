@@ -45,30 +45,44 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
   return (
     <Theme theme="g100">
       <Header aria-label={`RCS — ${label}`}>
-        <HeaderName href={ROLE_HOME[role]} prefix="">
-          {`RCS — ${label}`}
+        {/* On phones the header has room for the essentials only: the role
+            label, the staff ID and the word "today" drop out below the sm/lg
+            breakpoints, and the exposure bar narrows, so nothing runs off
+            the edge of the fixed 48px bar. */}
+        <HeaderName href={ROLE_HOME[role]} prefix="" aria-label={`RCS — ${label}`}>
+          RCS<span className="hidden sm:inline">{` — ${label}`}</span>
         </HeaderName>
         <DemoDataBadge />
-        <HeaderGlobalBar className="items-center gap-6 pr-6">
+        <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
           {role === "auditor" && wellbeing && (
             <ExposureBar
               surface="dark"
               warnAtLimit
+              width="clamp(72px, 16vw, 200px)"
               minutes={wellbeing.exposure_minutes_today}
               limit={wellbeing.exposure_limit_minutes}
               label={`${wellbeing.exposure_minutes_today} / ${wellbeing.exposure_limit_minutes} min today`}
+              compactLabel={`${wellbeing.exposure_minutes_today}/${wellbeing.exposure_limit_minutes} min`}
               ariaLabel="Your exposure today"
             />
           )}
           {role === "manager" && sosSummary && sosSummary.unresolved_count > 0 && (
-            <RouterLink to="/manager/sos" style={{ textDecoration: "none" }}>
-              <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0 }}>
-                {sosSummary.unresolved_count} SOS {sosSummary.unresolved_count === 1 ? "alert" : "alerts"}
+            <RouterLink
+              to="/manager/sos"
+              aria-label={`${sosSummary.unresolved_count} SOS ${sosSummary.unresolved_count === 1 ? "alert" : "alerts"}`}
+              style={{ textDecoration: "none" }}
+            >
+              <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0, whiteSpace: "nowrap" }}>
+                {sosSummary.unresolved_count} SOS
+                <span className="hidden sm:inline">{sosSummary.unresolved_count === 1 ? " alert" : " alerts"}</span>
               </Tag>
             </RouterLink>
           )}
           {staffId && (
-            <span style={{ fontSize: 14, color: "var(--cds-text-primary)" }}>
+            <span
+              className="hidden lg:inline"
+              style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
+            >
               {label}: {staffId}
             </span>
           )}
@@ -85,6 +99,7 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               fontSize: 14,
               fontFamily: "inherit",
               textDecoration: "underline",
+              whiteSpace: "nowrap",
             }}
           >
             Sign out

@@ -52,7 +52,7 @@ export function ManagerCaseOversightPage() {
     <ManagerLayout>
       <h1 style={pageTitle}>Consolidated Case Oversight</h1>
       <div className="flex flex-wrap items-end gap-4">
-        <div style={{ width: 320 }}>
+        <div style={{ width: "100%", maxWidth: 320 }}>
           <Search
             id="case-search"
             labelText="Search cases or Auditors"
@@ -62,7 +62,7 @@ export function ManagerCaseOversightPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div style={{ width: 240 }}>
+        <div style={{ width: "100%", maxWidth: 240 }}>
           <Dropdown
             id="status-filter"
             titleText="Filter by status"

@@ -17,7 +17,7 @@ export function DemoDataBadge() {
       size="sm"
       title="Synthetic demo data — not connected to the live backend"
       className="self-center"
-      style={{ marginInline: 16 }}
+      style={{ marginInline: "clamp(4px, 2vw, 16px)", whiteSpace: "nowrap" }}
     >
       Demo data
     </Tag>

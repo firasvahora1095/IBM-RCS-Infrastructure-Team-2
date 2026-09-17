@@ -131,7 +131,7 @@ export function ManagerAuditorDetailPage() {
                 />
               )}
               <div className="flex flex-wrap items-end gap-3">
-                <div style={{ width: 200 }}>
+                <div style={{ width: "100%", maxWidth: 200 }}>
                   <NumberInput
                     id="exposure-limit-input"
                     label="Daily limit (minutes)"

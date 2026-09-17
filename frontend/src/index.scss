@@ -31,12 +31,33 @@
   max-inline-size: none;
 }
 
+// Responsive tables: cells keep IDs, names and times on one line, and Carbon's
+// table wrapper scrolls sideways on narrow screens instead of breaking
+// "AR-2026-00417" across three lines.
+.cds--data-table-content {
+  overflow-x: auto;
+}
+.cds--data-table th,
+.cds--data-table td {
+  white-space: nowrap;
+}
+
 // Carbon's Slider has a 200px minimum track, which with its value labels and
 // number input pushed past the edge of a phone screen. Keep Carbon's minimum
 // on laptops and desktops, and let it shrink on phones only (0 collapsed the
 // track entirely inside flex rows).
 .cds--slider {
   min-inline-size: min(12.5rem, 30vw);
+}
+// The dark header is a fixed 48px bar: keep the product name on one line and
+// tighten Carbon's 32px side padding on phones so the actions still fit.
+.cds--header__name {
+  white-space: nowrap;
+}
+@media (max-width: 671px) {
+  .cds--header__name {
+    padding-inline: 1rem;
+  }
 }
 
 // The evidence rail beside the player is already narrow (Figma 20:35), so the

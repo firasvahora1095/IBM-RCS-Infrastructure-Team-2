@@ -240,7 +240,7 @@ export function CaseIdConfirmationPage() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex gap-5">
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
           {/* Per the Figma annotation, these destinations are "to be
               confirmed by Dev — not a tracked design decision", so they are
               deliberately not wired to guessed URLs. */}

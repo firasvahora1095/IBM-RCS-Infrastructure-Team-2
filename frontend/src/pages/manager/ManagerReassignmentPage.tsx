@@ -143,7 +143,7 @@ export function ManagerReassignmentPage() {
             {data.declining_auditor && (
               <>
                 <h2 style={{ fontSize: 14, fontWeight: 600 }}>Declining Auditor&apos;s exposure status</h2>
-                <dl className="grid grid-cols-[160px_1fr] gap-y-2" style={{ fontSize: 14 }}>
+                <dl className="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-x-4 gap-y-2" style={{ fontSize: 14 }}>
                   <dt>{data.declining_auditor.name}</dt>
                   <dd style={mono}>
                     {data.declining_auditor.exposure_minutes_today} / {data.declining_auditor.exposure_limit_minutes}{" "}
@@ -153,7 +153,7 @@ export function ManagerReassignmentPage() {
               </>
             )}
             <h2 style={{ fontSize: 14, fontWeight: 600 }}>Candidate Auditors — exposure headroom</h2>
-            <dl className="grid grid-cols-[160px_1fr] gap-y-2" style={{ fontSize: 14 }}>
+            <dl className="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-x-4 gap-y-2" style={{ fontSize: 14 }}>
               {data.candidates.map((c) => (
                 <div key={c.auditor_id} className="contents">
                   <dt>{c.name}</dt>

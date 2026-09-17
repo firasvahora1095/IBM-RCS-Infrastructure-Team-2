@@ -17,7 +17,8 @@ describe("StaffHeader", () => {
         <StaffHeader role="auditor" />
       </MemoryRouter>,
     );
-    expect(screen.getByText("RCS — Auditor")).toBeInTheDocument();
+    // The role part of the label is visually hidden on phones, so check the link's accessible name.
+    expect(screen.getByRole("link", { name: "RCS — Auditor" })).toBeInTheDocument();
     expect(screen.getByText("Auditor: auditor-1")).toBeInTheDocument();
   });
 

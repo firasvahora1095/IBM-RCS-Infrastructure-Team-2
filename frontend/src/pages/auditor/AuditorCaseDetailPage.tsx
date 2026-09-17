@@ -534,7 +534,7 @@ export function AuditorCaseDetailPage() {
             className="flex flex-col gap-3 p-5"
             style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
                 CVI rating
               </h2>
