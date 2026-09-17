@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, InlineNotification, Modal, TextArea } from "@carbon/react";
 import { addCaseInformation } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE, NotImplementedError } from "../../services/types";
@@ -18,7 +18,27 @@ interface AddCaseInformationModalProps {
  */
 export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddCaseInformationModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detailsRef = useRef<HTMLTextAreaElement>(null);
   const [details, setDetails] = useState("");
+
+  // The status page mounts this modal already open, and Carbon only moves
+  // focus into a modal when `open` changes, so keyboard focus stayed on the
+  // button behind the overlay (found in the Task 99 keyboard pass). The
+  // modal fades in from visibility: hidden, and a hidden field can't take
+  // focus, so keep trying each frame until it does (it measured ~600ms in
+  // Chrome; the cap allows about 1.5s).
+  useEffect(() => {
+    if (!open) return;
+    let frame = 0;
+    let attempts = 0;
+    const tryFocus = () => {
+      const field = detailsRef.current;
+      field?.focus();
+      if (document.activeElement !== field && attempts++ < 90) frame = requestAnimationFrame(tryFocus);
+    };
+    frame = requestAnimationFrame(tryFocus);
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +81,7 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
     >
       <div className="flex flex-col gap-4">
         <TextArea
+          ref={detailsRef}
           id="add-case-information"
           labelText="Additional context or details"
           placeholder="Add anything that helps the reviewer understand your case..."
