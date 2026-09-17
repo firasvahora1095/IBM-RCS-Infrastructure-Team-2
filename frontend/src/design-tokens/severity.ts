@@ -34,3 +34,19 @@ export function getSeverityInfo(tier: SeverityTier): SeverityInfo {
   }
   return info;
 }
+
+/**
+ * Converts a 0–100 CVI score into its tier using the approved bands in
+ * docs/ba/severity-scale.md: 0–39 = S1, 40–64 = S2, 65–84 = S3, 85–100 = S4.
+ * The Auditor's slider badge uses this to update live while dragging, so it
+ * shares one band table with everything else.
+ */
+export function scoreToTier(score: number): SeverityTier {
+  if (!Number.isFinite(score) || score < 0 || score > 100) {
+    throw new Error(`CVI score out of range: ${score}`);
+  }
+  if (score <= 39) return "S1";
+  if (score <= 64) return "S2";
+  if (score <= 84) return "S3";
+  return "S4";
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getSeverityInfo } from "./severity";
+import { getSeverityInfo, scoreToTier } from "./severity";
 
 describe("getSeverityInfo", () => {
   it("returns the Figma label and colours for each real tier", () => {
@@ -12,5 +12,24 @@ describe("getSeverityInfo", () => {
   it("throws on an unknown tier instead of failing silently", () => {
     // @ts-expect-error deliberately passing an invalid value to test the guard
     expect(() => getSeverityInfo("S5")).toThrow("Unknown severity tier");
+  });
+});
+
+describe("scoreToTier", () => {
+  it("maps each band boundary correctly — these exact numbers matter", () => {
+    expect(scoreToTier(0)).toBe("S1");
+    expect(scoreToTier(39)).toBe("S1");
+    expect(scoreToTier(40)).toBe("S2");
+    expect(scoreToTier(64)).toBe("S2");
+    expect(scoreToTier(65)).toBe("S3");
+    expect(scoreToTier(84)).toBe("S3");
+    expect(scoreToTier(85)).toBe("S4");
+    expect(scoreToTier(100)).toBe("S4");
+  });
+
+  it("rejects an out-of-range score instead of returning a wrong tier", () => {
+    expect(() => scoreToTier(101)).toThrow("out of range");
+    expect(() => scoreToTier(-1)).toThrow("out of range");
+    expect(() => scoreToTier(Number.NaN)).toThrow("out of range");
   });
 });

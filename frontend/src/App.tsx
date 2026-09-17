@@ -6,6 +6,7 @@ import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPa
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
 import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
+import { AuditorCaseDetailPage } from "./pages/auditor/AuditorCaseDetailPage";
 import { ManagerOversightDashboardPage } from "./pages/manager/ManagerOversightDashboardPage";
 
 /**
@@ -30,6 +31,7 @@ function PublicLayout() {
  *   "/status"            — public status lookup by Case ID
  *   "/staff/login"       — shared staff login; no header, matching Figma
  *   "/auditor"           — Auditor dashboard (auditor role only)
+ *   "/auditor/cases/:id" — Auditor case review: summary → severity → confirmation
  *   "/manager"           — Manager dashboard (manager role only)
  *
  * Staff pages render their own header (Auditor/Manager variants), because
@@ -51,6 +53,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRole="auditor">
               <AuditorDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/auditor/cases/:caseId"
+          element={
+            <ProtectedRoute allowedRole="auditor">
+              <AuditorCaseDetailPage />
             </ProtectedRoute>
           }
         />
