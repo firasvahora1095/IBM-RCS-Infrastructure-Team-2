@@ -1,0 +1,13 @@
+// Carbon's full component + token styles (IBM Carbon Design System v11).
+// Loaded before the Tailwind utilities (see main.tsx) so that Carbon — the
+// design system — owns every component's look, and Tailwind only adds layout.
+//
+// $font-path: Carbon's default ('~@ibm/plex') uses the old webpack `~`
+// prefix, which Vite doesn't understand — the IBM Plex font files would
+// silently 404 and every screen would fall back to a system font. Pointing
+// it at the locally installed @ibm/plex-* packages lets Vite bundle the real
+// fonts, and self-hosting them means a public reporter's browser never makes
+// a third-party font request.
+@use '@carbon/react' with (
+  $font-path: '@ibm/plex'
+);
