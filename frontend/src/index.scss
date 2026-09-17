@@ -11,3 +11,15 @@
 @use "@carbon/react" with (
   $font-path: "@ibm/plex"
 );
+
+// Emit Carbon's White theme tokens as CSS custom properties on :root.
+// Without this, `var(--cds-*)` tokens only exist inside <Theme> zones (such
+// as the g100 staff header): Carbon's own components fall back to built-in
+// values, but our inline token styles would resolve to nothing on white
+// pages. The Theme component still overrides them per zone.
+@use "@carbon/react/scss/theme";
+
+:root {
+  @include theme.theme();
+}
+
