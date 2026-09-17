@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { Button } from "@carbon/react";
 import { Upload } from "@carbon/icons-react";
+import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 
-export const ACCEPTED_VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".avi"];
 
 interface VideoDropZoneProps {
   onFileSelected: (file: File) => void;

@@ -12,7 +12,8 @@ import {
   Button,
 } from "@carbon/react";
 import { Locked } from "@carbon/icons-react";
-import { VideoDropZone, ACCEPTED_VIDEO_EXTENSIONS } from "../../components/forms/VideoDropZone";
+import { VideoDropZone } from "../../components/forms/VideoDropZone";
+import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { TrustBanner } from "../../components/notifications/TrustBanner";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { createReport } from "../../api/client";

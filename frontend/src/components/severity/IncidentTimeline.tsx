@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { IncidentTimelineEntry } from "../../api/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
+import { formatTimestamp } from "../../utils/formatTimestamp";
 import { SeverityTag } from "./SeverityTag";
 
 interface IncidentTimelineProps {
@@ -19,16 +20,6 @@ const LABELS_TOP_PX = 40;
 const MIN_SEGMENT_WIDTH_PX = 6;
 /** Used before the first measurement, and in jsdom (which has no layout). */
 const FALLBACK_WIDTH_PX = 1104;
-
-/** Seconds → "MM:SS" (or "H:MM:SS"), matching the Figma timeline's "00:42". */
-export function formatTimestamp(totalSeconds: number): string {
-  const safe = Math.max(0, Math.floor(totalSeconds));
-  const hours = Math.floor(safe / 3600);
-  const minutes = Math.floor((safe % 3600) / 60);
-  const seconds = safe % 60;
-  const mmss = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  return hours > 0 ? `${hours}:${mmss}` : mmss;
-}
 
 /**
  * The proportional incident timeline on the AI Analysis Summary (Figma

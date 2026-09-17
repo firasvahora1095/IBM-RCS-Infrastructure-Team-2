@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { IncidentTimeline, formatTimestamp } from "./IncidentTimeline";
+import { IncidentTimeline } from "./IncidentTimeline";
+import { formatTimestamp } from "../../utils/formatTimestamp";
 
 describe("formatTimestamp", () => {
   it("formats seconds as MM:SS, matching the Figma timeline", () => {
