@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StatusLookupPage } from "./StatusLookupPage";
 import * as services from "../../services";
-import { ApiError } from "../../services/types";
+import { ApiError, NotImplementedError } from "../../services/types";
 import { saveCaseId } from "../../hooks/useCaseIdStorage";
 
 function renderPage() {
@@ -51,6 +51,47 @@ describe("StatusLookupPage", () => {
 
     expect(await screen.findByText("Too many invalid attempts. Try again later.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check status" })).toBeDisabled();
+  });
+
+  it("adds more information to a case through the modal (Figma 80:31, UR-NTH-05)", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "INSZNNJI4P",
+      status: "Being Reviewed",
+      final_outcome: null,
+    });
+    const add = vi.spyOn(services, "addCaseInformation").mockResolvedValueOnce({ added: true });
+    renderPage();
+    lookUp("INSZNNJI4P");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add more information to this case" }));
+    const submit = screen.getByRole("button", { name: "Submit update" });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Additional context or details"), {
+      target: { value: "It was also posted on another page." },
+    });
+    fireEvent.click(submit);
+
+    expect(await screen.findByText("Your update has been added to this case.")).toBeInTheDocument();
+    expect(add).toHaveBeenCalledWith("INSZNNJI4P", "It was also posted on another page.", undefined);
+    expect(screen.queryByRole("button", { name: "Submit update" })).not.toBeInTheDocument();
+  });
+
+  it("says honestly when adding information isn't connected yet", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "INSZNNJI4P",
+      status: "Being Reviewed",
+      final_outcome: null,
+    });
+    vi.spyOn(services, "addCaseInformation").mockRejectedValueOnce(new NotImplementedError("addCaseInformation"));
+    renderPage();
+    lookUp("INSZNNJI4P");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add more information to this case" }));
+    fireEvent.change(screen.getByLabelText("Additional context or details"), { target: { value: "More detail." } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit update" }));
+
+    expect(await screen.findByText("Adding information to a case isn't available yet.")).toBeInTheDocument();
   });
 
   it("shows the Being Reviewed stage, and no outcome, for an in-progress case", async () => {

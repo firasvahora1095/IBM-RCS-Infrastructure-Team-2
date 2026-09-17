@@ -30,6 +30,9 @@ function delegate<K extends keyof DataService>(operation: K): DataService[K] {
 
 // Public reporting
 export const createReport = delegate("createReport");
+export const createLinkReport = delegate("createLinkReport");
+export const createScreenshotReport = delegate("createScreenshotReport");
+export const addCaseInformation = delegate("addCaseInformation");
 export const getStatus = delegate("getStatus");
 export const requestStatusUpdates = delegate("requestStatusUpdates");
 

@@ -112,6 +112,54 @@ function findOwnCase(db: MockDb, caseId: string, staffId: string): MockCase {
   return found;
 }
 
+/** Screen 1c placeholder limit: "Max size: 10MB (placeholder) — to be confirmed with Dev." */
+const SCREENSHOT_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Creates a case from any evidence type and assigns it straight away
+ * (AR-AS-03), starting simulated AI analysis when an Auditor is available.
+ */
+function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: string): CreateReportResponse {
+  const now = new Date();
+  const assigned = selectAuditor(db);
+  const caseId = newCaseId();
+  db.cases.push({
+    case_id: caseId,
+    status: assigned ? "AI_PROCESSING" : "SUBMITTED",
+    assigned_auditor: assigned,
+    content_type: contentType,
+    file_name: fileName,
+    duration_seconds: null,
+    created_at: now.toISOString(),
+    assigned_at: assigned ? now.toISOString() : null,
+    updated_at: now.toISOString(),
+    ai_ready_at: assigned ? new Date(now.getTime() + SIMULATED_AI_SECONDS * 1000).toISOString() : null,
+    watson_severity_score: null,
+    effective_severity_score: null,
+    severity_tier: null,
+    narrative_summary: null,
+    incident_timeline: null,
+    flagged_entities: null,
+    transcript: null,
+    audio_intensity: null,
+    ai_failure: null,
+    final_outcome: null,
+    auditor_severity_score: null,
+    auditor_comment: null,
+    completed_at: null,
+  });
+  const auditor = db.staff.find((s) => s.staff_id === assigned);
+  if (auditor) {
+    auditor.active_case_count += 1;
+    auditor.last_assigned_at = now.toISOString();
+  }
+  return {
+    case_id: caseId,
+    status: mapStatusToPublicLabel(assigned ? "AI_PROCESSING" : "SUBMITTED"),
+    assigned_auditor: assigned,
+  };
+}
+
 export const mockDataService: DataService = {
   async createReport(videoFile: File): Promise<CreateReportResponse> {
     await delay();
@@ -123,45 +171,54 @@ export const mockDataService: DataService = {
     if (videoFile.size === 0) {
       throw new ApiError("File is too small to be a valid video", 400);
     }
+    return updateDb((db) => openCase(db, "Video", videoFile.name));
+  },
+
+  async createLinkReport(url: string): Promise<CreateReportResponse> {
+    await delay();
+    let parsed: URL | null = null;
+    try {
+      parsed = new URL(url.trim());
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) {
+      throw new ApiError(
+        "That link doesn't look right. Make sure it's a public video link, not a private or password-protected page.",
+        400,
+      );
+    }
+    return updateDb((db) => openCase(db, "Link", parsed.href));
+  },
+
+  async createScreenshotReport(image: File): Promise<CreateReportResponse> {
+    await delay();
+    if (!/\.(png|jpe?g)$/i.test(image.name)) {
+      throw new ApiError("That image format isn't supported. Try PNG or JPG instead.", 400);
+    }
+    if (image.size > SCREENSHOT_MAX_BYTES) {
+      throw new ApiError("That image is larger than 10MB. Try a smaller screenshot.", 400);
+    }
+    return updateDb((db) => openCase(db, "Screenshot", image.name));
+  },
+
+  async addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }> {
+    await delay();
+    if (!details.trim() && !attachment) {
+      throw new ApiError("Add some details or attach a file before submitting.", 400);
+    }
     return updateDb((db) => {
-      const now = new Date();
-      const assigned = selectAuditor(db);
-      const caseId = newCaseId();
-      db.cases.push({
+      const found = db.cases.find((c) => c.case_id === caseId);
+      if (!found) throw new ApiError("Case not found", 404);
+      // Adds to the case only; it can never remove what was submitted (Figma 80:39).
+      db.caseAdditions.push({
         case_id: caseId,
-        status: assigned ? "AI_PROCESSING" : "SUBMITTED",
-        assigned_auditor: assigned,
-        content_type: "Video",
-        file_name: videoFile.name,
-        duration_seconds: null,
-        created_at: now.toISOString(),
-        assigned_at: assigned ? now.toISOString() : null,
-        updated_at: now.toISOString(),
-        ai_ready_at: assigned ? new Date(now.getTime() + SIMULATED_AI_SECONDS * 1000).toISOString() : null,
-        watson_severity_score: null,
-        effective_severity_score: null,
-        severity_tier: null,
-        narrative_summary: null,
-        incident_timeline: null,
-        flagged_entities: null,
-        transcript: null,
-        audio_intensity: null,
-        ai_failure: null,
-        final_outcome: null,
-        auditor_severity_score: null,
-        auditor_comment: null,
-        completed_at: null,
+        details: details.trim(),
+        attachment_name: attachment?.name ?? null,
+        added_at: new Date().toISOString(),
       });
-      const auditor = db.staff.find((s) => s.staff_id === assigned);
-      if (auditor) {
-        auditor.active_case_count += 1;
-        auditor.last_assigned_at = now.toISOString();
-      }
-      return {
-        case_id: caseId,
-        status: mapStatusToPublicLabel(assigned ? "AI_PROCESSING" : "SUBMITTED"),
-        assigned_auditor: assigned,
-      };
+      found.updated_at = new Date().toISOString();
+      return { added: true as const };
     });
   },
 

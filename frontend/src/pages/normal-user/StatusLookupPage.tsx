@@ -9,6 +9,7 @@ import type { PublicStatusResponse, PublicCaseStatus } from "../../services/type
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { loadCaseId } from "../../hooks/useCaseIdStorage";
+import { AddCaseInformationModal } from "../../components/forms/AddCaseInformationModal";
 import { formatDateTime, formatDuration } from "../../utils/formatRelativeTime";
 
 const STEPS: readonly PublicCaseStatus[] = ["Received", "Being Reviewed", "Complete"];
@@ -81,7 +82,7 @@ export function StatusLookupPage() {
     <PublicPage cardWidth={640}>
       <form onSubmit={handleCheckStatus} className="flex flex-col gap-5" noValidate>
         <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Check your case status</h1>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           Enter the case ID you received when you submitted your report.
         </p>
 
@@ -142,10 +143,12 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
   // case, pointing one past the last step shows all three as done.
   const currentIndex = isComplete ? STEPS.length : STEPS.indexOf(publicStatus);
   const outcome = isComplete && result.final_outcome ? mapOutcomeToDisplay(result.final_outcome) : null;
+  const [addInfoOpen, setAddInfoOpen] = useState(false);
+  const [infoAdded, setInfoAdded] = useState(false);
 
   return (
     <PublicPage cardWidth={640}>
-      <h1 style={{ ...mono, fontSize: 16, lineHeight: "22px", fontWeight: 400, color: "#525252" }}>
+      <h1 style={{ ...mono, fontSize: 16, lineHeight: "22px", fontWeight: 400, color: "var(--cds-text-secondary)" }}>
         Case {result.case_id}
       </h1>
 
@@ -163,69 +166,99 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
           <section
             aria-labelledby="current-stage-title"
             className="flex flex-col gap-4 p-4"
-            style={{ borderLeft: "4px solid #0f62fe", borderRadius: 8, boxShadow: "inset 0 0 0 1px #f4f4f4" }}
+            style={{
+              borderLeft: "4px solid var(--cds-border-interactive)",
+              borderRadius: 8,
+              boxShadow: "inset 0 0 0 1px var(--cds-layer-01)",
+            }}
           >
             <div className="flex gap-4">
               <RadioButtonChecked
                 size={24}
-                style={{ fill: "#0f62fe", flexShrink: 0, marginTop: 2 }}
+                style={{ fill: "var(--cds-icon-interactive)", flexShrink: 0, marginTop: 2 }}
                 aria-hidden="true"
               />
               <div className="flex flex-col gap-1">
                 <h2 id="current-stage-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
                   Being Reviewed
                 </h2>
-                <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+                <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
                   A reviewer is currently assessing your report against our content policy.
                 </p>
               </div>
             </div>
-            <hr style={{ border: 0, borderTop: "1px solid #e0e0e0", margin: 0 }} />
-            <p style={{ fontSize: 12, fontWeight: 500, color: "#6f6f6f" }}>Coming up</p>
+            <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
+            <p style={{ fontSize: 12, fontWeight: 500, color: "var(--cds-text-helper)" }}>Coming up</p>
             <div className="flex gap-3">
-              <RadioButtonIcon size={16} style={{ fill: "#8d8d8d", flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+              <RadioButtonIcon
+                size={16}
+                style={{ fill: "var(--cds-icon-secondary)", flexShrink: 0, marginTop: 2 }}
+                aria-hidden="true"
+              />
               <div>
-                <p style={{ fontSize: 13, fontWeight: 500, color: "#161616" }}>Complete</p>
-                <p style={{ fontSize: 12, color: "#525252" }}>
+                <p style={{ fontSize: 13, fontWeight: 500, color: "var(--cds-text-primary)" }}>Complete</p>
+                <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
                   You&apos;ll see the outcome here, and it&apos;ll be saved to this case.
                 </p>
               </div>
             </div>
           </section>
 
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
             Estimated review time: 3–5 business days (indicative).
           </p>
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
+          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
             We don&apos;t share who is reviewing your case or how it&apos;s being handled internally — only the stage
             shown above.
           </p>
 
           <div className="flex flex-col gap-2">
-            {/* UR-NTH-05 (Nice-to-Have). The follow-up evidence flow isn't
-                part of Sprint 2 P0 and has no API yet, so the approved
-                button is shown disabled rather than as a dead end. */}
+            {/* UR-NTH-05: add follow-up context to this case (Figma 80:31). */}
             <div>
-              <Button kind="tertiary" disabled>
+              <Button kind="tertiary" onClick={() => setAddInfoOpen(true)}>
                 Add more information to this case
               </Button>
             </div>
-            <p style={{ fontSize: 11, lineHeight: "15px", color: "#525252" }}>
+            <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)" }}>
               Use your case ID to attach follow-up evidence or details after submitting.
             </p>
+            <div aria-live="polite">
+              {infoAdded && (
+                <InlineNotification
+                  kind="success"
+                  lowContrast
+                  hideCloseButton
+                  title="Your update has been added to this case."
+                  style={{ maxWidth: "100%" }}
+                />
+              )}
+            </div>
           </div>
+          {/* Mounted only while open: Carbon keeps a closed Modal in the DOM,
+              which would duplicate the "Case {id}" text for assistive tech. */}
+          {addInfoOpen && (
+            <AddCaseInformationModal
+              caseId={result.case_id}
+              open
+              onClose={() => setAddInfoOpen(false)}
+              onAdded={() => {
+                setAddInfoOpen(false);
+                setInfoAdded(true);
+              }}
+            />
+          )}
         </>
       )}
 
       <section
         aria-labelledby="case-details-title"
         className="flex flex-col gap-3.5 p-5"
-        style={{ border: "1px solid #e0e0e0" }}
+        style={{ border: "1px solid var(--cds-border-subtle-00)" }}
       >
         <h2 id="case-details-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
           Case details
         </h2>
-        <hr style={{ border: 0, borderTop: "1px solid #e0e0e0", margin: 0 }} />
+        <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
         <dl className="flex flex-col gap-3.5">
           <DetailRow label="Case ID" value={result.case_id} monospace />
           {result.submitted_at && <DetailRow label="Submitted on" value={formatDateTime(result.submitted_at)} />}
@@ -242,7 +275,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         <section
           aria-label="Outcome preview"
           className="flex flex-col gap-2.5 p-5"
-          style={{ border: "1px dashed #e0e0e0", borderRadius: 8 }}
+          style={{ border: "1px dashed var(--cds-border-subtle-00)", borderRadius: 8 }}
         >
           <div>
             <Tag type="gray" size="sm">
@@ -252,7 +285,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
           <p style={{ fontSize: 14, lineHeight: "20px", fontWeight: 600 }}>
             Outcome (shown once your case reaches Complete)
           </p>
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
+          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
             You&apos;ll see a plain-language result here — for example, whether the content was actioned — without any
             internal review details.
           </p>
@@ -263,12 +296,12 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         <section
           aria-labelledby="outcome-title"
           className="flex flex-col gap-2 p-5"
-          style={{ border: "1px solid #e0e0e0" }}
+          style={{ border: "1px solid var(--cds-border-subtle-00)" }}
         >
           <h2 id="outcome-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
             {outcome.title}
           </h2>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>{outcome.body}</p>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{outcome.body}</p>
         </section>
       )}
 
@@ -285,8 +318,12 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
 function DetailRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
   return (
     <div className="flex gap-4">
-      <dt style={{ width: 140, flexShrink: 0, fontSize: 12, lineHeight: "20px", color: "#525252" }}>{label}</dt>
-      <dd style={{ ...(monospace ? mono : {}), fontSize: 14, lineHeight: "20px", color: "#161616" }}>{value}</dd>
+      <dt style={{ width: 140, flexShrink: 0, fontSize: 12, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+        {label}
+      </dt>
+      <dd style={{ ...(monospace ? mono : {}), fontSize: 14, lineHeight: "20px", color: "var(--cds-text-primary)" }}>
+        {value}
+      </dd>
     </div>
   );
 }

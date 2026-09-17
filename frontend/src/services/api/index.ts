@@ -25,6 +25,9 @@ export const apiDataService: DataService = {
   getManagerDashboard: http.getManagerDashboard,
 
   // No endpoint yet.
+  createLinkReport: () => notConnected("createLinkReport"),
+  createScreenshotReport: () => notConnected("createScreenshotReport"),
+  addCaseInformation: () => notConnected("addCaseInformation"),
   requestStatusUpdates: () => notConnected("requestStatusUpdates"),
   getMyWellbeing: () => notConnected("getMyWellbeing"),
 };

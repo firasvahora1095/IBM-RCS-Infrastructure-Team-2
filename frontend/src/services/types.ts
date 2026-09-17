@@ -18,8 +18,16 @@ export type PublicCaseStatus = "Received" | "Being Reviewed" | "Complete";
 
 export type SeverityTier = "S1" | "S2" | "S3" | "S4";
 
-/** Final outcome values confirmed by the PM in BA baseline RT-01. */
+/** Final outcome values an Auditor selects, confirmed by the PM in BA baseline RT-01. */
 export type FinalOutcome = "NO_VIOLATION_FOUND" | "POLICY_VIOLATION_FOUND";
+
+/**
+ * Every outcome a completed case can carry. Adds the content-neutral outcome
+ * for a declined case a Manager closes with "No reassignment needed"
+ * (UX decision, Normal User handoff Round 8 / Manager handoff Round 5).
+ * Not yet listed in RT-01 — flagged for the BA to add.
+ */
+export type CaseOutcome = FinalOutcome | "CLOSED_NO_REASSIGNMENT";
 
 export type StaffRole = "auditor" | "manager";
 
@@ -148,6 +156,12 @@ export interface CooldownState {
  */
 export interface DataService {
   createReport(videoFile: File): Promise<CreateReportResponse>;
+  /** Screen 1b: report a public video link instead of uploading (UR-NTH-01). */
+  createLinkReport(url: string): Promise<CreateReportResponse>;
+  /** Screen 1c: report with a screenshot image (UR-NTH-02). */
+  createScreenshotReport(image: File): Promise<CreateReportResponse>;
+  /** Figma 80:31: add context (and optionally a file) to an existing case (UR-NTH-05). */
+  addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }>;
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;

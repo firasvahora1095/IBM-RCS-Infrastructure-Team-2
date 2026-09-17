@@ -1,4 +1,4 @@
-import type { FinalOutcome } from "../services/types";
+import type { CaseOutcome, FinalOutcome } from "../services/types";
 
 /**
  * RT-01 — Final Outcome Taxonomy (docs/ba/ba-requirements-sprint2-final.md),
@@ -14,7 +14,7 @@ export interface OutcomeDisplay {
   body: string;
 }
 
-const OUTCOME_COPY: Record<FinalOutcome, OutcomeDisplay> = {
+const OUTCOME_COPY: Record<CaseOutcome, OutcomeDisplay> = {
   NO_VIOLATION_FOUND: {
     title: "No Violation Found",
     body: "Your report has been reviewed and no policy violation was identified based on the available information.",
@@ -23,11 +23,19 @@ const OUTCOME_COPY: Record<FinalOutcome, OutcomeDisplay> = {
     title: "Policy Violation Found",
     body: "Your report has been reviewed and a policy violation was identified. Thank you for taking the time to submit your report.",
   },
+  // A declined case the Manager closes with "No reassignment needed". The
+  // approved label is a single content-neutral sentence (Normal User handoff
+  // Round 8); it's split into heading and body here without changing a word.
+  // Not yet in RT-01 — flagged for the BA to add.
+  CLOSED_NO_REASSIGNMENT: {
+    title: "This case has been reviewed and closed.",
+    body: "No further action is required from you.",
+  },
 };
 
 /**
  * Accepts whatever raw string is stored in the database and returns the
- * current RT-01 copy. Besides the two internal values, it recognises the
+ * current RT-01 copy. Besides the internal values, it recognises the
  * human-readable labels and the older test value "Violation Found", which
  * already exist in test-backend data from before RT-01 was confirmed — so
  * old cases still display correctly without a data migration.
@@ -48,6 +56,9 @@ export function mapOutcomeToDisplay(rawOutcome: string): OutcomeDisplay | null {
   }
   if (normalized === "POLICY_VIOLATION_FOUND" || normalized === "VIOLATION_FOUND") {
     return OUTCOME_COPY.POLICY_VIOLATION_FOUND;
+  }
+  if (normalized === "CLOSED_NO_REASSIGNMENT") {
+    return OUTCOME_COPY.CLOSED_NO_REASSIGNMENT;
   }
   return null;
 }

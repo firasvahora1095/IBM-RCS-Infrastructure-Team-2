@@ -21,6 +21,14 @@ describe("mapOutcomeToDisplay", () => {
     expect(mapOutcomeToDisplay("Policy Violation Found")?.title).toBe("Policy Violation Found");
   });
 
+  it("shows the content-neutral closing copy for a Manager's no-reassignment decision", () => {
+    // The approved sentence, split into heading and body with no words changed.
+    const display = mapOutcomeToDisplay("CLOSED_NO_REASSIGNMENT");
+    expect(`${display?.title} ${display?.body}`).toBe(
+      "This case has been reviewed and closed. No further action is required from you.",
+    );
+  });
+
   it("returns null for an unrecognized value instead of crashing a public page", () => {
     expect(mapOutcomeToDisplay("Something Else Entirely")).toBeNull();
   });

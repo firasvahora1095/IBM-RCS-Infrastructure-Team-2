@@ -1,6 +1,6 @@
 import type {
+  CaseOutcome,
   CooldownState,
-  FinalOutcome,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -39,7 +39,7 @@ export interface MockCase {
   transcript: TranscriptLine[] | null;
   audio_intensity: number[] | null;
   ai_failure: "vision" | "speech_to_text" | null;
-  final_outcome: FinalOutcome | null;
+  final_outcome: CaseOutcome | null;
   auditor_severity_score: number | null;
   auditor_comment: string | null;
   completed_at: string | null;
@@ -67,6 +67,8 @@ export interface MockDb {
   statusLookup: { failureTimes: number[]; lockedUntil: number | null };
   /** Opt-in email/SMS update requests (UR-ID-05). Nothing is ever sent from mock mode. */
   statusUpdateRequests: { case_id: string; email: string | null; phone: string | null; requested_at: string }[];
+  /** Follow-up context added to a case by the reporter (UR-NTH-05). File contents are never stored. */
+  caseAdditions: { case_id: string; details: string; attachment_name: string | null; added_at: string }[];
 }
 
 const STORAGE_KEY = "rcs_mock_db";
