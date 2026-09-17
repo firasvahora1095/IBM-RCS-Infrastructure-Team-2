@@ -12,7 +12,7 @@ function renderPage() {
         <Route path="/" element={<UploadPage />} />
         <Route path="/case-confirmation" element={<div>Confirmation page</div>} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -33,7 +33,7 @@ describe("UploadPage", () => {
     chooseFile("clip.exe", "application/octet-stream");
 
     expect(
-      screen.getByText("That file format isn't supported. Try MP4, MOV, WEBM, or AVI instead.")
+      screen.getByText("That file format isn't supported. Try MP4, MOV, WEBM, or AVI instead."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit report/i })).toBeDisabled();
   });
@@ -80,7 +80,7 @@ describe("UploadPage", () => {
 
   it("shows the backend's rejection message when the upload fails (UR-VU-04)", async () => {
     vi.spyOn(apiClient, "createReport").mockRejectedValueOnce(
-      new ApiError("File contents do not match a valid .mp4 file", 400)
+      new ApiError("File contents do not match a valid .mp4 file", 400),
     );
 
     renderPage();

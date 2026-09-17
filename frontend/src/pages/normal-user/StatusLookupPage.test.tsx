@@ -10,7 +10,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <StatusLookupPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -37,14 +37,14 @@ describe("StatusLookupPage", () => {
     lookUp("RCS-0000-XXXX");
 
     expect(
-      await screen.findByText("We couldn't find a case with that ID. Check the ID and try again.")
+      await screen.findByText("We couldn't find a case with that ID. Check the ID and try again."),
     ).toBeInTheDocument();
     expect(screen.getByText("We couldn't find a case with that ID.")).toBeInTheDocument();
   });
 
   it("disables lookups and shows the backend's notice once rate-limited (UR-ST-07)", async () => {
     vi.spyOn(apiClient, "getStatus").mockRejectedValueOnce(
-      new ApiError("Too many invalid attempts. Try again later.", 429)
+      new ApiError("Too many invalid attempts. Try again later.", 429),
     );
     renderPage();
     lookUp("RCS-0000-XXXX");
@@ -63,7 +63,7 @@ describe("StatusLookupPage", () => {
     lookUp("INSZNNJI4P");
 
     expect(
-      await screen.findByText("A reviewer is currently assessing your report against our content policy.")
+      await screen.findByText("A reviewer is currently assessing your report against our content policy."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Policy Violation Found")).not.toBeInTheDocument();
     expect(screen.queryByText("No Violation Found")).not.toBeInTheDocument();
@@ -95,8 +95,8 @@ describe("StatusLookupPage", () => {
     expect(await screen.findByRole("heading", { name: "Policy Violation Found" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Your report has been reviewed and a policy violation was identified. Thank you for taking the time to submit your report."
-      )
+        "Your report has been reviewed and a policy violation was identified. Thank you for taking the time to submit your report.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Violation Found")).not.toBeInTheDocument();
   });

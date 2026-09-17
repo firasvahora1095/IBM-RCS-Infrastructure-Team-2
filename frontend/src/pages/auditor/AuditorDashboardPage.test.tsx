@@ -13,7 +13,7 @@ function renderPage() {
         <Route path="/auditor/cases/:caseId" element={<div>Case detail page</div>} />
         <Route path="/staff/login" element={<div>Login page</div>} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

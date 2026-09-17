@@ -15,7 +15,7 @@ describe("StaffHeader", () => {
     render(
       <MemoryRouter>
         <StaffHeader role="auditor" />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
     expect(screen.getByText("RCS — Auditor")).toBeInTheDocument();
     expect(screen.getByText("Auditor: auditor-1")).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("StaffHeader", () => {
           <Route path="/auditor" element={<StaffHeader role="auditor" />} />
           <Route path="/staff/login" element={<div>Login page</div>} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
 

@@ -160,13 +160,16 @@ export function CaseIdConfirmationPage() {
       </div>
 
       <p style={{ fontSize: 11, lineHeight: "15px", color: "#525252", maxWidth: 320 }}>
-        We&apos;ll text or email you a secure one-time link to this status page — no extra account or password
-        needed.
+        We&apos;ll text or email you a secure one-time link to this status page — no extra account or password needed.
       </p>
 
       <div className="flex flex-col gap-3">
         <div>
-          <Button kind="tertiary" disabled={!hasContactDetail || updatesRequested} onClick={() => setUpdatesRequested(true)}>
+          <Button
+            kind="tertiary"
+            disabled={!hasContactDetail || updatesRequested}
+            onClick={() => setUpdatesRequested(true)}
+          >
             Send me updates
           </Button>
         </div>

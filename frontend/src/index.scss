@@ -8,6 +8,6 @@
 // it at the locally installed @ibm/plex-* packages lets Vite bundle the real
 // fonts, and self-hosting them means a public reporter's browser never makes
 // a third-party font request.
-@use '@carbon/react' with (
-  $font-path: '@ibm/plex'
+@use "@carbon/react" with (
+  $font-path: "@ibm/plex"
 );

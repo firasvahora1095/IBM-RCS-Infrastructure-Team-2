@@ -27,6 +27,6 @@ export function useSessionExpiryHandler() {
       }
       return false;
     },
-    [logout, navigate]
+    [logout, navigate],
   );
 }

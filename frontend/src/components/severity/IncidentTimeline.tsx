@@ -105,7 +105,15 @@ export function IncidentTimeline({ entries }: IncidentTimelineProps) {
 
       <div ref={containerRef} aria-hidden="true" style={{ position: "relative", height, width: "100%" }}>
         <div
-          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, backgroundColor: "#c6c6c6", borderRadius: 2 }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 4,
+            backgroundColor: "#c6c6c6",
+            borderRadius: 2,
+          }}
         />
         <span style={{ ...axisLabelStyle, left: 0 }}>00:00</span>
         <span style={{ ...axisLabelStyle, right: 0 }}>{formatTimestamp(totalSpan)}</span>
@@ -149,8 +157,8 @@ export function IncidentTimeline({ entries }: IncidentTimelineProps) {
       </div>
 
       <p style={{ fontSize: 12, lineHeight: "16px", color: "#6f6f6f" }}>
-        Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold (AR-AI-04). The scale
-        ends shortly after the last flagged moment; the video&apos;s full length isn&apos;t available yet.
+        Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold (AR-AI-04). The scale ends
+        shortly after the last flagged moment; the video&apos;s full length isn&apos;t available yet.
       </p>
     </div>
   );

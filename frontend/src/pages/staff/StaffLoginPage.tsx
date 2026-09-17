@@ -49,7 +49,7 @@ export function StaffLoginPage() {
       setError(
         err instanceof ApiError && err.status === 401
           ? "Incorrect staff ID or password."
-          : "We couldn't log you in right now. Please try again."
+          : "We couldn't log you in right now. Please try again.",
       );
       setIsSubmitting(false);
     }

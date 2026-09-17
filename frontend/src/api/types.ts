@@ -7,12 +7,7 @@
  */
 
 /** Internal workflow states the backend uses (BA baseline RT-02). */
-export type InternalCaseStatus =
-  | "SUBMITTED"
-  | "AI_PROCESSING"
-  | "READY_FOR_REVIEW"
-  | "AUDITOR_REVIEW"
-  | "COMPLETE";
+export type InternalCaseStatus = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "COMPLETE";
 
 /** The only three states a Normal User is ever allowed to see (UR-ST-02). */
 export type PublicCaseStatus = "Received" | "Being Reviewed" | "Complete";

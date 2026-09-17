@@ -7,7 +7,7 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <ManagerTopNav />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

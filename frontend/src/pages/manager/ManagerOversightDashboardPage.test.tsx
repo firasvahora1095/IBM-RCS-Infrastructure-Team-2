@@ -8,7 +8,7 @@ function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/manager"]}>
       <ManagerOversightDashboardPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

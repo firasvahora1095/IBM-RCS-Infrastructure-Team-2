@@ -105,7 +105,7 @@ export async function resolveCase(
   token: string,
   finalOutcome: FinalOutcome,
   auditorSeverityScore?: number,
-  auditorComment?: string
+  auditorComment?: string,
 ): Promise<ResolveCaseResponse> {
   const params = new URLSearchParams({ final_outcome: finalOutcome });
   if (auditorSeverityScore !== undefined) {
@@ -116,7 +116,7 @@ export async function resolveCase(
   }
   const response = await fetch(
     `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/resolve?${params.toString()}`,
-    { method: "POST", headers: { Authorization: `Bearer ${token}` } }
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
   );
   return parseJsonOrThrow<ResolveCaseResponse>(response);
 }

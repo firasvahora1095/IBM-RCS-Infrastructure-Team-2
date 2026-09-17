@@ -40,11 +40,11 @@ describe("draft resolution storage", () => {
   it("rejects a malformed draft instead of restoring an impossible state", () => {
     sessionStorage.setItem(
       "rcs_draft_resolution_BAD",
-      JSON.stringify({ auditorScore: 250, comment: "", outcome: null, step: "severity" })
+      JSON.stringify({ auditorScore: 250, comment: "", outcome: null, step: "severity" }),
     );
     sessionStorage.setItem(
       "rcs_draft_resolution_STEP",
-      JSON.stringify({ auditorScore: 50, comment: "", outcome: null, step: "confirmation" })
+      JSON.stringify({ auditorScore: 50, comment: "", outcome: null, step: "confirmation" }),
     );
     sessionStorage.setItem("rcs_draft_resolution_JSON", "{nope");
 

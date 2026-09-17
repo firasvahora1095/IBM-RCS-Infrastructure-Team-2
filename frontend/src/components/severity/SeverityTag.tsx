@@ -24,11 +24,7 @@ interface SeverityTagProps {
 export function SeverityTag({ tier, size = "md" }: SeverityTagProps) {
   const info = getSeverityInfo(tier);
   return (
-    <Tag
-      type="gray"
-      size={size}
-      style={{ backgroundColor: info.background, color: info.text, fontWeight: 600 }}
-    >
+    <Tag type="gray" size={size} style={{ backgroundColor: info.background, color: info.text, fontWeight: 600 }}>
       {`${tier} · ${info.label}`}
     </Tag>
   );

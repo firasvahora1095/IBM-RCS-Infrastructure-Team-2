@@ -52,7 +52,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     const { axe } = await runAxeOnPage(
       <AuditorCaseDetailPage />,
       "/auditor/cases/AR-2026-00417",
-      "/auditor/cases/:caseId"
+      "/auditor/cases/:caseId",
     );
     await screen.findByText("Mock: physical altercation detected between two people.");
     expect(await axe()).toHaveNoViolations();

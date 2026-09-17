@@ -18,7 +18,7 @@ function renderProtected(startPath: string) {
           }
         />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

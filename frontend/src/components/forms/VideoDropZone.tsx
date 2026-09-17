@@ -3,7 +3,6 @@ import { Button } from "@carbon/react";
 import { Upload } from "@carbon/icons-react";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 
-
 interface VideoDropZoneProps {
   onFileSelected: (file: File) => void;
 }

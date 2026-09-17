@@ -80,9 +80,7 @@ export function UploadPage() {
       // backend's own message is used when it has one (e.g. "File contents
       // do not match a valid .mp4 file").
       setSubmitError(
-        err instanceof ApiError
-          ? err.message
-          : "Something went wrong while submitting your report. Please try again."
+        err instanceof ApiError ? err.message : "Something went wrong while submitting your report. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -108,11 +106,7 @@ export function UploadPage() {
         {/* Video is the P0 path. The link and screenshot alternatives
             (Figma 72:28 / 72:58) are Sprint 3 polish per the build-scope
             handoff, so they're visible but disabled rather than dead ends. */}
-        <ContentSwitcher
-          selectedIndex={0}
-          onChange={() => {}}
-          aria-labelledby="report-method-label"
-        >
+        <ContentSwitcher selectedIndex={0} onChange={() => {}} aria-labelledby="report-method-label">
           <Switch name="video" text="Upload video" />
           <Switch name="link" text="Paste a link instead" disabled />
           <Switch name="screenshot" text="Add a screenshot" disabled />
@@ -127,8 +121,8 @@ export function UploadPage() {
           </p>
         )}
         <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
-          Accepted formats: MP4, MOV, WEBM, AVI. Typical length: about 10–15 minutes for Sprint 2 testing (this is
-          a target, not a hard maximum). Max file size: 500MB (placeholder, pending Dev pipeline validation).
+          Accepted formats: MP4, MOV, WEBM, AVI. Typical length: about 10–15 minutes for Sprint 2 testing (this is a
+          target, not a hard maximum). Max file size: 500MB (placeholder, pending Dev pipeline validation).
         </p>
       </div>
 

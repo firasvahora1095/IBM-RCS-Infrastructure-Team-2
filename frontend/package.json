@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@carbon/icons-react": "^11.88.0",
@@ -32,6 +34,7 @@
     "jest-axe": "^11.0.0",
     "jsdom": "^29.1.1",
     "oxlint": "^1.81.0",
+    "prettier": "^3.9.7",
     "sass-embedded": "^1.104.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

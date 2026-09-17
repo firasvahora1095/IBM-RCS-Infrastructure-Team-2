@@ -39,7 +39,10 @@ const OUTCOME_COPY: Record<FinalOutcome, OutcomeDisplay> = {
  * value is never printed.
  */
 export function mapOutcomeToDisplay(rawOutcome: string): OutcomeDisplay | null {
-  const normalized = rawOutcome.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const normalized = rawOutcome
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
   if (normalized === "NO_VIOLATION_FOUND") {
     return OUTCOME_COPY.NO_VIOLATION_FOUND;
   }

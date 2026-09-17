@@ -174,7 +174,7 @@ export function AuditorCaseDetailPage() {
         // Only an actual override is sent as the Auditor's score; confirming
         // the AI's rating leaves auditor_severity_score empty.
         scoreWasChanged ? auditorScore : undefined,
-        comment.trim() !== "" ? comment.trim() : undefined
+        comment.trim() !== "" ? comment.trim() : undefined,
       );
       // The case is resolved: drop its draft so it can't be restored again.
       clearDraftResolution(caseId);
@@ -257,8 +257,8 @@ export function AuditorCaseDetailPage() {
               <span style={{ ...mono, fontSize: 12, color: "#525252" }}>AI-suggested: {aiScore}</span>
             </div>
             <p style={secondaryText}>
-              AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI
-              Analysis Summary for the model&apos;s original pre-floor score.
+              AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis
+              Summary for the model&apos;s original pre-floor score.
             </p>
             <Slider
               id="cvi-rating"
@@ -307,8 +307,8 @@ export function AuditorCaseDetailPage() {
               <span style={{ fontSize: 12, color: "#6f6f6f" }}>required for standard cases</span>
             </p>
             <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
-              This determines what the reporting user sees when their case reaches Complete. Only applies if this
-              case has no SOS or Decline flag — otherwise your manager decides the outcome.
+              This determines what the reporting user sees when their case reaches Complete. Only applies if this case
+              has no SOS or Decline flag — otherwise your manager decides the outcome.
             </p>
             {/* No option is pre-selected: a default would nudge the Auditor
                 towards one outcome, so the decision has to be explicit. */}
@@ -394,16 +394,13 @@ export function AuditorCaseDetailPage() {
               Your final rating: {auditorScore} / 100 <SeverityTag tier={scoreToTier(auditorScore)} />
             </p>
             <p>Comment attached: {comment.trim() !== "" ? "yes" : "no"}</p>
-            <p>
-              Final case outcome selected:{" "}
-              {mapOutcomeToDisplay(confirmation.final_outcome)?.title ?? "Recorded"}
-            </p>
+            <p>Final case outcome selected: {mapOutcomeToDisplay(confirmation.final_outcome)?.title ?? "Recorded"}</p>
           </section>
 
           <p style={{ fontSize: 14, lineHeight: "20px", color: "#161616" }}>
             Your selected outcome determines what the reporting user sees when this case reaches Complete — it
-            progresses automatically, no further Manager approval needed for a standard case. (Exposure-based
-            cooldowns after a Critical rating ship in Sprint 3 — this build does not yet trigger one.)
+            progresses automatically, no further Manager approval needed for a standard case. (Exposure-based cooldowns
+            after a Critical rating ship in Sprint 3 — this build does not yet trigger one.)
           </p>
 
           <Button onClick={() => navigate("/auditor")} className="w-full" style={{ maxWidth: "100%" }}>

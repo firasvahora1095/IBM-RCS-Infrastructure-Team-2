@@ -13,7 +13,7 @@ function renderPage(state?: unknown) {
         <Route path="/auditor" element={<div>Auditor view</div>} />
         <Route path="/manager" element={<div>Manager view</div>} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

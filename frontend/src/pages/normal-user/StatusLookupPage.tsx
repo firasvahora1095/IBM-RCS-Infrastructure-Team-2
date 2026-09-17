@@ -1,13 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import {
-  TextInput,
-  Button,
-  InlineNotification,
-  ProgressIndicator,
-  ProgressStep,
-  Tag,
-} from "@carbon/react";
+import { TextInput, Button, InlineNotification, ProgressIndicator, ProgressStep, Tag } from "@carbon/react";
 import { RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { getStatus } from "../../api/client";
@@ -22,10 +15,7 @@ const STEPS: readonly PublicCaseStatus[] = ["Received", "Being Reviewed", "Compl
 const NOT_FOUND_FIELD_MESSAGE = "We couldn't find a case with that ID.";
 const NOT_FOUND_BANNER_MESSAGE = "We couldn't find a case with that ID. Check the ID and try again.";
 
-type LookupError =
-  | { kind: "not-found" }
-  | { kind: "locked-out"; message: string }
-  | { kind: "other"; message: string };
+type LookupError = { kind: "not-found" } | { kind: "locked-out"; message: string } | { kind: "other"; message: string };
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 
@@ -126,7 +116,12 @@ export function StatusLookupPage() {
           />
         )}
 
-        <Button type="submit" disabled={isLoading || isLockedOut || !caseIdInput.trim()} style={{ maxWidth: "100%" }} className="w-full">
+        <Button
+          type="submit"
+          disabled={isLoading || isLockedOut || !caseIdInput.trim()}
+          style={{ maxWidth: "100%" }}
+          className="w-full"
+        >
           {isLoading ? "Checking…" : "Check status"}
         </Button>
       </form>
@@ -171,7 +166,11 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             style={{ borderLeft: "4px solid #0f62fe", borderRadius: 8, boxShadow: "inset 0 0 0 1px #f4f4f4" }}
           >
             <div className="flex gap-4">
-              <RadioButtonChecked size={24} style={{ fill: "#0f62fe", flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+              <RadioButtonChecked
+                size={24}
+                style={{ fill: "#0f62fe", flexShrink: 0, marginTop: 2 }}
+                aria-hidden="true"
+              />
               <div className="flex flex-col gap-1">
                 <h2 id="current-stage-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
                   Being Reviewed
@@ -218,7 +217,11 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         </>
       )}
 
-      <section aria-labelledby="case-details-title" className="flex flex-col gap-3.5 p-5" style={{ border: "1px solid #e0e0e0" }}>
+      <section
+        aria-labelledby="case-details-title"
+        className="flex flex-col gap-3.5 p-5"
+        style={{ border: "1px solid #e0e0e0" }}
+      >
         <h2 id="case-details-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
           Case details
         </h2>
@@ -244,14 +247,18 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             Outcome (shown once your case reaches Complete)
           </p>
           <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
-            You&apos;ll see a plain-language result here — for example, whether the content was actioned — without
-            any internal review details.
+            You&apos;ll see a plain-language result here — for example, whether the content was actioned — without any
+            internal review details.
           </p>
         </section>
       )}
 
       {outcome && (
-        <section aria-labelledby="outcome-title" className="flex flex-col gap-2 p-5" style={{ border: "1px solid #e0e0e0" }}>
+        <section
+          aria-labelledby="outcome-title"
+          className="flex flex-col gap-2 p-5"
+          style={{ border: "1px solid #e0e0e0" }}
+        >
           <h2 id="outcome-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
             {outcome.title}
           </h2>

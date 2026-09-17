@@ -25,7 +25,7 @@ describe("IncidentTimeline", () => {
           { start: 42, end: 50, severity_tier: "S1" },
           { start: 123, end: 130, severity_tier: "S4" },
         ]}
-      />
+      />,
     );
     expect(screen.getByText("00:42–00:50")).toBeInTheDocument();
     expect(screen.getByText("02:03–02:10")).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe("IncidentTimeline", () => {
           { start: 12, end: 24, severity_tier: "S2" },
           { start: 60, end: 100, severity_tier: "S3" },
         ]}
-      />
+      />,
     );
     const [first, second] = screen.getAllByTestId("timeline-segment");
     expect(first.style.left).toBe("10%");
@@ -54,7 +54,7 @@ describe("IncidentTimeline", () => {
           { start: 75, end: 78, severity_tier: "S2" },
           { start: 82, end: 85, severity_tier: "S3" },
         ]}
-      />
+      />,
     );
     expect(screen.getByText("01:15–01:18")).toBeInTheDocument();
     expect(screen.getByText("01:22–01:25")).toBeInTheDocument();

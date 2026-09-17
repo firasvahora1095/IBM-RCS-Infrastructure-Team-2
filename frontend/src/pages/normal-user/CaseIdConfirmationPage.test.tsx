@@ -11,7 +11,7 @@ function renderPage(state?: { caseId: string }) {
         <Route path="/" element={<div>Upload page</div>} />
         <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 

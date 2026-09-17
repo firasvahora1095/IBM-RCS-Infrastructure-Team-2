@@ -27,7 +27,7 @@ describe("api client", () => {
   it("getStatus throws ApiError with the backend's message on 404", async () => {
     // A fresh Response per call: a Response body can only be read once.
     vi.mocked(fetch).mockImplementation(
-      async () => new Response(JSON.stringify({ detail: "Case not found" }), { status: 404 })
+      async () => new Response(JSON.stringify({ detail: "Case not found" }), { status: 404 }),
     );
 
     await expect(getStatus("DOES-NOT-EXIST")).rejects.toThrow(ApiError);
@@ -46,7 +46,7 @@ describe("api client", () => {
 
   it("staffLogin sends credentials as query params, not a JSON body", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ token: "abc123", role: "auditor" }), { status: 200 })
+      new Response(JSON.stringify({ token: "abc123", role: "auditor" }), { status: 200 }),
     );
 
     await staffLogin("auditor-1", "testpassword123");
@@ -60,7 +60,7 @@ describe("api client", () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ case_id: "X", status: "Complete", final_outcome: "NO_VIOLATION_FOUND" }), {
         status: 200,
-      })
+      }),
     );
 
     await resolveCase("X", "tok", "NO_VIOLATION_FOUND");

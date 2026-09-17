@@ -17,7 +17,7 @@ export async function runAxeOnPage(page: ReactElement, path = "/", routePattern 
       <Routes>
         <Route path={routePattern} element={page} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
   return { container, axe: () => axe(container) };
 }

@@ -1,10 +1,4 @@
-import {
-  Header,
-  HeaderName,
-  HeaderGlobalBar,
-  HeaderGlobalAction,
-  Theme,
-} from "@carbon/react";
+import { Header, HeaderName, HeaderGlobalBar, HeaderGlobalAction, Theme } from "@carbon/react";
 import { Help } from "@carbon/icons-react";
 
 /**

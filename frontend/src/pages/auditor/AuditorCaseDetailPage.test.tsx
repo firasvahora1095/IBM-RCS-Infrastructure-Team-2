@@ -22,7 +22,7 @@ function renderPage() {
         <Route path="/auditor/cases/:caseId" element={<AuditorCaseDetailPage />} />
         <Route path="/auditor" element={<div>Case queue page</div>} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -118,7 +118,7 @@ describe("AuditorCaseDetailPage", () => {
       "abc123",
       "POLICY_VIOLATION_FOUND",
       undefined, // rating unchanged, so no override score is sent
-      undefined // and no comment
+      undefined, // and no comment
     );
     expect(screen.getByText("Final case outcome selected: Policy Violation Found")).toBeInTheDocument();
     expect(screen.getByText("Comment attached: no")).toBeInTheDocument();
@@ -149,15 +149,18 @@ describe("AuditorCaseDetailPage", () => {
         "abc123",
         "POLICY_VIOLATION_FOUND",
         88,
-        "Weapon used to threaten."
-      )
+        "Weapon used to threaten.",
+      ),
     );
   });
 
   it("shows the backend's reason if a submission is rejected", async () => {
     vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     vi.spyOn(apiClient, "resolveCase").mockRejectedValueOnce(
-      new (await import("../../api/types")).ApiError("A comment is required when overriding the AI severity score", 400)
+      new (await import("../../api/types")).ApiError(
+        "A comment is required when overriding the AI severity score",
+        400,
+      ),
     );
     renderPage();
     await goToSeverityStep();
@@ -165,9 +168,7 @@ describe("AuditorCaseDetailPage", () => {
     fireEvent.click(screen.getByLabelText("No Violation Found"));
     fireEvent.click(screen.getByRole("button", { name: "Continue to submit" }));
 
-    expect(
-      await screen.findByText("A comment is required when overriding the AI severity score")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("A comment is required when overriding the AI severity score")).toBeInTheDocument();
   });
 
   it("survives a round-trip to another screen and back (Task 102's AC)", async () => {
@@ -188,7 +189,7 @@ describe("AuditorCaseDetailPage", () => {
     // Back on the severity step with everything restored.
     expect(await screen.findByText("Your rating: 88 / 100")).toBeInTheDocument();
     expect(screen.getByLabelText(/required — you changed the AI/)).toHaveValue(
-      "Weapon clearly used to threaten, not just present."
+      "Weapon clearly used to threaten, not just present.",
     );
     expect(screen.getByLabelText("Policy Violation Found")).toBeChecked();
   });

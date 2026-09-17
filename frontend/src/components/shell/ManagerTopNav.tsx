@@ -67,7 +67,7 @@ export function ManagerTopNav() {
             {tab.label}
             <span style={{ fontSize: 11, marginLeft: 6 }}>(Sprint 3)</span>
           </span>
-        )
+        ),
       )}
     </nav>
   );
