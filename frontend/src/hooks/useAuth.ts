@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { staffLogin } from "../api/client";
+import { clearAllDraftResolutions } from "./useDraftResolution";
 
 const TOKEN_KEY = "rcs_staff_token";
 const ROLE_KEY = "rcs_staff_role";
@@ -36,6 +37,8 @@ function clearStaffSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
   sessionStorage.removeItem(STAFF_ID_KEY);
+  // In-progress Auditor reviews belong to this session too.
+  clearAllDraftResolutions();
 }
 
 /**

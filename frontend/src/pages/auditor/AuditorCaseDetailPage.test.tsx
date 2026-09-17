@@ -169,4 +169,45 @@ describe("AuditorCaseDetailPage", () => {
       await screen.findByText("A comment is required when overriding the AI severity score")
     ).toBeInTheDocument();
   });
+
+  it("survives a round-trip to another screen and back (Task 102's AC)", async () => {
+    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
+
+    const { unmount } = renderPage();
+    await goToSeverityStep();
+    setRating(88);
+    fireEvent.change(screen.getByLabelText(/required — you changed the AI/), {
+      target: { value: "Weapon clearly used to threaten, not just present." },
+    });
+    fireEvent.click(screen.getByLabelText("Policy Violation Found"));
+
+    // Navigating away unmounts the page, so plain component state is gone.
+    unmount();
+    renderPage();
+
+    // Back on the severity step with everything restored.
+    expect(await screen.findByText("Your rating: 88 / 100")).toBeInTheDocument();
+    expect(screen.getByLabelText(/required — you changed the AI/)).toHaveValue(
+      "Weapon clearly used to threaten, not just present."
+    );
+    expect(screen.getByLabelText("Policy Violation Found")).toBeChecked();
+  });
+
+  it("doesn't keep a draft once the case has been submitted", async () => {
+    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
+    vi.spyOn(apiClient, "resolveCase").mockResolvedValueOnce({
+      case_id: "AR-2026-00417",
+      status: "Complete",
+      final_outcome: "NO_VIOLATION_FOUND",
+    });
+
+    renderPage();
+    await goToSeverityStep();
+    fireEvent.click(screen.getByLabelText("No Violation Found"));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to submit" }));
+    await screen.findByText("This case has been marked Complete.");
+
+    // Not re-saved as a "confirmation" draft after submitting either.
+    expect(sessionStorage.getItem("rcs_draft_resolution_AR-2026-00417")).toBeNull();
+  });
 });

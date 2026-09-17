@@ -22,8 +22,9 @@ import { getSeverityInfo, scoreToTier } from "../../design-tokens/severity";
 import { OUTCOME_OPTIONS, mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
+import { loadDraftResolution, saveDraftResolution, clearDraftResolution } from "../../hooks/useDraftResolution";
 
-export type Step = "summary" | "severity" | "confirmation";
+type Step = "summary" | "severity" | "confirmation";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 const pageTitle = { fontSize: 32, lineHeight: "40px", fontWeight: 600 } as const;
@@ -69,9 +70,17 @@ export function AuditorCaseDetailPage() {
       .then((detail) => {
         if (cancelled) return;
         setCaseDetail(detail);
-        // The Auditor adjusts FROM the AI's suggestion, so the slider starts
-        // at the effective score rather than at zero.
-        if (detail.effective_severity_score !== null) {
+        // Task 102: if the Auditor already started reviewing this case and
+        // navigated away (e.g. via the Dashboard breadcrumb), pick up exactly
+        // where they left off. Otherwise the slider starts at the AI's
+        // effective score, since the Auditor adjusts FROM that suggestion.
+        const draft = detail.status === "COMPLETE" ? null : loadDraftResolution(caseId);
+        if (draft) {
+          setAuditorScore(draft.auditorScore);
+          setComment(draft.comment);
+          setOutcome(draft.outcome);
+          setStep(draft.step);
+        } else if (detail.effective_severity_score !== null) {
           setAuditorScore(detail.effective_severity_score);
         }
       })
@@ -83,6 +92,15 @@ export function AuditorCaseDetailPage() {
       cancelled = true;
     };
   }, [caseId, token, handleSessionExpiry]);
+
+  // Persist the in-progress review on every change, so leaving and coming
+  // back restores it (Task 102). The confirmation step is never saved:
+  // restoring it later would show a confirmation screen with nothing to
+  // confirm, because the submitted result isn't part of the draft.
+  useEffect(() => {
+    if (!caseDetail || step === "confirmation" || caseDetail.status === "COMPLETE") return;
+    saveDraftResolution(caseId, { auditorScore, comment, outcome, step });
+  }, [caseId, caseDetail, auditorScore, comment, outcome, step]);
 
   if (loadError || !caseDetail) {
     return (
@@ -158,6 +176,8 @@ export function AuditorCaseDetailPage() {
         scoreWasChanged ? auditorScore : undefined,
         comment.trim() !== "" ? comment.trim() : undefined
       );
+      // The case is resolved: drop its draft so it can't be restored again.
+      clearDraftResolution(caseId);
       setConfirmation(result);
       setStep("confirmation");
     } catch (err) {
