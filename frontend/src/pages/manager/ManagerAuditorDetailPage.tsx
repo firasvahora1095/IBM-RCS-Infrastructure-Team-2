@@ -114,8 +114,8 @@ export function ManagerAuditorDetailPage() {
                   kind="success"
                   lowContrast
                   hideCloseButton
-                  title="Exposure limit saved:"
-                  subtitle={`${data.display_name}'s daily limit is now ${data.exposure_limit_minutes} minutes.`}
+                  title="Success:"
+                  subtitle={`Exposure limit updated to ${data.exposure_limit_minutes} min.`}
                   style={{ maxWidth: "100%" }}
                 />
               )}

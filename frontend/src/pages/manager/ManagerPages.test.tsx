@@ -139,7 +139,7 @@ describe("Manager screens", () => {
     expect(screen.getByLabelText("Daily limit (minutes)")).toHaveValue(90);
 
     fireEvent.click(screen.getByRole("button", { name: "Save limit (retry)" }));
-    expect(await screen.findByText("Exposure limit saved:")).toBeInTheDocument();
+    expect(await screen.findByText("Exposure limit updated to 90 min.")).toBeInTheDocument();
     await waitFor(() =>
       expect(readDb().staff.find((s) => s.staff_id === "auditor-4")!.exposure_limit_minutes).toBe(90),
     );
