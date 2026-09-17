@@ -2,6 +2,7 @@ import { useState } from "react";
 import { InlineNotification, Modal, RadioButton, RadioButtonGroup, TextInput } from "@carbon/react";
 import type { DeclineReason } from "../../services/types";
 import { DECLINE_REASON_OPTIONS } from "../../design-tokens/declineReasons";
+import { useFocusOnOpen } from "../../hooks/useFocusOnOpen";
 
 interface DeclineReasonModalProps {
   open: boolean;
@@ -21,6 +22,10 @@ interface DeclineReasonModalProps {
 export function DeclineReasonModal({ open, onSubmit, onCancel, isSubmitting, error }: DeclineReasonModalProps) {
   const [reason, setReason] = useState<DeclineReason | null>(null);
   const [otherText, setOtherText] = useState("");
+  // Opens as the content warning closes; without this, focus stayed on the
+  // hidden gate's consent checkbox. Focusing a radio doesn't select it, so
+  // nothing is pre-selected (AR-DF-03).
+  useFocusOnOpen(open, () => document.getElementById(`decline-${DECLINE_REASON_OPTIONS[0].value}`));
 
   return (
     <Modal

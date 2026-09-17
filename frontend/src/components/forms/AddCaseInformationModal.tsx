@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button, InlineNotification, Modal, TextArea } from "@carbon/react";
+import { useFocusOnOpen } from "../../hooks/useFocusOnOpen";
 import { addCaseInformation } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE, NotImplementedError } from "../../services/types";
 
@@ -20,25 +21,8 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detailsRef = useRef<HTMLTextAreaElement>(null);
   const [details, setDetails] = useState("");
-
-  // The status page mounts this modal already open, and Carbon only moves
-  // focus into a modal when `open` changes, so keyboard focus stayed on the
-  // button behind the overlay (found in the Task 99 keyboard pass). The
-  // modal fades in from visibility: hidden, and a hidden field can't take
-  // focus, so keep trying each frame until it does (it measured ~600ms in
-  // Chrome; the cap allows about 1.5s).
-  useEffect(() => {
-    if (!open) return;
-    let frame = 0;
-    let attempts = 0;
-    const tryFocus = () => {
-      const field = detailsRef.current;
-      field?.focus();
-      if (document.activeElement !== field && attempts++ < 90) frame = requestAnimationFrame(tryFocus);
-    };
-    frame = requestAnimationFrame(tryFocus);
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
+  // The status page mounts this modal already open, so Carbon never moves focus into it.
+  useFocusOnOpen(open, detailsRef);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
