@@ -1,7 +1,7 @@
-import type { MockCase, MockDb, MockStaff } from "./store";
+import type { MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 5;
+export const MOCK_DB_VERSION = 6;
 
 /**
  * Synthetic demo data for the mock data source.
@@ -96,6 +96,146 @@ function baseCase(now: number, overrides: Partial<MockCase> & Pick<MockCase, "ca
     decline: null,
     ...overrides,
   };
+}
+
+/** An SOS follows the S4 protocol: 30 minutes plus a mandatory check-in (AR-WB-12). */
+function sosCooldown(now: number, triggeredMinutesAgo: number) {
+  return {
+    started_at: minutesAgo(now, triggeredMinutesAgo),
+    ends_at: new Date(now + (30 - triggeredMinutesAgo) * 60_000).toISOString(),
+    trigger: "SOS" as const,
+    requires_check_in: true,
+    check_in_completed_at: null,
+  };
+}
+
+function sosEvent(id: string, caseId: string, auditorId: string, triggeredAt: string): MockSosEvent {
+  return {
+    id,
+    case_id: caseId,
+    auditor_id: auditorId,
+    triggered_at: triggeredAt,
+    acknowledged_at: null,
+    acknowledged_by: null,
+    follow_up_notes: null,
+    follow_up_outcome: null,
+    resolved_at: null,
+  };
+}
+
+/**
+ * Cases behind the Manager screens: SOS-triggering cases, the declined queue
+ * (Figma 119:289, same reasons and tiers), and Reese Patel's completed cases
+ * for "Recent case activity" (86:127). All synthetic.
+ */
+function managerSeedCases(now: number): MockCase[] {
+  const managerCase = (overrides: Partial<MockCase> & Pick<MockCase, "case_id">) =>
+    baseCase(now, { status: "AUDITOR_REVIEW", assigned_auditor: null, ...overrides });
+  const declined = (
+    caseId: string,
+    auditorId: string,
+    tier: "S1" | "S2" | "S3",
+    score: number,
+    reason: NonNullable<MockCase["decline"]>["reason"],
+    minutes: number,
+    extra: Partial<MockCase> = {},
+  ) =>
+    managerCase({
+      case_id: caseId,
+      watson_severity_score: score,
+      effective_severity_score: score,
+      severity_tier: tier,
+      manager_flag: "DECLINED",
+      decline: {
+        reason,
+        other_text: reason === "OTHER" ? "Mock: I reviewed a very similar case earlier today." : null,
+        declined_by: auditorId,
+        declined_at: minutesAgo(now, minutes),
+      },
+      updated_at: minutesAgo(now, minutes),
+      ...extra,
+    });
+  const completed = (caseId: string, tier: "S1" | "S2" | "S3", score: number, minutes: number) =>
+    baseCase(now, {
+      case_id: caseId,
+      status: "COMPLETE",
+      assigned_auditor: "auditor-4",
+      watson_severity_score: score,
+      effective_severity_score: score,
+      severity_tier: tier,
+      narrative_summary: "Mock: completed standard case.",
+      final_outcome: "NO_VIOLATION_FOUND",
+      created_at: minutesAgo(now, minutes + 30),
+      updated_at: minutesAgo(now, minutes),
+      completed_at: minutesAgo(now, minutes),
+    });
+
+  return [
+    managerCase({
+      case_id: "AR-2026-00431",
+      watson_severity_score: 78,
+      effective_severity_score: 78,
+      severity_tier: "S3",
+      manager_flag: "SOS",
+      narrative_summary:
+        "Mock: sustained physical confrontation between two individuals detected between 00:41–01:12, escalating in intensity. Multi-person conflict flagged at 01:05. No weapon detected. Auditor activated SOS during active playback at 00:58.",
+      incident_timeline: [{ start: 41, end: 72, severity_tier: "S3", tag: "multi_person_conflict" }],
+    }),
+    managerCase({
+      case_id: "AR-2026-00428",
+      watson_severity_score: 55,
+      effective_severity_score: 55,
+      severity_tier: "S2",
+      manager_flag: "SOS",
+      narrative_summary: "Mock: a heated confrontation with repeated shoving. No weapon detected.",
+      incident_timeline: [{ start: 20, end: 48, severity_tier: "S2", tag: "physical_violence" }],
+    }),
+    managerCase({
+      case_id: "AR-2026-00425",
+      watson_severity_score: 86,
+      effective_severity_score: 86,
+      severity_tier: "S4",
+      manager_flag: "SOS",
+      narrative_summary:
+        "Mock: an assault with visible injury. The Auditor activated SOS shortly after playback began.",
+      incident_timeline: [{ start: 15, end: 40, severity_tier: "S4", tag: "visible_injury" }],
+    }),
+    baseCase(now, {
+      case_id: "AR-2026-00390",
+      status: "COMPLETE",
+      assigned_auditor: null,
+      watson_severity_score: 66,
+      effective_severity_score: 66,
+      severity_tier: "S3",
+      manager_flag: "SOS",
+      narrative_summary: "Mock: a fight between several people outside a venue.",
+      final_outcome: "CLOSED_NO_REASSIGNMENT",
+      completed_at: minutesAgo(now, 1600),
+    }),
+    declined("AR-2026-00398", "auditor-2", "S2", 58, "NEAR_EXPOSURE_LIMIT", 35, {
+      narrative_summary:
+        "Mock: verbal confrontation escalating to a single shove between two individuals at 00:34. No weapon detected. Aggressive posturing continues intermittently through 01:20.",
+      incident_timeline: [
+        { start: 34, end: 34, severity_tier: "S2", tag: "physical_violence" },
+        { start: 40, end: 80, severity_tier: "S2", tag: "multi_person_conflict" },
+      ],
+      auditor_comment:
+        "Rating not changed, but I'm close to my exposure limit for today and would prefer this case go to someone with more headroom.",
+    }),
+    declined("AR-2026-00386", "auditor-1", "S3", 72, "MORE_SEVERE_THAN_AI", 1150, {
+      narrative_summary: "Mock: a physical altercation; the Auditor judged it more severe than the AI indicated.",
+    }),
+    declined("AR-2026-00379", "auditor-3", "S2", 49, "PERSONAL_TRIGGER", 1340, {
+      narrative_summary: "Mock: a confrontation between two people in a car park.",
+    }),
+    declined("AR-2026-00371", "auditor-5", "S1", 24, "OTHER", 2900, {
+      narrative_summary: "Mock: a verbal disagreement in a queue. No physical contact detected.",
+    }),
+    completed("AR-2026-00412", "S2", 51, 300),
+    completed("AR-2026-00409", "S1", 18, 250),
+    completed("AR-2026-00404", "S3", 69, 150),
+    completed("AR-2026-00399", "S1", 27, 60),
+  ];
 }
 
 export function createSeedDb(now: number): MockDb {
@@ -213,6 +353,41 @@ export function createSeedDb(now: number): MockDb {
       final_outcome: "NO_VIOLATION_FOUND",
       completed_at: minutesAgo(now, 1440),
     }),
+    ...managerSeedCases(now),
+  ];
+
+  // Manager screens (Figma 78:69, 86:94, 103:151): cooldowns and states that
+  // match the seeded SOS events below. auditor-1, the main Auditor demo
+  // account, is deliberately left free of any cooldown.
+  const byId = (id: string) => staff.find((s) => s.staff_id === id)!;
+  byId("auditor-2").cooldown = {
+    started_at: minutesAgo(now, 3),
+    ends_at: new Date(now + 12 * 60_000).toISOString(),
+    trigger: "S3",
+    requires_check_in: false,
+    check_in_completed_at: null,
+  };
+  byId("auditor-3").cooldown = sosCooldown(now, 26);
+  byId("auditor-4").cooldown = sosCooldown(now, 68);
+  byId("auditor-4").pattern_flagged = true;
+  byId("auditor-5").cooldown = sosCooldown(now, 4);
+
+  const sosEvents: MockSosEvent[] = [
+    sosEvent("SOS-demo0001", "AR-2026-00431", "auditor-5", minutesAgo(now, 4)),
+    sosEvent("SOS-demo0002", "AR-2026-00428", "auditor-3", minutesAgo(now, 26)),
+    {
+      ...sosEvent("SOS-demo0003", "AR-2026-00425", "auditor-4", minutesAgo(now, 68)),
+      acknowledged_at: minutesAgo(now, 60),
+      acknowledged_by: "manager-1",
+    },
+    {
+      ...sosEvent("SOS-demo0004", "AR-2026-00390", "auditor-1", minutesAgo(now, 1720)),
+      acknowledged_at: minutesAgo(now, 1710),
+      acknowledged_by: "manager-1",
+      follow_up_notes: "Mock: checked in by phone; no further action needed.",
+      follow_up_outcome: "NO_FURTHER_ACTION",
+      resolved_at: minutesAgo(now, 1690),
+    },
   ];
 
   return {
@@ -224,10 +399,27 @@ export function createSeedDb(now: number): MockDb {
     statusUpdateRequests: [],
     caseAdditions: [],
     loginAttempts: {},
-    sosEvents: [],
-    wellbeingRequests: [],
+    sosEvents,
+    wellbeingRequests: [
+      {
+        id: "WB-demo0001",
+        auditor_id: "auditor-4",
+        case_id: null,
+        kind: "TALK_TO_MANAGER",
+        created_at: minutesAgo(now, 150),
+        resolved_at: null,
+      },
+      {
+        id: "WB-demo0002",
+        auditor_id: "auditor-4",
+        case_id: null,
+        kind: "BREAK_REQUEST",
+        created_at: minutesAgo(now, 45),
+        resolved_at: null,
+      },
+    ],
     auditLog: [],
-    demo: { failNextSubmission: false },
+    demo: { failNextSubmission: false, nextReassignTargetUnavailable: false },
   };
 }
 
@@ -249,6 +441,7 @@ function staffMember(
     exposure_seconds_today: exposureMinutes * 60,
     exposure_limit_minutes: 120,
     cases_reviewed_today: role === "auditor" ? Math.round(exposureMinutes / 20) : 0,
+    pattern_flagged: false,
     last_assigned_at: lastAssignedMinutesAgo === null ? null : minutesAgo(now, lastAssignedMinutesAgo),
     cooldown: null,
   };

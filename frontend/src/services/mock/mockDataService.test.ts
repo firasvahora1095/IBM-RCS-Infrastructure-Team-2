@@ -24,11 +24,19 @@ describe("mock data source", () => {
   });
 
   it("assigns to the lowest weighted score (AR-AS-02) and skips auditors at their exposure limit", async () => {
-    // Seed: auditor-1 62 min / 3 cases (0.49), auditor-2 68 min / 2 cases (0.42),
+    // Clear the seeded Manager-demo cooldowns so only the weighting decides:
+    // auditor-1 62 min / 3 cases (0.49), auditor-2 68 min / 2 cases (0.42),
     // auditor-3 120 min = at limit (excluded).
+    updateDb((db) => db.staff.forEach((st) => (st.cooldown = null)));
     const result = await mock.createReport(video());
     expect(result.assigned_auditor).toBe("auditor-2");
     expect(readDb().cases.some((c) => c.assigned_auditor === "auditor-3" && c.case_id === result.case_id)).toBe(false);
+  });
+
+  it("never assigns to an Auditor in a cooldown (AR-WB-04)", async () => {
+    // Seed: auditor-2 is in an S3 cooldown, auditors 3–5 in SOS cooldowns, so only auditor-1 is eligible.
+    const result = await mock.createReport(video());
+    expect(result.assigned_auditor).toBe("auditor-1");
   });
 
   it("rejects unsupported formats like the backend does (UR-VU-06)", async () => {
@@ -119,11 +127,12 @@ describe("mock data source", () => {
 
   it("SOS records the event, hands the case to the Manager and starts the S4 protocol (AR-WB-06, AR-WB-12)", async () => {
     const token = await loginAs("auditor-1");
+    const seededEvents = readDb().sosEvents.length;
     const { cooldown } = await mock.triggerSos("AR-2026-00417", token);
     expect(cooldown).toMatchObject({ trigger: "SOS", requires_check_in: true });
     expect(Date.parse(cooldown.ends_at) - Date.now()).toBeGreaterThan(29 * 60_000);
     const db = readDb();
-    expect(db.sosEvents).toHaveLength(1);
+    expect(db.sosEvents).toHaveLength(seededEvents + 1);
     expect(db.cases.find((c) => c.case_id === "AR-2026-00417")!.manager_flag).toBe("SOS");
     // The cooldown blocks opening raw content, and it stays until the check-in, even after the time is up.
     await expect(mock.acknowledgeContentWarning("AR-2026-00419", token)).rejects.toMatchObject({ status: 409 });

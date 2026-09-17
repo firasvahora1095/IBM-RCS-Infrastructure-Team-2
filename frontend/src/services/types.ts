@@ -175,6 +175,129 @@ export interface ExposureSample {
 /** AR-WB-16 low-friction wellbeing check-in, distinct from SOS. */
 export type WellbeingRequestKind = "TALK_TO_MANAGER" | "BREAK_REQUEST";
 
+/** MR-OV-05: comfortably below, approaching (from 75%), or at the exposure limit. */
+export type ExposureState = "UNDER" | "APPROACHING" | "AT_LIMIT";
+
+/** One row of the Manager Oversight Dashboard (Figma 78:69, MR-OV-01–05). */
+export interface AuditorOverviewRow {
+  auditor_id: string;
+  display_name: string;
+  exposure_minutes_today: number;
+  exposure_limit_minutes: number;
+  exposure_state: ExposureState;
+  cooldown: CooldownState | null;
+  cases_today: number;
+}
+
+/** Unresolved SOS alerts, for the persistent banner and header badge (MR-SOS-03). */
+export interface SosSummary {
+  unresolved_count: number;
+  most_recent: { auditor_name: string; triggered_at: string } | null;
+}
+
+export interface WellbeingRequestRecord {
+  id: string;
+  kind: WellbeingRequestKind;
+  case_id: string | null;
+  created_at: string;
+  status: "OPEN" | "APPROVED";
+}
+
+/** Auditor Detail (Figma 86:94): summary, limit, recent activity and check-ins (MR-OV-04, MR-SOS-07). */
+export interface AuditorDetail extends AuditorOverviewRow {
+  /** A private wellbeing pattern marker visible only to the Manager. */
+  pattern_flagged: boolean;
+  recent_cases: { case_id: string; severity_tier: SeverityTier | null; completed_at: string }[];
+  wellbeing_requests: WellbeingRequestRecord[];
+}
+
+/** One row of Consolidated Case Oversight (Figma 86:198, MR-OV-06, MR-CR-06). */
+export interface ManagerCaseRow {
+  case_id: string;
+  auditor_name: string | null;
+  severity_tier: SeverityTier | null;
+  status: InternalCaseStatus;
+  manager_flag: "DECLINED" | "SOS" | null;
+  /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */
+  sos_alert_id: string | null;
+}
+
+export type SosAlertStatus = "UNACKNOWLEDGED" | "IN_PROGRESS" | "RESOLVED";
+
+/** One SOS event in the Manager's inbox (Figma 103:151, MR-SOS-01). */
+export interface SosAlert {
+  id: string;
+  auditor_id: string;
+  auditor_name: string;
+  case_id: string;
+  triggered_at: string;
+  status: SosAlertStatus;
+}
+
+/** SOS Alert Detail (Figma 103:197): context without raw footage (MR-SOS-05). */
+export interface SosAlertDetail extends SosAlert {
+  exposure_minutes_today: number;
+  exposure_limit_minutes: number;
+  severity_tier: SeverityTier | null;
+  effective_severity_score: number | null;
+  narrative_summary: string | null;
+  follow_up_notes: string | null;
+}
+
+/** Structured follow-up outcomes (Figma 103:228, MR-SOS-04/06). */
+export type SosFollowUpOutcome = "NO_FURTHER_ACTION" | "REASSIGNED_REMAINING_CASES" | "AUDITOR_STOPPED_SHIFT";
+
+/** One declined case awaiting a Manager decision (Figma 119:289, MR-CR-02/04). No per-Auditor counts, by design. */
+export interface DeclinedCaseRow {
+  case_id: string;
+  auditor_name: string;
+  severity_tier: SeverityTier | null;
+  reason: DeclineReason;
+  declined_at: string;
+}
+
+/** Case Review Detail (Figma 118:198, MR-CR-01). */
+export interface ManagerCaseReview {
+  case_id: string;
+  status: InternalCaseStatus;
+  manager_flag: "DECLINED" | "SOS" | null;
+  severity_tier: SeverityTier | null;
+  effective_severity_score: number | null;
+  narrative_summary: string | null;
+  tags: string[];
+  auditor_name: string | null;
+  auditor_severity_score: number | null;
+  auditor_comment: string | null;
+  decline: { reason: DeclineReason; other_text: string | null } | null;
+}
+
+/** Exposure context for a reassignment decision (Figma 119:405, MR-CR-03). */
+export interface ReassignmentContext {
+  case_id: string;
+  declining_auditor: { name: string; exposure_minutes_today: number; exposure_limit_minutes: number } | null;
+  candidates: {
+    auditor_id: string;
+    name: string;
+    headroom_minutes: number;
+    /** Under 30 minutes of headroom. */
+    limited_headroom: boolean;
+    /** False when at their limit or in a cooldown; such Auditors can't be chosen. */
+    available: boolean;
+  }[];
+}
+
+/**
+ * Validation View data (Figma 136:257, MR-OV-08). Always flagged as a
+ * placeholder until the pipeline produces real results against the
+ * labelled ground-truth set.
+ */
+export interface ValidationSummary {
+  is_placeholder: boolean;
+  tiers: { tier: SeverityTier; ai_predicted_pct: number; ground_truth_pct: number }[];
+  match_rate_pct: number;
+  validation_set_size: number;
+}
+
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
  * synthetic demo data) and `api` (the real backend, connected by Firas)
@@ -212,6 +335,38 @@ export interface DataService {
   triggerSos(caseId: string, token: string): Promise<{ cooldown: CooldownState }>;
   /** AR-WB-16: "Talk to my manager" or a break request, optionally about one case. */
   requestWellbeingSupport(token: string, kind: WellbeingRequestKind, caseId?: string): Promise<{ received: true }>;
+
+  // Manager (Sprint 3 screens)
+  getAuditorOverview(token: string): Promise<AuditorOverviewRow[]>;
+  getSosSummary(token: string): Promise<SosSummary>;
+  getAuditorDetail(auditorId: string, token: string): Promise<AuditorDetail>;
+  /** MR-OV-04 */
+  setExposureLimit(auditorId: string, token: string, minutes: number): Promise<{ exposure_limit_minutes: number }>;
+  /** MR-SOS-07 */
+  approveBreakRequest(requestId: string, token: string): Promise<{ approved: true }>;
+  getCaseOversight(token: string): Promise<ManagerCaseRow[]>;
+  listSosAlerts(token: string): Promise<SosAlert[]>;
+  getSosAlert(alertId: string, token: string): Promise<SosAlertDetail>;
+  /** MR-SOS-04 */
+  acknowledgeSosAlert(alertId: string, token: string): Promise<{ acknowledged: true }>;
+  /** MR-SOS-04/06: resolves the alert and records the Manager check-in the cooldown was waiting for. */
+  logSosFollowUp(
+    alertId: string,
+    token: string,
+    notes: string,
+    outcome: SosFollowUpOutcome,
+  ): Promise<{ resolved: true }>;
+  listDeclinedCases(token: string): Promise<DeclinedCaseRow[]>;
+  getManagerCaseReview(caseId: string, token: string): Promise<ManagerCaseReview>;
+  getReassignmentContext(caseId: string, token: string): Promise<ReassignmentContext>;
+  /** MR-CR-03: re-validates the target at confirm time (Figma 197:321). */
+  reassignCase(caseId: string, token: string, auditorId: string): Promise<{ assigned_to_name: string }>;
+  /** Round 4/5 rule: closes the case as Complete with the content-neutral outcome, note kept for the audit trail. */
+  closeWithoutReassignment(caseId: string, token: string, note: string): Promise<{ status: string }>;
+  /** MR-CR-08: exceptional raw-content access, logged, behind the same content warning. */
+  getCaseForExceptionalAccess(caseId: string, token: string): Promise<AuditorCaseDetail>;
+  recordExceptionalAccess(caseId: string, token: string): Promise<{ recorded: true }>;
+  getValidationSummary(token: string): Promise<ValidationSummary>;
 }
 
 /**

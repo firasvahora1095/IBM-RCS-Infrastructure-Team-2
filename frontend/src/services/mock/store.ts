@@ -2,6 +2,7 @@ import type {
   CaseOutcome,
   CooldownState,
   DeclineReason,
+  SosFollowUpOutcome,
   WellbeingRequestKind,
   FlaggedEntity,
   IncidentTimelineEntry,
@@ -67,6 +68,8 @@ export interface MockStaff {
   exposure_seconds_today: number;
   exposure_limit_minutes: number;
   cases_reviewed_today: number;
+  /** A private wellbeing pattern marker, visible to the Manager only (Figma 86:150). */
+  pattern_flagged: boolean;
   last_assigned_at: string | null;
   cooldown: CooldownState | null;
 }
@@ -79,6 +82,7 @@ export interface MockSosEvent {
   acknowledged_at: string | null;
   acknowledged_by: string | null;
   follow_up_notes: string | null;
+  follow_up_outcome: SosFollowUpOutcome | null;
   resolved_at: string | null;
 }
 
@@ -118,7 +122,7 @@ export interface MockDb {
   wellbeingRequests: MockWellbeingRequest[];
   auditLog: MockAuditEntry[];
   /** Edge states forced from the demo scenario menu (mock mode only). */
-  demo: { failNextSubmission: boolean };
+  demo: { failNextSubmission: boolean; nextReassignTargetUnavailable: boolean };
 }
 
 const STORAGE_KEY = "rcs_mock_db";

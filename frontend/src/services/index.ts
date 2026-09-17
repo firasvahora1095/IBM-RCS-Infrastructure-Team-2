@@ -54,3 +54,21 @@ export const requestWellbeingSupport = delegate("requestWellbeingSupport");
 
 // Manager oversight
 export const getManagerDashboard = delegate("getManagerDashboard");
+export const getAuditorOverview = delegate("getAuditorOverview");
+export const getSosSummary = delegate("getSosSummary");
+export const getAuditorDetail = delegate("getAuditorDetail");
+export const setExposureLimit = delegate("setExposureLimit");
+export const approveBreakRequest = delegate("approveBreakRequest");
+export const getCaseOversight = delegate("getCaseOversight");
+export const listSosAlerts = delegate("listSosAlerts");
+export const getSosAlert = delegate("getSosAlert");
+export const acknowledgeSosAlert = delegate("acknowledgeSosAlert");
+export const logSosFollowUp = delegate("logSosFollowUp");
+export const listDeclinedCases = delegate("listDeclinedCases");
+export const getManagerCaseReview = delegate("getManagerCaseReview");
+export const getReassignmentContext = delegate("getReassignmentContext");
+export const reassignCase = delegate("reassignCase");
+export const closeWithoutReassignment = delegate("closeWithoutReassignment");
+export const getCaseForExceptionalAccess = delegate("getCaseForExceptionalAccess");
+export const recordExceptionalAccess = delegate("recordExceptionalAccess");
+export const getValidationSummary = delegate("getValidationSummary");

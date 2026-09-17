@@ -20,10 +20,17 @@ function staffForToken(db: MockDb, token: string): MockStaff | undefined {
 }
 
 export const demoScenarios = {
-  /** Figma 42:405: the next case submission fails as if the connection dropped. */
+  /** Figma 42:405 / Manager 197:309: the next submission or save fails as if the connection dropped. */
   failNextSubmission(): void {
     updateDb((db) => {
       db.demo.failNextSubmission = true;
+    });
+  },
+
+  /** Manager Figma 197:321: the next reassignment target turns out to be unavailable on confirm. */
+  makeNextReassignTargetUnavailable(): void {
+    updateDb((db) => {
+      db.demo.nextReassignTargetUnavailable = true;
     });
   },
 

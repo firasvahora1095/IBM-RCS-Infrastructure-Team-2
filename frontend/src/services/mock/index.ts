@@ -3,6 +3,18 @@ import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { scoreToTier } from "../../design-tokens/severity";
 import { ApiError } from "../types";
 import type {
+  AuditorDetail,
+  AuditorOverviewRow,
+  DeclinedCaseRow,
+  ExposureState,
+  ManagerCaseReview,
+  ManagerCaseRow,
+  ReassignmentContext,
+  SosAlert,
+  SosAlertDetail,
+  SosFollowUpOutcome,
+  SosSummary,
+  ValidationSummary,
   AuditorCaseDetail,
   AuditorWellbeing,
   AuditorCaseListItem,
@@ -20,7 +32,7 @@ import type {
   StatusUpdateContact,
   WellbeingRequestKind,
 } from "../types";
-import { readDb, updateDb, type MockCase, type MockDb, type MockStaff } from "./store";
+import { readDb, updateDb, type MockCase, type MockDb, type MockSosEvent, type MockStaff } from "./store";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -278,6 +290,108 @@ function routeToManager(db: MockDb, c: MockCase, flag: "DECLINED" | "SOS"): void
   c.updated_at = new Date().toISOString();
 }
 
+/** MR-OV-05: Approaching from 75% of the limit (Manager handoff traceability), At limit at 100%. */
+function exposureState(staff: MockStaff): ExposureState {
+  const ratio = exposureMinutes(staff) / Math.max(1, staff.exposure_limit_minutes);
+  if (ratio >= 1) return "AT_LIMIT";
+  if (ratio >= 0.75) return "APPROACHING";
+  return "UNDER";
+}
+
+function overviewRow(staff: MockStaff): AuditorOverviewRow {
+  return {
+    auditor_id: staff.staff_id,
+    display_name: staff.display_name,
+    exposure_minutes_today: exposureMinutes(staff),
+    exposure_limit_minutes: staff.exposure_limit_minutes,
+    exposure_state: exposureState(staff),
+    cooldown: inCooldown(staff) ? staff.cooldown : null,
+    cases_today: staff.cases_reviewed_today,
+  };
+}
+
+function displayName(db: MockDb, staffId: string | null | undefined): string | null {
+  return staffId ? (db.staff.find((s) => s.staff_id === staffId)?.display_name ?? staffId) : null;
+}
+
+function sosStatus(event: MockSosEvent): SosAlert["status"] {
+  if (event.resolved_at) return "RESOLVED";
+  return event.acknowledged_at ? "IN_PROGRESS" : "UNACKNOWLEDGED";
+}
+
+function sosAlert(db: MockDb, event: MockSosEvent): SosAlert {
+  return {
+    id: event.id,
+    auditor_id: event.auditor_id,
+    auditor_name: displayName(db, event.auditor_id) ?? event.auditor_id,
+    case_id: event.case_id,
+    triggered_at: event.triggered_at,
+    status: sosStatus(event),
+  };
+}
+
+function findCase(db: MockDb, caseId: string): MockCase {
+  const found = db.cases.find((c) => c.case_id === caseId);
+  if (!found) throw new ApiError("Case not found", 404);
+  return found;
+}
+
+function findSos(db: MockDb, alertId: string): MockSosEvent {
+  const found = db.sosEvents.find((e) => e.id === alertId);
+  if (!found) throw new ApiError("SOS alert not found", 404);
+  return found;
+}
+
+/** The Auditor who handed a case to the Manager, by decline or SOS. */
+function routingAuditor(db: MockDb, c: MockCase): string | null {
+  if (c.decline) return c.decline.declined_by;
+  const sos = [...db.sosEvents].reverse().find((e) => e.case_id === c.case_id);
+  return sos?.auditor_id ?? null;
+}
+
+function caseDetailFor(c: MockCase): AuditorCaseDetail {
+  return {
+    case_id: c.case_id,
+    status: c.status,
+    watson_severity_score: c.watson_severity_score,
+    effective_severity_score: c.effective_severity_score,
+    severity_tier: c.severity_tier,
+    narrative_summary: c.narrative_summary,
+    incident_timeline: c.incident_timeline,
+    video_duration_seconds: c.duration_seconds,
+    flagged_entities: c.flagged_entities,
+    transcript: c.transcript,
+    audio_intensity: c.audio_intensity,
+    ai_failure: c.ai_failure,
+    flag_reason: c.flag_reason,
+  };
+}
+
+/** Candidates with less headroom than this are marked "Limited headroom" (Figma 119:405). */
+const LIMITED_HEADROOM_MINUTES = 30;
+
+/** Figma 136:257 sample values. Always flagged as placeholder data. */
+const PLACEHOLDER_VALIDATION: ValidationSummary = {
+  is_placeholder: true,
+  tiers: [
+    { tier: "S1", ai_predicted_pct: 90, ground_truth_pct: 85 },
+    { tier: "S2", ai_predicted_pct: 60, ground_truth_pct: 55 },
+    { tier: "S3", ai_predicted_pct: 40, ground_truth_pct: 45 },
+    { tier: "S4", ai_predicted_pct: 20, ground_truth_pct: 22 },
+  ],
+  match_rate_pct: 82,
+  validation_set_size: 14,
+};
+
+/** Consumes the one-shot "fail the next save" demo scenario. */
+function consumeDemoFailure(): boolean {
+  return updateDb((db) => {
+    const fail = db.demo.failNextSubmission;
+    db.demo.failNextSubmission = false;
+    return fail;
+  });
+}
+
 export const mockDataService: DataService = {
   async createReport(videoFile: File): Promise<CreateReportResponse> {
     await delay();
@@ -519,6 +633,7 @@ export const mockDataService: DataService = {
         acknowledged_at: null,
         acknowledged_by: null,
         follow_up_notes: null,
+        follow_up_outcome: null,
         resolved_at: null,
       });
       routeToManager(db, c, "SOS");
@@ -624,6 +739,337 @@ export const mockDataService: DataService = {
         cooldown: me.cooldown,
         cases_reviewed_today: me.cases_reviewed_today,
       };
+    });
+  },
+
+  // ---- Manager ----
+
+  async getAuditorOverview(token: string): Promise<AuditorOverviewRow[]> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      return db.staff
+        .filter((st) => st.role === "auditor")
+        .map(overviewRow)
+        .sort(
+          (a, b) =>
+            b.exposure_minutes_today / b.exposure_limit_minutes - a.exposure_minutes_today / a.exposure_limit_minutes,
+        );
+    });
+  },
+
+  async getSosSummary(token: string): Promise<SosSummary> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const unresolved = db.sosEvents
+        .filter((e) => !e.resolved_at)
+        .sort((a, b) => Date.parse(b.triggered_at) - Date.parse(a.triggered_at));
+      return {
+        unresolved_count: unresolved.length,
+        most_recent: unresolved[0]
+          ? {
+              auditor_name: displayName(db, unresolved[0].auditor_id) ?? unresolved[0].auditor_id,
+              triggered_at: unresolved[0].triggered_at,
+            }
+          : null,
+      };
+    });
+  },
+
+  async getAuditorDetail(auditorId: string, token: string): Promise<AuditorDetail> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const auditor = db.staff.find((st) => st.staff_id === auditorId && st.role === "auditor");
+      if (!auditor) throw new ApiError("Auditor not found", 404);
+      const dayAgo = Date.now() - 24 * 60 * 60_000;
+      return {
+        ...overviewRow(auditor),
+        pattern_flagged: auditor.pattern_flagged,
+        recent_cases: db.cases
+          .filter((c) => c.status === "COMPLETE" && c.assigned_auditor === auditorId && c.completed_at)
+          .filter((c) => Date.parse(c.completed_at!) >= dayAgo)
+          .sort((a, b) => Date.parse(a.completed_at!) - Date.parse(b.completed_at!))
+          .map((c) => ({ case_id: c.case_id, severity_tier: c.severity_tier, completed_at: c.completed_at! })),
+        wellbeing_requests: db.wellbeingRequests
+          .filter((r) => r.auditor_id === auditorId)
+          .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+          .map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            case_id: r.case_id,
+            created_at: r.created_at,
+            status: r.resolved_at ? ("APPROVED" as const) : ("OPEN" as const),
+          })),
+      };
+    });
+  },
+
+  async setExposureLimit(
+    auditorId: string,
+    token: string,
+    minutes: number,
+  ): Promise<{ exposure_limit_minutes: number }> {
+    await delay();
+    // Demo scenario (Figma 197:309): behaves exactly like a dropped request.
+    if (consumeDemoFailure()) throw new TypeError("Failed to fetch");
+    if (!Number.isInteger(minutes) || minutes < 30 || minutes > 480) {
+      throw new ApiError("Enter a limit between 30 and 480 minutes.", 400);
+    }
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const auditor = db.staff.find((st) => st.staff_id === auditorId && st.role === "auditor");
+      if (!auditor) throw new ApiError("Auditor not found", 404);
+      const previous = auditor.exposure_limit_minutes;
+      auditor.exposure_limit_minutes = minutes;
+      audit(db, session.staffId, "EXPOSURE_LIMIT_SET", null, auditorId + ":" + previous + "->" + minutes);
+      return { exposure_limit_minutes: minutes };
+    });
+  },
+
+  async approveBreakRequest(requestId: string, token: string): Promise<{ approved: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const request = db.wellbeingRequests.find((r) => r.id === requestId && r.kind === "BREAK_REQUEST");
+      if (!request) throw new ApiError("Break request not found", 404);
+      request.resolved_at ??= new Date().toISOString();
+      audit(db, session.staffId, "BREAK_APPROVED", request.case_id, request.auditor_id);
+      return { approved: true as const };
+    });
+  },
+
+  async getCaseOversight(token: string): Promise<ManagerCaseRow[]> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      advanceSimulatedAi(db);
+      return [...db.cases]
+        .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+        .map((c) => ({
+          case_id: c.case_id,
+          auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
+          severity_tier: c.severity_tier,
+          status: c.status,
+          manager_flag: c.manager_flag,
+          sos_alert_id: [...db.sosEvents].reverse().find((e) => e.case_id === c.case_id)?.id ?? null,
+        }));
+    });
+  },
+
+  async listSosAlerts(token: string): Promise<SosAlert[]> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const rank = { UNACKNOWLEDGED: 0, IN_PROGRESS: 1, RESOLVED: 2 } as const;
+      return db.sosEvents
+        .map((e) => sosAlert(db, e))
+        .sort((a, b) => rank[a.status] - rank[b.status] || Date.parse(b.triggered_at) - Date.parse(a.triggered_at));
+    });
+  },
+
+  async getSosAlert(alertId: string, token: string): Promise<SosAlertDetail> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const event = findSos(db, alertId);
+      const auditor = staffById(db, event.auditor_id);
+      const c = db.cases.find((x) => x.case_id === event.case_id);
+      return {
+        ...sosAlert(db, event),
+        exposure_minutes_today: exposureMinutes(auditor),
+        exposure_limit_minutes: auditor.exposure_limit_minutes,
+        severity_tier: c?.severity_tier ?? null,
+        effective_severity_score: c?.effective_severity_score ?? null,
+        narrative_summary: c?.narrative_summary ?? null,
+        follow_up_notes: event.follow_up_notes,
+      };
+    });
+  },
+
+  async acknowledgeSosAlert(alertId: string, token: string): Promise<{ acknowledged: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const event = findSos(db, alertId);
+      if (!event.acknowledged_at) {
+        event.acknowledged_at = new Date().toISOString();
+        event.acknowledged_by = session.staffId;
+        audit(db, session.staffId, "SOS_ACKNOWLEDGED", event.case_id, alertId);
+      }
+      return { acknowledged: true as const };
+    });
+  },
+
+  async logSosFollowUp(
+    alertId: string,
+    token: string,
+    notes: string,
+    outcome: SosFollowUpOutcome,
+  ): Promise<{ resolved: true }> {
+    await delay();
+    if (consumeDemoFailure()) throw new TypeError("Failed to fetch");
+    if (!notes.trim()) throw new ApiError("Add follow-up notes before logging the outcome.", 400);
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const event = findSos(db, alertId);
+      const now = new Date().toISOString();
+      event.acknowledged_at ??= now;
+      event.acknowledged_by ??= session.staffId;
+      event.follow_up_notes = notes.trim();
+      event.follow_up_outcome = outcome;
+      event.resolved_at = now;
+      // AR-WB-12: this is the check-in the Auditor's cooldown was waiting for.
+      const auditor = staffById(db, event.auditor_id);
+      if (auditor.cooldown?.requires_check_in) auditor.cooldown.check_in_completed_at = now;
+      audit(db, session.staffId, "SOS_FOLLOW_UP_LOGGED", event.case_id, outcome);
+      return { resolved: true as const };
+    });
+  },
+
+  async listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      return db.cases
+        .filter((c) => c.manager_flag === "DECLINED" && c.decline && c.status !== "COMPLETE" && !c.assigned_auditor)
+        .sort((a, b) => Date.parse(b.decline!.declined_at) - Date.parse(a.decline!.declined_at))
+        .map((c) => ({
+          case_id: c.case_id,
+          auditor_name: displayName(db, c.decline!.declined_by) ?? c.decline!.declined_by,
+          severity_tier: c.severity_tier,
+          reason: c.decline!.reason,
+          declined_at: c.decline!.declined_at,
+        }));
+    });
+  },
+
+  async getManagerCaseReview(caseId: string, token: string): Promise<ManagerCaseReview> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const c = findCase(db, caseId);
+      return {
+        case_id: c.case_id,
+        status: c.status,
+        manager_flag: c.manager_flag,
+        severity_tier: c.severity_tier,
+        effective_severity_score: c.effective_severity_score,
+        narrative_summary: c.narrative_summary,
+        tags: [...new Set((c.incident_timeline ?? []).map((e) => e.tag).filter((t): t is string => !!t))],
+        auditor_name: displayName(db, routingAuditor(db, c) ?? c.assigned_auditor),
+        auditor_severity_score: c.auditor_severity_score,
+        auditor_comment: c.auditor_comment,
+        decline: c.decline ? { reason: c.decline.reason, other_text: c.decline.other_text } : null,
+      };
+    });
+  },
+
+  async getReassignmentContext(caseId: string, token: string): Promise<ReassignmentContext> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const c = findCase(db, caseId);
+      const decliningId = routingAuditor(db, c);
+      const declining = db.staff.find((st) => st.staff_id === decliningId);
+      return {
+        case_id: c.case_id,
+        declining_auditor: declining
+          ? {
+              name: declining.display_name,
+              exposure_minutes_today: exposureMinutes(declining),
+              exposure_limit_minutes: declining.exposure_limit_minutes,
+            }
+          : null,
+        candidates: db.staff
+          .filter((st) => st.role === "auditor" && st.staff_id !== decliningId)
+          .map((st) => {
+            const headroom = Math.max(0, st.exposure_limit_minutes - exposureMinutes(st));
+            return {
+              auditor_id: st.staff_id,
+              name: st.display_name,
+              headroom_minutes: headroom,
+              limited_headroom: headroom < LIMITED_HEADROOM_MINUTES,
+              available: headroom > 0 && !inCooldown(st),
+            };
+          })
+          .sort((a, b) => b.headroom_minutes - a.headroom_minutes),
+      };
+    });
+  },
+
+  async reassignCase(caseId: string, token: string, auditorId: string): Promise<{ assigned_to_name: string }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const c = findCase(db, caseId);
+      const target = db.staff.find((st) => st.staff_id === auditorId && st.role === "auditor");
+      const forcedUnavailable = db.demo.nextReassignTargetUnavailable;
+      db.demo.nextReassignTargetUnavailable = false;
+      // Re-validated at confirm time: the target may have hit their cap or started a cooldown (Figma 197:321).
+      if (
+        !target ||
+        forcedUnavailable ||
+        exposureMinutes(target) >= target.exposure_limit_minutes ||
+        inCooldown(target)
+      ) {
+        throw new ApiError("This Auditor is no longer available — please choose another.", 409);
+      }
+      const now = new Date().toISOString();
+      c.assigned_auditor = target.staff_id;
+      c.assigned_at = now;
+      c.updated_at = now;
+      if (c.severity_tier || c.ai_failure) c.status = "READY_FOR_REVIEW";
+      c.manager_flag = null;
+      target.active_case_count += 1;
+      target.last_assigned_at = now;
+      audit(db, session.staffId, "CASE_REASSIGNED", caseId, target.staff_id);
+      return { assigned_to_name: target.display_name };
+    });
+  },
+
+  async closeWithoutReassignment(caseId: string, token: string, note: string): Promise<{ status: string }> {
+    await delay();
+    if (!note.trim()) throw new ApiError("Add a note for the audit trail to confirm no reassignment.", 400);
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const c = findCase(db, caseId);
+      const now = new Date().toISOString();
+      Object.assign(c, {
+        status: "COMPLETE",
+        final_outcome: "CLOSED_NO_REASSIGNMENT",
+        completed_at: now,
+        updated_at: now,
+      });
+      audit(db, session.staffId, "CLOSED_NO_REASSIGNMENT", caseId, note.trim());
+      return { status: mapStatusToPublicLabel("COMPLETE") };
+    });
+  },
+
+  async getCaseForExceptionalAccess(caseId: string, token: string): Promise<AuditorCaseDetail> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      return caseDetailFor(findCase(db, caseId));
+    });
+  },
+
+  async recordExceptionalAccess(caseId: string, token: string): Promise<{ recorded: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      findCase(db, caseId);
+      audit(db, session.staffId, "EXCEPTIONAL_RAW_ACCESS", caseId);
+      return { recorded: true as const };
+    });
+  },
+
+  async getValidationSummary(token: string): Promise<ValidationSummary> {
+    await delay();
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      return PLACEHOLDER_VALIDATION;
     });
   },
 };
