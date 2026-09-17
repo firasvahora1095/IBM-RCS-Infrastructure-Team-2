@@ -9,6 +9,7 @@ import type { PublicStatusResponse, PublicCaseStatus } from "../../services/type
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { loadCaseId } from "../../hooks/useCaseIdStorage";
+import { formatDateTime, formatDuration } from "../../utils/formatRelativeTime";
 
 const STEPS: readonly PublicCaseStatus[] = ["Received", "Being Reviewed", "Complete"];
 
@@ -24,10 +25,9 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
  * 7:15 found, 7:41 not found). One route, with the three states driven by
  * the lookup result rather than three separate pages.
  *
- * Only fields the real API returns are shown. The Figma "Case details" block
- * also lists Submitted on / Last updated / Content type / Duration / File
- * name, but GET /api/status/{id} returns only case_id, status and
- * final_outcome — those rows are omitted rather than faked (backend gap).
+ * "Case details" rows beyond the Case ID (submitted/updated time, content
+ * type, duration, file name) appear only when the data source returns them,
+ * so a backend without those fields never shows placeholder values.
  */
 export function StatusLookupPage() {
   // Convenience: pre-fill the case saved in this browser by the Upload flow.
@@ -226,9 +226,15 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
           Case details
         </h2>
         <hr style={{ border: 0, borderTop: "1px solid #e0e0e0", margin: 0 }} />
-        <dl className="flex gap-4">
-          <dt style={{ width: 140, fontSize: 12, lineHeight: "16px", color: "#525252" }}>Case ID</dt>
-          <dd style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>{result.case_id}</dd>
+        <dl className="flex flex-col gap-3.5">
+          <DetailRow label="Case ID" value={result.case_id} monospace />
+          {result.submitted_at && <DetailRow label="Submitted on" value={formatDateTime(result.submitted_at)} />}
+          {result.updated_at && <DetailRow label="Last updated" value={formatDateTime(result.updated_at)} />}
+          {result.content_type && <DetailRow label="Content type" value={result.content_type} />}
+          {result.duration_seconds != null && (
+            <DetailRow label="Duration" value={formatDuration(result.duration_seconds)} />
+          )}
+          {result.file_name && <DetailRow label="File name" value={result.file_name} />}
         </dl>
       </section>
 
@@ -272,5 +278,15 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         </Button>
       </div>
     </PublicPage>
+  );
+}
+
+/** One label/value row of the "Case details" block (Figma 86:46). */
+function DetailRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
+  return (
+    <div className="flex gap-4">
+      <dt style={{ width: 140, flexShrink: 0, fontSize: 12, lineHeight: "20px", color: "#525252" }}>{label}</dt>
+      <dd style={{ ...(monospace ? mono : {}), fontSize: 14, lineHeight: "20px", color: "#161616" }}>{value}</dd>
+    </div>
   );
 }

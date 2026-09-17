@@ -61,10 +61,57 @@ describe("AuditorDashboardPage", () => {
     expect(screen.getByText("Case detail page")).toBeInTheDocument();
   });
 
-  it("shows an empty-state message when there are no assigned cases", async () => {
+  it("shows the Figma empty state when there are no assigned cases (36:146)", async () => {
     vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([]);
     renderPage();
-    expect(await screen.findByText("You have no cases assigned right now.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No cases assigned right now — new cases are assigned automatically as they come in."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows how long ago each case was assigned, when the data source provides it", async () => {
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
+      {
+        case_id: "AR-2026-00417",
+        status: "READY_FOR_REVIEW",
+        severity_tier: "S3",
+        assigned_at: new Date(Date.now() - 9 * 60_000).toISOString(),
+      },
+    ]);
+    renderPage();
+    expect(await screen.findByText("9 min ago")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Assigned" })).toBeInTheDocument();
+  });
+
+  it("locks reviewable cases and pauses assignments during a cooldown (36:189)", async () => {
+    vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
+      exposure_minutes_today: 62,
+      exposure_limit_minutes: 120,
+      cooldown: { ends_at: new Date(Date.now() + 10 * 60_000).toISOString(), trigger: "S3", requires_check_in: false },
+    });
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
+      { case_id: "AR-2026-00417", status: "READY_FOR_REVIEW", severity_tier: "S3" },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("Cooldown in progress — new assignments paused.")).toBeInTheDocument();
+    expect(await screen.findByText("Locked during cooldown")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ready for review" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("AR-2026-00417"));
+    expect(screen.queryByText("Case detail page")).not.toBeInTheDocument();
+  });
+
+  it("shows the non-punitive limit banner at the daily exposure limit (34:121)", async () => {
+    vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
+      exposure_minutes_today: 120,
+      exposure_limit_minutes: 120,
+      cooldown: null,
+    });
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([]);
+    renderPage();
+
+    expect(await screen.findByText("You've reached today's exposure limit.")).toBeInTheDocument();
+    expect(screen.getAllByText("120 / 120 min today").length).toBeGreaterThan(0);
   });
 
   it("returns to login when the backend no longer recognises the session", async () => {

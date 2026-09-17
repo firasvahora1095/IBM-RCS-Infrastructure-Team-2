@@ -15,6 +15,7 @@ import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { IncidentTimeline } from "../../components/severity/IncidentTimeline";
+import { FlaggedEntities, TranscriptAndAudio } from "../../components/review/AiEvidencePanels";
 import { getAuditorCaseDetail, resolveCase } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorCaseDetail, FinalOutcome, ResolveCaseResponse } from "../../services/types";
@@ -41,10 +42,8 @@ function tierText(score: number): string {
  * Figma frames chain together — AI Analysis Summary (18:26) → Severity &
  * comment (25:53) → Submission Confirmation (25:280).
  *
- * Sprint 2 scope (docs/ux/sprint2-build-scope-handoff.md): AI output only.
- * The Figma summary's "Flagged entities" and "Transcript & audio intensity"
- * sections are omitted — they're Sprint 3, and GET /api/auditor/cases/{id}
- * returns neither.
+ * The summary's flagged entities, transcript and audio-intensity sections
+ * render whenever the data source provides them.
  */
 export function AuditorCaseDetailPage() {
   const { caseId = "" } = useParams<{ caseId: string }>();
@@ -228,11 +227,22 @@ export function AuditorCaseDetailPage() {
               Incident timeline
             </h2>
             {caseDetail.incident_timeline && caseDetail.incident_timeline.length > 0 ? (
-              <IncidentTimeline entries={caseDetail.incident_timeline} />
+              <IncidentTimeline
+                entries={caseDetail.incident_timeline}
+                durationSeconds={caseDetail.video_duration_seconds}
+              />
             ) : (
               <p style={secondaryText}>No incidents were flagged on the timeline.</p>
             )}
           </section>
+
+          {/* Shown only when the data source provides them (Figma 18:62, 18:76). */}
+          <FlaggedEntities entities={caseDetail.flagged_entities ?? []} />
+          <TranscriptAndAudio
+            transcript={caseDetail.transcript}
+            audioIntensity={caseDetail.audio_intensity}
+            durationSeconds={caseDetail.video_duration_seconds}
+          />
 
           <div>
             <Button onClick={() => setStep("severity")}>Continue to review</Button>

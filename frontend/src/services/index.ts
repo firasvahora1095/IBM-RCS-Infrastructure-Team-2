@@ -1,4 +1,4 @@
-import type { DataService, FinalOutcome } from "./types";
+import type { DataService } from "./types";
 import { mockDataService } from "./mock";
 import { apiDataService } from "./api";
 
@@ -10,8 +10,9 @@ import { apiDataService } from "./api";
  *                      a "Demo data" badge so it's never mistaken for live data.
  *   "api"            — the real backend at VITE_API_BASE_URL.
  *
- * Each export is a thin wrapper rather than a re-export, so tests can
- * replace a single operation with vi.spyOn(services, "…").
+ * Each export is a separate delegating function rather than a re-export of
+ * one object, so tests can replace a single operation with
+ * vi.spyOn(services, "…").
  */
 export type DataSource = "mock" | "api";
 
@@ -21,36 +22,27 @@ export const isMockData = DATA_SOURCE === "mock";
 
 const active: DataService = DATA_SOURCE === "api" ? apiDataService : mockDataService;
 
-export function createReport(videoFile: File) {
-  return active.createReport(videoFile);
+/** Forwards a call to the same-named operation on the active data source. */
+function delegate<K extends keyof DataService>(operation: K): DataService[K] {
+  const forward = (...args: unknown[]) => (active[operation] as (...a: unknown[]) => unknown)(...args);
+  return forward as DataService[K];
 }
 
-export function getStatus(caseId: string) {
-  return active.getStatus(caseId);
-}
+// Public reporting
+export const createReport = delegate("createReport");
+export const getStatus = delegate("getStatus");
+export const requestStatusUpdates = delegate("requestStatusUpdates");
 
-export function staffLogin(staffId: string, password: string) {
-  return active.staffLogin(staffId, password);
-}
+// Staff sign-in
+export const staffLogin = delegate("staffLogin");
 
-export function getAuditorCases(token: string) {
-  return active.getAuditorCases(token);
-}
+// Auditor review
+export const getAuditorCases = delegate("getAuditorCases");
+export const getAuditorCaseDetail = delegate("getAuditorCaseDetail");
+export const resolveCase = delegate("resolveCase");
 
-export function getAuditorCaseDetail(caseId: string, token: string) {
-  return active.getAuditorCaseDetail(caseId, token);
-}
+// Auditor wellbeing
+export const getMyWellbeing = delegate("getMyWellbeing");
 
-export function resolveCase(
-  caseId: string,
-  token: string,
-  finalOutcome: FinalOutcome,
-  auditorSeverityScore?: number,
-  auditorComment?: string,
-) {
-  return active.resolveCase(caseId, token, finalOutcome, auditorSeverityScore, auditorComment);
-}
-
-export function getManagerDashboard() {
-  return active.getManagerDashboard();
-}
+// Manager oversight
+export const getManagerDashboard = delegate("getManagerDashboard");

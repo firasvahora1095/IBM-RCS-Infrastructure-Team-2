@@ -1,16 +1,21 @@
-import type { DataService } from "../types";
+import { NotImplementedError, type DataService } from "../types";
 import * as http from "./httpClient";
 
 /**
  * The `api` data source — the real backend.
  *
- * For Firas: this is the integration point for Aiden's API. Each function
- * below is either wired to an HTTP call in ./httpClient.ts or calls
- * `notConnected(...)`, which throws NotImplementedError until an endpoint
- * exists. docs/frontend/BACKEND-INTEGRATION.md lists every function, the
- * shape the UI expects, and which Figma screen uses it.
+ * For Firas: this is the integration point for Aiden's API. Each operation
+ * is either wired to an HTTP call in ./httpClient.ts or calls
+ * `notConnected(...)`, which rejects with NotImplementedError until an
+ * endpoint exists. docs/frontend/BACKEND-INTEGRATION.md lists every
+ * operation, the shape the UI expects, and which Figma screen uses it.
  */
+function notConnected(operation: keyof DataService): Promise<never> {
+  return Promise.reject(new NotImplementedError(operation));
+}
+
 export const apiDataService: DataService = {
+  // Wired to the Sprint 2 endpoints captured from the team's test harness.
   createReport: http.createReport,
   getStatus: http.getStatus,
   staffLogin: http.staffLogin,
@@ -18,4 +23,8 @@ export const apiDataService: DataService = {
   getAuditorCaseDetail: http.getAuditorCaseDetail,
   resolveCase: http.resolveCase,
   getManagerDashboard: http.getManagerDashboard,
+
+  // No endpoint yet.
+  requestStatusUpdates: () => notConnected("requestStatusUpdates"),
+  getMyWellbeing: () => notConnected("getMyWellbeing"),
 };

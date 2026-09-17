@@ -3,6 +3,7 @@ import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { ApiError } from "../types";
 import type {
   AuditorCaseDetail,
+  AuditorWellbeing,
   AuditorCaseListItem,
   CreateReportResponse,
   DataService,
@@ -11,6 +12,7 @@ import type {
   PublicStatusResponse,
   ResolveCaseResponse,
   StaffLoginResponse,
+  StatusUpdateContact,
 } from "../types";
 import { readDb, updateDb, type MockCase, type MockDb } from "./store";
 
@@ -196,6 +198,19 @@ export const mockDataService: DataService = {
     });
   },
 
+  async requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }> {
+    await delay();
+    const email = contact.email?.trim() || null;
+    const phone = contact.phone?.trim() || null;
+    if (!email && !phone) throw new ApiError("Add an email or phone number to get updates.", 400);
+    return updateDb((db) => {
+      if (!db.cases.some((c) => c.case_id === caseId)) throw new ApiError("Case not found", 404);
+      // Recorded for the demo only; mock mode never sends an email or SMS.
+      db.statusUpdateRequests.push({ case_id: caseId, email, phone, requested_at: new Date().toISOString() });
+      return { enabled: true as const };
+    });
+  },
+
   async staffLogin(staffId: string, password: string): Promise<StaffLoginResponse> {
     await delay();
     return updateDb((db) => {
@@ -286,5 +301,22 @@ export const mockDataService: DataService = {
       auditors: db.staff.filter((s) => s.role === "auditor").map((s) => ({ auditor_id: s.staff_id })),
       pending_declined_cases: 0,
     };
+  },
+
+  async getMyWellbeing(token: string): Promise<AuditorWellbeing> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const me = db.staff.find((s) => s.staff_id === session.staffId)!;
+      // A cooldown without a required check-in simply ends at its end time.
+      if (me.cooldown && !me.cooldown.requires_check_in && Date.parse(me.cooldown.ends_at) <= Date.now()) {
+        me.cooldown = null;
+      }
+      return {
+        exposure_minutes_today: me.exposure_minutes_today,
+        exposure_limit_minutes: me.exposure_limit_minutes,
+        cooldown: me.cooldown,
+      };
+    });
   },
 };

@@ -116,6 +116,31 @@ export interface ManagerDashboardResponse {
   pending_declined_cases: number;
 }
 
+/** Optional contact details for case status updates (UR-ID-05, UR-ST-05/06 — Nice-to-Have). */
+export interface StatusUpdateContact {
+  email?: string;
+  /** Country code and national number, e.g. "+61 0400 000 000". */
+  phone?: string;
+}
+
+/** An Auditor's own exposure and cooldown state (AR-WB-01, AR-WB-02, AR-WB-12). */
+export interface AuditorWellbeing {
+  /** Active source-video playback minutes counted today (AR-WB-01). */
+  exposure_minutes_today: number;
+  /** Applicable daily limit; 120 by default for testing (AR-WB-02, MR-OV-04). */
+  exposure_limit_minutes: number;
+  cooldown: CooldownState | null;
+}
+
+export interface CooldownState {
+  /** ISO 8601 time the cooldown ends. */
+  ends_at: string;
+  /** What triggered it: a tier (AR-WB-12) or an SOS, which follows the S4 protocol. */
+  trigger: SeverityTier | "SOS";
+  /** S4 and SOS require a Manager/support check-in (AR-WB-12). */
+  requires_check_in: boolean;
+}
+
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
  * synthetic demo data) and `api` (the real backend, connected by Firas)
@@ -124,6 +149,7 @@ export interface ManagerDashboardResponse {
 export interface DataService {
   createReport(videoFile: File): Promise<CreateReportResponse>;
   getStatus(caseId: string): Promise<PublicStatusResponse>;
+  requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
   getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
   getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail>;
@@ -135,6 +161,7 @@ export interface DataService {
     auditorComment?: string,
   ): Promise<ResolveCaseResponse>;
   getManagerDashboard(): Promise<ManagerDashboardResponse>;
+  getMyWellbeing(token: string): Promise<AuditorWellbeing>;
 }
 
 /**

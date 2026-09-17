@@ -113,4 +113,39 @@ describe("StatusLookupPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Check a different case" }));
     await waitFor(() => expect(screen.getByLabelText("Case ID")).toHaveValue(""));
   });
+
+  it("shows the full Case details block when the data source provides it (Figma 7:15)", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "RCS-7Q3M-K91X",
+      status: "Being Reviewed",
+      final_outcome: null,
+      submitted_at: "2026-08-22T04:20:00.000Z",
+      updated_at: "2026-08-22T05:05:00.000Z",
+      content_type: "Video",
+      duration_seconds: 272,
+      file_name: "incident_video.mp4",
+    });
+    renderPage();
+    lookUp("RCS-7Q3M-K91X");
+
+    expect(await screen.findByText("Submitted on")).toBeInTheDocument();
+    expect(screen.getByText("Last updated")).toBeInTheDocument();
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.getByText("04:32")).toBeInTheDocument();
+    expect(screen.getByText("incident_video.mp4")).toBeInTheDocument();
+  });
+
+  it("omits detail rows the data source doesn't provide rather than inventing values", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "INSZNNJI4P",
+      status: "Being Reviewed",
+      final_outcome: null,
+    });
+    renderPage();
+    lookUp("INSZNNJI4P");
+
+    expect(await screen.findByText("Case details")).toBeInTheDocument();
+    expect(screen.queryByText("Submitted on")).not.toBeInTheDocument();
+    expect(screen.queryByText("Duration")).not.toBeInTheDocument();
+  });
 });

@@ -4,6 +4,8 @@ import { Button, InlineNotification, TextInput, Dropdown, Link } from "@carbon/r
 import { CheckmarkFilled } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { loadCaseId } from "../../hooks/useCaseIdStorage";
+import { requestStatusUpdates } from "../../services";
+import { ApiError, NETWORK_ERROR_MESSAGE, NotImplementedError } from "../../services/types";
 
 const COUNTRY_CODES = [{ id: "+61", label: "+61" }];
 
@@ -11,6 +13,7 @@ const COUNTRY_CODES = [{ id: "+61", label: "+61" }];
 const COPIED_CONFIRMATION_MS = 2000;
 
 type CopyState = "idle" | "copied" | "failed";
+type UpdatesState = "idle" | "sending" | "enabled" | "unavailable" | "failed";
 
 /**
  * Screen 2 — Case ID Confirmation (Normal User Figma node 6:2).
@@ -28,7 +31,8 @@ export function CaseIdConfirmationPage() {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [updatesRequested, setUpdatesRequested] = useState(false);
+  const [updates, setUpdates] = useState<UpdatesState>("idle");
+  const [updatesError, setUpdatesError] = useState<string | null>(null);
   const copyTimer = useRef<number | undefined>(undefined);
 
   // Clear a pending "Copied!" timer if the user leaves the page mid-countdown,
@@ -56,6 +60,25 @@ export function CaseIdConfirmationPage() {
   // UR-ID-05 / UR-ST-05/06 are Nice-to-Haves: the button only becomes
   // usable once at least one contact method is filled in.
   const hasContactDetail = email.trim() !== "" || phone.trim() !== "";
+
+  async function handleSendUpdates() {
+    setUpdates("sending");
+    setUpdatesError(null);
+    try {
+      await requestStatusUpdates(caseId!, {
+        email: email.trim() || undefined,
+        phone: phone.trim() ? `+61 ${phone.trim()}` : undefined,
+      });
+      setUpdates("enabled");
+    } catch (err) {
+      if (err instanceof NotImplementedError) {
+        setUpdates("unavailable");
+      } else {
+        setUpdatesError(err instanceof ApiError ? err.message : null);
+        setUpdates("failed");
+      }
+    }
+  }
 
   return (
     <PublicPage cardWidth={720}>
@@ -167,28 +190,45 @@ export function CaseIdConfirmationPage() {
         <div>
           <Button
             kind="tertiary"
-            disabled={!hasContactDetail || updatesRequested}
-            onClick={() => setUpdatesRequested(true)}
+            disabled={!hasContactDetail || updates === "sending" || updates === "enabled"}
+            onClick={handleSendUpdates}
           >
-            Send me updates
+            {updates === "sending" ? "Sending…" : "Send me updates"}
           </Button>
         </div>
-        {/* The Figma success state reads "Updates enabled — you'll get a
-            message when your case status changes." No notification service
-            or API field exists in this build, so showing that would promise
-            a member of the public a message that never arrives. This
-            honest notice stands in until the backend exists (copy pending
-            UX sign-off). */}
-        {updatesRequested && (
-          <InlineNotification
-            kind="info"
-            lowContrast
-            hideCloseButton
-            title="Email and SMS updates aren't available yet."
-            subtitle="Your contact details haven't been saved. Keep your case ID to check this case."
-            style={{ maxWidth: "100%" }}
-          />
-        )}
+        <div aria-live="polite">
+          {/* Figma 102:80 success state, only once the request was really accepted. */}
+          {updates === "enabled" && (
+            <p className="flex gap-1.5" style={{ fontSize: 13, color: "#198038" }}>
+              <span aria-hidden="true">✓</span> Updates enabled — you&apos;ll get a message when your case status
+              changes.
+            </p>
+          )}
+          {/* A backend without a notifications endpoint must not promise a
+              message that never arrives, so this honest notice replaces the
+              success state (copy pending UX sign-off). */}
+          {updates === "unavailable" && (
+            <InlineNotification
+              kind="info"
+              lowContrast
+              hideCloseButton
+              title="Email and SMS updates aren't available yet."
+              subtitle="Your contact details haven't been saved. Keep your case ID to check this case."
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+          {updates === "failed" && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              hideCloseButton
+              role="alert"
+              title="We couldn't set up updates."
+              subtitle={updatesError ?? NETWORK_ERROR_MESSAGE}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

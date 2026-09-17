@@ -1,4 +1,5 @@
 import type {
+  CooldownState,
   FinalOutcome,
   FlaggedEntity,
   IncidentTimelineEntry,
@@ -7,7 +8,7 @@ import type {
   StaffRole,
   TranscriptLine,
 } from "../types";
-import { createSeedDb } from "./seed";
+import { createSeedDb, MOCK_DB_VERSION } from "./seed";
 
 /**
  * The mock data source's "database": plain JSON kept in sessionStorage, so a
@@ -53,6 +54,7 @@ export interface MockStaff {
   exposure_minutes_today: number;
   exposure_limit_minutes: number;
   last_assigned_at: string | null;
+  cooldown: CooldownState | null;
 }
 
 export interface MockDb {
@@ -63,11 +65,11 @@ export interface MockDb {
   sessions: Record<string, { staffId: string; role: StaffRole }>;
   /** UR-ST-07 status-lookup lockout state for this browser session. */
   statusLookup: { failureTimes: number[]; lockedUntil: number | null };
+  /** Opt-in email/SMS update requests (UR-ID-05). Nothing is ever sent from mock mode. */
+  statusUpdateRequests: { case_id: string; email: string | null; phone: string | null; requested_at: string }[];
 }
 
 const STORAGE_KEY = "rcs_mock_db";
-/** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 1;
 
 export function readDb(): MockDb {
   try {

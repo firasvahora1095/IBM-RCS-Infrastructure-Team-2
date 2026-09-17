@@ -1,5 +1,8 @@
 import type { MockCase, MockDb, MockStaff } from "./store";
 
+/** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
+export const MOCK_DB_VERSION = 3;
+
 /**
  * Synthetic demo data for the mock data source.
  *
@@ -195,11 +198,12 @@ export function createSeedDb(now: number): MockDb {
   ];
 
   return {
-    version: 1,
+    version: MOCK_DB_VERSION,
     cases,
     staff,
     sessions: {},
     statusLookup: { failureTimes: [], lockedUntil: null },
+    statusUpdateRequests: [],
   };
 }
 
@@ -221,5 +225,6 @@ function staffMember(
     exposure_minutes_today: exposureMinutes,
     exposure_limit_minutes: 120,
     last_assigned_at: lastAssignedMinutesAgo === null ? null : minutesAgo(now, lastAssignedMinutesAgo),
+    cooldown: null,
   };
 }

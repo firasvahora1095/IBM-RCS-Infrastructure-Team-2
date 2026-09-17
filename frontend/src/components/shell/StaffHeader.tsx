@@ -2,6 +2,8 @@ import { Header, HeaderName, HeaderGlobalBar, Theme } from "@carbon/react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { ExposureBar } from "../exposure/ExposureBar";
+import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 
 const ROLE_LABEL: Record<StaffRole, string> = {
   auditor: "Auditor",
@@ -18,15 +20,15 @@ interface StaffHeaderProps {
  * and a Sign out link on the right. One component with a role prop, since
  * the two variants differ only in their label and home route.
  *
- * Deliberately omitted, because both are Sprint 3 and there is no data for
- * them: the Auditor's exposure bar ("62 / 120 min today") and the Manager's
- * SOS badge/banner. Showing either with a static number would look like
- * live data.
+ * Auditors also see their exposure today against their limit ("62 / 120 min
+ * today", AR-WB-01). It only renders when the data source actually provides
+ * exposure data, so there's never a made-up number.
  */
 export function StaffHeader({ role }: StaffHeaderProps) {
   const { staffId, logout } = useAuth();
   const navigate = useNavigate();
   const label = ROLE_LABEL[role];
+  const { wellbeing } = useMyWellbeing();
 
   function handleSignOut() {
     logout();
@@ -44,6 +46,16 @@ export function StaffHeader({ role }: StaffHeaderProps) {
         </HeaderName>
         <DemoDataBadge />
         <HeaderGlobalBar className="items-center gap-6 pr-6">
+          {role === "auditor" && wellbeing && (
+            <ExposureBar
+              surface="dark"
+              warnAtLimit
+              minutes={wellbeing.exposure_minutes_today}
+              limit={wellbeing.exposure_limit_minutes}
+              label={`${wellbeing.exposure_minutes_today} / ${wellbeing.exposure_limit_minutes} min today`}
+              ariaLabel="Your exposure today"
+            />
+          )}
           {staffId && (
             <span style={{ fontSize: 14, color: "#ffffff" }}>
               {label}: {staffId}

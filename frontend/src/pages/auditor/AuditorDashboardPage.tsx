@@ -18,7 +18,9 @@ import { getAuditorCases } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorCaseListItem, InternalCaseStatus } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
+import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
+import { formatRelativeTime } from "../../utils/formatRelativeTime";
 
 /**
  * Status copy exactly as the Figma queue writes it ("Ready for review", "AI
@@ -33,29 +35,31 @@ const QUEUE_STATUS_LABEL: Record<InternalCaseStatus, string> = {
   COMPLETE: "Complete",
 };
 
-/** Only cases the AI has finished analysing can be opened for review. */
-function isOpenable(status: InternalCaseStatus): boolean {
+/** Only cases the AI has finished analysing can be opened for review (AR-AS-04). */
+function isReviewable(status: InternalCaseStatus): boolean {
   return status === "READY_FOR_REVIEW" || status === "AUDITOR_REVIEW";
 }
 
+/** Secondary text colour. Figma uses Gray 50 (3.3:1 on white, fails WCAG AA); Gray 60 is 5.0:1. */
+const SECONDARY_TEXT = "#6f6f6f";
+
 /**
- * Auditor Dashboard / Case Queue (Auditor Figma node 10:6).
+ * Auditor Dashboard / Case Queue — Default (Figma 10:6), Empty (36:146),
+ * Cooldown-active (36:189), and the Exposure Limit Reached banner (34:121).
  *
- * Differences from the Figma frame, all deliberate:
- * - No "Assigned … ago" column: GET /api/auditor/cases returns no
- *   assignment timestamp (backend gap), and a made-up time would mislead.
- * - The subtitle stops after its first sentence. The second ("open a case to
- *   see its content-warning gate") describes the Sprint 3 Content Warning
- *   Modal; in Sprint 2 the Auditor goes straight to the AI summary.
- * - The footnote keeps the "Processing rows are disabled" rule but drops the
- *   exposure-budget sentence, since exposure tracking is Sprint 3.
+ * Opening a ready case goes to its content-warning gate first
+ * (/auditor/cases/:caseId), never straight to raw content (AR-PV-01).
  */
 export function AuditorDashboardPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { wellbeing } = useMyWellbeing();
   const handleSessionExpiry = useSessionExpiryHandler();
   const [cases, setCases] = useState<AuditorCaseListItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Read the clock once per visit rather than on every render, so the
+  // cooldown check is stable; the wellbeing data refreshes on its own.
+  const [pageOpenedAt] = useState(() => Date.now());
 
   useEffect(() => {
     if (!token) return;
@@ -74,6 +78,11 @@ export function AuditorDashboardPage() {
     };
   }, [token, handleSessionExpiry]);
 
+  const inCooldown = wellbeing?.cooldown != null && Date.parse(wellbeing.cooldown.ends_at) > pageOpenedAt;
+  const atExposureLimit = wellbeing != null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
+  const showAssignedColumn = cases?.some((c) => c.assigned_at) ?? false;
+  const reviewableCount = cases?.filter((c) => isReviewable(c.status)).length ?? 0;
+
   return (
     <>
       <StaffHeader role="auditor" />
@@ -81,9 +90,34 @@ export function AuditorDashboardPage() {
         <div className="flex flex-col gap-5">
           <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
           <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
-            Cases assigned to you, in the order the system assigned them.
+            Cases assigned to you, in the order the system assigned them. Thumbnails are suppressed — open a case to see
+            its content-warning gate.
           </p>
         </div>
+
+        {/* AR-WB-12: new assignments pause and earlier footage stays locked (Figma 36:189). */}
+        {inCooldown && (
+          <InlineNotification
+            kind="info"
+            lowContrast
+            hideCloseButton
+            title="Cooldown in progress — new assignments paused."
+            subtitle="You can still see your Dashboard and past case metadata. Raw footage from earlier cases can't be reopened until the cooldown ends."
+            style={{ maxWidth: "100%" }}
+          />
+        )}
+
+        {/* AR-WB-03: non-punitive framing at the daily limit (Figma 34:121). */}
+        {atExposureLimit && !inCooldown && (
+          <InlineNotification
+            kind="warning"
+            lowContrast
+            hideCloseButton
+            title="You've reached today's exposure limit."
+            subtitle="No new cases will be assigned. Thank you for the work you did today."
+            style={{ maxWidth: "100%" }}
+          />
+        )}
 
         {loadError && (
           <InlineNotification
@@ -98,14 +132,10 @@ export function AuditorDashboardPage() {
         )}
 
         {!cases && !loadError && (
-          <DataTableSkeleton columnCount={3} rowCount={3} showHeader={false} showToolbar={false} />
+          <DataTableSkeleton columnCount={4} rowCount={3} showHeader={false} showToolbar={false} />
         )}
 
-        {cases && cases.length === 0 && (
-          <p style={{ fontSize: 14, color: "#525252" }}>You have no cases assigned right now.</p>
-        )}
-
-        {cases && cases.length > 0 && (
+        {cases && (
           <>
             {/* Layer raises the table one Carbon layer, so rows render white
                 (as in Figma) instead of the default Gray 10 row fill. */}
@@ -116,18 +146,22 @@ export function AuditorDashboardPage() {
                     <TableHeader>Case ID</TableHeader>
                     <TableHeader>Severity</TableHeader>
                     <TableHeader>Status</TableHeader>
+                    {showAssignedColumn && <TableHeader className="text-right">Assigned</TableHeader>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {cases.map((c) => {
-                    const openable = isOpenable(c.status);
+                    const lockedByCooldown = inCooldown && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
+                    const openable = isReviewable(c.status) && !lockedByCooldown;
                     const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
-                    // "Every Processing row is disabled" (AR-AS-04, Figma annotation):
-                    // Gray 10 cells with Gray 70 text, set per cell because Carbon
-                    // paints each cell's own background over the row's. Figma dims
-                    // the row to 70% opacity instead, but that drops the case ID to
-                    // 3.4:1 contrast (WCAG AA needs 4.5:1); Gray 70 on Gray 10 is 7:1.
-                    const cellStyle = openable ? undefined : { backgroundColor: "#f4f4f4", color: "#525252" };
+                    const statusLabel = lockedByCooldown ? "Locked during cooldown" : QUEUE_STATUS_LABEL[c.status];
+                    // "Every Processing row is disabled" (AR-AS-04): Gray 10 cells.
+                    // Set per cell, because Carbon paints each cell's background
+                    // over the row's. Figma also dims disabled rows to 60–70%
+                    // opacity, which fails text contrast, so muted text is used instead.
+                    const cellStyle = openable
+                      ? undefined
+                      : { backgroundColor: c.status === "AI_PROCESSING" ? "#f4f4f4" : undefined, color: "#525252" };
                     return (
                       <TableRow
                         key={c.case_id}
@@ -155,26 +189,53 @@ export function AuditorDashboardPage() {
                               style={{ fontWeight: 600 }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {QUEUE_STATUS_LABEL[c.status]}
+                              {statusLabel}
                             </RouterLink>
                           ) : (
-                            <span style={{ color: "#525252" }} aria-disabled="true">
-                              {QUEUE_STATUS_LABEL[c.status]}
+                            <span style={{ color: lockedByCooldown ? SECONDARY_TEXT : "#525252" }} aria-disabled="true">
+                              {statusLabel}
                             </span>
                           )}
                         </TableCell>
+                        {showAssignedColumn && (
+                          <TableCell style={{ ...cellStyle, fontSize: 12, color: SECONDARY_TEXT, textAlign: "right" }}>
+                            {c.assigned_at ? formatRelativeTime(c.assigned_at) : "—"}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
             </Layer>
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "#6f6f6f" }}>
-              Every &quot;Processing&quot; row is disabled — not just discouraged (AR-AS-04).
-            </p>
+
+            {/* Empty-state panels (Figma 36:146, 36:189, 34:121). */}
+            {cases.length === 0 ? (
+              <EmptyPanel>
+                No cases assigned right now — new cases are assigned automatically as they come in.
+              </EmptyPanel>
+            ) : inCooldown ? (
+              <EmptyPanel>No new Ready cases during cooldown.</EmptyPanel>
+            ) : atExposureLimit && reviewableCount === 0 ? (
+              <EmptyPanel>No available cases right now</EmptyPanel>
+            ) : (
+              <p style={{ fontSize: 12, lineHeight: "16px", color: SECONDARY_TEXT }}>
+                Every &quot;Processing&quot; row is disabled — not just discouraged (AR-AS-04). A case only enters this
+                queue if the Look-Ahead Assignment Check confirmed your remaining exposure budget covers its full video
+                duration.
+              </p>
+            )}
           </>
         )}
       </StaffPage>
     </>
+  );
+}
+
+function EmptyPanel({ children }: { children: string }) {
+  return (
+    <div className="flex items-center justify-center px-4 py-8" style={{ backgroundColor: "#f4f4f4" }}>
+      <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252", textAlign: "center" }}>{children}</p>
+    </div>
   );
 }

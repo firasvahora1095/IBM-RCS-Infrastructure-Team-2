@@ -60,14 +60,46 @@ describe("IncidentTimeline", () => {
     expect(screen.getByText("01:22–01:25")).toBeInTheDocument();
   });
 
-  it("gives a zero-duration moment a minimum visible width, per AR-AI-04", () => {
+  it("gives a zero-duration moment its own visible marker, per AR-AI-04", () => {
     render(<IncidentTimeline entries={[{ start: 5, end: 5, severity_tier: "S2" }]} />);
-    const segment = screen.getByTestId("timeline-segment");
-    expect(parseFloat(segment.style.width)).toBeGreaterThan(0);
+    expect(screen.getByTestId("timeline-marker")).toBeInTheDocument();
+    expect(screen.getByText("00:05")).toBeInTheDocument();
   });
 
-  it("describes every flagged range for screen readers", () => {
-    render(<IncidentTimeline entries={[{ start: 12, end: 20, severity_tier: "S3" }]} />);
+  it("labels a tagged point detection with its time and tag, as in Figma 437:232", () => {
+    render(
+      <IncidentTimeline
+        durationSeconds={150}
+        entries={[{ start: 75, end: 75, severity_tier: "S3", tag: "weapon_present" }]}
+      />,
+    );
+    expect(screen.getByText("01:15")).toBeInTheDocument();
+    expect(screen.getByText("weapon_present")).toBeInTheDocument();
+    // 75s of a 150s video sits at the midpoint.
+    expect(screen.getByTestId("timeline-marker").style.left).toBe("calc(50% - 5px)");
+  });
+
+  it("uses the real video length for the scale when known, and says so when it isn't", () => {
+    const { rerender } = render(
+      <IncidentTimeline durationSeconds={150} entries={[{ start: 12, end: 20, severity_tier: "S3" }]} />,
+    );
+    expect(screen.getByText("02:30")).toBeInTheDocument();
+    expect(screen.queryByText(/full length isn't available/)).not.toBeInTheDocument();
+
+    rerender(<IncidentTimeline entries={[{ start: 12, end: 20, severity_tier: "S3" }]} />);
+    expect(screen.getByText(/full length isn't available/)).toBeInTheDocument();
+  });
+
+  it("describes every flagged moment for screen readers", () => {
+    render(
+      <IncidentTimeline
+        entries={[
+          { start: 12, end: 20, severity_tier: "S3" },
+          { start: 75, end: 75, severity_tier: "S3", tag: "weapon_present" },
+        ]}
+      />,
+    );
     expect(screen.getByText("00:12 to 00:20, S3 High")).toBeInTheDocument();
+    expect(screen.getByText("At 01:15, weapon_present, S3 High")).toBeInTheDocument();
   });
 });

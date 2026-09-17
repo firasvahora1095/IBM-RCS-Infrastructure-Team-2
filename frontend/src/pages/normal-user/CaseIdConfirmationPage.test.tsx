@@ -3,6 +3,8 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CaseIdConfirmationPage } from "./CaseIdConfirmationPage";
 import { saveCaseId } from "../../hooks/useCaseIdStorage";
+import * as services from "../../services";
+import { NotImplementedError } from "../../services/types";
 
 function renderPage(state?: { caseId: string }) {
   return render(
@@ -67,13 +69,28 @@ describe("CaseIdConfirmationPage", () => {
     expect(screen.getByRole("button", { name: "Send me updates" })).toBeEnabled();
   });
 
-  it("never claims updates are enabled while no notification backend exists", () => {
+  it("confirms updates only once the data source accepts the request (Figma 102:80)", async () => {
+    vi.spyOn(services, "requestStatusUpdates").mockResolvedValueOnce({ enabled: true });
     saveCaseId("INSZNNJI4P");
     renderPage();
     fireEvent.change(screen.getByLabelText("Email (optional)"), { target: { value: "jordan@example.com" } });
     fireEvent.click(screen.getByRole("button", { name: "Send me updates" }));
 
-    expect(screen.getByText("Email and SMS updates aren't available yet.")).toBeInTheDocument();
+    expect(await screen.findByText(/Updates enabled/)).toBeInTheDocument();
+    expect(services.requestStatusUpdates).toHaveBeenCalledWith("INSZNNJI4P", {
+      email: "jordan@example.com",
+      phone: undefined,
+    });
+  });
+
+  it("never claims updates are enabled when the backend can't send them yet", async () => {
+    vi.spyOn(services, "requestStatusUpdates").mockRejectedValueOnce(new NotImplementedError("requestStatusUpdates"));
+    saveCaseId("INSZNNJI4P");
+    renderPage();
+    fireEvent.change(screen.getByLabelText("Email (optional)"), { target: { value: "jordan@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send me updates" }));
+
+    expect(await screen.findByText("Email and SMS updates aren't available yet.")).toBeInTheDocument();
     expect(screen.queryByText(/Updates enabled/)).not.toBeInTheDocument();
   });
 });
