@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
 import { UploadPage } from "./pages/normal-user/UploadPage";
@@ -8,6 +8,7 @@ import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
 import { AuditorCaseDetailPage } from "./pages/auditor/AuditorCaseDetailPage";
 import { ManagerOversightDashboardPage } from "./pages/manager/ManagerOversightDashboardPage";
+import { ManagerCaseOversightPage } from "./pages/manager/ManagerCaseOversightPage";
 
 /**
  * Public pages share the IBM Content Safety Reporting header through this
@@ -32,7 +33,8 @@ function PublicLayout() {
  *   "/staff/login"       — shared staff login; no header, matching Figma
  *   "/auditor"           — Auditor dashboard (auditor role only)
  *   "/auditor/cases/:id" — Auditor case review: summary → severity → confirmation
- *   "/manager"           — Manager dashboard (manager role only)
+ *   "/manager"           — Manager dashboard scaffold (manager role only)
+ *   "/manager/cases"     — Manager case oversight scaffold (manager role only)
  *
  * Staff pages render their own header (Auditor/Manager variants), because
  * it needs the logged-in staff ID and sign-out, which public pages must
@@ -72,6 +74,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/manager/cases"
+          element={
+            <ProtectedRoute allowedRole="manager">
+              <ManagerCaseOversightPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* An unknown URL (e.g. a mistyped link) lands on the public start
+            page instead of rendering a blank screen. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
