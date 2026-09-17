@@ -44,6 +44,14 @@ describe("api client", () => {
     });
   });
 
+  it("rejects a successful response that isn't JSON instead of returning null", async () => {
+    // A wrong VITE_API_BASE_URL makes the web server answer with its HTML page
+    // and a 200; returning null here left screens stuck on their skeleton.
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("<!doctype html><html></html>", { status: 200 }));
+
+    await expect(getStatus("ANY")).rejects.toMatchObject({ name: "ApiError", status: 502 });
+  });
+
   it("staffLogin sends credentials as query params, not a JSON body", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ token: "abc123", role: "auditor" }), { status: 200 }),

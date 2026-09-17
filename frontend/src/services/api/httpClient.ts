@@ -41,6 +41,13 @@ async function parseJsonOrThrow<T>(response: Response): Promise<T> {
           : GENERIC_ERROR;
     throw new ApiError(message, response.status);
   }
+  // A successful status with no JSON body means the request never reached the
+  // API — typically a wrong VITE_API_BASE_URL, where the web server answers
+  // with its HTML page. Fail loudly instead of handing the page `null`, which
+  // left screens stuck on their loading skeleton.
+  if (body === null && response.status !== 204) {
+    throw new ApiError("The server sent an unexpected response. Check the API address and try again.", 502);
+  }
   return body as T;
 }
 

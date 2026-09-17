@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CooldownPage } from "./CooldownPage";
 import * as services from "../../services";
+import { NotImplementedError } from "../../services/types";
 
 function renderPage() {
   return render(
@@ -76,5 +77,15 @@ describe("CooldownPage (Figma 31:99)", () => {
 
     expect(await screen.findByRole("heading", { name: "Your cooldown has ended" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Return to queue" })).toBeEnabled();
+  });
+
+  it("says why when the cooldown can't be loaded, instead of loading forever", async () => {
+    vi.spyOn(services, "getMyWellbeing").mockRejectedValue(new NotImplementedError("getMyWellbeing"));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load your cooldown.")).toBeInTheDocument();
+    expect(screen.getByText("This feature isn't connected to the backend yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop my shift" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Return to queue/ })).not.toBeInTheDocument();
   });
 });

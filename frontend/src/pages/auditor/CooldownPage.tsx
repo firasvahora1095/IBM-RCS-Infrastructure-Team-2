@@ -46,7 +46,7 @@ function introFor(trigger: CooldownState["trigger"]): string {
 export function CooldownPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { wellbeing, refresh } = useMyWellbeing();
+  const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -71,6 +71,35 @@ export function CooldownPage() {
   }
 
   const header = <StaffHeader role="auditor" />;
+
+  if (!wellbeing && error) {
+    // Without cooldown data the queue can't safely be offered, but stopping
+    // the shift must always stay available.
+    return (
+      <>
+        {header}
+        <StaffPage maxWidth={600}>
+          <InlineNotification
+            kind="error"
+            lowContrast
+            hideCloseButton
+            role="alert"
+            title="Couldn't load your cooldown."
+            subtitle={error}
+            style={{ maxWidth: "100%" }}
+          />
+          <div className="flex flex-wrap gap-4">
+            <Button kind="tertiary" onClick={refresh}>
+              Try again
+            </Button>
+            <Button kind="secondary" onClick={stopShift}>
+              Stop my shift
+            </Button>
+          </div>
+        </StaffPage>
+      </>
+    );
+  }
 
   if (!wellbeing) {
     return (
