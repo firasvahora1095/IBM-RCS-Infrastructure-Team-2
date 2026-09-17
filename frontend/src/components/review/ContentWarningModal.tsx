@@ -57,14 +57,24 @@ export function ContentWarningModal({
   const tags = [...new Set((caseDetail.incident_timeline ?? []).map((e) => e.tag).filter((t): t is string => !!t))];
 
   return (
-    <ComposedModal open={open} onClose={onClose} preventCloseOnClickOutside size="sm" aria-label="Content warning">
+    <ComposedModal
+      open={open}
+      onClose={onClose}
+      preventCloseOnClickOutside
+      size="sm"
+      aria-label="Content warning"
+      // Start on the consent checkbox. Carbon's default focus lands on the
+      // close button, whose tooltip then covers the flag reason the Auditor
+      // needs to read first.
+      selectorPrimaryFocus={`#content-consent-${caseDetail.case_id}`}
+    >
       <ModalHeader
         title={
           aiFailed ? (
             "AI analysis unavailable"
           ) : (
             <>
-              This case was flagged for: <span style={{ fontWeight: 400 }}>{caseDetail.flag_reason ?? "Review"}</span>
+              <span style={{ fontWeight: 600 }}>This case was flagged for:</span> {caseDetail.flag_reason ?? "Review"}
             </>
           )
         }
@@ -116,7 +126,7 @@ export function ContentWarningModal({
           <p style={helperText}>
             {footnote ??
               (aiFailed
-                ? "Proceeding opens the Review Workspace directly at maximum blur, since severity is unknown here, not neutral. There is no AI Analysis Summary for this case."
+                ? "Proceeding opens the Review Workspace directly at maximum blur — regardless of any AI suggestion, since severity is unknown here, not neutral. There is no AI Analysis Summary screen for this case; there is nothing to summarize."
                 : "Your manager will review this case using the AI summary and your notes — not your decision to decline.")}
           </p>
         </div>
