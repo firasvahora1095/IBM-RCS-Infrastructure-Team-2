@@ -142,6 +142,23 @@ describe("StatusLookupPage", () => {
     expect(screen.queryByText("Violation Found")).not.toBeInTheDocument();
   });
 
+  it("leads a completed case with its status and outcome, ahead of the case details (Figma 145:75)", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "RCS-4H8P-2DXC",
+      status: "Complete",
+      final_outcome: "NO_VIOLATION_FOUND",
+      submitted_at: "2026-09-16T01:13:00Z",
+    });
+    renderPage();
+    lookUp("RCS-4H8P-2DXC");
+
+    const stage = await screen.findByRole("heading", { name: "Complete" });
+    const outcome = screen.getByRole("heading", { name: "No Violation Found" });
+    const details = screen.getByRole("heading", { name: "Case details" });
+    expect(stage.compareDocumentPosition(outcome) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(outcome.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("returns to the lookup form when checking a different case", async () => {
     vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",

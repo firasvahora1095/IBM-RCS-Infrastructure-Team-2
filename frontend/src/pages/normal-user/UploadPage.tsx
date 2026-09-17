@@ -287,7 +287,8 @@ export function UploadPage() {
           <RadioButton id="reporting-identified" labelText="Include my name & email" value="identified" />
         </RadioButtonGroup>
         {reportingChoice === "identified" && (
-          <div className="flex flex-col gap-4">
+          // Figma 418:72 sizes the name and email fields to about half the card.
+          <div className="flex flex-col gap-4" style={{ maxWidth: 320 }}>
             <TextInput
               id="reporter-name"
               labelText="Name"

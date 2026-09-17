@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { TextInput, Button, InlineNotification, ProgressIndicator, ProgressStep, Tag } from "@carbon/react";
-import { RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
+import { CheckmarkFilled, RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { getStatus } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
@@ -180,6 +180,44 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         ))}
       </ProgressIndicator>
 
+      {/* Figma 145:75: a completed case leads with its status and outcome,
+          ahead of the case details, since the outcome is what the reporter
+          came back for. RT-01's heading and supporting message stay separate. */}
+      {isComplete && (
+        <section
+          aria-labelledby="complete-stage-title"
+          className="flex flex-col gap-4 p-4"
+          style={{
+            borderLeft: "4px solid var(--cds-support-success)",
+            borderRadius: 8,
+            boxShadow: "inset 0 0 0 1px var(--cds-layer-01)",
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <CheckmarkFilled
+              size={24}
+              style={{ fill: "var(--cds-support-success)", flexShrink: 0 }}
+              aria-hidden="true"
+            />
+            <h2 id="complete-stage-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
+              Complete
+            </h2>
+          </div>
+          {outcome && (
+            <>
+              <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
+              <div className="flex flex-col gap-2">
+                <p style={{ fontSize: 12, fontWeight: 500, color: "var(--cds-text-helper)" }}>Outcome</p>
+                <h3 id="outcome-title" style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                  {outcome.title}
+                </h3>
+                <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{outcome.body}</p>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       {publicStatus === "Being Reviewed" && (
         <>
           <section
@@ -308,19 +346,6 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             You&apos;ll see a plain-language result here — for example, whether the content was actioned — without any
             internal review details.
           </p>
-        </section>
-      )}
-
-      {outcome && (
-        <section
-          aria-labelledby="outcome-title"
-          className="flex flex-col gap-2 p-5"
-          style={{ border: "1px solid var(--cds-border-subtle-00)" }}
-        >
-          <h2 id="outcome-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
-            {outcome.title}
-          </h2>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{outcome.body}</p>
         </section>
       )}
 
