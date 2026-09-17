@@ -15,7 +15,7 @@ import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { getAuditorCases } from "../../api/client";
-import { ApiError } from "../../api/types";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
 import type { AuditorCaseListItem, InternalCaseStatus } from "../../api/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
@@ -67,7 +67,7 @@ export function AuditorDashboardPage() {
       })
       .catch((err: unknown) => {
         if (cancelled || handleSessionExpiry(err)) return;
-        setLoadError(err instanceof ApiError ? err.message : "Couldn't load your case queue.");
+        setLoadError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
       });
     return () => {
       cancelled = true;
@@ -123,9 +123,11 @@ export function AuditorDashboardPage() {
                     const openable = isOpenable(c.status);
                     const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
                     // "Every Processing row is disabled" (AR-AS-04, Figma annotation):
-                    // Gray 10 cells at reduced opacity. Set per cell, because Carbon
-                    // paints each cell's own background over the row's.
-                    const cellStyle = openable ? undefined : { backgroundColor: "#f4f4f4", opacity: 0.7 };
+                    // Gray 10 cells with Gray 70 text, set per cell because Carbon
+                    // paints each cell's own background over the row's. Figma dims
+                    // the row to 70% opacity instead, but that drops the case ID to
+                    // 3.4:1 contrast (WCAG AA needs 4.5:1); Gray 70 on Gray 10 is 7:1.
+                    const cellStyle = openable ? undefined : { backgroundColor: "#f4f4f4", color: "#525252" };
                     return (
                       <TableRow
                         key={c.case_id}

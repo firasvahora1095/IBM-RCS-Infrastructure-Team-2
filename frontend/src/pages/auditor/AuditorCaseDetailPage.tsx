@@ -16,7 +16,7 @@ import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { IncidentTimeline } from "../../components/severity/IncidentTimeline";
 import { getAuditorCaseDetail, resolveCase } from "../../api/client";
-import { ApiError } from "../../api/types";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
 import type { AuditorCaseDetail, FinalOutcome, ResolveCaseResponse } from "../../api/types";
 import { getSeverityInfo, scoreToTier } from "../../design-tokens/severity";
 import { OUTCOME_OPTIONS, mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
@@ -86,7 +86,7 @@ export function AuditorCaseDetailPage() {
       })
       .catch((err: unknown) => {
         if (cancelled || handleSessionExpiry(err)) return;
-        setLoadError(err instanceof ApiError ? err.message : "Couldn't load this case.");
+        setLoadError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
       });
     return () => {
       cancelled = true;
@@ -182,7 +182,7 @@ export function AuditorCaseDetailPage() {
       setStep("confirmation");
     } catch (err) {
       if (handleSessionExpiry(err)) return;
-      setSubmitError(err instanceof ApiError ? err.message : "Couldn't submit this case. Please try again.");
+      setSubmitError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
     } finally {
       setIsSubmitting(false);
     }

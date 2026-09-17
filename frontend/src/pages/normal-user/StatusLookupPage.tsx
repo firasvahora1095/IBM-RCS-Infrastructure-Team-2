@@ -11,7 +11,7 @@ import {
 import { RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { getStatus } from "../../api/client";
-import { ApiError } from "../../api/types";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
 import type { PublicStatusResponse, PublicCaseStatus } from "../../api/types";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
@@ -70,7 +70,7 @@ export function StatusLookupPage() {
       } else {
         setLookupError({
           kind: "other",
-          message: err instanceof ApiError ? err.message : "Something went wrong. Please try again.",
+          message: err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE,
         });
       }
     } finally {
@@ -105,6 +105,11 @@ export function StatusLookupPage() {
           onChange={(e) => setCaseIdInput(e.target.value)}
           invalid={lookupError?.kind === "not-found"}
           invalidText={NOT_FOUND_FIELD_MESSAGE}
+          // Carbon links the invalid message only through aria-errormessage,
+          // which many screen readers don't announce (axe flags it). Also
+          // referencing Carbon's message element (id "<input id>-error-msg")
+          // via aria-describedby makes the error read out with the field.
+          aria-describedby={lookupError?.kind === "not-found" ? "case-id-lookup-error-msg" : undefined}
           style={mono}
         />
 

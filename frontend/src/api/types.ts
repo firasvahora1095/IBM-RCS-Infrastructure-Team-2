@@ -80,6 +80,13 @@ export interface ManagerDashboardResponse {
   pending_declined_cases: number;
 }
 
+/**
+ * Shown when a request fails before any response arrives (offline, DNS,
+ * TLS or CORS failure). Pages use it as the detail line under their own
+ * error title, so the notice never just repeats the title.
+ */
+export const NETWORK_ERROR_MESSAGE = "We couldn't reach the server. Check your connection and try again.";
+
 /** Thrown by the API client on any non-2xx response, so pages handle one error type. */
 export class ApiError extends Error {
   // Declared as a normal field rather than a `public status` constructor

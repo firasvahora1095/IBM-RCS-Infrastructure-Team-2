@@ -5,7 +5,7 @@ import { ManagerTopNav } from "../../components/shell/ManagerTopNav";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { ScaffoldLabel } from "../../components/notifications/ScaffoldLabel";
 import { getManagerDashboard } from "../../api/client";
-import { ApiError } from "../../api/types";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
 import type { ManagerDashboardResponse } from "../../api/types";
 
 /**
@@ -34,7 +34,7 @@ export function ManagerOversightDashboardPage() {
         if (!cancelled) setData(result);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : "Couldn't load dashboard data.");
+        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
       });
     return () => {
       cancelled = true;
