@@ -1,7 +1,7 @@
 import type { FlaggedEntity, TranscriptLine } from "../../services/types";
 import { formatTimestamp } from "../../utils/formatTimestamp";
 
-const sectionHeading = { fontSize: 14, lineHeight: "18px", fontWeight: 600, color: "#161616" } as const;
+const sectionHeading = { fontSize: 14, lineHeight: "18px", fontWeight: 600, color: "var(--cds-text-primary)" } as const;
 const mono = "'IBM Plex Mono', monospace";
 
 /** "Flagged entities" pills with the span each appears in (Figma 18:62). */
@@ -19,8 +19,8 @@ export function FlaggedEntities({ entities }: { entities: FlaggedEntity[] }) {
             style={{
               padding: "4px 10px",
               borderRadius: 999,
-              backgroundColor: "#e0e0e0",
-              color: "#161616",
+              backgroundColor: "var(--cds-tag-background-gray)",
+              color: "var(--cds-text-primary)",
               fontSize: 12,
               lineHeight: "16px",
             }}
@@ -59,13 +59,15 @@ export function TranscriptAndAudio({ transcript, audioIntensity, durationSeconds
       {hasTranscript && (
         <dl
           className="flex flex-col gap-1.5 px-4 py-3"
-          style={{ backgroundColor: "#f4f4f4", fontFamily: mono, fontSize: 12, lineHeight: "16px" }}
+          style={{ backgroundColor: "var(--cds-layer-01)", fontFamily: mono, fontSize: 12, lineHeight: "16px" }}
         >
           {transcript.map((line, i) => (
             <div key={i} className="flex gap-3">
-              {/* Gray 60 rather than Figma's Gray 50, which fails contrast on Gray 10. */}
-              <dt style={{ width: 48, flexShrink: 0, color: "#6f6f6f" }}>{formatTimestamp(line.time)}</dt>
-              <dd style={{ color: "#161616" }}>{line.text}</dd>
+              {/* Carbon text-helper rather than Figma's Gray 50, which fails contrast on layer-01. */}
+              <dt style={{ width: 48, flexShrink: 0, color: "var(--cds-text-helper)" }}>
+                {formatTimestamp(line.time)}
+              </dt>
+              <dd style={{ color: "var(--cds-text-primary)" }}>{line.text}</dd>
             </div>
           ))}
         </dl>
@@ -99,12 +101,12 @@ function AudioIntensityGraph({ values, durationSeconds }: { values: number[]; du
               flex: "1 1 0",
               maxWidth: 32,
               height: `${Math.max(4, Math.min(1, value) * 100)}%`,
-              backgroundColor: "#0f62fe",
+              backgroundColor: "var(--cds-interactive)",
             }}
           />
         ))}
       </div>
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "#6f6f6f" }}>
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
         Timestamped audio-intensity graph, not an emotion graph.
       </p>
     </div>

@@ -40,8 +40,8 @@ function isReviewable(status: InternalCaseStatus): boolean {
   return status === "READY_FOR_REVIEW" || status === "AUDITOR_REVIEW";
 }
 
-/** Secondary text colour. Figma uses Gray 50 (3.3:1 on white, fails WCAG AA); Gray 60 is 5.0:1. */
-const SECONDARY_TEXT = "#6f6f6f";
+/** Secondary text colour. Figma uses Gray 50 (3.3:1 on white, fails WCAG AA); Carbon text-helper is 5.0:1. */
+const SECONDARY_TEXT = "var(--cds-text-helper)";
 
 /**
  * Auditor Dashboard / Case Queue — Default (Figma 10:6), Empty (36:146),
@@ -89,7 +89,7 @@ export function AuditorDashboardPage() {
       <StaffPage>
         <div className="flex flex-col gap-5">
           <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
             Cases assigned to you, in the order the system assigned them. Thumbnails are suppressed — open a case to see
             its content-warning gate.
           </p>
@@ -161,7 +161,10 @@ export function AuditorDashboardPage() {
                     // opacity, which fails text contrast, so muted text is used instead.
                     const cellStyle = openable
                       ? undefined
-                      : { backgroundColor: c.status === "AI_PROCESSING" ? "#f4f4f4" : undefined, color: "#525252" };
+                      : {
+                          backgroundColor: c.status === "AI_PROCESSING" ? "var(--cds-layer-01)" : undefined,
+                          color: "var(--cds-text-secondary)",
+                        };
                     return (
                       <TableRow
                         key={c.case_id}
@@ -192,7 +195,10 @@ export function AuditorDashboardPage() {
                               {statusLabel}
                             </RouterLink>
                           ) : (
-                            <span style={{ color: lockedByCooldown ? SECONDARY_TEXT : "#525252" }} aria-disabled="true">
+                            <span
+                              style={{ color: lockedByCooldown ? SECONDARY_TEXT : "var(--cds-text-secondary)" }}
+                              aria-disabled="true"
+                            >
                               {statusLabel}
                             </span>
                           )}
@@ -234,8 +240,10 @@ export function AuditorDashboardPage() {
 
 function EmptyPanel({ children }: { children: string }) {
   return (
-    <div className="flex items-center justify-center px-4 py-8" style={{ backgroundColor: "#f4f4f4" }}>
-      <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252", textAlign: "center" }}>{children}</p>
+    <div className="flex items-center justify-center px-4 py-8" style={{ backgroundColor: "var(--cds-layer-01)" }}>
+      <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)", textAlign: "center" }}>
+        {children}
+      </p>
     </div>
   );
 }

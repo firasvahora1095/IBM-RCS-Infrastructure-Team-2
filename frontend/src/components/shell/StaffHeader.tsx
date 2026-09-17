@@ -57,7 +57,7 @@ export function StaffHeader({ role }: StaffHeaderProps) {
             />
           )}
           {staffId && (
-            <span style={{ fontSize: 14, color: "#ffffff" }}>
+            <span style={{ fontSize: 14, color: "var(--cds-text-primary)" }}>
               {label}: {staffId}
             </span>
           )}
@@ -69,7 +69,7 @@ export function StaffHeader({ role }: StaffHeaderProps) {
               background: "none",
               border: "none",
               padding: 0,
-              color: "#ffffff",
+              color: "var(--cds-text-primary)",
               fontSize: 14,
               fontFamily: "inherit",
               textDecoration: "underline",

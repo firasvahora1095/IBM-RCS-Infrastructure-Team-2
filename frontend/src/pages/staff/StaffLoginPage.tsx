@@ -60,23 +60,23 @@ export function StaffLoginPage() {
   return (
     <main
       className="flex items-center justify-center px-4 py-10"
-      style={{ backgroundColor: "#f4f4f4", minHeight: "100vh" }}
+      style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
     >
       <form
         onSubmit={handleSubmit}
         className="flex w-full flex-col gap-6 p-8"
         style={{
           maxWidth: 480,
-          backgroundColor: "#ffffff",
-          borderTop: "4px solid #0f62fe",
+          backgroundColor: "var(--cds-background)",
+          borderTop: "4px solid var(--cds-border-interactive)",
           borderRadius: 8,
           boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
         }}
       >
         <div className="flex flex-col gap-2">
-          <p style={{ fontSize: 12, fontWeight: 600, color: "#525252" }}>RCS — Staff</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>RCS — Staff</p>
           <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Log in</h1>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
             Enter your staff ID and password to continue.
           </p>
         </div>

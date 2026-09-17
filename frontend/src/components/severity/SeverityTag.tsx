@@ -16,7 +16,8 @@ interface SeverityTagProps {
  * yellow or orange type, "high-contrast" is dark grey, and "red" is a pale
  * Red 20 tint rather than the solid Red 60 the design uses for S4. So every
  * tier keeps Carbon's Tag (shape, padding, pill radius, focus behaviour) and
- * overrides only the fill and text colour from the severity token table.
+ * overrides only the fill and text colour, using the Carbon status tokens
+ * in the severity token table.
  *
  * UR-NFR-01 ("colour is never the only status signal"): the tier and label
  * are always rendered as text alongside the colour.

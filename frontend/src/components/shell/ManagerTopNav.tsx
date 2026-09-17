@@ -40,7 +40,11 @@ export function ManagerTopNav() {
       aria-label="Manager sections"
       className="flex flex-wrap gap-2 px-6 sm:px-8"
       // Sits in normal flow directly below Carbon's fixed 48px header.
-      style={{ marginTop: 48, backgroundColor: "#ffffff", borderBottom: "1px solid #c6c6c6" }}
+      style={{
+        marginTop: 48,
+        backgroundColor: "var(--cds-background)",
+        borderBottom: "1px solid var(--cds-border-subtle-01)",
+      }}
     >
       {TABS.map((tab) =>
         tab.availableThisSprint ? (
@@ -50,9 +54,9 @@ export function ManagerTopNav() {
             end
             style={({ isActive }) => ({
               ...tabBase,
-              color: isActive ? "#0f62fe" : "#525252",
+              color: isActive ? "var(--cds-text-primary)" : "var(--cds-text-secondary)",
               fontWeight: isActive ? 600 : 400,
-              borderBottomColor: isActive ? "#0f62fe" : "transparent",
+              borderBottomColor: isActive ? "var(--cds-border-interactive)" : "transparent",
             })}
           >
             {tab.label}
@@ -62,7 +66,7 @@ export function ManagerTopNav() {
             key={tab.path}
             aria-disabled="true"
             title="Coming in Sprint 3"
-            style={{ ...tabBase, color: "#a8a8a8", cursor: "not-allowed" }}
+            style={{ ...tabBase, color: "var(--cds-text-disabled)", cursor: "not-allowed" }}
           >
             {tab.label}
             <span style={{ fontSize: 11, marginLeft: 6 }}>(Sprint 3)</span>

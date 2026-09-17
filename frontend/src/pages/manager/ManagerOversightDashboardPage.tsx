@@ -67,7 +67,7 @@ export function ManagerOversightDashboardPage() {
 
         {data && (
           <section aria-label="Live data available in Sprint 2" className="flex flex-col gap-4">
-            <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252", maxWidth: 640 }}>
+            <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)", maxWidth: 640 }}>
               {data.auditors.length === 0
                 ? "No auditor workload data is available yet — this table will populate once exposure tracking ships in Sprint 3."
                 : // The row shape hasn't been observed with real data yet, so
@@ -75,7 +75,7 @@ export function ManagerOversightDashboardPage() {
                   `${data.auditors.length} auditor record(s) returned. A workload table for them ships with exposure tracking in Sprint 3.`}
             </p>
             <dl className="flex items-baseline gap-2" style={{ fontSize: 14 }}>
-              <dt style={{ color: "#525252" }}>Pending declined cases:</dt>
+              <dt style={{ color: "var(--cds-text-secondary)" }}>Pending declined cases:</dt>
               <dd style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
                 {data.pending_declined_cases}
               </dd>

@@ -3,13 +3,13 @@ import type { SeverityTier } from "../services/types";
 /**
  * S1–S4 is a TEAM-DEFINED severity scale, not a stock Carbon concept (see
  * the Auditor/Manager Figma Foundations pages and docs/ba/severity-scale.md).
- * The colours ARE real Carbon core-palette values, though, including S3's
- * Orange 40 — a deliberate, documented extension onto the Tag component.
+ * Its colours come straight from Carbon theme tokens, following Carbon’s
+ * status-indicator palette (caution minor / caution major / error), so the
+ * UI stays on IBM’s own values wherever Figma and Carbon differ.
  *
- * Each tier carries its own text colour because the Figma Severity Tag
- * component (Auditor file, nodes 2:197–2:204) uses Gray 100 text on the
- * three lighter fills but white text on S4's Red 60 — Gray 100 on Red 60
- * would fail WCAG AA contrast.
+ * Each tier carries its own text colour: dark text on the lighter fills,
+ * text-on-color (white) on S4’s error red, which is the only pairing that
+ * passes WCAG AA contrast there.
  */
 export interface SeverityInfo {
   tier: SeverityTier;
@@ -19,10 +19,15 @@ export interface SeverityInfo {
 }
 
 const SEVERITY_TABLE: Record<SeverityTier, SeverityInfo> = {
-  S1: { tier: "S1", label: "Low", background: "#e0e0e0", text: "#161616" }, // Gray 20
-  S2: { tier: "S2", label: "Moderate", background: "#f1c21b", text: "#161616" }, // Yellow 30
-  S3: { tier: "S3", label: "High", background: "#ff832b", text: "#161616" }, // Orange 40
-  S4: { tier: "S4", label: "Critical", background: "#da1e28", text: "#ffffff" }, // Red 60
+  S1: { tier: "S1", label: "Low", background: "var(--cds-tag-background-gray)", text: "var(--cds-text-primary)" },
+  S2: {
+    tier: "S2",
+    label: "Moderate",
+    background: "var(--cds-support-caution-minor)",
+    text: "var(--cds-text-primary)",
+  },
+  S3: { tier: "S3", label: "High", background: "var(--cds-support-caution-major)", text: "var(--cds-text-primary)" },
+  S4: { tier: "S4", label: "Critical", background: "var(--cds-support-error)", text: "var(--cds-text-on-color)" },
 };
 
 /** Look up the display info for a severity tier. Throws on an invalid tier

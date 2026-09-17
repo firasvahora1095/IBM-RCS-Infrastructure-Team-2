@@ -16,8 +16,8 @@ export function ScaffoldLabel({ children }: { children: ReactNode }) {
         display: "inline-block",
         padding: "4px 12px",
         borderRadius: 24,
-        backgroundColor: "#e0e0e0",
-        color: "#161616",
+        backgroundColor: "var(--cds-tag-background-gray)",
+        color: "var(--cds-tag-color-gray)",
         fontSize: 14,
         lineHeight: "20px",
       }}

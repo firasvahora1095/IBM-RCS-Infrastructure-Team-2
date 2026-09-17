@@ -83,19 +83,23 @@ export function CaseIdConfirmationPage() {
   return (
     <PublicPage cardWidth={720}>
       <div className="flex items-center gap-2.5">
-        <CheckmarkFilled size={32} style={{ fill: "#24a148" }} aria-hidden="true" />
+        <CheckmarkFilled size={32} style={{ fill: "var(--cds-support-success)" }} aria-hidden="true" />
         <h1 style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>Report received</h1>
       </div>
-      <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+      <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
         Save the case ID below — it&apos;s the only way to check your case later.
       </p>
 
       <div className="flex flex-col gap-3">
         <div
           className="flex flex-col gap-1 px-6 py-5"
-          style={{ backgroundColor: "#f4f4f4", borderLeft: "4px solid #0f62fe", borderRadius: 4 }}
+          style={{
+            backgroundColor: "var(--cds-layer-01)",
+            borderLeft: "4px solid var(--cds-border-interactive)",
+            borderRadius: 4,
+          }}
         >
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>Your case ID</p>
+          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>Your case ID</p>
           <p
             data-testid="case-id"
             style={{
@@ -103,7 +107,7 @@ export function CaseIdConfirmationPage() {
               fontSize: 28,
               lineHeight: "32px",
               letterSpacing: 1,
-              color: "#161616",
+              color: "var(--cds-text-primary)",
               wordBreak: "break-all",
             }}
           >
@@ -118,12 +122,12 @@ export function CaseIdConfirmationPage() {
         {/* aria-live so screen-reader users hear the result of pressing Copy. */}
         <div aria-live="polite" style={{ minHeight: 18 }}>
           {copyState === "copied" && (
-            <p className="flex items-center gap-1.5" style={{ fontSize: 14, color: "#24a148", fontWeight: 600 }}>
-              ✓ <span style={{ fontWeight: 400, color: "#525252", fontSize: 12 }}>Copied!</span>
+            <p className="flex items-center gap-1.5" style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
+              <CheckmarkFilled size={16} style={{ fill: "var(--cds-support-success)" }} aria-hidden="true" /> Copied!
             </p>
           )}
           {copyState === "failed" && (
-            <p style={{ fontSize: 12, color: "#da1e28" }}>
+            <p style={{ fontSize: 12, color: "var(--cds-text-error)" }}>
               Couldn&apos;t copy automatically — select the case ID above and copy it manually.
             </p>
           )}
@@ -138,13 +142,13 @@ export function CaseIdConfirmationPage() {
         />
       </div>
 
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
         This case ID has also been saved in this browser, on this device.
       </p>
 
-      <hr style={{ border: 0, borderTop: "1px solid #e0e0e0", margin: 0 }} />
+      <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
 
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
         Want updates by email or SMS instead? (optional)
       </p>
 
@@ -182,7 +186,7 @@ export function CaseIdConfirmationPage() {
         </div>
       </div>
 
-      <p style={{ fontSize: 11, lineHeight: "15px", color: "#525252", maxWidth: 320 }}>
+      <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)", maxWidth: 320 }}>
         We&apos;ll text or email you a secure one-time link to this status page — no extra account or password needed.
       </p>
 
@@ -199,9 +203,13 @@ export function CaseIdConfirmationPage() {
         <div aria-live="polite">
           {/* Figma 102:80 success state, only once the request was really accepted. */}
           {updates === "enabled" && (
-            <p className="flex gap-1.5" style={{ fontSize: 13, color: "#198038" }}>
-              <span aria-hidden="true">✓</span> Updates enabled — you&apos;ll get a message when your case status
-              changes.
+            <p className="flex gap-1.5" style={{ fontSize: 13, color: "var(--cds-text-primary)" }}>
+              <CheckmarkFilled
+                size={16}
+                style={{ fill: "var(--cds-support-success)", flexShrink: 0, marginTop: 1 }}
+                aria-hidden="true"
+              />{" "}
+              Updates enabled — you&apos;ll get a message when your case status changes.
             </p>
           )}
           {/* A backend without a notifications endpoint must not promise a
@@ -243,12 +251,12 @@ export function CaseIdConfirmationPage() {
             Contact support*
           </Link>
         </div>
-        <p style={{ fontSize: 11, lineHeight: "15px", color: "#525252" }}>
+        <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)" }}>
           *Destination to be confirmed by Dev — not a tracked design decision.
         </p>
       </div>
 
-      <hr style={{ border: 0, borderTop: "1px solid #e0e0e0", margin: 0 }} />
+      <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
 
       <div className="flex flex-wrap gap-4">
         <Button kind="tertiary" as={RouterLink} to="/status">

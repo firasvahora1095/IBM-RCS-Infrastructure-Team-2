@@ -29,7 +29,7 @@ type Step = "summary" | "severity" | "confirmation";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 const pageTitle = { fontSize: 32, lineHeight: "40px", fontWeight: 600 } as const;
-const secondaryText = { fontSize: 13, lineHeight: "18px", color: "#525252" } as const;
+const secondaryText = { fontSize: 13, lineHeight: "18px", color: "var(--cds-text-secondary)" } as const;
 
 /** "S3 · High" — how the design writes a tier in running text. */
 function tierText(score: number): string {
@@ -212,12 +212,12 @@ export function AuditorCaseDetailPage() {
           <section
             aria-labelledby="narrative-title"
             className="flex flex-col gap-2 px-5 py-4"
-            style={{ backgroundColor: "#f4f4f4" }}
+            style={{ backgroundColor: "var(--cds-layer-01)" }}
           >
             <h2 id="narrative-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
               Narrative summary
             </h2>
-            <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+            <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
               {caseDetail.narrative_summary ?? "No narrative summary was returned for this case."}
             </p>
           </section>
@@ -258,13 +258,13 @@ export function AuditorCaseDetailPage() {
           <section
             aria-labelledby="cvi-rating-title"
             className="flex flex-col gap-3 p-5"
-            style={{ backgroundColor: "#f4f4f4", maxWidth: 600 }}
+            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
           >
             <div className="flex items-center justify-between">
               <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
                 CVI rating
               </h2>
-              <span style={{ ...mono, fontSize: 12, color: "#525252" }}>AI-suggested: {aiScore}</span>
+              <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>AI-suggested: {aiScore}</span>
             </div>
             <p style={secondaryText}>
               AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis
@@ -284,8 +284,8 @@ export function AuditorCaseDetailPage() {
               labelText={
                 scoreWasChanged ? (
                   <>
-                    Comment <span style={{ color: "#da1e28", fontWeight: 600 }}>*</span> required — you changed the
-                    AI&apos;s rating
+                    Comment <span style={{ color: "var(--cds-text-error)", fontWeight: 600 }}>*</span> required — you
+                    changed the AI&apos;s rating
                   </>
                 ) : (
                   "Comment (optional)"
@@ -300,15 +300,15 @@ export function AuditorCaseDetailPage() {
           <section
             aria-labelledby="outcome-title"
             className="flex flex-col gap-2.5 px-5 py-4"
-            style={{ backgroundColor: "#f4f4f4", maxWidth: 600 }}
+            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
           >
             <p className="flex items-center gap-1.5">
               <span id="outcome-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
                 Final case outcome
               </span>
-              <span style={{ fontSize: 12, color: "#6f6f6f" }}>required for standard cases</span>
+              <span style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>required for standard cases</span>
             </p>
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "#525252" }}>
+            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
               This determines what the reporting user sees when their case reaches Complete. Only applies if this case
               has no SOS or Decline flag — otherwise your manager decides the outcome.
             </p>
@@ -355,7 +355,7 @@ export function AuditorCaseDetailPage() {
               </div>
               {/* A disabled button can't explain itself, so say what's missing. */}
               {!canSubmit && (
-                <p style={{ fontSize: 12, color: "#525252" }}>
+                <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
                   {commentMissing
                     ? "Add a comment explaining why you changed the AI's rating to continue."
                     : "Choose a final case outcome to continue."}
@@ -384,9 +384,9 @@ export function AuditorCaseDetailPage() {
           <section
             aria-labelledby="recorded-title"
             className="flex flex-col gap-2 px-5 py-4"
-            style={{ backgroundColor: "#f4f4f4", fontSize: 13, color: "#525252" }}
+            style={{ backgroundColor: "var(--cds-layer-01)", fontSize: 13, color: "var(--cds-text-secondary)" }}
           >
-            <h2 id="recorded-title" style={{ fontSize: 14, fontWeight: 600, color: "#161616" }}>
+            <h2 id="recorded-title" style={{ fontSize: 14, fontWeight: 600, color: "var(--cds-text-primary)" }}>
               What was recorded
             </h2>
             <p>
@@ -399,7 +399,7 @@ export function AuditorCaseDetailPage() {
             <p>Final case outcome selected: {mapOutcomeToDisplay(confirmation.final_outcome)?.title ?? "Recorded"}</p>
           </section>
 
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "#161616" }}>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-primary)" }}>
             Your selected outcome determines what the reporting user sees when this case reaches Complete — it
             progresses automatically, no further Manager approval needed for a standard case. (Exposure-based cooldowns
             after a Critical rating ship in Sprint 3 — this build does not yet trigger one.)

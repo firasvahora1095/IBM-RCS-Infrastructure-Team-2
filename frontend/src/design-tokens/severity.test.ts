@@ -2,11 +2,27 @@ import { describe, it, expect } from "vitest";
 import { getSeverityInfo, scoreToTier } from "./severity";
 
 describe("getSeverityInfo", () => {
-  it("returns the Figma label and colours for each real tier", () => {
-    expect(getSeverityInfo("S1")).toMatchObject({ label: "Low", background: "#e0e0e0", text: "#161616" });
-    expect(getSeverityInfo("S2")).toMatchObject({ label: "Moderate", background: "#f1c21b", text: "#161616" });
-    expect(getSeverityInfo("S3")).toMatchObject({ label: "High", background: "#ff832b", text: "#161616" });
-    expect(getSeverityInfo("S4")).toMatchObject({ label: "Critical", background: "#da1e28", text: "#ffffff" });
+  it("returns the label and Carbon status-token colours for each real tier", () => {
+    expect(getSeverityInfo("S1")).toMatchObject({
+      label: "Low",
+      background: "var(--cds-tag-background-gray)",
+      text: "var(--cds-text-primary)",
+    });
+    expect(getSeverityInfo("S2")).toMatchObject({
+      label: "Moderate",
+      background: "var(--cds-support-caution-minor)",
+      text: "var(--cds-text-primary)",
+    });
+    expect(getSeverityInfo("S3")).toMatchObject({
+      label: "High",
+      background: "var(--cds-support-caution-major)",
+      text: "var(--cds-text-primary)",
+    });
+    expect(getSeverityInfo("S4")).toMatchObject({
+      label: "Critical",
+      background: "var(--cds-support-error)",
+      text: "var(--cds-text-on-color)",
+    });
   });
 
   it("throws on an unknown tier instead of failing silently", () => {

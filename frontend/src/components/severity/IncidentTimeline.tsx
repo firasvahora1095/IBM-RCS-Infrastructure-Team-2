@@ -88,7 +88,13 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
   });
 
   const height = LABELS_TOP_PX + rowEnds.length * LABEL_ROW_HEIGHT_PX;
-  const axisLabelStyle = { position: "absolute", top: 16, fontFamily: mono, fontSize: 11, color: "#525252" } as const;
+  const axisLabelStyle = {
+    position: "absolute",
+    top: 16,
+    fontFamily: mono,
+    fontSize: 11,
+    color: "var(--cds-text-secondary)",
+  } as const;
   const timeLabel = (e: IncidentTimelineEntry) =>
     e.start === e.end ? formatTimestamp(e.start) : `${formatTimestamp(e.start)}–${formatTimestamp(e.end)}`;
 
@@ -112,7 +118,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
             left: 0,
             right: 0,
             height: 4,
-            backgroundColor: "#c6c6c6",
+            backgroundColor: "var(--cds-layer-accent-01)",
             borderRadius: 2,
           }}
         />
@@ -137,7 +143,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                       height: 10,
                       borderRadius: "50%",
                       backgroundColor: info.background,
-                      boxShadow: "0 0 0 1px #161616",
+                      boxShadow: "0 0 0 1px var(--cds-border-inverse)",
                     }}
                   />
                   {/* Tick from the dot down to its label. */}
@@ -148,7 +154,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                       left: `${leftPct}%`,
                       width: 1,
                       height: labelTop - 12,
-                      backgroundColor: "#161616",
+                      backgroundColor: "var(--cds-border-inverse)",
                     }}
                   />
                 </>
@@ -164,7 +170,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                     height: 8,
                     backgroundColor: info.background,
                     // A thin dark outline keeps the pale S1 fill visible against the grey track.
-                    boxShadow: "0 0 0 1px #161616",
+                    boxShadow: "0 0 0 1px var(--cds-border-inverse)",
                     borderRadius: 2,
                   }}
                 />
@@ -173,9 +179,11 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                 className="flex flex-col items-center gap-1"
                 style={{ position: "absolute", top: labelTop, left: labelLeftPx, width: LABEL_WIDTH_PX }}
               >
-                <span style={{ fontFamily: mono, fontSize: 12, color: "#161616" }}>{timeLabel(entry)}</span>
+                <span style={{ fontFamily: mono, fontSize: 12, color: "var(--cds-text-primary)" }}>
+                  {timeLabel(entry)}
+                </span>
                 {entry.tag ? (
-                  <span style={{ fontSize: 11, color: "#525252" }}>{entry.tag}</span>
+                  <span style={{ fontSize: 11, color: "var(--cds-text-secondary)" }}>{entry.tag}</span>
                 ) : (
                   <SeverityTag tier={entry.severity_tier} size="sm" />
                 )}
@@ -185,7 +193,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         })}
       </div>
 
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "#6f6f6f" }}>
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
         Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold (AR-AI-04).
         {!knownDuration &&
           " The scale ends shortly after the last flagged moment; the video's full length isn't available yet."}

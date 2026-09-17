@@ -17,14 +17,22 @@ export function TrustBanner() {
     <section
       aria-labelledby="trust-banner-title"
       className="flex gap-3.5 p-4"
-      style={{ backgroundColor: "#edf5ff", borderLeft: "4px solid #0f62fe", borderRadius: 8 }}
+      style={{
+        backgroundColor: "var(--cds-notification-background-info)",
+        borderLeft: "4px solid var(--cds-border-interactive)",
+        borderRadius: 8,
+      }}
     >
-      <InformationFilled size={20} style={{ fill: "#0f62fe", flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+      <InformationFilled
+        size={20}
+        style={{ fill: "var(--cds-icon-interactive)", flexShrink: 0, marginTop: 2 }}
+        aria-hidden="true"
+      />
       <div className="flex flex-col gap-1.5">
-        <h2 id="trust-banner-title" style={{ fontSize: 16, fontWeight: 600, color: "#161616" }}>
+        <h2 id="trust-banner-title" style={{ fontSize: 16, fontWeight: 600, color: "var(--cds-text-primary)" }}>
           Your report is reviewed carefully and confidentially
         </h2>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "#525252" }}>
+        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           We check every report against our content policy before taking action.
         </p>
         <div className="flex flex-wrap gap-4">

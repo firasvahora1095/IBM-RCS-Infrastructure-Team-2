@@ -13,8 +13,8 @@ describe("SeverityTag", () => {
   it("uses white text on S4's Red 60 fill so the label stays readable", () => {
     render(<SeverityTag tier="S4" />);
     const tag = screen.getByText("S4 · Critical").closest(".cds--tag") as HTMLElement;
-    expect(tag.style.backgroundColor).toBe("rgb(218, 30, 40)");
-    expect(tag.style.color).toBe("rgb(255, 255, 255)");
+    expect(tag.style.backgroundColor).toBe("var(--cds-support-error)");
+    expect(tag.style.color).toBe("var(--cds-text-on-color)");
   });
 
   it("renders every tier without throwing", () => {
