@@ -291,9 +291,48 @@ This section stores approved controlled values and mappings referenced by the fu
 
 **Internal outcome status:** PM-confirmed.
 
-**Public message status:** BA-proposed wording pending UX/PM confirmation.
-
 **Scope note:** The final outcome records the Auditor’s review decision only. Public wording must not state or imply that content has been removed, reported to authorities, or otherwise actioned unless a separate downstream workflow is formally confirmed and documented.
+
+
+## RT-02 — Internal to Public Status Mapping
+
+**Applies to:** `UR-ST-02`  
+**Scope:** Sprint 2 standard-case workflow  
+**Public progression:** `Received → Being Reviewed → Complete`
+
+| Internal API/DB State | Staff-Facing Label | Public Status | Meaning |
+|---|---|---|---|
+| `SUBMITTED` | Submitted | **Received** | The report has been successfully submitted and a case record has been created. |
+| `AI_PROCESSING` | AI Processing | **Being Reviewed** | The case has been assigned and AI analysis is being processed. |
+| `READY_FOR_REVIEW` | Ready for Review | **Being Reviewed** | AI processing has completed sufficiently for Auditor review. |
+| `AUDITOR_REVIEW` | Auditor Review | **Being Reviewed** | The assigned Auditor is reviewing the case and AI output. |
+| `COMPLETE` | Complete | **Complete** | The standard case review has finished and a final outcome has been recorded. |
+
+### Mapping Rules
+
+- The Normal User shall only see **Received**, **Being Reviewed**, and **Complete**.
+- Internal API/DB workflow states shall not be displayed directly to the Normal User.
+- Staff-facing interfaces may use human-readable versions of internal states where required.
+- Public status shall be derived from the internal workflow state.
+- When a case reaches `COMPLETE`, the applicable public-facing final outcome is displayed in accordance with `UR-ST-03` and `RT-01`.
+
+### Assignment Clarification
+
+Assignment is part of the Sprint 2 workflow, but the current implementation plan does not require a separate `ASSIGNED` API/DB state.
+
+The planned flow performs Auditor assignment and then transitions:
+
+`SUBMITTED` → `AI_PROCESSING`
+
+If Dev uses `ASSIGNED` as a distinct internal state, it shall map to **Being Reviewed** and must be added to this table.
+
+### Status
+
+**BA mapping:** Defined  
+**Public status progression:** Confirmed under `UR-ST-02`  
+**Implementation reference:** Devs to use `RT-02` rather than creating separate status wording or casing
+
+
 
 # Client-Confirmed Values Incorporated as Final Specs
 **Purpose**
