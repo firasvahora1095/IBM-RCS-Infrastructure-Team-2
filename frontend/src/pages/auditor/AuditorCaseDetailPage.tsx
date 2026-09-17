@@ -375,7 +375,10 @@ export function AuditorCaseDetailPage() {
   return (
     <>
       {header}
-      {sessionModal}
+      {/* A named region, because this page renders a different <main> per
+          step: Carbon's modal focus sentinels otherwise sit outside every
+          landmark (axe "region", found in the Task 99 sweep). */}
+      <section aria-label="Session">{sessionModal}</section>
 
       {step === "gate" && (
         <StaffPage>
