@@ -1,7 +1,8 @@
-import { InlineNotification, Tag } from "@carbon/react";
+import { InlineNotification } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { ManagerTopNav } from "../../components/shell/ManagerTopNav";
 import { StaffPage } from "../../components/layout/StaffPage";
+import { ScaffoldLabel } from "../../components/notifications/ScaffoldLabel";
 
 /**
  * Consolidated Case Oversight — Sprint 2 scaffold (Figma node 86:198).
@@ -21,7 +22,7 @@ export function ManagerCaseOversightPage() {
       <StaffPage clearHeader={false}>
         <div className="flex flex-col items-start gap-3">
           <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Consolidated Case Oversight</h1>
-          <Tag type="gray">Scaffold — no case-list API exists yet</Tag>
+          <ScaffoldLabel>Scaffold — no case-list API exists yet</ScaffoldLabel>
         </div>
         <InlineNotification
           kind="info"

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { InlineNotification, SkeletonText, Tag } from "@carbon/react";
+import { InlineNotification, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { ManagerTopNav } from "../../components/shell/ManagerTopNav";
 import { StaffPage } from "../../components/layout/StaffPage";
+import { ScaffoldLabel } from "../../components/notifications/ScaffoldLabel";
 import { getManagerDashboard } from "../../api/client";
 import { ApiError } from "../../api/types";
 import type { ManagerDashboardResponse } from "../../api/types";
@@ -47,7 +48,7 @@ export function ManagerOversightDashboardPage() {
       <StaffPage clearHeader={false}>
         <div className="flex flex-col items-start gap-3">
           <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Oversight Dashboard</h1>
-          <Tag type="gray">Scaffold — per-Auditor exposure tracking ships in Sprint 3</Tag>
+          <ScaffoldLabel>Scaffold — per-Auditor exposure tracking ships in Sprint 3</ScaffoldLabel>
         </div>
 
         {loadError && (
