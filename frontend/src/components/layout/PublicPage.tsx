@@ -18,7 +18,7 @@ interface PublicPageProps {
 export function PublicPage({ cardWidth, children }: PublicPageProps) {
   return (
     <main
-      className="flex justify-center px-4 pb-10"
+      className="flex items-start justify-center px-4 pb-10"
       style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh", paddingTop: 88 }}
     >
       <div
