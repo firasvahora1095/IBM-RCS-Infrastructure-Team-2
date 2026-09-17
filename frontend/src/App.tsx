@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
 import { UploadPage } from "./pages/normal-user/UploadPage";
+import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
 import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
@@ -23,6 +24,7 @@ export default function App() {
       <AppHeader />
       <Routes>
         <Route path="/" element={<UploadPage />} />
+        <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
         <Route path="/status" element={<StatusLookupPage />} />
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route path="/auditor" element={<AuditorDashboardPage />} />
