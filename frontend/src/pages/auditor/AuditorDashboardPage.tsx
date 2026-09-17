@@ -154,7 +154,13 @@ export function AuditorDashboardPage() {
                     <TableHeader>Case ID</TableHeader>
                     <TableHeader>Severity</TableHeader>
                     <TableHeader>Status</TableHeader>
-                    {showAssignedColumn && <TableHeader className="text-right">Assigned</TableHeader>}
+                    {/* Right-aligned like its values (Figma 10:6). Carbon's label div sets its own
+                        text-align, and outranks Tailwind's layered utilities, so align inline. */}
+                    {showAssignedColumn && (
+                      <TableHeader>
+                        <span style={{ display: "block", textAlign: "right" }}>Assigned</span>
+                      </TableHeader>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
