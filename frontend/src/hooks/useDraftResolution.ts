@@ -1,13 +1,18 @@
 import type { FinalOutcome } from "../services/types";
 
-/** The resolution steps a draft can resume at — never the confirmation. */
-export type DraftStep = "summary" | "severity";
+/**
+ * The review steps a draft can resume at, always behind the content warning
+ * again (AR-PV-08). Never the confirmation, decline or SOS outcomes.
+ */
+export type DraftStep = "summary" | "workspace" | "severity";
 
 export interface DraftResolution {
   auditorScore: number;
   comment: string;
   outcome: FinalOutcome | null;
   step: DraftStep;
+  /** Whether the Auditor has set a rating themselves; required when the AI gave no score (AR-AI-10). */
+  ratingTouched?: boolean;
 }
 
 const DRAFT_KEY_PREFIX = "rcs_draft_resolution_";
@@ -35,7 +40,7 @@ export function loadDraftResolution(caseId: string): DraftResolution | null {
     const scoreOk = typeof draft.auditorScore === "number" && draft.auditorScore >= 0 && draft.auditorScore <= 100;
     const outcomeOk =
       draft.outcome === null || draft.outcome === "NO_VIOLATION_FOUND" || draft.outcome === "POLICY_VIOLATION_FOUND";
-    const stepOk = draft.step === "summary" || draft.step === "severity";
+    const stepOk = draft.step === "summary" || draft.step === "workspace" || draft.step === "severity";
     if (!scoreOk || !outcomeOk || !stepOk || typeof draft.comment !== "string") {
       return null;
     }

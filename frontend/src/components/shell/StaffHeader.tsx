@@ -2,6 +2,7 @@ import { Header, HeaderName, HeaderGlobalBar, Theme } from "@carbon/react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 
@@ -61,6 +62,7 @@ export function StaffHeader({ role }: StaffHeaderProps) {
               {label}: {staffId}
             </span>
           )}
+          <DemoScenarioMenu role={role} />
           <button
             type="button"
             onClick={handleSignOut}

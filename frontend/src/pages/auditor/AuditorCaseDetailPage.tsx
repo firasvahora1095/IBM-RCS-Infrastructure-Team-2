@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   Button,
@@ -16,20 +16,52 @@ import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { IncidentTimeline } from "../../components/severity/IncidentTimeline";
 import { FlaggedEntities, TranscriptAndAudio } from "../../components/review/AiEvidencePanels";
-import { getAuditorCaseDetail, resolveCase } from "../../services";
+import { ContentWarningModal } from "../../components/review/ContentWarningModal";
+import { DeclineReasonModal } from "../../components/review/DeclineReasonModal";
+import { ReviewWorkspace } from "../../components/review/ReviewWorkspace";
+import { PROTECTED_VIEWER_SETTINGS, type ViewerSettings } from "../../components/review/viewerSettings";
+import { SessionExpiredModal } from "../../components/auth/SessionExpiredModal";
+import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
+import {
+  acknowledgeContentWarning,
+  declineCase,
+  getAuditorCaseDetail,
+  getMyWellbeing,
+  recordExposure,
+  resolveCase,
+  triggerSos,
+} from "../../services";
+import { DEMO_SCENARIO_EVENT } from "../../services/mock/demo";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
-import type { AuditorCaseDetail, FinalOutcome, ResolveCaseResponse } from "../../services/types";
+import type {
+  AuditorCaseDetail,
+  DeclineReason,
+  ExposureSample,
+  FinalOutcome,
+  ResolveCaseResponse,
+} from "../../services/types";
 import { getSeverityInfo, scoreToTier } from "../../design-tokens/severity";
 import { OUTCOME_OPTIONS, mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { loadDraftResolution, saveDraftResolution, clearDraftResolution } from "../../hooks/useDraftResolution";
+import { notifyWellbeingChanged } from "../../hooks/useMyWellbeing";
+import {
+  loadDraftResolution,
+  saveDraftResolution,
+  clearDraftResolution,
+  type DraftStep,
+} from "../../hooks/useDraftResolution";
 
-type Step = "summary" | "severity" | "confirmation";
+type Step = "gate" | DraftStep | "check-in" | "confirmation" | "declined" | "sos";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 const pageTitle = { fontSize: 32, lineHeight: "40px", fontWeight: 600 } as const;
-const secondaryText = { fontSize: 13, lineHeight: "18px", color: "var(--cds-text-secondary)" } as const;
+const secondaryText = { fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" } as const;
+
+/** Where the AI-failure slider starts. It isn't a suggestion: the Auditor must set a rating themselves. */
+const UNRATED_START = 50;
+
+const COOLDOWN_WORDS: Record<string, string> = { S2: "5-minute", S3: "15-minute", S4: "30-minute" };
 
 /** "S3 · High" — how the design writes a tier in running text. */
 function tierText(score: number): string {
@@ -37,74 +69,161 @@ function tierText(score: number): string {
   return `${tier} · ${getSeverityInfo(tier).label}`;
 }
 
+function isNetworkFailure(err: unknown): boolean {
+  return !(err instanceof ApiError);
+}
+
 /**
- * Auditor case detail: one route, three sequential steps, matching how the
- * Figma frames chain together — AI Analysis Summary (18:26) → Severity &
- * comment (25:53) → Submission Confirmation (25:280).
+ * Auditor case review: one route, stepping through the Figma click-through.
  *
- * The summary's flagged entities, transcript and audio-intensity sections
- * render whenever the data source provides them.
+ *   Content warning (16:19, or 25:212 when AI failed)
+ *     → AI Analysis Summary (18:26; skipped when AI failed)
+ *     → Review Workspace (20:35) ⇄ Wellbeing check-in (31:188)
+ *     → Severity & comment (25:53; 42:405 when sending fails)
+ *     → Submission Confirmation (25:280) → Cooldown (31:99) when earned
+ *   Decline (25:137 → 25:353) and SOS (31:257 → Cooldown) branch off.
+ *
+ * Every visit starts at the content warning, including when a saved draft
+ * resumes later steps (AR-PV-08). A session time-out is handled in place with
+ * a re-auth dialog (36:235), so nothing on screen is lost.
  */
 export function AuditorCaseDetailPage() {
   const { caseId = "" } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const handleSessionExpiry = useSessionExpiryHandler();
+  const handleInitialSessionExpiry = useSessionExpiryHandler();
 
-  const [step, setStep] = useState<Step>("summary");
+  const [step, setStep] = useState<Step>("gate");
   const [caseDetail, setCaseDetail] = useState<AuditorCaseDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [gateError, setGateError] = useState<string | null>(null);
+  const [isProceeding, setIsProceeding] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineError, setDeclineError] = useState<string | null>(null);
+  const [isDeclining, setIsDeclining] = useState(false);
+
+  const [viewer, setViewer] = useState<ViewerSettings>(PROTECTED_VIEWER_SETTINGS);
+  const [resumeStep, setResumeStep] = useState<DraftStep | null>(null);
+
   const [auditorScore, setAuditorScore] = useState(0);
+  const [ratingTouched, setRatingTouched] = useState(false);
   const [comment, setComment] = useState("");
   const [outcome, setOutcome] = useState<FinalOutcome | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<{ network: boolean; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<ResolveCaseResponse | null>(null);
 
+  const [sosState, setSosState] = useState<"sending" | "sent" | "failed">("sending");
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const tokenRef = useRef(token);
+  const unsentExposureRef = useRef<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
+  const retryAfterReauthRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    if (!caseId || !token) return;
+    tokenRef.current = token;
+  }, [token]);
+
+  /** A 401 during a review opens the re-auth dialog instead of leaving the page. Returns true when handled. */
+  const handleSessionError = useCallback((err: unknown): boolean => {
+    if (err instanceof ApiError && err.status === 401) {
+      setSessionExpired(true);
+      return true;
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    if (!caseId || !tokenRef.current) return;
     let cancelled = false;
-    getAuditorCaseDetail(caseId, token)
+    getAuditorCaseDetail(caseId, tokenRef.current)
       .then((detail) => {
         if (cancelled) return;
         setCaseDetail(detail);
-        // Task 102: if the Auditor already started reviewing this case and
-        // navigated away (e.g. via the Dashboard breadcrumb), pick up exactly
-        // where they left off. Otherwise the slider starts at the AI's
-        // effective score, since the Auditor adjusts FROM that suggestion.
+        // Task 102: an in-progress review resumes where it left off — but only
+        // after the content warning again. Otherwise the rating starts at the
+        // AI's effective score, since the Auditor adjusts FROM that suggestion.
         const draft = detail.status === "COMPLETE" ? null : loadDraftResolution(caseId);
         if (draft) {
           setAuditorScore(draft.auditorScore);
           setComment(draft.comment);
           setOutcome(draft.outcome);
-          setStep(draft.step);
-        } else if (detail.effective_severity_score !== null) {
-          setAuditorScore(detail.effective_severity_score);
+          setRatingTouched(draft.ratingTouched ?? false);
+          setResumeStep(draft.step);
+        } else {
+          setAuditorScore(detail.effective_severity_score ?? UNRATED_START);
         }
       })
       .catch((err: unknown) => {
-        if (cancelled || handleSessionExpiry(err)) return;
+        if (cancelled || handleInitialSessionExpiry(err)) return;
         setLoadError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
       });
     return () => {
       cancelled = true;
     };
-  }, [caseId, token, handleSessionExpiry]);
+  }, [caseId, handleInitialSessionExpiry]);
 
-  // Persist the in-progress review on every change, so leaving and coming
-  // back restores it (Task 102). The confirmation step is never saved:
-  // restoring it later would show a confirmation screen with nothing to
-  // confirm, because the submitted result isn't part of the draft.
+  // Persist the in-progress review (Task 102). Only real review steps are saved.
   useEffect(() => {
-    if (!caseDetail || step === "confirmation" || caseDetail.status === "COMPLETE") return;
-    saveDraftResolution(caseId, { auditorScore, comment, outcome, step });
-  }, [caseId, caseDetail, auditorScore, comment, outcome, step]);
+    if (!caseDetail || caseDetail.status === "COMPLETE") return;
+    if (step !== "summary" && step !== "workspace" && step !== "severity") return;
+    saveDraftResolution(caseId, { auditorScore, comment, outcome, step, ratingTouched });
+  }, [caseId, caseDetail, auditorScore, comment, outcome, step, ratingTouched]);
+
+  // Demo scenario "expire my session": check the session straight away, so
+  // the re-auth dialog appears without waiting for the next request.
+  useEffect(() => {
+    const probe = () => {
+      if (!tokenRef.current) return;
+      getMyWellbeing(tokenRef.current).catch(handleSessionError);
+    };
+    window.addEventListener(DEMO_SCENARIO_EVENT, probe);
+    return () => window.removeEventListener(DEMO_SCENARIO_EVENT, probe);
+  }, [handleSessionError]);
+
+  const sendExposure = useCallback(
+    (sample: ExposureSample) => {
+      const pending = {
+        active_seconds: unsentExposureRef.current.active_seconds + sample.active_seconds,
+        replay_seconds: unsentExposureRef.current.replay_seconds + sample.replay_seconds,
+      };
+      unsentExposureRef.current = { active_seconds: 0, replay_seconds: 0 };
+      if (!tokenRef.current) return;
+      recordExposure(caseId, tokenRef.current, pending)
+        .then(notifyWellbeingChanged)
+        .catch((err: unknown) => {
+          // Never drop measured exposure: keep it and send it with the next report.
+          unsentExposureRef.current = {
+            active_seconds: unsentExposureRef.current.active_seconds + pending.active_seconds,
+            replay_seconds: unsentExposureRef.current.replay_seconds + pending.replay_seconds,
+          };
+          handleSessionError(err);
+        });
+    },
+    [caseId, handleSessionError],
+  );
+
+  const header = <StaffHeader role="auditor" />;
+  const sessionModal = (
+    <SessionExpiredModal
+      open={sessionExpired}
+      preservedWorkMessage="Your review — blur level, grayscale, and mute settings — will be exactly as you left it."
+      onReauthenticated={() => {
+        setSessionExpired(false);
+        const unsent = unsentExposureRef.current;
+        if (unsent.active_seconds + unsent.replay_seconds > 0) sendExposure({ active_seconds: 0, replay_seconds: 0 });
+        const retry = retryAfterReauthRef.current;
+        retryAfterReauthRef.current = null;
+        retry?.();
+      }}
+    />
+  );
 
   if (loadError || !caseDetail) {
     return (
       <>
-        <StaffHeader role="auditor" />
+        {header}
         <StaffPage>
           <CaseBreadcrumb caseId={caseId} />
           {loadError ? (
@@ -126,13 +245,14 @@ export function AuditorCaseDetailPage() {
   }
 
   const aiScore = caseDetail.effective_severity_score;
-  const aiAnalysisReady = aiScore !== null && caseDetail.severity_tier !== null;
+  const aiFailed = Boolean(caseDetail.ai_failure);
+  const aiAnalysisReady = aiFailed || (aiScore !== null && caseDetail.severity_tier !== null);
   const isAlreadyResolved = caseDetail.status === "COMPLETE" && step !== "confirmation";
 
   if (!aiAnalysisReady || isAlreadyResolved) {
     return (
       <>
-        <StaffHeader role="auditor" />
+        {header}
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <InlineNotification
@@ -157,31 +277,96 @@ export function AuditorCaseDetailPage() {
     );
   }
 
-  const scoreWasChanged = auditorScore !== aiScore;
+  const scoreWasChanged = aiScore !== null && auditorScore !== aiScore;
   const commentMissing = scoreWasChanged && comment.trim() === "";
-  const canSubmit = !commentMissing && outcome !== null;
+  const ratingMissing = aiScore === null && !ratingTouched;
+  const canSubmit = !commentMissing && !ratingMissing && outcome !== null;
+
+  async function handleProceed() {
+    if (!tokenRef.current) return;
+    setIsProceeding(true);
+    setGateError(null);
+    try {
+      await acknowledgeContentWarning(caseId, tokenRef.current);
+      const firstStep: DraftStep = aiFailed ? "workspace" : "summary";
+      setViewer(PROTECTED_VIEWER_SETTINGS);
+      setStep(resumeStep && !(aiFailed && resumeStep === "summary") ? resumeStep : firstStep);
+    } catch (err) {
+      if (handleSessionError(err)) return;
+      setGateError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+    } finally {
+      setIsProceeding(false);
+    }
+  }
+
+  async function handleDecline(reason: DeclineReason, otherText: string) {
+    if (!tokenRef.current) return;
+    setIsDeclining(true);
+    setDeclineError(null);
+    try {
+      await declineCase(caseId, tokenRef.current, reason, otherText);
+      clearDraftResolution(caseId);
+      setDeclineOpen(false);
+      setStep("declined");
+    } catch (err) {
+      if (handleSessionError(err)) return;
+      setDeclineError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+    } finally {
+      setIsDeclining(false);
+    }
+  }
+
+  function sendSos() {
+    if (!tokenRef.current) {
+      setSosState("failed");
+      return;
+    }
+    setSosState("sending");
+    triggerSos(caseId, tokenRef.current)
+      .then(() => {
+        clearDraftResolution(caseId);
+        setSosState("sent");
+        notifyWellbeingChanged();
+      })
+      .catch((err: unknown) => {
+        if (handleSessionError(err)) {
+          retryAfterReauthRef.current = sendSos;
+          return;
+        }
+        setSosState("failed");
+      });
+  }
+
+  function handleSos() {
+    // AR-WB-09: hide the content first, before waiting on the network.
+    setStep("sos");
+    sendSos();
+  }
 
   async function handleResolve() {
-    if (!token || !outcome || !canSubmit) return;
+    if (!tokenRef.current || !outcome || !canSubmit) return;
     setIsSubmitting(true);
     setSubmitError(null);
     try {
       const result = await resolveCase(
         caseId,
-        token,
+        tokenRef.current,
         outcome,
-        // Only an actual override is sent as the Auditor's score; confirming
-        // the AI's rating leaves auditor_severity_score empty.
-        scoreWasChanged ? auditorScore : undefined,
+        // Only an actual override (or a rating the AI couldn't give) is sent as
+        // the Auditor's score; confirming the AI's rating leaves it empty.
+        scoreWasChanged || aiScore === null ? auditorScore : undefined,
         comment.trim() !== "" ? comment.trim() : undefined,
       );
-      // The case is resolved: drop its draft so it can't be restored again.
       clearDraftResolution(caseId);
       setConfirmation(result);
       setStep("confirmation");
+      notifyWellbeingChanged();
     } catch (err) {
-      if (handleSessionExpiry(err)) return;
-      setSubmitError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+      if (handleSessionError(err)) return;
+      setSubmitError({
+        network: isNetworkFailure(err),
+        message: err instanceof ApiError ? err.message : "Couldn't submit — check your connection and try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -189,7 +374,51 @@ export function AuditorCaseDetailPage() {
 
   return (
     <>
-      <StaffHeader role="auditor" />
+      {header}
+      {sessionModal}
+
+      {step === "gate" && (
+        <StaffPage>
+          <CaseBreadcrumb caseId={caseDetail.case_id} />
+          <p style={secondaryText}>Nothing from this case is shown until you choose to proceed.</p>
+          {gateError && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              hideCloseButton
+              role="alert"
+              title="This case can't be opened right now."
+              subtitle={gateError}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+          {gateError && (
+            <div>
+              <Button kind="tertiary" onClick={() => navigate("/auditor")}>
+                Back to case queue
+              </Button>
+            </div>
+          )}
+          <ContentWarningModal
+            open={!declineOpen && !gateError && !sessionExpired}
+            caseDetail={caseDetail}
+            isProceeding={isProceeding}
+            onProceed={handleProceed}
+            onDecline={() => {
+              setDeclineError(null);
+              setDeclineOpen(true);
+            }}
+            onClose={() => navigate("/auditor")}
+          />
+          <DeclineReasonModal
+            open={declineOpen && !sessionExpired}
+            isSubmitting={isDeclining}
+            error={declineError}
+            onSubmit={handleDecline}
+            onCancel={() => setDeclineOpen(false)}
+          />
+        </StaffPage>
+      )}
 
       {step === "summary" && (
         <StaffPage>
@@ -217,7 +446,7 @@ export function AuditorCaseDetailPage() {
             <h2 id="narrative-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
               Narrative summary
             </h2>
-            <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+            <p style={secondaryText}>
               {caseDetail.narrative_summary ?? "No narrative summary was returned for this case."}
             </p>
           </section>
@@ -236,7 +465,6 @@ export function AuditorCaseDetailPage() {
             )}
           </section>
 
-          {/* Shown only when the data source provides them (Figma 18:62, 18:76). */}
           <FlaggedEntities entities={caseDetail.flagged_entities ?? []} />
           <TranscriptAndAudio
             transcript={caseDetail.transcript}
@@ -245,7 +473,41 @@ export function AuditorCaseDetailPage() {
           />
 
           <div>
-            <Button onClick={() => setStep("severity")}>Continue to review</Button>
+            <Button onClick={() => setStep("workspace")}>Continue to review</Button>
+          </div>
+        </StaffPage>
+      )}
+
+      {step === "workspace" && (
+        <StaffPage>
+          <CaseBreadcrumb caseId={caseDetail.case_id} />
+          <h1 className="cds--visually-hidden">Review Workspace</h1>
+          <ReviewWorkspace
+            caseDetail={caseDetail}
+            settings={viewer}
+            onSettingsChange={setViewer}
+            pausedReason={sessionExpired ? "session" : null}
+            onExposure={sendExposure}
+            onContinue={() => setStep("severity")}
+            onBack={aiFailed ? undefined : () => setStep("summary")}
+            onTalkToManager={() => setStep("check-in")}
+            onSos={handleSos}
+          />
+        </StaffPage>
+      )}
+
+      {step === "check-in" && (
+        <StaffPage>
+          <CaseBreadcrumb caseId={caseDetail.case_id} />
+          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Wellbeing check-in</h1>
+          <p style={secondaryText}>
+            Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case.
+          </p>
+          <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
+          <div>
+            <Button kind="tertiary" onClick={() => setStep("workspace")}>
+              ← Return to Review Workspace
+            </Button>
           </div>
         </StaffPage>
       )}
@@ -254,6 +516,18 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>Severity &amp; comment</h1>
+
+          {submitError && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              hideCloseButton
+              role="alert"
+              title={submitError.network ? "Error:" : "This case wasn't submitted."}
+              subtitle={submitError.message}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
 
           <section
             aria-labelledby="cvi-rating-title"
@@ -264,17 +538,32 @@ export function AuditorCaseDetailPage() {
               <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
                 CVI rating
               </h2>
-              <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>AI-suggested: {aiScore}</span>
+              <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                {aiScore === null ? "No AI suggestion" : `AI-suggested: ${aiScore}`}
+              </span>
             </div>
             <p style={secondaryText}>
-              AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis
-              Summary for the model&apos;s original pre-floor score.
+              {aiScore === null
+                ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
+                : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis Summary for the model's original pre-floor score."}
             </p>
-            <CviRatingSlider initialValue={auditorScore} onChange={setAuditorScore} />
+            <CviRatingSlider
+              initialValue={auditorScore}
+              onChange={(score) => {
+                setAuditorScore(score);
+                setRatingTouched(true);
+              }}
+            />
             <div className="flex flex-wrap items-center gap-2" aria-live="polite">
-              <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>Your rating: {auditorScore} / 100</span>
-              <SeverityTag tier={scoreToTier(auditorScore)} />
-              {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
+              {ratingMissing ? (
+                <span style={secondaryText}>Your rating: not set yet</span>
+              ) : (
+                <>
+                  <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>Your rating: {auditorScore} / 100</span>
+                  <SeverityTag tier={scoreToTier(auditorScore)} />
+                  {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
+                </>
+              )}
             </div>
           </section>
 
@@ -316,8 +605,6 @@ export function AuditorCaseDetailPage() {
                 towards one outcome, so the decision has to be explicit. */}
             <RadioButtonGroup
               name="final-outcome"
-              // The visible heading above names this group; the legend repeats
-              // it for screen readers without showing the label twice.
               legendText={<span className="cds--visually-hidden">Final case outcome</span>}
               orientation="vertical"
               valueSelected={outcome ?? undefined}
@@ -334,36 +621,26 @@ export function AuditorCaseDetailPage() {
             </RadioButtonGroup>
           </section>
 
-          {submitError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title="This case wasn't submitted."
-              subtitle={submitError}
-              style={{ maxWidth: 600 }}
-            />
-          )}
-
           <div className="flex flex-col items-start gap-4">
             <div className="flex flex-col gap-2">
               <div>
                 <Button disabled={!canSubmit || isSubmitting} onClick={handleResolve}>
-                  {isSubmitting ? "Submitting…" : "Continue to submit"}
+                  {isSubmitting ? "Submitting…" : submitError?.network ? "Retry submit" : "Continue to submit"}
                 </Button>
               </div>
               {/* A disabled button can't explain itself, so say what's missing. */}
               {!canSubmit && (
                 <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  {commentMissing
-                    ? "Add a comment explaining why you changed the AI's rating to continue."
-                    : "Choose a final case outcome to continue."}
+                  {ratingMissing
+                    ? "Set your CVI rating to continue."
+                    : commentMissing
+                      ? "Add a comment explaining why you changed the AI's rating to continue."
+                      : "Choose a final case outcome to continue."}
                 </p>
               )}
             </div>
-            <Button kind="tertiary" onClick={() => setStep("summary")}>
-              ← Back to AI Analysis Summary
+            <Button kind="tertiary" onClick={() => setStep("workspace")}>
+              ← Back to Review Workspace
             </Button>
           </div>
         </StaffPage>
@@ -384,13 +661,15 @@ export function AuditorCaseDetailPage() {
           <section
             aria-labelledby="recorded-title"
             className="flex flex-col gap-2 px-5 py-4"
-            style={{ backgroundColor: "var(--cds-layer-01)", fontSize: 13, color: "var(--cds-text-secondary)" }}
+            style={{ backgroundColor: "var(--cds-layer-01)", fontSize: 14, color: "var(--cds-text-secondary)" }}
           >
             <h2 id="recorded-title" style={{ fontSize: 14, fontWeight: 600, color: "var(--cds-text-primary)" }}>
               What was recorded
             </h2>
             <p>
-              AI&apos;s original rating: {tierText(aiScore)} (CVI {aiScore}/100)
+              {aiScore === null
+                ? "AI's original rating: unavailable (AI analysis failed)"
+                : `AI's original rating: ${tierText(aiScore)} (CVI ${aiScore}/100)`}
             </p>
             <p className="flex flex-wrap items-center gap-2">
               Your final rating: {auditorScore} / 100 <SeverityTag tier={scoreToTier(auditorScore)} />
@@ -401,13 +680,102 @@ export function AuditorCaseDetailPage() {
 
           <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-primary)" }}>
             Your selected outcome determines what the reporting user sees when this case reaches Complete — it
-            progresses automatically, no further Manager approval needed for a standard case. (Exposure-based cooldowns
-            after a Critical rating ship in Sprint 3 — this build does not yet trigger one.)
+            progresses automatically, no further Manager approval needed for a standard case.
           </p>
 
-          <Button onClick={() => navigate("/auditor")} className="w-full" style={{ maxWidth: "100%" }}>
+          {confirmation.cooldown && (
+            <InlineNotification
+              kind="info"
+              lowContrast
+              hideCloseButton
+              title="A cooldown starts now."
+              subtitle={`Because of this case's severity, a ${COOLDOWN_WORDS[confirmation.cooldown.trigger] ?? "mandatory"} cooldown applies before your next case (AR-WB-12).`}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+
+          <Button
+            onClick={() => navigate(confirmation.cooldown ? "/auditor/cooldown" : "/auditor")}
+            className="w-full"
+            style={{ maxWidth: "100%" }}
+          >
             Continue
           </Button>
+        </StaffPage>
+      )}
+
+      {step === "declined" && (
+        <StaffPage maxWidth={560}>
+          <InlineNotification
+            kind="info"
+            lowContrast
+            hideCloseButton
+            title="Case declined:"
+            subtitle="Your manager will review it directly."
+            style={{ maxWidth: "100%" }}
+          />
+          <h1 className="cds--visually-hidden">Case declined</h1>
+          <p style={secondaryText}>
+            No case content, thumbnail, or severity detail is shown here — declining is meant to reduce exposure, not
+            extend it.
+          </p>
+          <Button onClick={() => navigate("/auditor")} className="w-full" style={{ maxWidth: "100%" }}>
+            Return to dashboard
+          </Button>
+        </StaffPage>
+      )}
+
+      {step === "sos" && (
+        <StaffPage>
+          <CaseBreadcrumb caseId={caseDetail.case_id} />
+          <div
+            className="flex items-center justify-center"
+            style={{ aspectRatio: "16 / 9", maxWidth: 760, backgroundColor: "var(--cds-layer-accent-01)" }}
+          >
+            <p style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600, color: "var(--cds-text-secondary)" }}>
+              Case paused — content hidden
+            </p>
+          </div>
+          <section
+            aria-live="polite"
+            className="flex flex-col gap-3 px-6 py-5"
+            style={{ maxWidth: 760, backgroundColor: "var(--cds-layer-01)" }}
+          >
+            {sosState === "failed" ? (
+              <>
+                <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                  This case is paused, but we couldn&apos;t notify your manager.
+                </h1>
+                <p style={secondaryText}>The content stays hidden. Try again, or contact your manager directly.</p>
+                <div>
+                  <Button kind="secondary" onClick={sendSos}>
+                    Try again
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                  {sosState === "sending"
+                    ? "Pausing this case and notifying your manager…"
+                    : "We’ve paused this case and notified your manager."}
+                </h1>
+                <p style={secondaryText}>
+                  They&apos;ll follow up with you directly. Resuming raw-content review — for this case or any other —
+                  will require you to go through the content-warning gate again with a new, deliberate Proceed action.
+                </p>
+                <p style={secondaryText}>
+                  Because this was unexpected exposure, a mandatory cooldown now applies before you can take on new
+                  cases.
+                </p>
+                <div>
+                  <Button kind="tertiary" disabled={sosState !== "sent"} onClick={() => navigate("/auditor/cooldown")}>
+                    Continue
+                  </Button>
+                </div>
+              </>
+            )}
+          </section>
         </StaffPage>
       )}
     </>

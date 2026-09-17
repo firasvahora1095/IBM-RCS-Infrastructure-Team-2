@@ -1,10 +1,21 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { staffLogin } from "../services";
 import { clearAllDraftResolutions } from "./useDraftResolution";
 
 const TOKEN_KEY = "rcs_staff_token";
 const ROLE_KEY = "rcs_staff_role";
 const STAFF_ID_KEY = "rcs_staff_id";
+
+/**
+ * Fired whenever the stored session changes, so every component using
+ * useAuth (the header's exposure bar, the page underneath a re-auth modal)
+ * picks up the new token instead of keeping a stale copy.
+ */
+const SESSION_CHANGED_EVENT = "rcs:session-changed";
+
+function notifySessionChanged(): void {
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
+}
 
 export type StaffRole = "auditor" | "manager";
 
@@ -39,6 +50,14 @@ function clearStaffSession(): void {
   sessionStorage.removeItem(STAFF_ID_KEY);
   // In-progress Auditor reviews belong to this session too.
   clearAllDraftResolutions();
+  notifySessionChanged();
+}
+
+function storeStaffSession(token: string, role: StaffRole, staffId: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(ROLE_KEY, role);
+  sessionStorage.setItem(STAFF_ID_KEY, staffId);
+  notifySessionChanged();
 }
 
 /**
@@ -58,13 +77,33 @@ function clearStaffSession(): void {
 export function useAuth() {
   const [session, setSession] = useState<StaffSession | null>(readStaffSession);
 
+  useEffect(() => {
+    const sync = () => setSession(readStaffSession());
+    window.addEventListener(SESSION_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(SESSION_CHANGED_EVENT, sync);
+  }, []);
+
   const login = useCallback(async (staffId: string, password: string): Promise<StaffRole> => {
     const result = await staffLogin(staffId, password);
-    sessionStorage.setItem(TOKEN_KEY, result.token);
-    sessionStorage.setItem(ROLE_KEY, result.role);
-    sessionStorage.setItem(STAFF_ID_KEY, staffId);
+    storeStaffSession(result.token, result.role, staffId);
     setSession({ token: result.token, role: result.role, staffId });
     return result.role;
+  }, []);
+
+  /**
+   * Session-expired re-authentication (Auditor 36:235, Manager 1:1231): signs
+   * the same person back in without leaving the page, keeping every draft and
+   * on-screen setting. A different account can't continue someone else's work.
+   */
+  const reauthenticate = useCallback(async (password: string): Promise<void> => {
+    const current = readStaffSession();
+    const staffId = current?.staffId ?? sessionStorage.getItem(STAFF_ID_KEY) ?? "";
+    const result = await staffLogin(staffId, password);
+    if (current && result.role !== current.role) {
+      throw new Error("This account can't continue this session.");
+    }
+    storeStaffSession(result.token, result.role, staffId);
+    setSession({ token: result.token, role: result.role, staffId });
   }, []);
 
   const logout = useCallback(() => {
@@ -78,6 +117,7 @@ export function useAuth() {
     staffId: session?.staffId ?? "",
     isLoggedIn: session !== null,
     login,
+    reauthenticate,
     logout,
   };
 }

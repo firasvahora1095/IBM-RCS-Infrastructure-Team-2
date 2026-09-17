@@ -23,3 +23,10 @@
   @include theme.theme();
 }
 
+// The Review Workspace scrubber spans its whole column (Figma 20:54). Carbon's
+// Slider otherwise caps its width at 40rem and shrinks with hideTextInput.
+.rcs-full-width-slider .cds--slider-container,
+.rcs-full-width-slider .cds--slider {
+  inline-size: 100%;
+  max-inline-size: none;
+}

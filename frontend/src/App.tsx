@@ -7,6 +7,7 @@ import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
 import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
 import { AuditorCaseDetailPage } from "./pages/auditor/AuditorCaseDetailPage";
+import { CooldownPage } from "./pages/auditor/CooldownPage";
 import { ManagerOversightDashboardPage } from "./pages/manager/ManagerOversightDashboardPage";
 import { ManagerCaseOversightPage } from "./pages/manager/ManagerCaseOversightPage";
 
@@ -32,7 +33,8 @@ function PublicLayout() {
  *   "/status"            — public status lookup by Case ID
  *   "/staff/login"       — shared staff login; no header, matching Figma
  *   "/auditor"           — Auditor dashboard (auditor role only)
- *   "/auditor/cases/:id" — Auditor case review: summary → severity → confirmation
+ *   "/auditor/cases/:id" — Auditor case review: content warning → summary → workspace → severity → confirmation
+ *   "/auditor/cooldown"  — Auditor cooldown after a high-severity case or SOS
  *   "/manager"           — Manager dashboard scaffold (manager role only)
  *   "/manager/cases"     — Manager case oversight scaffold (manager role only)
  *
@@ -63,6 +65,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRole="auditor">
               <AuditorCaseDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/auditor/cooldown"
+          element={
+            <ProtectedRoute allowedRole="auditor">
+              <CooldownPage />
             </ProtectedRoute>
           }
         />

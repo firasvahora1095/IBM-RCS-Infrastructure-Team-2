@@ -8,6 +8,7 @@ import {
   TableBody,
   TableCell,
   InlineNotification,
+  ActionableNotification,
   DataTableSkeleton,
   Layer,
 } from "@carbon/react";
@@ -78,7 +79,11 @@ export function AuditorDashboardPage() {
     };
   }, [token, handleSessionExpiry]);
 
-  const inCooldown = wellbeing?.cooldown != null && Date.parse(wellbeing.cooldown.ends_at) > pageOpenedAt;
+  const cooldown = wellbeing?.cooldown ?? null;
+  // A cooldown lasts until its end time and, for S4/SOS, until the Manager check-in is recorded.
+  const inCooldown =
+    cooldown !== null &&
+    (Date.parse(cooldown.ends_at) > pageOpenedAt || (cooldown.requires_check_in && !cooldown.check_in_completed_at));
   const atExposureLimit = wellbeing != null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
   const showAssignedColumn = cases?.some((c) => c.assigned_at) ?? false;
   const reviewableCount = cases?.filter((c) => isReviewable(c.status)).length ?? 0;
@@ -97,10 +102,13 @@ export function AuditorDashboardPage() {
 
         {/* AR-WB-12: new assignments pause and earlier footage stays locked (Figma 36:189). */}
         {inCooldown && (
-          <InlineNotification
+          <ActionableNotification
+            inline
             kind="info"
             lowContrast
             hideCloseButton
+            actionButtonLabel="View cooldown"
+            onActionButtonClick={() => navigate("/auditor/cooldown")}
             title="Cooldown in progress — new assignments paused."
             subtitle="You can still see your Dashboard and past case metadata. Raw footage from earlier cases can't be reopened until the cooldown ends."
             style={{ maxWidth: "100%" }}

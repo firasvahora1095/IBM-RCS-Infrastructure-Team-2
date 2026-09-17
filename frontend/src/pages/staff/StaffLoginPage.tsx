@@ -48,10 +48,14 @@ export function StaffLoginPage() {
     } catch (err) {
       // The backend answers wrong ID and wrong password identically (401),
       // so the message never reveals which one was wrong (Figma 8:22 copy).
+      // 429 is the lockout after repeated failures (Figma 36:129), whose
+      // message already says when to try again.
       setError(
         err instanceof ApiError && err.status === 401
           ? "Incorrect staff ID or password."
-          : "We couldn't log you in right now. Please try again.",
+          : err instanceof ApiError && err.status === 429
+            ? err.message
+            : "We couldn't log you in right now. Please try again.",
       );
       setIsSubmitting(false);
     }
