@@ -6,12 +6,15 @@ import { isMockData } from "../../services";
 import { DEMO_CONNECTION_LOST_EVENT, DEMO_SCENARIO_EVENT, demoScenarios } from "../../services/mock/demo";
 import { useAuth, type StaffRole } from "../../hooks/useAuth";
 import { notifyWellbeingChanged } from "../../hooks/useMyWellbeing";
+import { notifySosChanged } from "../../hooks/useSosSummary";
 
 interface Scenario {
   label: string;
   run: (token: string) => void;
   /** Also shown on Manager screens. */
   forManager?: boolean;
+  /** Shown on Manager screens only. */
+  managerOnly?: boolean;
 }
 
 const SCENARIOS: Scenario[] = [
@@ -19,7 +22,13 @@ const SCENARIOS: Scenario[] = [
     label: "Drop the connection for 8 seconds",
     run: () => window.dispatchEvent(new CustomEvent(DEMO_CONNECTION_LOST_EVENT, { detail: { seconds: 8 } })),
   },
-  { label: "Fail my next case submission", run: () => demoScenarios.failNextSubmission() },
+  { label: "Fail my next submission or save", run: () => demoScenarios.failNextSubmission(), forManager: true },
+  {
+    label: "Make the next reassignment target unavailable",
+    run: () => demoScenarios.makeNextReassignTargetUnavailable(),
+    forManager: true,
+    managerOnly: true,
+  },
   { label: "Expire my session", run: (token) => demoScenarios.expireSession(token), forManager: true },
   { label: "Put me at my exposure limit", run: (token) => demoScenarios.reachExposureLimit(token) },
   { label: "Start a 15-minute S3 cooldown", run: (token) => demoScenarios.startCooldown(token, "S3", 15) },
@@ -40,13 +49,14 @@ export function DemoScenarioMenu({ role }: { role: StaffRole }) {
 
   if (!isMockData || !token) return null;
 
-  const scenarios = SCENARIOS.filter((s) => role === "auditor" || s.forManager);
+  const scenarios = SCENARIOS.filter((s) => (role === "auditor" ? !s.managerOnly : s.forManager));
 
   function apply(scenario: Scenario) {
     if (!token) return;
     scenario.run(token);
     window.dispatchEvent(new Event(DEMO_SCENARIO_EVENT));
     notifyWellbeingChanged();
+    notifySosChanged();
     setAnnouncement(`Demo scenario applied: ${scenario.label}.`);
   }
 

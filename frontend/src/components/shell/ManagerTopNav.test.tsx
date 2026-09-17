@@ -11,26 +11,31 @@ function renderAt(path: string) {
   );
 }
 
-describe("ManagerTopNav", () => {
-  it("shows all five sections from the Figma TopNav", () => {
+describe("ManagerTopNav (Task 103)", () => {
+  it("links all five Figma sections to real routes, with none disabled", () => {
     renderAt("/manager");
-    ["Dashboard", "Case Oversight", "SOS Inbox", "Reassignment Queue", "Validation"].forEach((label) => {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    });
-  });
-
-  it("links only the two Sprint 2 sections and marks the other three as Sprint 3", () => {
-    renderAt("/manager");
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/manager");
-    expect(screen.getByRole("link", { name: "Case Oversight" })).toHaveAttribute("href", "/manager/cases");
-    expect(screen.getAllByRole("link")).toHaveLength(2);
-    expect(screen.getAllByText("(Sprint 3)")).toHaveLength(3);
-    expect(screen.getByText("SOS Inbox").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
+    const expected: [string, string][] = [
+      ["Dashboard", "/manager"],
+      ["Case Oversight", "/manager/cases"],
+      ["SOS Inbox", "/manager/sos"],
+      ["Reassignment Queue", "/manager/reassignment"],
+      ["Validation", "/manager/validation"],
+    ];
+    for (const [label, href] of expected) {
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
+    }
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.queryByText(/Sprint 3/)).not.toBeInTheDocument();
   });
 
   it("marks the current section for assistive technology", () => {
     renderAt("/manager/cases");
     expect(screen.getByRole("link", { name: "Case Oversight" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps a section highlighted on its sub-pages", () => {
+    renderAt("/manager/sos/SOS-demo0001");
+    expect(screen.getByRole("link", { name: "SOS Inbox" })).toHaveAttribute("aria-current", "page");
   });
 });

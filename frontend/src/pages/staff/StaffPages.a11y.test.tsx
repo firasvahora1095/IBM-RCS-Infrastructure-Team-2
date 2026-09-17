@@ -4,8 +4,13 @@ import { StaffLoginPage } from "./StaffLoginPage";
 import { AuditorDashboardPage } from "../auditor/AuditorDashboardPage";
 import { AuditorCaseDetailPage } from "../auditor/AuditorCaseDetailPage";
 import { CooldownPage } from "../auditor/CooldownPage";
-import { ManagerOversightDashboardPage } from "../manager/ManagerOversightDashboardPage";
-import { ManagerCaseOversightPage } from "../manager/ManagerCaseOversightPage";
+import { render } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { axe } from "jest-axe";
+import { AppRoutes } from "../../App";
+import { mockDataService } from "../../services/mock";
+import { resetDb } from "../../services/mock/store";
+import { DEMO_PASSWORD } from "../../services/mock/seed";
 import * as services from "../../services";
 import { ApiError } from "../../services/types";
 import { runAxeOnPage, seedStaffSession } from "../../test/renderForA11y";
@@ -102,15 +107,29 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     expect(await axe()).toHaveNoViolations();
   });
 
-  it("Manager scaffold pages have no detectable violations", async () => {
-    seedStaffSession("manager");
-    vi.spyOn(services, "getManagerDashboard").mockResolvedValueOnce({ auditors: [], pending_declined_cases: 0 });
-    const dashboard = await runAxeOnPage(<ManagerOversightDashboardPage />, "/manager");
-    await screen.findByText(/No auditor workload data/);
-    expect(await dashboard.axe()).toHaveNoViolations();
-    dashboard.container.remove();
-
-    const cases = await runAxeOnPage(<ManagerCaseOversightPage />, "/manager/cases");
-    expect(await cases.axe()).toHaveNoViolations();
+  it.each([
+    ["Oversight Dashboard", "/manager", "Oversight Dashboard"],
+    ["Auditor Detail", "/manager/auditors/auditor-4", "Reese Patel"],
+    ["Case Oversight", "/manager/cases", "Consolidated Case Oversight"],
+    ["SOS Inbox", "/manager/sos", "SOS Inbox"],
+    ["SOS Alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
+    ["SOS Follow-up", "/manager/sos/SOS-demo0003/follow-up", "Log follow-up — Reese Patel"],
+    ["Reassignment Queue", "/manager/reassignment", "Declined / Reassignment Queue"],
+    ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
+    ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
+    ["Validation View", "/manager/validation", "Validation View"],
+  ])("Manager %s has no detectable violations", async (_name, path, heading) => {
+    resetDb();
+    const { token } = await mockDataService.staffLogin("manager-1", DEMO_PASSWORD);
+    sessionStorage.setItem("rcs_staff_token", token);
+    sessionStorage.setItem("rcs_staff_role", "manager");
+    sessionStorage.setItem("rcs_staff_id", "manager-1");
+    const { container } = render(
+      <MemoryRouter initialEntries={[path]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { level: 1, name: heading });
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

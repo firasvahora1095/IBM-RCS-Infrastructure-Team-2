@@ -1,88 +1,103 @@
-import { useEffect, useState } from "react";
-import { InlineNotification, SkeletonText } from "@carbon/react";
-import { StaffHeader } from "../../components/shell/StaffHeader";
-import { ManagerTopNav } from "../../components/shell/ManagerTopNav";
-import { StaffPage } from "../../components/layout/StaffPage";
-import { ScaffoldLabel } from "../../components/notifications/ScaffoldLabel";
-import { getManagerDashboard } from "../../services";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
-import type { ManagerDashboardResponse } from "../../services/types";
+import { useState } from "react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import {
+  Layer,
+  OverflowMenu,
+  OverflowMenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
+import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { ExposureBar } from "../../components/exposure/ExposureBar";
+import { ExposureStateTag, LoadState } from "../../components/manager/ManagerBits";
+import { pageTitle } from "../../components/manager/managerStyles";
+import { getAuditorOverview } from "../../services";
+import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { cooldownSummary } from "../../design-tokens/managerLabels";
 
 /**
- * Manager Oversight Dashboard — Sprint 2 scaffold (Figma node 78:69).
- *
- * The Figma screen is a Sprint 3 design: per-Auditor exposure bars
- * ("120 / 120 min"), At limit / Approaching / Under states, cooldown
- * countdowns and an SOS banner. None of that data exists —
- * GET /api/manager/dashboard returns only { auditors: [], pending_declined_cases }
- * — and docs/ux/sprint2-build-scope-handoff.md marks this screen "static/
- * placeholder shell, no live exposure data".
- *
- * Task 96's AC is the rule here: "No placeholder section could be mistaken
- * for live data by someone unfamiliar with the build." So the page shows
- * only what the API really returns, labelled plainly as a scaffold, rather
- * than recreating the Figma table with invented numbers.
+ * Oversight Dashboard (Manager Figma 78:69): every Auditor under this
+ * Manager's oversight with exposure against their limit, the Under /
+ * Approaching / At limit state, cooldown time left, and cases today
+ * (MR-OV-01–05). Rows are ordered by how close each Auditor is to their limit,
+ * so the people who most need attention come first.
  */
 export function ManagerOversightDashboardPage() {
-  const [data, setData] = useState<ManagerDashboardResponse | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getManagerDashboard()
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const navigate = useNavigate();
+  const { data, error } = useStaffQuery(getAuditorOverview);
+  const [now] = useState(() => Date.now());
 
   return (
-    <>
-      <StaffHeader role="manager" />
-      <ManagerTopNav />
-      <StaffPage clearHeader={false}>
-        <div className="flex flex-col items-start gap-3">
-          <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Oversight Dashboard</h1>
-          <ScaffoldLabel>Scaffold — per-Auditor exposure tracking ships in Sprint 3</ScaffoldLabel>
-        </div>
-
-        {loadError && (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            role="alert"
-            title="Couldn't load dashboard data."
-            subtitle={loadError}
-            style={{ maxWidth: "100%" }}
-          />
-        )}
-
-        {!data && !loadError && <SkeletonText paragraph lineCount={3} />}
-
-        {data && (
-          <section aria-label="Live data available in Sprint 2" className="flex flex-col gap-4">
-            <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)", maxWidth: 640 }}>
-              {data.auditors.length === 0
-                ? "No auditor workload data is available yet — this table will populate once exposure tracking ships in Sprint 3."
-                : // The row shape hasn't been observed with real data yet, so
-                  // report the count rather than guess at columns.
-                  `${data.auditors.length} auditor record(s) returned. A workload table for them ships with exposure tracking in Sprint 3.`}
-            </p>
-            <dl className="flex items-baseline gap-2" style={{ fontSize: 14 }}>
-              <dt style={{ color: "var(--cds-text-secondary)" }}>Pending declined cases:</dt>
-              <dd style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
-                {data.pending_declined_cases}
-              </dd>
-            </dl>
-          </section>
-        )}
-      </StaffPage>
-    </>
+    <ManagerLayout>
+      <h1 style={pageTitle}>Oversight Dashboard</h1>
+      <LoadState error={error} loading={!data && !error} what="the dashboard" />
+      {data && (
+        <Layer>
+          <Table aria-label="Auditors under your oversight">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Auditor</TableHeader>
+                <TableHeader>Exposure</TableHeader>
+                <TableHeader>State</TableHeader>
+                <TableHeader>Cooldown</TableHeader>
+                <TableHeader>Cases today</TableHeader>
+                <TableHeader>
+                  <span className="cds--visually-hidden">Actions</span>
+                </TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data.map((row) => {
+                const detailUrl = `/manager/auditors/${encodeURIComponent(row.auditor_id)}`;
+                return (
+                  <TableRow key={row.auditor_id}>
+                    <TableCell>
+                      <RouterLink to={detailUrl} className="cds--link">
+                        {row.display_name}
+                      </RouterLink>
+                    </TableCell>
+                    <TableCell>
+                      <ExposureBar
+                        surface="light"
+                        width={180}
+                        minutes={row.exposure_minutes_today}
+                        limit={row.exposure_limit_minutes}
+                        label={`${row.exposure_minutes_today} / ${row.exposure_limit_minutes} min`}
+                        ariaLabel={`${row.display_name}'s exposure today`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <ExposureStateTag state={row.exposure_state} />
+                    </TableCell>
+                    <TableCell style={{ color: "var(--cds-text-secondary)" }}>
+                      {cooldownSummary(row.cooldown, now)}
+                    </TableCell>
+                    <TableCell>{row.cases_today}</TableCell>
+                    <TableCell>
+                      <OverflowMenu
+                        flipped
+                        size="md"
+                        iconDescription={`Actions for ${row.display_name}`}
+                        aria-label={`Actions for ${row.display_name}`}
+                      >
+                        <OverflowMenuItem itemText="View details" onClick={() => navigate(detailUrl)} />
+                        <OverflowMenuItem
+                          itemText="Adjust exposure limit"
+                          onClick={() => navigate(`${detailUrl}#exposure-limit`)}
+                        />
+                      </OverflowMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Layer>
+      )}
+    </ManagerLayout>
   );
 }

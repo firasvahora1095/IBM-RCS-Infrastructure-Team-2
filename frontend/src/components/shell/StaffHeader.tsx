@@ -1,5 +1,6 @@
-import { Header, HeaderName, HeaderGlobalBar, Theme } from "@carbon/react";
-import { useNavigate } from "react-router-dom";
+import { Header, HeaderName, HeaderGlobalBar, Tag, Theme } from "@carbon/react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import type { SosSummary } from "../../services/types";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
@@ -13,6 +14,8 @@ const ROLE_LABEL: Record<StaffRole, string> = {
 
 interface StaffHeaderProps {
   role: StaffRole;
+  /** Manager only: unresolved SOS alerts, shown as the header badge (Figma "SOS badge", 21:9). */
+  sosSummary?: SosSummary | null;
 }
 
 /**
@@ -25,7 +28,7 @@ interface StaffHeaderProps {
  * today", AR-WB-01). It only renders when the data source actually provides
  * exposure data, so there's never a made-up number.
  */
-export function StaffHeader({ role }: StaffHeaderProps) {
+export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
   const { staffId, logout } = useAuth();
   const navigate = useNavigate();
   const label = ROLE_LABEL[role];
@@ -56,6 +59,13 @@ export function StaffHeader({ role }: StaffHeaderProps) {
               label={`${wellbeing.exposure_minutes_today} / ${wellbeing.exposure_limit_minutes} min today`}
               ariaLabel="Your exposure today"
             />
+          )}
+          {role === "manager" && sosSummary && sosSummary.unresolved_count > 0 && (
+            <RouterLink to="/manager/sos" style={{ textDecoration: "none" }}>
+              <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0 }}>
+                {sosSummary.unresolved_count} SOS {sosSummary.unresolved_count === 1 ? "alert" : "alerts"}
+              </Tag>
+            </RouterLink>
           )}
           {staffId && (
             <span style={{ fontSize: 14, color: "var(--cds-text-primary)" }}>

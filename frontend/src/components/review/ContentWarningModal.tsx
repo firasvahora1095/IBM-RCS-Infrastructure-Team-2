@@ -21,6 +21,10 @@ interface ContentWarningModalProps {
   /** Closing without choosing returns to the queue; nothing is revealed. */
   onClose: () => void;
   isProceeding?: boolean;
+  /** Replaces the default note under the buttons, e.g. for the Manager's exceptional access (Figma 1:454). */
+  footnote?: string;
+  /** Accessible name of the close button, which leaves without revealing anything. */
+  closeLabel?: string;
 }
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
@@ -45,6 +49,8 @@ export function ContentWarningModal({
   onDecline,
   onClose,
   isProceeding = false,
+  footnote,
+  closeLabel = "Back to case queue",
 }: ContentWarningModalProps) {
   const [consented, setConsented] = useState(false);
   const aiFailed = Boolean(caseDetail.ai_failure);
@@ -63,7 +69,7 @@ export function ContentWarningModal({
           )
         }
         closeModal={onClose}
-        iconDescription="Back to case queue"
+        iconDescription={closeLabel}
       />
       <ModalBody>
         <div className="flex flex-col gap-5">
@@ -108,9 +114,10 @@ export function ContentWarningModal({
           />
 
           <p style={helperText}>
-            {aiFailed
-              ? "Proceeding opens the Review Workspace directly at maximum blur, since severity is unknown here, not neutral. There is no AI Analysis Summary for this case."
-              : "Your manager will review this case using the AI summary and your notes — not your decision to decline."}
+            {footnote ??
+              (aiFailed
+                ? "Proceeding opens the Review Workspace directly at maximum blur, since severity is unknown here, not neutral. There is no AI Analysis Summary for this case."
+                : "Your manager will review this case using the AI summary and your notes — not your decision to decline.")}
           </p>
         </div>
       </ModalBody>

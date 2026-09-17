@@ -32,12 +32,15 @@ interface ReviewWorkspaceProps {
   /** Set while something outside the workspace (session re-auth) must stop playback. */
   pausedReason: "session" | null;
   /** Receives measured playback exposure every few seconds and when the workspace closes. */
-  onExposure: (sample: ExposureSample) => void;
+  onExposure?: (sample: ExposureSample) => void;
   onContinue: () => void;
+  /** "Continue to severity & comment" for Auditors; the Manager's exceptional access returns to its decision. */
+  continueLabel?: string;
   /** Absent for an AI-failure case, which has no summary to go back to. */
   onBack?: () => void;
-  onTalkToManager: () => void;
-  onSos: () => void;
+  /** Auditor only. Omitted in the Manager's exceptional-access session, with SOS and the exposure counter (Manager handoff screen 14). */
+  onTalkToManager?: () => void;
+  onSos?: () => void;
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -69,6 +72,7 @@ export function ReviewWorkspace({
   pausedReason,
   onExposure,
   onContinue,
+  continueLabel = "Continue to severity & comment",
   onBack,
   onTalkToManager,
   onSos,
@@ -158,7 +162,7 @@ export function ReviewWorkspace({
       const sample = pendingRef.current;
       if (sample.active_seconds + sample.replay_seconds === 0) return;
       pendingRef.current = { active_seconds: 0, replay_seconds: 0 };
-      onExposureRef.current(sample);
+      onExposureRef.current?.(sample);
     };
     const id = window.setInterval(flush, EXPOSURE_FLUSH_MS);
     return () => {
@@ -231,10 +235,12 @@ export function ReviewWorkspace({
           style={{ maxWidth: "100%" }}
         />
       )}
-      <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-        This case: {formatDuration(total)} ({formatDuration(totals.active_seconds)} active review,{" "}
-        {formatDuration(totals.replay_seconds)} replay) · {isPlaying ? "● Counting" : "○ Paused"}
-      </p>
+      {onExposure && (
+        <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
+          This case: {formatDuration(total)} ({formatDuration(totals.active_seconds)} active review,{" "}
+          {formatDuration(totals.replay_seconds)} replay) · {isPlaying ? "● Counting" : "○ Paused"}
+        </p>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
         {/* Video column: stays in view while the rail scrolls, so SOS is always reachable. */}
@@ -279,16 +285,18 @@ export function ReviewWorkspace({
               </p>
             )}
 
-            <div className="absolute right-4 top-4">
-              <Button
-                kind="secondary"
-                size="md"
-                onClick={onSos}
-                aria-label="SOS: pause this case and notify my manager"
-              >
-                SOS
-              </Button>
-            </div>
+            {onSos && (
+              <div className="absolute right-4 top-4">
+                <Button
+                  kind="secondary"
+                  size="md"
+                  onClick={onSos}
+                  aria-label="SOS: pause this case and notify my manager"
+                >
+                  SOS
+                </Button>
+              </div>
+            )}
           </div>
 
           <div ref={scrubberRef} className="rcs-full-width-slider flex flex-col gap-1">
@@ -422,20 +430,22 @@ export function ReviewWorkspace({
             </div>
           )}
 
-          <p>
-            <Link
-              href="#check-in"
-              onClick={(e) => {
-                e.preventDefault();
-                onTalkToManager();
-              }}
-            >
-              Something about this one? Talk to your manager
-            </Link>
-          </p>
+          {onTalkToManager && (
+            <p>
+              <Link
+                href="#check-in"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onTalkToManager();
+                }}
+              >
+                Something about this one? Talk to your manager
+              </Link>
+            </p>
+          )}
 
           <div className="flex flex-col items-start gap-4">
-            <Button onClick={onContinue}>Continue to severity &amp; comment</Button>
+            <Button onClick={onContinue}>{continueLabel}</Button>
             {onBack && (
               <Button kind="tertiary" onClick={onBack}>
                 ← Back to AI Analysis Summary
@@ -486,9 +496,11 @@ export function ReviewWorkspace({
             </Accordion>
           )}
 
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-            SOS is available at every scroll position in this workspace.
-          </p>
+          {onSos && (
+            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
+              SOS is available at every scroll position in this workspace.
+            </p>
+          )}
         </div>
       </div>
     </div>
