@@ -1,6 +1,7 @@
 import { Header, HeaderName, HeaderGlobalBar, Theme } from "@carbon/react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
+import { DemoDataBadge } from "./DemoDataBadge";
 
 const ROLE_LABEL: Record<StaffRole, string> = {
   auditor: "Auditor",
@@ -41,6 +42,7 @@ export function StaffHeader({ role }: StaffHeaderProps) {
         <HeaderName href={ROLE_HOME[role]} prefix="">
           {`RCS — ${label}`}
         </HeaderName>
+        <DemoDataBadge />
         <HeaderGlobalBar className="items-center gap-6 pr-6">
           {staffId && (
             <span style={{ fontSize: 14, color: "#ffffff" }}>

@@ -2,8 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UploadPage } from "./UploadPage";
-import * as apiClient from "../../api/client";
-import { ApiError } from "../../api/types";
+import * as services from "../../services";
+import { ApiError } from "../../services/types";
 
 function renderPage() {
   return render(
@@ -61,7 +61,7 @@ describe("UploadPage", () => {
   });
 
   it("submits successfully, saves the Case ID, and navigates to the confirmation page", async () => {
-    vi.spyOn(apiClient, "createReport").mockResolvedValueOnce({
+    vi.spyOn(services, "createReport").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
       status: "Being Reviewed",
       assigned_auditor: "auditor-1",
@@ -73,13 +73,13 @@ describe("UploadPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /submit report/i }));
 
     expect(await screen.findByText("Confirmation page")).toBeInTheDocument();
-    expect(apiClient.createReport).toHaveBeenCalledWith(file);
+    expect(services.createReport).toHaveBeenCalledWith(file);
     // UR-ID-07 end-to-end: retained in local storage, not just in the hook test.
     expect(JSON.parse(localStorage.getItem("rcs_last_case")!).caseId).toBe("INSZNNJI4P");
   });
 
   it("shows the backend's rejection message when the upload fails (UR-VU-04)", async () => {
-    vi.spyOn(apiClient, "createReport").mockRejectedValueOnce(
+    vi.spyOn(services, "createReport").mockRejectedValueOnce(
       new ApiError("File contents do not match a valid .mp4 file", 400),
     );
 

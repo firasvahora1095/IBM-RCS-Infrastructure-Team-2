@@ -1,4 +1,4 @@
-import type { FinalOutcome } from "../api/types";
+import type { FinalOutcome } from "../services/types";
 
 /**
  * RT-01 — Final Outcome Taxonomy (docs/ba/ba-requirements-sprint2-final.md),

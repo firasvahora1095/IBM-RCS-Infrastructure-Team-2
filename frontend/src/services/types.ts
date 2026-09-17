@@ -1,0 +1,175 @@
+/**
+ * The frontend's data contract: every shape the UI reads or sends.
+ *
+ * The core Sprint 2 shapes (reports, status, staff login, auditor cases,
+ * resolve, manager dashboard) were first captured from real responses of
+ * the team's test harness (spike/week1-fullstack-experiment). Fields marked
+ * "optional — UI needs" are what the Figma screens display but no backend
+ * returns yet; the mock data source provides them, and the UI hides them
+ * cleanly when a real backend leaves them out. See
+ * docs/frontend/BACKEND-INTEGRATION.md for the endpoint-by-endpoint list.
+ */
+
+/** Internal workflow states the backend uses (BA baseline RT-02). */
+export type InternalCaseStatus = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "COMPLETE";
+
+/** The only three states a Normal User is ever allowed to see (UR-ST-02). */
+export type PublicCaseStatus = "Received" | "Being Reviewed" | "Complete";
+
+export type SeverityTier = "S1" | "S2" | "S3" | "S4";
+
+/** Final outcome values confirmed by the PM in BA baseline RT-01. */
+export type FinalOutcome = "NO_VIOLATION_FOUND" | "POLICY_VIOLATION_FOUND";
+
+export type StaffRole = "auditor" | "manager";
+
+/** Response from POST /api/reports (creating a case from an uploaded video). */
+export interface CreateReportResponse {
+  case_id: string;
+  status: string; // already public-safe from this endpoint, e.g. "Being Reviewed"
+  assigned_auditor: string | null;
+}
+
+/** Response from GET /api/status/{case_id}. */
+export interface PublicStatusResponse {
+  case_id: string;
+  status: string; // public-safe from this endpoint — still mapped defensively before display
+  final_outcome: string | null; // only non-null once the case is Complete
+  // Optional — UI needs (Figma 7:15 "Case details" block):
+  submitted_at?: string | null; // ISO 8601
+  updated_at?: string | null; // ISO 8601
+  content_type?: "Video" | "Link" | "Screenshot" | null;
+  duration_seconds?: number | null;
+  file_name?: string | null;
+}
+
+/** Response from POST /api/staff/login. */
+export interface StaffLoginResponse {
+  token: string;
+  role: StaffRole;
+}
+
+/** One row from GET /api/auditor/cases — note `status` here IS the internal value. */
+export interface AuditorCaseListItem {
+  case_id: string;
+  status: InternalCaseStatus;
+  severity_tier: SeverityTier | null;
+  // Optional — UI needs (Figma 10:6 "Assigned" column):
+  assigned_at?: string | null; // ISO 8601
+}
+
+/**
+ * One flagged moment or range on a case's incident timeline. A point-in-time
+ * detection has start === end. `tag` is the visual tag from
+ * docs/ba/severity-scale.md (e.g. "weapon_present") when the pipeline
+ * provides it.
+ */
+export interface IncidentTimelineEntry {
+  start: number; // seconds into the video
+  end: number;
+  severity_tier: SeverityTier;
+  tag?: string | null; // optional — UI needs (Figma 437:232 tag labels)
+}
+
+/** A flagged entity with the span it appears in (Figma 18:62). */
+export interface FlaggedEntity {
+  label: string; // e.g. "Person A", "Object: blunt weapon"
+  start: number;
+  end: number;
+}
+
+/** One timestamped line of the speech-to-text transcript (Figma 18:78). */
+export interface TranscriptLine {
+  time: number; // seconds
+  text: string;
+}
+
+/** Response from GET /api/auditor/cases/{case_id}. */
+export interface AuditorCaseDetail {
+  case_id: string;
+  status: InternalCaseStatus;
+  watson_severity_score: number | null; // raw model score — audit trail only, never shown as "the" score
+  effective_severity_score: number | null; // post-floor score — THIS is what the Auditor sees
+  severity_tier: SeverityTier | null;
+  narrative_summary: string | null;
+  incident_timeline: IncidentTimelineEntry[] | null;
+  // Optional — UI needs (Figma 18:26, 20:35):
+  video_duration_seconds?: number | null;
+  flagged_entities?: FlaggedEntity[] | null;
+  transcript?: TranscriptLine[] | null;
+  /** Audio intensity per equal time bucket, each 0–1. Not an emotion measure. */
+  audio_intensity?: number[] | null;
+  /** Set when AI vision or speech-to-text processing failed (AR-AI-10). */
+  ai_failure?: "vision" | "speech_to_text" | null;
+}
+
+/** Response from POST /api/auditor/cases/{case_id}/resolve. */
+export interface ResolveCaseResponse {
+  case_id: string;
+  status: string;
+  final_outcome: string;
+}
+
+/** Response from GET /api/manager/dashboard. */
+export interface ManagerDashboardResponse {
+  auditors: unknown[]; // empty on the test backend — real row shape not yet observed
+  pending_declined_cases: number;
+}
+
+/**
+ * Every data operation the UI performs. Both data sources — `mock` (default,
+ * synthetic demo data) and `api` (the real backend, connected by Firas)
+ * implement this interface, so pages never know which one they're using.
+ */
+export interface DataService {
+  createReport(videoFile: File): Promise<CreateReportResponse>;
+  getStatus(caseId: string): Promise<PublicStatusResponse>;
+  staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
+  getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
+  getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail>;
+  resolveCase(
+    caseId: string,
+    token: string,
+    finalOutcome: FinalOutcome,
+    auditorSeverityScore?: number,
+    auditorComment?: string,
+  ): Promise<ResolveCaseResponse>;
+  getManagerDashboard(): Promise<ManagerDashboardResponse>;
+}
+
+/**
+ * Shown when a request fails before any response arrives (offline, DNS,
+ * TLS or CORS failure). Pages use it as the detail line under their own
+ * error title, so the notice never just repeats the title.
+ */
+export const NETWORK_ERROR_MESSAGE = "We couldn't reach the server. Check your connection and try again.";
+
+/** Thrown by a data source on any failed request, so pages handle one error type. */
+export class ApiError extends Error {
+  // Declared as a normal field rather than a `public status` constructor
+  // parameter property: the project's tsconfig enables erasableSyntaxOnly,
+  // which rejects parameter properties because they emit runtime code.
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/**
+ * Thrown by the `api` data source for an operation no backend endpoint
+ * exists for yet. It's an ApiError (HTTP 501) so every page's existing error
+ * handling shows a readable notice instead of crashing, and searching for
+ * `notConnected(` in services/api lists every integration gap.
+ */
+export class NotImplementedError extends ApiError {
+  readonly operation: string;
+
+  constructor(operation: string) {
+    super("This feature isn't connected to the backend yet.", 501);
+    this.name = "NotImplementedError";
+    this.operation = operation;
+  }
+}

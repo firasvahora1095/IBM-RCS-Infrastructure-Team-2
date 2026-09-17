@@ -1,4 +1,4 @@
-import type { SeverityTier } from "../api/types";
+import type { SeverityTier } from "../services/types";
 
 /**
  * S1–S4 is a TEAM-DEFINED severity scale, not a stock Carbon concept (see

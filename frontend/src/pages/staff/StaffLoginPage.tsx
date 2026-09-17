@@ -3,7 +3,9 @@ import type { FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { TextInput, PasswordInput, Button, InlineNotification } from "@carbon/react";
 import { useAuth, ROLE_HOME } from "../../hooks/useAuth";
-import { ApiError } from "../../api/types";
+import { ApiError } from "../../services/types";
+import { isMockData } from "../../services";
+import { DEMO_PASSWORD } from "../../services/mock/seed";
 
 /** Set in navigation state by staff pages when the backend rejects their token. */
 export interface StaffLoginLocationState {
@@ -78,6 +80,18 @@ export function StaffLoginPage() {
             Enter your staff ID and password to continue.
           </p>
         </div>
+
+        {/* Mock mode only: the demo has no real accounts, so say how to get in. */}
+        {isMockData && (
+          <InlineNotification
+            kind="info"
+            lowContrast
+            hideCloseButton
+            title="Demo sign-in:"
+            subtitle={`auditor-1, auditor-2 or manager-1 — password ${DEMO_PASSWORD}`}
+            style={{ maxWidth: "100%" }}
+          />
+        )}
 
         {sessionEnded && !error && (
           <InlineNotification

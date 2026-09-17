@@ -1,4 +1,4 @@
-import type { FinalOutcome } from "../api/types";
+import type { FinalOutcome } from "../services/types";
 
 /** The resolution steps a draft can resume at — never the confirmation. */
 export type DraftStep = "summary" | "severity";

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createReport, getStatus, staffLogin, resolveCase } from "./client";
-import { ApiError } from "./types";
+import { createReport, getStatus, staffLogin, resolveCase } from "./httpClient";
+import { ApiError } from "../types";
 
 describe("api client", () => {
   beforeEach(() => {

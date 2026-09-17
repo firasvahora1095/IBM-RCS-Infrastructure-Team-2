@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuditorCaseDetailPage } from "./AuditorCaseDetailPage";
-import * as apiClient from "../../api/client";
-import type { AuditorCaseDetail } from "../../api/types";
+import * as services from "../../services";
+import type { AuditorCaseDetail } from "../../services/types";
 
 const MOCK_CASE: AuditorCaseDetail = {
   case_id: "AR-2026-00417",
@@ -49,18 +49,18 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("shows the severity, narrative summary and timeline from the real API shape", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     renderPage();
 
     expect(await screen.findByText(/physical altercation between two individuals/)).toBeInTheDocument();
     expect(screen.getByText("CVI 71 / 100")).toBeInTheDocument();
     expect(screen.getAllByText("S3 · High").length).toBeGreaterThan(0);
     expect(screen.getByText("00:42–01:15")).toBeInTheDocument();
-    expect(apiClient.getAuditorCaseDetail).toHaveBeenCalledWith("AR-2026-00417", "abc123");
+    expect(services.getAuditorCaseDetail).toHaveBeenCalledWith("AR-2026-00417", "abc123");
   });
 
   it("doesn't offer a review while AI analysis is still running", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce({
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce({
       ...MOCK_CASE,
       status: "AI_PROCESSING",
       effective_severity_score: null,
@@ -76,7 +76,7 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("requires an explicit outcome, and a comment only when the rating differs from the AI's", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     renderPage();
     await goToSeverityStep();
 
@@ -101,8 +101,8 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("sends the RT-01 outcome value and shows the Sprint 2 confirmation copy", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
-    vi.spyOn(apiClient, "resolveCase").mockResolvedValueOnce({
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "resolveCase").mockResolvedValueOnce({
       case_id: "AR-2026-00417",
       status: "Complete",
       final_outcome: "POLICY_VIOLATION_FOUND",
@@ -114,7 +114,7 @@ describe("AuditorCaseDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to submit" }));
 
     expect(await screen.findByText("This case has been marked Complete.")).toBeInTheDocument();
-    expect(apiClient.resolveCase).toHaveBeenCalledWith(
+    expect(services.resolveCase).toHaveBeenCalledWith(
       "AR-2026-00417",
       "abc123",
       "POLICY_VIOLATION_FOUND",
@@ -128,8 +128,8 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("sends the override score and comment together when the rating was changed", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
-    vi.spyOn(apiClient, "resolveCase").mockResolvedValueOnce({
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "resolveCase").mockResolvedValueOnce({
       case_id: "AR-2026-00417",
       status: "Complete",
       final_outcome: "POLICY_VIOLATION_FOUND",
@@ -145,7 +145,7 @@ describe("AuditorCaseDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to submit" }));
 
     await waitFor(() =>
-      expect(apiClient.resolveCase).toHaveBeenCalledWith(
+      expect(services.resolveCase).toHaveBeenCalledWith(
         "AR-2026-00417",
         "abc123",
         "POLICY_VIOLATION_FOUND",
@@ -156,9 +156,9 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("shows the backend's reason if a submission is rejected", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
-    vi.spyOn(apiClient, "resolveCase").mockRejectedValueOnce(
-      new (await import("../../api/types")).ApiError(
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "resolveCase").mockRejectedValueOnce(
+      new (await import("../../services/types")).ApiError(
         "A comment is required when overriding the AI severity score",
         400,
       ),
@@ -173,7 +173,7 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("survives a round-trip to another screen and back (Task 102's AC)", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
 
     const { unmount } = renderPage();
     await goToSeverityStep();
@@ -196,8 +196,8 @@ describe("AuditorCaseDetailPage", () => {
   });
 
   it("doesn't keep a draft once the case has been submitted", async () => {
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
-    vi.spyOn(apiClient, "resolveCase").mockResolvedValueOnce({
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValue(MOCK_CASE);
+    vi.spyOn(services, "resolveCase").mockResolvedValueOnce({
       case_id: "AR-2026-00417",
       status: "Complete",
       final_outcome: "NO_VIOLATION_FOUND",
@@ -221,7 +221,7 @@ describe("AuditorCaseDetailPage", () => {
     // NOT reproduce here (this test also passes on the old code); the fix was
     // verified by hand in Chrome. This test still catches a broken or
     // disconnected slider-to-page update path.
-    vi.spyOn(apiClient, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     const user = userEvent.setup();
     renderPage();
     await goToSeverityStep();

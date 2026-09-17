@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiError } from "../api/types";
+import { ApiError } from "../services/types";
 import { useAuth } from "./useAuth";
 
 /**

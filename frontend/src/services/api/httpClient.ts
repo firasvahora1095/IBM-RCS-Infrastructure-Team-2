@@ -7,8 +7,8 @@ import type {
   ResolveCaseResponse,
   ManagerDashboardResponse,
   FinalOutcome,
-} from "./types";
-import { ApiError } from "./types";
+} from "../types";
+import { ApiError } from "../types";
 
 // Read once from the environment rather than hard-coding the URL in every
 // function — this is the one line that changes when the real Sprint 2

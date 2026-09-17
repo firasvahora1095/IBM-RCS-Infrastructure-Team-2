@@ -1,5 +1,5 @@
 import { Tag } from "@carbon/react";
-import type { SeverityTier } from "../../api/types";
+import type { SeverityTier } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
 
 interface SeverityTagProps {

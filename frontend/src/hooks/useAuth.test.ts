@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useAuth } from "./useAuth";
-import * as apiClient from "../api/client";
+import * as services from "../services";
 
 describe("useAuth", () => {
   beforeEach(() => {
@@ -10,7 +10,7 @@ describe("useAuth", () => {
   });
 
   it("stores the token, role and staff ID after a successful login", async () => {
-    vi.spyOn(apiClient, "staffLogin").mockResolvedValueOnce({ token: "abc123", role: "auditor" });
+    vi.spyOn(services, "staffLogin").mockResolvedValueOnce({ token: "abc123", role: "auditor" });
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {

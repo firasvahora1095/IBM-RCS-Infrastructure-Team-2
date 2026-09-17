@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { staffLogin } from "../api/client";
+import { staffLogin } from "../services";
 import { clearAllDraftResolutions } from "./useDraftResolution";
 
 const TOKEN_KEY = "rcs_staff_token";

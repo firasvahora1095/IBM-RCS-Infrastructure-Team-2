@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ManagerOversightDashboardPage } from "./ManagerOversightDashboardPage";
-import * as apiClient from "../../api/client";
+import * as services from "../../services";
 
 function renderPage() {
   return render(
@@ -22,7 +22,7 @@ describe("ManagerOversightDashboardPage", () => {
   });
 
   it("labels itself as a scaffold, per Task 96's honesty requirement", async () => {
-    vi.spyOn(apiClient, "getManagerDashboard").mockResolvedValueOnce({ auditors: [], pending_declined_cases: 0 });
+    vi.spyOn(services, "getManagerDashboard").mockResolvedValueOnce({ auditors: [], pending_declined_cases: 0 });
     renderPage();
 
     expect(screen.getByText("Scaffold — per-Auditor exposure tracking ships in Sprint 3")).toBeInTheDocument();
@@ -31,7 +31,7 @@ describe("ManagerOversightDashboardPage", () => {
   });
 
   it("never shows invented exposure, cooldown or SOS figures", async () => {
-    vi.spyOn(apiClient, "getManagerDashboard").mockResolvedValueOnce({ auditors: [], pending_declined_cases: 2 });
+    vi.spyOn(services, "getManagerDashboard").mockResolvedValueOnce({ auditors: [], pending_declined_cases: 2 });
     renderPage();
 
     expect(await screen.findByText("2")).toBeInTheDocument();

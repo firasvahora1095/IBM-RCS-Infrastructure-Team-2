@@ -2,8 +2,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuditorDashboardPage } from "./AuditorDashboardPage";
-import * as apiClient from "../../api/client";
-import { ApiError } from "../../api/types";
+import * as services from "../../services";
+import { ApiError } from "../../services/types";
 
 function renderPage() {
   return render(
@@ -27,7 +27,7 @@ describe("AuditorDashboardPage", () => {
   });
 
   it("shows each case's severity tag and the Figma status copy", async () => {
-    vi.spyOn(apiClient, "getAuditorCases").mockResolvedValueOnce([
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
       { case_id: "AR-2026-00417", status: "READY_FOR_REVIEW", severity_tier: "S3" },
       { case_id: "AR-2026-00418", status: "AI_PROCESSING", severity_tier: null },
     ]);
@@ -37,11 +37,11 @@ describe("AuditorDashboardPage", () => {
     expect(screen.getByText("S3 · High")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ready for review" })).toBeInTheDocument();
     expect(screen.getByText("AI analysis in progress")).toBeInTheDocument();
-    expect(apiClient.getAuditorCases).toHaveBeenCalledWith("abc123");
+    expect(services.getAuditorCases).toHaveBeenCalledWith("abc123");
   });
 
   it("only lets the Auditor open cases the AI has finished analysing", async () => {
-    vi.spyOn(apiClient, "getAuditorCases").mockResolvedValueOnce([
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
       { case_id: "AR-2026-00418", status: "AI_PROCESSING", severity_tier: null },
     ]);
     renderPage();
@@ -52,7 +52,7 @@ describe("AuditorDashboardPage", () => {
   });
 
   it("opens a ready case from its row", async () => {
-    vi.spyOn(apiClient, "getAuditorCases").mockResolvedValueOnce([
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
       { case_id: "AR-2026-00417", status: "READY_FOR_REVIEW", severity_tier: "S3" },
     ]);
     renderPage();
@@ -62,13 +62,13 @@ describe("AuditorDashboardPage", () => {
   });
 
   it("shows an empty-state message when there are no assigned cases", async () => {
-    vi.spyOn(apiClient, "getAuditorCases").mockResolvedValueOnce([]);
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([]);
     renderPage();
     expect(await screen.findByText("You have no cases assigned right now.")).toBeInTheDocument();
   });
 
   it("returns to login when the backend no longer recognises the session", async () => {
-    vi.spyOn(apiClient, "getAuditorCases").mockRejectedValueOnce(new ApiError("Not authenticated", 401));
+    vi.spyOn(services, "getAuditorCases").mockRejectedValueOnce(new ApiError("Not authenticated", 401));
     renderPage();
     expect(await screen.findByText("Login page")).toBeInTheDocument();
     expect(sessionStorage.getItem("rcs_staff_token")).toBeNull();

@@ -16,8 +16,8 @@ import { VideoDropZone } from "../../components/forms/VideoDropZone";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { TrustBanner } from "../../components/notifications/TrustBanner";
 import { PublicPage } from "../../components/layout/PublicPage";
-import { createReport } from "../../api/client";
-import { ApiError } from "../../api/types";
+import { createReport } from "../../services";
+import { ApiError } from "../../services/types";
 import { saveCaseId } from "../../hooks/useCaseIdStorage";
 
 type ReportingChoice = "anonymous" | "identified";

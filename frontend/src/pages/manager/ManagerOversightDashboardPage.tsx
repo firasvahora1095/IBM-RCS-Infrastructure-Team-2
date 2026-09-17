@@ -4,9 +4,9 @@ import { StaffHeader } from "../../components/shell/StaffHeader";
 import { ManagerTopNav } from "../../components/shell/ManagerTopNav";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { ScaffoldLabel } from "../../components/notifications/ScaffoldLabel";
-import { getManagerDashboard } from "../../api/client";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
-import type { ManagerDashboardResponse } from "../../api/types";
+import { getManagerDashboard } from "../../services";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
+import type { ManagerDashboardResponse } from "../../services/types";
 
 /**
  * Manager Oversight Dashboard — Sprint 2 scaffold (Figma node 78:69).

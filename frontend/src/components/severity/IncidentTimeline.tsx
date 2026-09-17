@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { IncidentTimelineEntry } from "../../api/types";
+import type { IncidentTimelineEntry } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { formatTimestamp } from "../../utils/formatTimestamp";
 import { SeverityTag } from "./SeverityTag";

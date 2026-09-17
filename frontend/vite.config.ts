@@ -21,5 +21,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     globals: true,
+    // axe-core accessibility scans of whole pages can take several seconds
+    // when every test file runs in parallel; the 5s default made them flaky.
+    testTimeout: 20_000,
+    // Tests always exercise the mock data source unless a test says otherwise.
+    env: { VITE_DATA_SOURCE: "mock" },
   },
 });

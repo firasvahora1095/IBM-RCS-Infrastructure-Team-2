@@ -12,4 +12,9 @@ describe("AppHeader", () => {
     render(<AppHeader />);
     expect(screen.getByRole("button", { name: "Help" })).toBeInTheDocument();
   });
+
+  it("labels the page as demo data while the mock data source is active (Task 96)", () => {
+    render(<AppHeader />);
+    expect(screen.getByText("Demo data")).toBeInTheDocument();
+  });
 });

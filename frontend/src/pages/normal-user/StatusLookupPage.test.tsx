@@ -2,8 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StatusLookupPage } from "./StatusLookupPage";
-import * as apiClient from "../../api/client";
-import { ApiError } from "../../api/types";
+import * as services from "../../services";
+import { ApiError } from "../../services/types";
 import { saveCaseId } from "../../hooks/useCaseIdStorage";
 
 function renderPage() {
@@ -32,7 +32,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("shows the not-found field error and banner on a 404", async () => {
-    vi.spyOn(apiClient, "getStatus").mockRejectedValueOnce(new ApiError("Case not found", 404));
+    vi.spyOn(services, "getStatus").mockRejectedValueOnce(new ApiError("Case not found", 404));
     renderPage();
     lookUp("RCS-0000-XXXX");
 
@@ -43,7 +43,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("disables lookups and shows the backend's notice once rate-limited (UR-ST-07)", async () => {
-    vi.spyOn(apiClient, "getStatus").mockRejectedValueOnce(
+    vi.spyOn(services, "getStatus").mockRejectedValueOnce(
       new ApiError("Too many invalid attempts. Try again later.", 429),
     );
     renderPage();
@@ -54,7 +54,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("shows the Being Reviewed stage, and no outcome, for an in-progress case", async () => {
-    vi.spyOn(apiClient, "getStatus").mockResolvedValueOnce({
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
       status: "Being Reviewed",
       final_outcome: null,
@@ -70,7 +70,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("never shows an internal state name, even if the API returns one", async () => {
-    vi.spyOn(apiClient, "getStatus").mockResolvedValueOnce({
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
       status: "AI_PROCESSING",
       final_outcome: null,
@@ -84,7 +84,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("shows the RT-01 outcome copy for a completed case, even for the OLD raw backend value", async () => {
-    vi.spyOn(apiClient, "getStatus").mockResolvedValueOnce({
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
       status: "Complete",
       final_outcome: "Violation Found", // the pre-RT-01 test value, on purpose
@@ -102,7 +102,7 @@ describe("StatusLookupPage", () => {
   });
 
   it("returns to the lookup form when checking a different case", async () => {
-    vi.spyOn(apiClient, "getStatus").mockResolvedValueOnce({
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
       status: "Complete",
       final_outcome: "NO_VIOLATION_FOUND",

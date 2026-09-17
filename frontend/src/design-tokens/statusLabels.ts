@@ -1,4 +1,4 @@
-import type { InternalCaseStatus, PublicCaseStatus } from "../api/types";
+import type { InternalCaseStatus, PublicCaseStatus } from "../services/types";
 
 /**
  * RT-02 (docs/ba/ba-requirements-sprint2-final.md) is the single source for

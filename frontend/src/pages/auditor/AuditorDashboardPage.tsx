@@ -14,9 +14,9 @@ import {
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { getAuditorCases } from "../../api/client";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../api/types";
-import type { AuditorCaseListItem, InternalCaseStatus } from "../../api/types";
+import { getAuditorCases } from "../../services";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
+import type { AuditorCaseListItem, InternalCaseStatus } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 
