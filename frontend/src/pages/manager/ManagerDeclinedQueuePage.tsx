@@ -7,7 +7,7 @@ import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeclinedCases } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { declineReasonLabel } from "../../design-tokens/declineReasons";
-import { formatDateTime } from "../../utils/formatRelativeTime";
+import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
  * Declined / Reassignment Queue (Manager Figma 119:289): declined cases
@@ -51,9 +51,7 @@ export function ManagerDeclinedQueuePage() {
                   <TableCell>{row.auditor_name}</TableCell>
                   <TableCell>{row.severity_tier ? <SeverityTag tier={row.severity_tier} size="sm" /> : "—"}</TableCell>
                   <TableCell>{declineReasonLabel(row.reason)}</TableCell>
-                  <TableCell style={{ color: "var(--cds-text-secondary)" }}>
-                    {formatDateTime(row.declined_at)}
-                  </TableCell>
+                  <TableCell style={{ color: "var(--cds-text-secondary)" }}>{formatDayTime(row.declined_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

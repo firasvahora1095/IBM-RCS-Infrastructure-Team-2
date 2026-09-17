@@ -3,7 +3,4 @@ export const pageTitle = { fontSize: 28, lineHeight: "36px", fontWeight: 600 } a
 export const secondaryText = { fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" } as const;
 export const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 
-/** "9:14 AM" */
-export function formatClockTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
-}
+export { formatClockTime } from "../../utils/formatRelativeTime";

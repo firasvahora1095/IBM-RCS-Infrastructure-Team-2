@@ -3,11 +3,11 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { formatClockTime, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { pageTitle, secondaryText } from "../../components/manager/managerStyles";
 import { listSosAlerts } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
-import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
  * SOS Inbox (Manager Figma 103:151): unacknowledged, in-progress and
@@ -49,9 +49,7 @@ export function ManagerSosInboxPage() {
                     >
                       {alert.auditor_name}
                     </TableCell>
-                    <TableCell>
-                      {formatClockTime(alert.triggered_at)} — {formatRelativeTime(alert.triggered_at, now)}
-                    </TableCell>
+                    <TableCell>{formatDayTime(alert.triggered_at, now, { withAgo: true })}</TableCell>
                     <TableCell>
                       {unacknowledged ? (
                         <Button
