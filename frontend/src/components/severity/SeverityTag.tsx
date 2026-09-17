@@ -4,6 +4,8 @@ import { getSeverityInfo } from "../../design-tokens/severity";
 
 interface SeverityTagProps {
   tier: SeverityTier;
+  /** "sm" for dense contexts like timeline labels; "md" everywhere else. */
+  size?: "sm" | "md";
 }
 
 /**
@@ -19,12 +21,12 @@ interface SeverityTagProps {
  * UR-NFR-01 ("colour is never the only status signal"): the tier and label
  * are always rendered as text alongside the colour.
  */
-export function SeverityTag({ tier }: SeverityTagProps) {
+export function SeverityTag({ tier, size = "md" }: SeverityTagProps) {
   const info = getSeverityInfo(tier);
   return (
     <Tag
       type="gray"
-      size="md"
+      size={size}
       style={{ backgroundColor: info.background, color: info.text, fontWeight: 600 }}
     >
       {`${tier} · ${info.label}`}
