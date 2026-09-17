@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { TextInput, Button, InlineNotification, ProgressIndicator, ProgressStep, Tag } from "@carbon/react";
 import { RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
@@ -145,10 +145,29 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
   const outcome = isComplete && result.final_outcome ? mapOutcomeToDisplay(result.final_outcome) : null;
   const [addInfoOpen, setAddInfoOpen] = useState(false);
   const [infoAdded, setInfoAdded] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // The lookup form unmounts when the result appears, which dropped keyboard
+  // focus to the page body (found in the Task 99 keyboard pass). Focus the
+  // result heading instead, so the next Tab continues from here.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   return (
     <PublicPage cardWidth={640}>
-      <h1 style={{ ...mono, fontSize: 16, lineHeight: "22px", fontWeight: 400, color: "var(--cds-text-secondary)" }}>
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        style={{
+          ...mono,
+          fontSize: 16,
+          lineHeight: "22px",
+          fontWeight: 400,
+          color: "var(--cds-text-secondary)",
+          outline: "none",
+        }}
+      >
         Case {result.case_id}
       </h1>
 

@@ -18,25 +18,28 @@ export function SosAlertBanner({ summary }: { summary: SosSummary | null }) {
   const label = `${count} SOS ${count === 1 ? "alert needs" : "alerts need"} follow-up`;
 
   return (
-    <RouterLink
-      to="/manager/sos"
-      aria-label={`SOS alert — ${label}. Open the SOS Inbox.`}
-      className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 sm:px-8"
-      style={{
-        backgroundColor: "var(--cds-support-error)",
-        color: "var(--cds-text-on-color)",
-        textDecoration: "none",
-      }}
-    >
-      <span className="flex items-center gap-2" style={{ fontSize: 14, fontWeight: 600 }}>
-        <WarningFilled size={20} aria-hidden="true" style={{ fill: "var(--cds-icon-on-color)" }} />
-        SOS alert — {label}
-      </span>
-      {summary.most_recent && (
-        <span style={{ fontSize: 12 }}>
-          Most recent: {summary.most_recent.auditor_name} — {formatRelativeTime(summary.most_recent.triggered_at)}
+    // A named region, so the banner sits inside a landmark like the rest of the page (axe "region").
+    <div role="region" aria-label="SOS alerts">
+      <RouterLink
+        to="/manager/sos"
+        aria-label={`SOS alert — ${label}. Open the SOS Inbox.`}
+        className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 sm:px-8"
+        style={{
+          backgroundColor: "var(--cds-support-error)",
+          color: "var(--cds-text-on-color)",
+          textDecoration: "none",
+        }}
+      >
+        <span className="flex items-center gap-2" style={{ fontSize: 14, fontWeight: 600 }}>
+          <WarningFilled size={20} aria-hidden="true" style={{ fill: "var(--cds-icon-on-color)" }} />
+          SOS alert — {label}
         </span>
-      )}
-    </RouterLink>
+        {summary.most_recent && (
+          <span style={{ fontSize: 12 }}>
+            Most recent: {summary.most_recent.auditor_name} — {formatRelativeTime(summary.most_recent.triggered_at)}
+          </span>
+        )}
+      </RouterLink>
+    </div>
   );
 }

@@ -30,3 +30,11 @@
   inline-size: 100%;
   max-inline-size: none;
 }
+
+// Carbon renders read-only ProgressIndicator steps as focusable buttons but
+// gives them no visible focus state (WCAG 2.4.7, found in the Task 99
+// keyboard pass). The ring uses the Carbon focus token.
+.cds--progress-step-button:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
