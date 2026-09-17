@@ -31,6 +31,21 @@
   max-inline-size: none;
 }
 
+// Carbon's Slider has a 200px minimum track, which with its value labels and
+// number input pushed past the edge of a phone screen. Keep Carbon's minimum
+// on laptops and desktops, and let it shrink on phones only (0 collapsed the
+// track entirely inside flex rows).
+.cds--slider {
+  min-inline-size: min(12.5rem, 30vw);
+}
+
+// The evidence rail beside the player is already narrow (Figma 20:35), so the
+// 25% end padding Carbon reserves in Accordion content squeezed the summary
+// and transcript and stacked the entity tags one per line.
+.rcs-evidence-rail .cds--accordion__content {
+  padding-inline-end: 1rem;
+}
+
 // Carbon renders read-only ProgressIndicator steps as focusable buttons but
 // gives them no visible focus state (WCAG 2.4.7, found in the Task 99
 // keyboard pass). The ring uses the Carbon focus token.

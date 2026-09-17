@@ -242,9 +242,12 @@ export function ReviewWorkspace({
         </p>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
-        {/* Video column: stays in view while the rail scrolls, so SOS is always reachable. */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:self-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
+        {/* Video column: stays in view while the rail scrolls, so SOS is always reachable.
+            Capped at the viewport height and scrollable inside: on a short laptop screen the
+            pinned column was taller than the window, so its blur controls and Continue button
+            could never be scrolled into view and the page looked frozen. */}
+        <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
           <div
             className="relative w-full overflow-hidden"
             style={{ aspectRatio: "16 / 9", backgroundColor: "var(--cds-background-inverse)" }}
@@ -363,7 +366,7 @@ export function ReviewWorkspace({
             >
               {isPlaying ? <Pause /> : <Play />}
             </IconButton>
-            <div className="min-w-[240px] flex-1">
+            <div className="min-w-0 flex-1 basis-[300px]">
               <Slider
                 id="blur-intensity"
                 labelText="Blur intensity"
@@ -472,7 +475,7 @@ export function ReviewWorkspace({
           </div>
 
           {!aiFailed && (
-            <Accordion>
+            <Accordion className="rcs-evidence-rail">
               {caseDetail.narrative_summary && (
                 <AccordionItem title="AI Summary" open>
                   <p style={secondaryText}>{caseDetail.narrative_summary}</p>
