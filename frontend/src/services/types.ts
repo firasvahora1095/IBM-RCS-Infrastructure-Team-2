@@ -224,6 +224,15 @@ export interface ManagerCaseRow {
 
 export type SosAlertStatus = "UNACKNOWLEDGED" | "IN_PROGRESS" | "RESOLVED";
 
+/**
+ * Why an unexpected-exposure event was raised without the Auditor pressing SOS.
+ * AR-AI-11: AI/STT processing that fails after review has begun.
+ */
+export type UnexpectedExposureReason = "AI_FAILURE_MID_REVIEW";
+
+/** What raised an SOS alert: the Auditor's own SOS (AR-WB-06), or an AR-AI-11 failure treated the same way. */
+export type SosTrigger = "AUDITOR_SOS" | UnexpectedExposureReason;
+
 /** One SOS event in the Manager's inbox (Figma 103:151, MR-SOS-01). */
 export interface SosAlert {
   id: string;
@@ -232,6 +241,7 @@ export interface SosAlert {
   case_id: string;
   triggered_at: string;
   status: SosAlertStatus;
+  trigger: SosTrigger;
 }
 
 /** SOS Alert Detail (Figma 103:197): context without raw footage (MR-SOS-05). */
@@ -333,6 +343,16 @@ export interface DataService {
   recordExposure(caseId: string, token: string, sample: ExposureSample): Promise<{ recorded: true }>;
   /** AR-WB-05/06/09: pauses the case, notifies the Manager and starts the S4-equivalent cooldown. */
   triggerSos(caseId: string, token: string): Promise<{ cooldown: CooldownState }>;
+  /**
+   * AR-AI-11: AI/STT processing failed after review began. Handled exactly like
+   * an SOS (AR-WB-07): the case is paused and routed to the Manager, the alert
+   * is logged with its reason, and the S4-equivalent cooldown starts.
+   */
+  reportUnexpectedExposure(
+    caseId: string,
+    token: string,
+    reason: UnexpectedExposureReason,
+  ): Promise<{ cooldown: CooldownState }>;
   /** AR-WB-16: "Talk to my manager" or a break request, optionally about one case. */
   requestWellbeingSupport(token: string, kind: WellbeingRequestKind, caseId?: string): Promise<{ received: true }>;
 

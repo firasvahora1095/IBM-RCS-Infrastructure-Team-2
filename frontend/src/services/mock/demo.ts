@@ -11,6 +11,12 @@ import { resetDb, updateDb, type MockDb, type MockStaff } from "./store";
 /** Fired when a demo scenario changes state the current page should re-read. */
 export const DEMO_SCENARIO_EVENT = "rcs:demo-scenario";
 
+/**
+ * Fired to simulate AI/STT processing failing after review has begun
+ * (AR-AI-11). An open case review treats it as unexpected exposure.
+ */
+export const DEMO_AI_FAILURE_EVENT = "rcs:demo-ai-failure";
+
 /** Fired to simulate the network dropping for `detail.seconds` (Figma 42:352). */
 export const DEMO_CONNECTION_LOST_EVENT = "rcs:demo-connection-lost";
 

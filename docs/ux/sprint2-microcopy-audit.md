@@ -74,6 +74,7 @@
 | 4e | "Break requested. Your manager will confirm it with you." / "Your manager has been asked to reach out to you." | Wellbeing check-in confirmations | No Figma source. | Aleeya |
 | 4f | "No SOS alerts have been raised." · "No cases match your search." · "No declined cases are waiting for a decision." · "No completed cases in the last 24 hours." · "No check-ins raised today." | Manager empty states | No Figma empty-state frames. | Aleeya |
 | 4g | "Nothing from this case is shown until you choose to proceed." | Behind the content-warning gate (Auditor and Manager) | No Figma source; added so the page behind the gate isn't blank. | Aleeya |
+| 4h | "AI analysis for this case failed during your review." · Manager "Raised by": "Auditor SOS" / "AI failure mid-review" | SOS confirmation when AR-AI-11 pauses the case; SOS Alert Detail | Added 18 Sep 2026. Figma has no AR-AI-11 frame (the 25:212 annotation reuses 31:257 SOS), so the Auditor and the Manager are told why the case paused. | Aleeya |
 | 5 | "I understand my video and any details I provide will be used only to review this report, in line with the privacy notice." | Upload → **Paste a link** | Figma 72:28 also says "my video" for a link. Proposed: "I understand the linked content and any details I provide will be used only to review this report, in line with the privacy notice." | Aleeya |
 | 6 | "You'll see a plain-language result here — for example, whether the content was actioned — without any internal review details." | Status page outcome preview (Figma 7:16) | RT-01's scope note says public wording must not imply content was "otherwise actioned". Proposed: "You'll see a plain-language result here — whether a policy violation was found — without any internal review details." | Aleeya / Jana |
 | 7 | "RCS — Staff" eyebrow | Shared staff login | The Auditor and Manager Figma files say "RCS — Auditor" / "RCS — Manager"; the build has one login for both roles. | Aleeya |
@@ -85,4 +86,4 @@
 - **Controlled values:** 10 groups checked, all match, all locked by test.
 - **Screen copy:** 3 mismatches found and fixed: the AI-failure footnote, the saved-limit message and the Manager time formats.
 - **Deliberate keeps:** 5, each with its reason.
-- **Needs sign-off:** 9 items (15 strings). These are also listed as owned open items in the [Task 54 handoff](sprint2-build-scope-handoff.md).
+- **Needs sign-off:** 9 items (18 strings, including 4h added with AR-AI-11 on 18 Sep 2026). These are also listed as owned open items in the [Task 54 handoff](sprint2-build-scope-handoff.md).

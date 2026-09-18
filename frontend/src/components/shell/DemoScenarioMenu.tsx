@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { Settings } from "@carbon/icons-react";
 import { isMockData } from "../../services";
-import { DEMO_CONNECTION_LOST_EVENT, DEMO_SCENARIO_EVENT, demoScenarios } from "../../services/mock/demo";
+import {
+  DEMO_AI_FAILURE_EVENT,
+  DEMO_CONNECTION_LOST_EVENT,
+  DEMO_SCENARIO_EVENT,
+  demoScenarios,
+} from "../../services/mock/demo";
 import { useAuth, type StaffRole } from "../../hooks/useAuth";
 import { notifyWellbeingChanged } from "../../hooks/useMyWellbeing";
 import { notifySosChanged } from "../../hooks/useSosSummary";
@@ -24,6 +29,10 @@ const SCENARIOS: Scenario[] = [
   },
   { label: "Fail my next submission or save", run: () => demoScenarios.failNextSubmission(), forManager: true },
   {
+    label: "Fail AI analysis mid-review (open case)",
+    run: () => window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT)),
+  },
+  {
     label: "Make the next reassignment target unavailable",
     run: () => demoScenarios.makeNextReassignTargetUnavailable(),
     forManager: true,
@@ -39,7 +48,7 @@ const SCENARIOS: Scenario[] = [
 /**
  * "Demo scenarios" menu in the staff header, mock mode only. Forces the edge
  * states the prototypes design for — lost connection, failed submission,
- * expired session, exposure limit, cooldowns — so every designed screen can
+ * AI failure mid-review, expired session, exposure limit, cooldowns — so every designed screen can
  * be shown on demand. It never renders against the real backend.
  */
 export function DemoScenarioMenu({ role }: { role: StaffRole }) {

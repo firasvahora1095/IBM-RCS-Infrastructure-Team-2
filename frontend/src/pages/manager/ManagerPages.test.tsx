@@ -91,6 +91,16 @@ describe("Manager screens", () => {
     expect(marcus.cooldown?.check_in_completed_at).toBeTruthy();
   });
 
+  it("shows the Manager when an SOS alert was raised by an AI failure mid-review (AR-AI-11)", async () => {
+    const { token } = await mockDataService.staffLogin("auditor-1", DEMO_PASSWORD);
+    await mockDataService.reportUnexpectedExposure("AR-2026-00417", token, "AI_FAILURE_MID_REVIEW");
+    const alertId = readDb().sosEvents.at(-1)!.id;
+    renderAt(`/manager/sos/${alertId}`);
+    const raisedBy = await screen.findByText("Raised by");
+    expect(raisedBy.nextElementSibling).toHaveTextContent("AI failure mid-review");
+    expect(screen.getByText("AR-2026-00417")).toBeInTheDocument();
+  });
+
   it("closes a declined case without reassignment, requiring a note, with the content-neutral outcome", async () => {
     renderAt("/manager/reassignment");
     fireEvent.click(await screen.findByRole("link", { name: "AR-2026-00398" }));

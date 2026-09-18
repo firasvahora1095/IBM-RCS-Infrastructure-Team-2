@@ -3,6 +3,7 @@ import type {
   CooldownState,
   DeclineReason,
   SosFollowUpOutcome,
+  SosTrigger,
   WellbeingRequestKind,
   FlaggedEntity,
   IncidentTimelineEntry,
@@ -79,6 +80,7 @@ export interface MockSosEvent {
   case_id: string;
   auditor_id: string;
   triggered_at: string;
+  trigger: SosTrigger;
   acknowledged_at: string | null;
   acknowledged_by: string | null;
   follow_up_notes: string | null;

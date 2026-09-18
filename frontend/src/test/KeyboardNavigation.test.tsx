@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
@@ -194,6 +194,41 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByRole("button", { name: "Continue to submit" }));
     await user.keyboard("{Enter}");
     expect(await screen.findByText("This case has been marked Complete.")).toBeInTheDocument();
+  });
+
+  it("AI failure mid-review (AR-AI-11): raised from the Demo scenarios menu, then Continue to the cooldown", async () => {
+    const user = userEvent.setup();
+    await signIn("auditor-1");
+    renderAt("/auditor/cases/AR-2026-00419");
+
+    const consent = await screen.findByRole("checkbox", { name: /I understand this content may be disturbing/ });
+    await waitFor(() => expect(consent).toHaveFocus());
+    await user.keyboard(" ");
+    await tabTo(user, screen.getByRole("button", { name: "Proceed" }));
+    await user.keyboard("{Enter}");
+    await screen.findByRole("button", { name: "Continue to review" });
+
+    const menu = screen.getByRole("button", { name: "Demo scenarios" });
+    await tabTo(user, menu);
+    await user.keyboard("{Enter}");
+    expect(menu).toHaveAttribute("aria-expanded", "true");
+    // In a browser Carbon moves focus into the open menu and arrow keys walk
+    // its items (checked in Chrome). jsdom runs neither, and can't compute the
+    // floating menu's visibility, so the item is found by text and focused the
+    // way Carbon would focus it.
+    const item = (await screen.findByText("Fail AI analysis mid-review (open case)")).closest<HTMLElement>(
+      "[role=menuitem]",
+    )!;
+    act(() => item.focus());
+    expect(item).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("AI analysis for this case failed during your review.")).toBeInTheDocument();
+    const next = await screen.findByRole("button", { name: "Continue" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await tabTo(user, next);
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { level: 1, name: /cooldown/i })).toBeInTheDocument();
   });
 
   it("Decline: open the reason dialog, pick a reason with the keyboard and submit", async () => {

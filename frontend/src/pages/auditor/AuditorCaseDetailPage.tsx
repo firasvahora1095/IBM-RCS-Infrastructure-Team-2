@@ -28,10 +28,11 @@ import {
   getAuditorCaseDetail,
   getMyWellbeing,
   recordExposure,
+  reportUnexpectedExposure,
   resolveCase,
   triggerSos,
 } from "../../services";
-import { DEMO_SCENARIO_EVENT } from "../../services/mock/demo";
+import { DEMO_AI_FAILURE_EVENT, DEMO_SCENARIO_EVENT } from "../../services/mock/demo";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type {
   AuditorCaseDetail,
@@ -53,6 +54,12 @@ import {
 } from "../../hooks/useDraftResolution";
 
 type Step = "gate" | DraftStep | "check-in" | "confirmation" | "declined" | "sos";
+
+/** What paused the case: the Auditor's SOS, or AI/STT failing after review began (AR-AI-11). */
+type PauseCause = "sos" | "ai-failure";
+
+/** Steps where raw content or AI output is on screen, so review "has begun" (AR-AI-11). */
+const REVIEW_STEPS: readonly Step[] = ["summary", "workspace", "check-in", "severity"];
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" } as const;
 const pageTitle = { fontSize: 32, lineHeight: "40px", fontWeight: 600 } as const;
@@ -82,6 +89,9 @@ function isNetworkFailure(err: unknown): boolean {
  *     → Severity & comment (25:53; 42:405 when sending fails)
  *     → Submission Confirmation (25:280) → Cooldown (31:99) when earned
  *   Decline (25:137 → 25:353) and SOS (31:257 → Cooldown) branch off.
+ *   AI/STT failing after review began (AR-AI-11) has no frame of its own: the
+ *   25:212 annotation says it is treated identically to SOS, so it takes the
+ *   SOS path with one line saying why the case paused.
  *
  * Every visit starts at the content warning, including when a saved draft
  * resumes later steps (AR-PV-08). A session time-out is handled in place with
@@ -115,6 +125,7 @@ export function AuditorCaseDetailPage() {
   const [confirmation, setConfirmation] = useState<ResolveCaseResponse | null>(null);
 
   const [sosState, setSosState] = useState<"sending" | "sent" | "failed">("sending");
+  const [pauseCause, setPauseCause] = useState<PauseCause>("sos");
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const tokenRef = useRef(token);
@@ -203,6 +214,50 @@ export function AuditorCaseDetailPage() {
     },
     [caseId, handleSessionError],
   );
+
+  /** Notifies the Manager that the case is paused. Both causes follow the S4 protocol (AR-WB-12). */
+  const sendSos = useCallback(
+    function send(cause: PauseCause) {
+      if (!tokenRef.current) {
+        setSosState("failed");
+        return;
+      }
+      setSosState("sending");
+      const request =
+        cause === "ai-failure"
+          ? reportUnexpectedExposure(caseId, tokenRef.current, "AI_FAILURE_MID_REVIEW")
+          : triggerSos(caseId, tokenRef.current);
+      request
+        .then(() => {
+          clearDraftResolution(caseId);
+          setSosState("sent");
+          notifyWellbeingChanged();
+        })
+        .catch((err: unknown) => {
+          if (handleSessionError(err)) {
+            retryAfterReauthRef.current = () => send(cause);
+            return;
+          }
+          setSosState("failed");
+        });
+    },
+    [caseId, handleSessionError],
+  );
+
+  // AR-AI-11: AI/STT processing failing once review has begun is unexpected
+  // exposure. The content is hidden at once and the SOS path takes over. In
+  // mock mode the failure comes from the Demo scenarios menu; the api data
+  // source raises it once the pipeline can report a mid-review failure.
+  useEffect(() => {
+    if (!REVIEW_STEPS.includes(step)) return;
+    const onAnalysisFailed = () => {
+      setPauseCause("ai-failure");
+      setStep("sos");
+      sendSos("ai-failure");
+    };
+    window.addEventListener(DEMO_AI_FAILURE_EVENT, onAnalysisFailed);
+    return () => window.removeEventListener(DEMO_AI_FAILURE_EVENT, onAnalysisFailed);
+  }, [step, sendSos]);
 
   const header = <StaffHeader role="auditor" />;
   const sessionModal = (
@@ -316,31 +371,11 @@ export function AuditorCaseDetailPage() {
     }
   }
 
-  function sendSos() {
-    if (!tokenRef.current) {
-      setSosState("failed");
-      return;
-    }
-    setSosState("sending");
-    triggerSos(caseId, tokenRef.current)
-      .then(() => {
-        clearDraftResolution(caseId);
-        setSosState("sent");
-        notifyWellbeingChanged();
-      })
-      .catch((err: unknown) => {
-        if (handleSessionError(err)) {
-          retryAfterReauthRef.current = sendSos;
-          return;
-        }
-        setSosState("failed");
-      });
-  }
-
   function handleSos() {
     // AR-WB-09: hide the content first, before waiting on the network.
+    setPauseCause("sos");
     setStep("sos");
-    sendSos();
+    sendSos("sos");
   }
 
   async function handleResolve() {
@@ -744,6 +779,11 @@ export function AuditorCaseDetailPage() {
             className="flex flex-col gap-3 px-6 py-5"
             style={{ maxWidth: 760, backgroundColor: "var(--cds-layer-01)" }}
           >
+            {pauseCause === "ai-failure" && (
+              <p style={{ fontSize: 14, lineHeight: "20px", fontWeight: 600 }}>
+                AI analysis for this case failed during your review.
+              </p>
+            )}
             {sosState === "failed" ? (
               <>
                 <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
@@ -751,7 +791,7 @@ export function AuditorCaseDetailPage() {
                 </h1>
                 <p style={secondaryText}>The content stays hidden. Try again, or contact your manager directly.</p>
                 <div>
-                  <Button kind="secondary" onClick={sendSos}>
+                  <Button kind="secondary" onClick={() => sendSos(pauseCause)}>
                     Try again
                   </Button>
                 </div>

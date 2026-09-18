@@ -146,7 +146,7 @@ The "Build now / Sprint 3" split in the map above still describes the **backend 
 | A 31:188 | Wellbeing check-in | same | Yes | api not connected (`requestWellbeingSupport`) | 3 |
 | A 25:53 / 42:405 / 25:280 | Severity & comment / submission fails / confirmation | same | Yes | api wired (`resolveCase`) | 2 |
 | A 31:257 | SOS trigger & confirmation | same | Yes | api not connected (`triggerSos`) | 3 |
-| A 25:212 note (AR-AI-11) | AI/STT failure **mid-review** | same | **No** — Figma has no separate frame; its annotation says to treat it exactly like 31:257 SOS | api not connected | 3 (UI-shell backlog, Task 4.3) |
+| A 25:212 note (AR-AI-11) | AI/STT failure **mid-review** | same | **Yes** — no separate Figma frame; built as the 31:257 SOS path per the annotation (demo: "Fail AI analysis mid-review") | api not connected (`reportUnexpectedExposure`) | 3 |
 | A 31:99 | Cooldown | `/auditor/cooldown` | Yes | api not connected (`getMyWellbeing`) | 3 |
 | A 36:235 · M 1:1231 | Session-expired re-authentication | in place | Yes | api wired (`staffLogin`) | 3 |
 | A 42:352 | Connection lost | Review Workspace | Yes | browser offline events + demo | 3 |
@@ -185,6 +185,6 @@ The "Build now / Sprint 3" split in the map above still describes the **backend 
 | 15 | Link-report consent label says "my video" (Figma 72:28 too) — proposed wording in the audit | Aleeya | Open |
 | 16 | Upload "Submit report" disabled until evidence exists vs Figma's enabled button | Aleeya | Open (P2) |
 | 17 | AI-failure row in the Auditor queue has a blank severity cell — add "Unknown"? | Aleeya | Open (P2) |
-| 18 | AI/STT failure mid-review (AR-AI-11): build as the SOS path per the 25:212 annotation | Firas (UI shell) | Backlog |
+| 18 | AI/STT failure mid-review (AR-AI-11): build as the SOS path per the 25:212 annotation | Firas (UI shell) | **Done in the UI shell** (18 Sep 2026). Remaining: Aiden/Firas decide how the pipeline signals a mid-review failure and implement `reportUnexpectedExposure` |
 | 19 | Live-build re-check of the Figma review (Task 81) and axe sweep | Aleeya / Firas | Blocked on deployment (Task 104) |
 | 20 | Screen-reader pass (NVDA / VoiceOver) before Sprint 3 usability sessions | Aleeya | Open |

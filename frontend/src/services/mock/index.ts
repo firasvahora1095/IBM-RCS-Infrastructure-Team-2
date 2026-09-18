@@ -14,6 +14,8 @@ import type {
   SosAlertDetail,
   SosFollowUpOutcome,
   SosSummary,
+  SosTrigger,
+  UnexpectedExposureReason,
   ValidationSummary,
   AuditorCaseDetail,
   AuditorWellbeing,
@@ -327,6 +329,7 @@ function sosAlert(db: MockDb, event: MockSosEvent): SosAlert {
     case_id: event.case_id,
     triggered_at: event.triggered_at,
     status: sosStatus(event),
+    trigger: event.trigger,
   };
 }
 
@@ -340,6 +343,32 @@ function findSos(db: MockDb, alertId: string): MockSosEvent {
   const found = db.sosEvents.find((e) => e.id === alertId);
   if (!found) throw new ApiError("SOS alert not found", 404);
   return found;
+}
+
+/**
+ * AR-WB-06/07 and AR-AI-11: one path for every unexpected-exposure event. The
+ * alert is logged with what raised it, the case goes to the Manager, and the
+ * S4 protocol applies (AR-WB-12) — 30 minutes plus a mandatory check-in.
+ */
+function raiseSos(db: MockDb, token: string, caseId: string, trigger: SosTrigger): { cooldown: CooldownState } {
+  const session = requireSession(db, token, "auditor");
+  const c = findOwnCase(db, caseId, session.staffId);
+  db.sosEvents.push({
+    id: newId("SOS"),
+    case_id: caseId,
+    auditor_id: session.staffId,
+    triggered_at: new Date().toISOString(),
+    trigger,
+    acknowledged_at: null,
+    acknowledged_by: null,
+    follow_up_notes: null,
+    follow_up_outcome: null,
+    resolved_at: null,
+  });
+  routeToManager(db, c, "SOS");
+  audit(db, session.staffId, "SOS_TRIGGERED", caseId, trigger === "AUDITOR_SOS" ? null : trigger);
+  const cooldown = startCooldown(staffById(db, session.staffId), "SOS", COOLDOWN_MINUTES.S4, true);
+  return { cooldown };
 }
 
 /** The Auditor who handed a case to the Manager, by decline or SOS. */
@@ -621,27 +650,16 @@ export const mockDataService: DataService = {
 
   async triggerSos(caseId: string, token: string): Promise<{ cooldown: CooldownState }> {
     await delay();
-    return updateDb((db) => {
-      const session = requireSession(db, token, "auditor");
-      const c = findOwnCase(db, caseId, session.staffId);
-      const now = new Date().toISOString();
-      db.sosEvents.push({
-        id: newId("SOS"),
-        case_id: caseId,
-        auditor_id: session.staffId,
-        triggered_at: now,
-        acknowledged_at: null,
-        acknowledged_by: null,
-        follow_up_notes: null,
-        follow_up_outcome: null,
-        resolved_at: null,
-      });
-      routeToManager(db, c, "SOS");
-      audit(db, session.staffId, "SOS_TRIGGERED", caseId);
-      // AR-WB-12: SOS follows the S4 protocol — 30 minutes plus a mandatory check-in.
-      const cooldown = startCooldown(staffById(db, session.staffId), "SOS", COOLDOWN_MINUTES.S4, true);
-      return { cooldown };
-    });
+    return updateDb((db) => raiseSos(db, token, caseId, "AUDITOR_SOS"));
+  },
+
+  async reportUnexpectedExposure(
+    caseId: string,
+    token: string,
+    reason: UnexpectedExposureReason,
+  ): Promise<{ cooldown: CooldownState }> {
+    await delay();
+    return updateDb((db) => raiseSos(db, token, caseId, reason));
   },
 
   async requestWellbeingSupport(

@@ -50,6 +50,7 @@ export const acknowledgeContentWarning = delegate("acknowledgeContentWarning");
 export const declineCase = delegate("declineCase");
 export const recordExposure = delegate("recordExposure");
 export const triggerSos = delegate("triggerSos");
+export const reportUnexpectedExposure = delegate("reportUnexpectedExposure");
 export const requestWellbeingSupport = delegate("requestWellbeingSupport");
 
 // Manager oversight

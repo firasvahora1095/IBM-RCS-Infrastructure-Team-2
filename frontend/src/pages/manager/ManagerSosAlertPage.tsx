@@ -7,7 +7,7 @@ import { secondaryText } from "../../components/manager/managerStyles";
 import { acknowledgeSosAlert, getSosAlert } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
-import { SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
+import { SOS_STATUS_LABEL, SOS_TRIGGER_LABEL } from "../../design-tokens/managerLabels";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
@@ -74,6 +74,7 @@ export function ManagerSosAlertPage() {
                 value={`${data.exposure_minutes_today} / ${data.exposure_limit_minutes} min`}
               />
               <Figure label="Triggering case" value={data.case_id} />
+              <Figure label="Raised by" value={SOS_TRIGGER_LABEL[data.trigger]} />
               <Figure
                 label="AI severity"
                 value={

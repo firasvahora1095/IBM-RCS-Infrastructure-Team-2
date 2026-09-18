@@ -34,6 +34,7 @@ export const apiDataService: DataService = {
   declineCase: () => notConnected("declineCase"),
   recordExposure: () => notConnected("recordExposure"),
   triggerSos: () => notConnected("triggerSos"),
+  reportUnexpectedExposure: () => notConnected("reportUnexpectedExposure"),
   requestWellbeingSupport: () => notConnected("requestWellbeingSupport"),
 
   // Manager — no endpoints yet.

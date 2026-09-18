@@ -77,6 +77,7 @@ A responsive layout sweep was added during the review after the team reported th
 | Submission confirmation | 25:280 | Submit | Figma says cooldowns "ship in Sprint 3 — this build does not yet trigger one"; the build does trigger AR-WB-12 cooldowns, so the line states the cooldown instead | Deliberate | Keep | Full shell includes Sprint 3 behaviour |
 | Cooldown | 31:99 | `/auditor/cooldown` | Check-in note is worded for S4 and SOS generally; wellbeing check-in shown inline | Deliberate | Keep | 31:188 annotation places the check-in inline here |
 | SOS confirmation | 31:257 | SOS | Copy matches | — | — | — |
+| AI/STT failure mid-review (AR-AI-11) | 25:212 annotation → 31:257 | Demo: Fail AI analysis mid-review (open case) | No frame of its own. Built as the SOS path, as the 25:212 annotation says: content hidden at once, Manager notified, S4-equivalent cooldown. One added line, "AI analysis for this case failed during your review.", so the Auditor knows why the case paused without pressing SOS. Checked at 1280×720, 1920×1080 and 375 wide (18 Sep 2026) | Deliberate | Keep (copy needs sign-off, microcopy audit §4) | The Auditor did not press SOS, so the pause needs a reason |
 | Session expired | 36:235 | Demo: expire session | Staff ID shown in place of "J. Doe" | Deliberate | Keep | The API has no display name |
 | Connection lost | 42:352 | Demo: drop connection | Copy matches | — | — | — |
 | Header (all) | — | all staff routes | Header items ran off the edge on narrow windows; content stretched edge to edge on wide monitors | P2 | Fixed `a94588c` | Responsive header, table scrolling, 1584px centred body |
@@ -96,6 +97,7 @@ A responsive layout sweep was added during the review after the team reported th
 | SOS Inbox | 103:151 | `/manager/sos` | Times read "2:07 am — 4 min ago" and "9:31 pm — 1 day ago" | P2 | Fixed `18e6dfa` | Now "9:14 AM — 4 min ago" and "Yesterday, 4:32 PM" |
 | SOS Inbox | 103:151 | same | Relative time "1h 8m ago" vs Figma "1 hr 8 min ago" | Deliberate | Keep | One relative format across the app, taken from Auditor 34:121 ("4h 10m ago") |
 | SOS Alert Detail / Follow-up | 103:197, 103:228 | `/manager/sos/SOS-demo0001` | Narrative summaries prefixed "Mock:" | Deliberate | Keep | Task 96 honesty labelling |
+| SOS Alert Detail | 103:197 | an alert raised by AR-AI-11 | Extra "Raised by" figure: "Auditor SOS" or "AI failure mid-review" | Deliberate | Keep | AR-AI-11 alerts share the SOS inbox; the Manager should know the Auditor did not press SOS |
 | Case Review Detail | 118:198 | `/manager/cases/AR-2026-00398/review` | Copy matches | — | — | — |
 | Declined queue | 119:289 | `/manager/reassignment` | "Time declined" showed a full date and time on every row | P2 | Fixed `18e6dfa` | Now "9:40 AM" / "Yesterday, 2:15 PM" / "2 days ago" |
 | Reassignment | 119:405 | `/manager/cases/AR-2026-00398/reassign` | Cooling-down candidates are marked "Unavailable" and listed; Figma shows "Limited headroom" only | Deliberate | Keep | Re-validation rule (cooldown = not assignable); seed puts Auditors 3–5 in cooldowns |

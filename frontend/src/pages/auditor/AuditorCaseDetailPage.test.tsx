@@ -1,9 +1,10 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuditorCaseDetailPage } from "./AuditorCaseDetailPage";
 import * as services from "../../services";
+import { DEMO_AI_FAILURE_EVENT } from "../../services/mock/demo";
 import { ApiError, type AuditorCaseDetail } from "../../services/types";
 
 const MOCK_CASE: AuditorCaseDetail = {
@@ -194,6 +195,71 @@ describe("AuditorCaseDetailPage", () => {
     expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
+  });
+
+  it("treats AI analysis failing mid-review as unexpected exposure, on the SOS path (AR-AI-11, Figma 25:212 → 31:257)", async () => {
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    const triggerSos = vi.spyOn(services, "triggerSos");
+    let resolveReport: (value: Awaited<ReturnType<typeof services.reportUnexpectedExposure>>) => void = () => {};
+    const report = vi
+      .spyOn(services, "reportUnexpectedExposure")
+      .mockReturnValueOnce(new Promise((resolve) => (resolveReport = resolve)));
+    renderPage();
+    await openWorkspace();
+
+    act(() => {
+      window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
+    });
+    // Content hidden straight away, before the Manager has been notified.
+    expect(screen.getByText("Case paused — content hidden")).toBeInTheDocument();
+    expect(screen.queryByRole("slider", { name: "Blur intensity" })).not.toBeInTheDocument();
+    expect(screen.getByText("AI analysis for this case failed during your review.")).toBeInTheDocument();
+    expect(report).toHaveBeenCalledWith("AR-2026-00417", "abc123", "AI_FAILURE_MID_REVIEW");
+    expect(triggerSos).not.toHaveBeenCalled();
+
+    resolveReport({
+      cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
+    });
+    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(screen.getByText(/a mandatory cooldown now applies/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
+  });
+
+  it("retries the AI-failure notice as an AI failure, not an SOS, when it couldn't be sent", async () => {
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    const report = vi
+      .spyOn(services, "reportUnexpectedExposure")
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({
+        cooldown: {
+          ends_at: new Date(Date.now() + 30 * 60_000).toISOString(),
+          trigger: "SOS",
+          requires_check_in: true,
+        },
+      });
+    const triggerSos = vi.spyOn(services, "triggerSos");
+    renderPage();
+    await openWorkspace();
+    act(() => {
+      window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(report).toHaveBeenCalledTimes(2);
+    expect(triggerSos).not.toHaveBeenCalled();
+  });
+
+  it("ignores an AI failure before review begins: the content warning already covers that (AR-AI-10)", async () => {
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
+    const report = vi.spyOn(services, "reportUnexpectedExposure");
+    renderPage();
+    await screen.findByLabelText(/I understand this content may be disturbing/);
+    act(() => {
+      window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
+    });
+    expect(report).not.toHaveBeenCalled();
+    expect(screen.queryByText("Case paused — content hidden")).not.toBeInTheDocument();
   });
 
   it("requires an explicit outcome, and a comment only when the rating differs from the AI's", async () => {

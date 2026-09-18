@@ -1,4 +1,4 @@
-import { screen, fireEvent } from "@testing-library/react";
+import { act, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StaffLoginPage } from "./StaffLoginPage";
 import { AuditorDashboardPage } from "../auditor/AuditorDashboardPage";
@@ -13,6 +13,7 @@ import { resetDb } from "../../services/mock/store";
 import { DEMO_PASSWORD } from "../../services/mock/seed";
 import * as services from "../../services";
 import { ApiError } from "../../services/types";
+import { DEMO_AI_FAILURE_EVENT } from "../../services/mock/demo";
 import { runAxeOnPage, seedStaffSession } from "../../test/renderForA11y";
 
 describe("Staff pages — automated accessibility (Task 99)", () => {
@@ -91,6 +92,43 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
     await screen.findByRole("heading", { name: "Severity & comment" });
+    expect(await axe()).toHaveNoViolations();
+  });
+
+  it("Auditor case paused by an AI failure mid-review (AR-AI-11) has no detectable violations", async () => {
+    seedStaffSession("auditor");
+    vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
+      exposure_minutes_today: 62,
+      exposure_limit_minutes: 120,
+      cooldown: null,
+    });
+    vi.spyOn(services, "acknowledgeContentWarning").mockResolvedValue({ acknowledged: true });
+    vi.spyOn(services, "recordExposure").mockResolvedValue({ recorded: true });
+    vi.spyOn(services, "reportUnexpectedExposure").mockResolvedValue({
+      cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
+    });
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce({
+      case_id: "AR-2026-00417",
+      status: "READY_FOR_REVIEW",
+      watson_severity_score: 71,
+      effective_severity_score: 71,
+      severity_tier: "S3",
+      narrative_summary: "Mock: physical altercation detected between two people.",
+      incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
+      flag_reason: "Graphic violence",
+    });
+    const { axe } = await runAxeOnPage(
+      <AuditorCaseDetailPage />,
+      "/auditor/cases/AR-2026-00417",
+      "/auditor/cases/:caseId",
+    );
+    fireEvent.click(await screen.findByLabelText(/I understand this content may be disturbing/));
+    fireEvent.click(screen.getByRole("button", { name: "Proceed" }));
+    await screen.findByRole("button", { name: "Continue to review" });
+    act(() => {
+      window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
+    });
+    await screen.findByText("We’ve paused this case and notified your manager.");
     expect(await axe()).toHaveNoViolations();
   });
 

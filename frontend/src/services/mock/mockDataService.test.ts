@@ -142,6 +142,32 @@ describe("mock data source", () => {
     expect((await mock.getMyWellbeing(token)).cooldown).not.toBeNull();
   });
 
+  it("treats an AI/STT failure mid-review exactly like an SOS, recording why (AR-AI-11, AR-WB-07)", async () => {
+    const token = await loginAs("auditor-1");
+    const { cooldown } = await mock.reportUnexpectedExposure("AR-2026-00417", token, "AI_FAILURE_MID_REVIEW");
+    expect(cooldown).toMatchObject({ trigger: "SOS", requires_check_in: true });
+    expect(Date.parse(cooldown.ends_at) - Date.now()).toBeGreaterThan(29 * 60_000);
+    const db = readDb();
+    expect(db.cases.find((c) => c.case_id === "AR-2026-00417")!.manager_flag).toBe("SOS");
+    const event = db.sosEvents.at(-1)!;
+    expect(event).toMatchObject({
+      case_id: "AR-2026-00417",
+      auditor_id: "auditor-1",
+      trigger: "AI_FAILURE_MID_REVIEW",
+    });
+
+    // The Manager gets the same alert as an SOS, and can see what raised it.
+    const managerToken = await loginAs("manager-1");
+    const alerts = await mock.listSosAlerts(managerToken);
+    expect(alerts.find((a) => a.id === event.id)).toMatchObject({
+      status: "UNACKNOWLEDGED",
+      trigger: "AI_FAILURE_MID_REVIEW",
+    });
+    expect((await mock.getSosAlert(event.id, managerToken)).trigger).toBe("AI_FAILURE_MID_REVIEW");
+    // An ordinary SOS is labelled as the Auditor's own.
+    expect(alerts.filter((a) => a.id !== event.id).every((a) => a.trigger === "AUDITOR_SOS")).toBe(true);
+  });
+
   it("applies AR-WB-12 cooldowns by the worse of the AI tier and the Auditor's rating", async () => {
     const token = await loginAs("auditor-1");
     // S1 case rated S1: no cooldown.

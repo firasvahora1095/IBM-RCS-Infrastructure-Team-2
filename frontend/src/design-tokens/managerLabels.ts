@@ -4,6 +4,7 @@ import type {
   InternalCaseStatus,
   SosAlertStatus,
   SosFollowUpOutcome,
+  SosTrigger,
 } from "../services/types";
 import { mapStatusToStaffLabel } from "./statusLabels";
 
@@ -19,6 +20,16 @@ export const SOS_STATUS_LABEL: Record<SosAlertStatus, string> = {
   UNACKNOWLEDGED: "Unacknowledged",
   IN_PROGRESS: "Acknowledged — in progress",
   RESOLVED: "Resolved",
+};
+
+/**
+ * What raised an SOS alert, on SOS Alert Detail. Figma 103:197 only designs the
+ * Auditor's own SOS; AR-AI-11 failures use the same alert (Auditor Figma 25:212
+ * annotation), so the Manager is told which one it was.
+ */
+export const SOS_TRIGGER_LABEL: Record<SosTrigger, string> = {
+  AUDITOR_SOS: "Auditor SOS",
+  AI_FAILURE_MID_REVIEW: "AI failure mid-review",
 };
 
 /** Structured follow-up outcomes, in Figma order (103:228). None is pre-selected. */

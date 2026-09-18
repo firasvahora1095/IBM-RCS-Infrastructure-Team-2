@@ -1,7 +1,7 @@
 import type { MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 6;
+export const MOCK_DB_VERSION = 7;
 
 /**
  * Synthetic demo data for the mock data source.
@@ -115,6 +115,7 @@ function sosEvent(id: string, caseId: string, auditorId: string, triggeredAt: st
     case_id: caseId,
     auditor_id: auditorId,
     triggered_at: triggeredAt,
+    trigger: "AUDITOR_SOS",
     acknowledged_at: null,
     acknowledged_by: null,
     follow_up_notes: null,
