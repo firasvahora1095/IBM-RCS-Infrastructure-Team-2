@@ -203,3 +203,34 @@ No items remain open in this list — every previously-tracked open decision for
 - IBM branding directive sourced from the 21 Aug 2026 non-tech support session minutes (Meeting No. 1, decision #4). "Design your own" directive sourced from the client Sprint 1 Q&A notes (Naresh Olladapu, Q11).
 - **Action for Dev:** treat the traceability table above as the build spec; anything marked Deferred is deliberately out of this sprint's scope, not an oversight. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
 - Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.
+
+---
+
+## Sprint 2 build status (18 Sep 2026)
+
+*Appended after the frontend build on `feature/frontend`. Nothing above this section was changed.*
+
+Every screen in this file is built in the frontend (`frontend/`, React + IBM Carbon), and was compared against Figma at laptop and desktop sizes.
+
+| Screen | Figma | Route / how to reach it |
+|---|---|---|
+| Upload — video | 5:2 | `/` |
+| Upload — link | 72:28 | `/` → Paste a link |
+| Upload — screenshot | 72:58 | `/` → Add a screenshot |
+| Upload — identified reporter | 418:72 | `/` → Include my name & email |
+| Consent error | 73:29 | `/` → submit without ticking consent |
+| Processing failed | 73:41 | Demo scenarios → Fail my next submission (sign in as staff first), then upload |
+| Case ID confirmation | 6:2 | `/case-confirmation` (after a submit) |
+| Status — lookup / not found / Being Reviewed | 7:65 (7:2, 7:15, 7:41) | `/status`, e.g. `RCS-7Q3M-K91X` |
+| Outcome / Complete | 145:75 | `/status` → `RCS-4H8P-2DXC` |
+| Add more information | 80:31 | `/status` → Add more information |
+
+Main deviations for this file: the Carbon content switcher colour, "Submit report" disabled until evidence exists (P2, open), and the link-report consent label that still says "my video" (matches Figma, rewording proposed).
+
+**Deliberate deviations from Figma:** every difference between this file and the build, with its class (P0/P2/Deliberate), status and reason, is in the [Sprint 2 UI review log](sprint2-ui-review-figma-log.md). The rule used throughout: **IBM Carbon over Figma** — where a Figma colour or control differs from Carbon, the build uses the Carbon theme token or stock Carbon component. No hex colours are hardcoded in the app.
+
+**Copy that still needs sign-off:** [microcopy audit §4](sprint2-microcopy-audit.md). **Accessibility:** [accessibility baseline](sprint2-accessibility-baseline.md) (jest-axe on every page and state, keyboard-only walkthrough of every flow).
+
+**Open items:** every remaining item, with its owner, is in the [build-scope handoff → Open items — every one owned](sprint2-build-scope-handoff.md). They are not repeated here, so there is one list to keep current.
+
+**Data:** the build runs on a synthetic mock data source by default, with a **Demo data** badge in every header. Firas connects Aiden's real API through the `api` data source; see [`docs/frontend/BACKEND-INTEGRATION.md`](../frontend/BACKEND-INTEGRATION.md). The live UAT and the live re-check of this review wait on the deployment (Task 104).

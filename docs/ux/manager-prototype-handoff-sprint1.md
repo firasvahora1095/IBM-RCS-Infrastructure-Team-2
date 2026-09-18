@@ -245,3 +245,38 @@ No items remain open in this list that require a UX/Figma decision.
 - All 22 `MR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `MR-CR-07` is a priority/sequencing note, not a screen-level requirement, and `MR-SOS-02` is a background/system-behaviour requirement with no distinct screen, both flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
 - Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.
+
+---
+
+## Sprint 2 build status (18 Sep 2026)
+
+*Appended after the frontend build on `feature/frontend`. Nothing above this section was changed.*
+
+Every screen in this file is built (the whole Manager prototype, Sprint 3 included), and was compared against Figma at laptop and desktop sizes. Demo account: `manager-1` / `testpassword123`.
+
+| Screen | Figma | Route |
+|---|---|---|
+| Login / error / locked out | 1:342, 1:355, 1:1170 | `/staff/login` (shared with the Auditor) |
+| Oversight Dashboard | 78:69 | `/manager` |
+| Auditor Detail / limit saved / break approved / save fails | 86:94, 356:364, 357:314, 197:309 | `/manager/auditors/:auditorId` |
+| Consolidated Case Oversight | 86:198 | `/manager/cases` |
+| SOS banner | 103:294 | Every Manager section page |
+| SOS Inbox | 103:151 | `/manager/sos` |
+| SOS Alert Detail | 103:197 | `/manager/sos/:alertId` |
+| SOS follow-up | 103:228 | `/manager/sos/:alertId/follow-up` |
+| Case Review Detail | 118:198 | `/manager/cases/:caseId/review` |
+| Declined / Reassignment queue | 119:289 | `/manager/reassignment` |
+| Reassignment / no reassignment / confirmed / target unavailable | 119:405, 344:282, 357:397, 197:321 | `/manager/cases/:caseId/reassign` |
+| Exceptional raw-content access | 1:454, 1:512, 1:612 | `/manager/cases/:caseId/raw?from=…` |
+| Validation View | 136:257 | `/manager/validation` (always labelled as placeholder data) |
+| Session expired | 1:1231 | Demo scenarios → Expire my session |
+
+Main deviations for this file: RT-02 status labels in Case Oversight (with "Manager Review" derived from the case flag, pending a BA decision), Figma-style times ("9:14 AM", "Yesterday, 2:15 PM"), cooling-down Auditors listed as "Unavailable" in Reassignment, and a new "Raised by" figure on SOS Alert Detail so the Manager can tell an Auditor's SOS from an AR-AI-11 AI failure.
+
+**Deliberate deviations from Figma:** every difference between this file and the build, with its class (P0/P2/Deliberate), status and reason, is in the [Sprint 2 UI review log](sprint2-ui-review-figma-log.md). The rule used throughout: **IBM Carbon over Figma** — where a Figma colour or control differs from Carbon, the build uses the Carbon theme token or stock Carbon component. No hex colours are hardcoded in the app.
+
+**Copy that still needs sign-off:** [microcopy audit §4](sprint2-microcopy-audit.md). **Accessibility:** [accessibility baseline](sprint2-accessibility-baseline.md) (jest-axe on every page and state, keyboard-only walkthrough of every flow).
+
+**Open items:** every remaining item, with its owner, is in the [build-scope handoff → Open items — every one owned](sprint2-build-scope-handoff.md). They are not repeated here, so there is one list to keep current.
+
+**Data:** the build runs on a synthetic mock data source by default, with a **Demo data** badge in every header. Firas connects Aiden's real API through the `api` data source; see [`docs/frontend/BACKEND-INTEGRATION.md`](../frontend/BACKEND-INTEGRATION.md). The live UAT and the live re-check of this review wait on the deployment (Task 104).
