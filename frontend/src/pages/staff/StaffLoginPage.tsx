@@ -91,7 +91,7 @@ export function StaffLoginPage() {
             lowContrast
             hideCloseButton
             title="Demo sign-in:"
-            subtitle={`auditor-1, auditor-2 or manager-1 — password ${DEMO_PASSWORD}`}
+            subtitle={`auditor-1, auditor-2, auditor-3, auditor-4, auditor-5 or manager-1 — password ${DEMO_PASSWORD}`}
             style={{ maxWidth: "100%" }}
           />
         )}
