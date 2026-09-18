@@ -334,3 +334,38 @@ No items remain open in this list that require a UX/Figma decision.
 - All 46 `AR-*` IDs in `docs/ba/persona-requirements-week2.md` are accounted for above — none silently dropped; `AR-DF-05` is a priority/sequencing note, not a screen-level requirement, and is flagged as such rather than omitted.
 - **Action for Dev:** treat the table above as the build spec — every row is Included, not Deferred. Items still marked OPEN in "Assumptions & Open Decisions" need sign-off before their exact values are locked in.
 - Sprint 2 vs. Sprint 3 build scope: see `sprint2-build-scope-handoff.md`.
+
+---
+
+## Sprint 2 build status (18 Sep 2026)
+
+*Appended after the frontend build on `feature/frontend`. Nothing above this section was changed.*
+
+Every screen in this file is built, including the Sprint 3 wellbeing screens, and was compared against Figma at laptop and desktop sizes. Demo account: `auditor-1` / `testpassword123`.
+
+| Screen | Figma | Route / how to reach it |
+|---|---|---|
+| Login / error / locked out | 8:2, 8:22, 36:129 | `/staff/login` (shared with the Manager) |
+| Queue / empty / cooldown active / exposure limit | 10:6, 36:146, 36:189, 34:121 | `/auditor`; Demo scenarios for the edge states |
+| Content warning | 16:19 | `/auditor/cases/AR-2026-00417` |
+| AI/STT failure gate (before review, AR-AI-10) | 25:212 | `/auditor/cases/AR-2026-00421` |
+| Decline reason / confirmation | 25:137, 25:353 | Content warning → Decline |
+| AI Analysis Summary | 18:26 | Content warning → Proceed |
+| Review Workspace | 20:35 | → Continue to review |
+| Wellbeing check-in | 31:188 | Workspace → Talk to your manager |
+| Severity & comment / submission fails / confirmation | 25:53, 42:405, 25:280 | Workspace → Continue to severity & comment |
+| Cooldown | 31:99 | `/auditor/cooldown` |
+| SOS trigger & confirmation | 31:257 | Workspace → SOS |
+| **AI/STT failure mid-review (AR-AI-11)** | no frame; 25:212 annotation → 31:257 | Workspace → Demo scenarios → Fail AI analysis mid-review. Built as the SOS path, as the annotation says, with one added line explaining why the case paused |
+| Session expired | 36:235 | Demo scenarios → Expire my session |
+| Connection lost | 42:352 | Demo scenarios → Drop the connection |
+
+Main deviations for this file: the Review Workspace column now fits laptop-height windows (a P0 fix — the blur slider and Continue were unreachable), Carbon sliders with number inputs, the "RCS — Staff" shared login eyebrow (approved; Figma 36:129 now says Staff ID like 8:2), and the submission confirmation stating the AR-WB-12 cooldown that the full shell now applies. Requirement IDs were removed from Auditor-facing copy in both the build and Figma (10:6, 18:26), and an AI-failed case says "Unknown" in the queue (18 Sep 2026).
+
+**Deliberate deviations from Figma:** every difference between this file and the build, with its class (P0/P2/Deliberate), status and reason, is in the [Sprint 2 UI review log](sprint2-ui-review-figma-log.md). The rule used throughout: **IBM Carbon over Figma** — where a Figma colour or control differs from Carbon, the build uses the Carbon theme token or stock Carbon component. No hex colours are hardcoded in the app.
+
+**Copy that still needs sign-off:** [microcopy audit §4](sprint2-microcopy-audit.md). **Accessibility:** [accessibility baseline](sprint2-accessibility-baseline.md) (jest-axe on every page and state, keyboard-only walkthrough of every flow).
+
+**Open items:** every remaining item, with its owner, is in the [build-scope handoff → Open items — every one owned](sprint2-build-scope-handoff.md). They are not repeated here, so there is one list to keep current.
+
+**Data:** the build runs on a synthetic mock data source by default, with a **Demo data** badge in every header. Firas connects Aiden's real API through the `api` data source; see [`docs/frontend/BACKEND-INTEGRATION.md`](../frontend/BACKEND-INTEGRATION.md). The live UAT and the live re-check of this review wait on the deployment (Task 104).

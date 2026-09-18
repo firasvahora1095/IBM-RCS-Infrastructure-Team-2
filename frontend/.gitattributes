@@ -1,0 +1,4 @@
+# Keep frontend sources LF in every working copy, regardless of a
+# developer's core.autocrlf setting. Prettier (and its format:check script)
+# expects LF, so CRLF checkouts on Windows would otherwise fail formatting.
+* text=auto eol=lf

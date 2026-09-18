@@ -1,0 +1,77 @@
+# Sprint 2 Microcopy Correctness Audit (Task 100)
+
+**Track:** Design / Product · **Sprint:** Sprint 2 · **Owner:** Aleeya Ahmad (UX) · **Date:** 18 Sep 2026
+**Branch:** `feature/frontend` · **Related:** [UI review against Figma (Task 57)](sprint2-ui-review-figma-log.md) · [Build-scope handoff (Task 54)](sprint2-build-scope-handoff.md)
+
+**AC:** every checked label matches the confirmed documentation exactly.
+
+---
+
+## 1. Method and sources
+
+1. **Controlled values first.** The exact strings were copied from the confirmed documents and pinned in `frontend/src/design-tokens/canonicalLabels.test.ts` (commit `2655e44`), so any wording drift now fails CI:
+   - `docs/ba/ba-requirements-sprint2-final.md`: **RT-01** (Final Outcome Taxonomy, PM-confirmed 16 Sep 2026), **RT-02** (internal → staff → public status), **AR-DF-03** (decline reasons and order).
+   - `docs/ba/severity-scale.md`: S1–S4 names and CVI bands.
+   - Manager Figma `0qMhTLDlozGkcdqcgbwyse`: exposure states (78:69), SOS status column (103:151), follow-up outcomes (103:228).
+2. **Every other user-facing string.** String literals and JSX text were extracted from `src/pages`, `src/components` and `src/hooks` (≈540 candidates). They were compared with the matching Figma frame, exported during the Task 57 review, and with the running app in each state.
+3. **Classification:** matches · fixed (with commit) · deliberate keep (with reason) · needs sign-off (no approved source, or the sources disagree).
+
+---
+
+## 2. Controlled values (all match, locked by test)
+
+| String(s) | Where shown | Source | Matches? | Action |
+|---|---|---|---|---|
+| Received · Being Reviewed · Complete | Public status page | RT-02 Public Status | Yes | Locked (`canonicalLabels.test.ts`) |
+| Submitted · AI Processing · Ready for Review · Auditor Review · Complete | Manager Case Oversight, staff lists | RT-02 Staff-Facing Label | Yes | Locked |
+| No Violation Found / "Your report has been reviewed and no policy violation was identified based on the available information." | Status page (Complete), Auditor outcome picker | RT-01 | Yes | Locked |
+| Policy Violation Found / "Your report has been reviewed and a policy violation was identified. Thank you for taking the time to submit your report." | Same | RT-01 | Yes | Locked; the test also checks Auditors are offered only these two |
+| RT-01 scope note (no removal, reporting to authorities or "actioned" in outcome copy) | Public outcome copy | RT-01 scope note | Yes | Locked (regex check over all three public outcomes) |
+| S1 Low · S2 Moderate · S3 High · S4 Critical; bands 0–39 / 40–64 / 65–84 / 85–100 | Severity tags, CVI slider | Severity scale | Yes | Locked (edges 39/40, 64/65, 84/85) |
+| Content more severe than AI indicated · Near my exposure limit · Personal Trigger · Other | Decline modal, Manager queue | AR-DF-03 (order is part of the requirement) | Yes | Locked |
+| Under · Approaching · At limit | Oversight Dashboard | Figma 78:69 | Yes | Locked |
+| Acknowledged — in progress · Resolved | SOS Inbox | Figma 103:151 | Yes | Locked |
+| Followed up — no further action · — reassigned remaining cases · — Auditor stopped shift | SOS follow-up | Figma 103:228 | Yes | Locked |
+
+## 3. Screen copy checked against Figma
+
+| String | Screen | Source | Matches? | Action |
+|---|---|---|---|---|
+| Upload intro, trust banner, format help, detail field, reporting choice, consent, errors, footer | Upload (video / link / screenshot / identified) | NU 5:2, 72:28, 72:58, 418:72, 73:29, 73:41 | Yes | — |
+| Case ID confirmation copy (save warning, updates block, requirement links, footnote) | Case ID confirmation | NU 6:2 | Yes | — |
+| Being Reviewed panel, "Coming up", estimate, "We don't share who is reviewing…", add-information button + modal | Status page | NU 7:16, 80:31 | Yes | — |
+| Lookup and not-found copy | Status lookup | NU 7:15, 7:41 | Yes | — |
+| Login, incorrect credentials, "Too many attempts. Try again in 15 minutes." | Staff login | Auditor 8:2, 8:22, 36:129 | Yes | Shared "RCS — Staff" eyebrow and Staff ID label approved 18 Sep 2026; Figma 36:129 updated to Staff ID |
+| Queue intro, status copy, empty / cooldown / exposure-limit banners, "Locked during cooldown" | Auditor queue | Auditor 10:6, 36:146, 36:189, 34:121 | Yes | — |
+| "This case was flagged for:", consent label, decline note | Content warning | Auditor 16:19 | Yes | Heading weight fixed `04c0140` |
+| "Proceeding opens the Review Workspace directly at maximum blur — regardless of any AI suggestion, since severity is unknown here, not neutral. There is no AI Analysis Summary screen for this case; there is nothing to summarize." | AI-failure gate | Auditor 25:212 | **No** — the build had a shortened sentence | **Fixed** `04c0140` |
+| Decline question, supported-action note, "Case declined: Your manager will review it directly." | Decline modal / confirmation | Auditor 25:137, 25:353 | Yes | — |
+| AI summary figure caption, effective-score note, timeline note, transcript caption | AI Analysis Summary | Auditor 18:26 | Yes | — |
+| Blur, grayscale, "Something about this one? Talk to your manager", SOS note, connection-lost banner | Review Workspace | Auditor 20:35, 42:352 | Yes | — |
+| CVI help, comment-required label, outcome help, "Couldn't submit — check your connection and try again." | Severity & comment | Auditor 25:53, 42:405 | Yes | — |
+| "What was recorded" rows | Submission confirmation | Auditor 25:280 | Yes, except the Sprint 3 cooldown sentence | Deliberate keep (the build triggers AR-WB-12 cooldowns, so it states the cooldown instead) |
+| "Cooldown in progress", "This cooldown is a built-in protection, not a penalty.", "Stop my shift" | Cooldown | Auditor 31:99 | Yes for S3/S4 | S2/SOS intros approved 18 Sep 2026 |
+| "We've paused this case and notified your manager." + follow-up lines | SOS | Auditor 31:257 | Yes | — |
+| Session-expired modal | Auditor / Manager | Auditor 36:235, Manager 1:1231 | Yes (staff ID replaces the name) | Deliberate keep |
+| Manager dashboard, Auditor Detail, Case Oversight, SOS pages, reassignment, raw access, Validation | Manager | Manager 78:69 … 136:257 | Yes | — |
+| "Exposure limit saved: … daily limit is now 90 minutes." | Auditor Detail after saving | Manager 356:364: "Success: Exposure limit updated to 90 min." | **No** | **Fixed** `b4250b9` |
+| "2:07 am", "18 Sept 2026, 1:36 AM" | SOS Inbox, Declined queue | Manager 103:151, 119:289: "9:14 AM", "Yesterday, 2:15 PM", "2 days ago" | **No** | **Fixed** `18e6dfa` |
+| "1h 8m ago" | SOS Inbox | Manager 103:151 says "1 hr 8 min ago"; Auditor 34:121 says "4h 10m ago" | The Figma files disagree | Deliberate keep: one app-wide format (Auditor style) |
+| Case Oversight statuses "Complete", "Auditor Review" | Case Oversight | Manager 86:198 says "Completed", "Under Review" | No, by design | Deliberate keep: RT-02 says Devs must use its wording |
+| "Mock:" prefix on seeded AI narratives and "Other" decline text | Manager review / SOS | Task 96 honesty rule | — | Deliberate keep; removed once real data flows |
+
+## 4. Needs UX/BA sign-off
+
+**UX items closed 18 Sep 2026.** Aleeya approved every UX copy item that was here: the build-time strings 4a–4h as written, the "Send me updates" wording in both modes, and the "RCS — Staff" login with a Staff ID field. The following were changed: requirement IDs removed from Auditor copy (`d100472`); the status preview now says "whether a policy violation was found" and the link consent label says "the linked content" (`34fb706`); Figma 7:16 (text 86:89), 72:28 and 36:129 were updated to match. Only the two BA items remain.
+
+| # | Copy | Where | Question | Owner |
+|---|---|---|---|---|
+| 1 | "This case has been reviewed and closed. No further action is required from you." (`CLOSED_NO_REASSIGNMENT`) | Public status after a Manager closes a declined case | Approved in the Normal User handoff (Round 8) but **not in RT-01**. Add it as a third public outcome. | Jana |
+| 2 | "Manager Review" | Manager staff lists | RT-02 has no internal state for a declined or SOS case awaiting a Manager; the build derives the label from `manager_flag`. Add a state, or confirm the flag approach. | Jana (with Aiden) |
+
+## 5. Summary
+
+- **Controlled values:** 10 groups checked, all match, all locked by test.
+- **Screen copy:** 3 mismatches found and fixed: the AI-failure footnote, the saved-limit message and the Manager time formats.
+- **Deliberate keeps:** 5, each with its reason.
+- **Needs sign-off:** 2 BA items (RT-01 third outcome, RT-02 Manager Review state), owned by Jana. All UX items were closed on 18 Sep 2026.

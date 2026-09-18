@@ -1,0 +1,76 @@
+// Carbon's full component + token styles (IBM Carbon Design System v11).
+// Loaded before the Tailwind utilities (see main.tsx) so that Carbon — the
+// design system — owns every component's look, and Tailwind only adds layout.
+//
+// $font-path: Carbon's default ('~@ibm/plex') uses the old webpack `~`
+// prefix, which Vite doesn't understand — the IBM Plex font files would
+// silently 404 and every screen would fall back to a system font. Pointing
+// it at the locally installed @ibm/plex-* packages lets Vite bundle the real
+// fonts, and self-hosting them means a public reporter's browser never makes
+// a third-party font request.
+@use "@carbon/react" with (
+  $font-path: "@ibm/plex"
+);
+
+// Emit Carbon's White theme tokens as CSS custom properties on :root.
+// Without this, `var(--cds-*)` tokens only exist inside <Theme> zones (such
+// as the g100 staff header): Carbon's own components fall back to built-in
+// values, but our inline token styles would resolve to nothing on white
+// pages. The Theme component still overrides them per zone.
+@use "@carbon/react/scss/theme";
+
+:root {
+  @include theme.theme();
+}
+
+// The Review Workspace scrubber spans its whole column (Figma 20:54). Carbon's
+// Slider otherwise caps its width at 40rem and shrinks with hideTextInput.
+.rcs-full-width-slider .cds--slider-container,
+.rcs-full-width-slider .cds--slider {
+  inline-size: 100%;
+  max-inline-size: none;
+}
+
+// Responsive tables: cells keep IDs, names and times on one line, and Carbon's
+// table wrapper scrolls sideways on narrow screens instead of breaking
+// "AR-2026-00417" across three lines.
+.cds--data-table-content {
+  overflow-x: auto;
+}
+.cds--data-table th,
+.cds--data-table td {
+  white-space: nowrap;
+}
+
+// Carbon's Slider has a 200px minimum track, which with its value labels and
+// number input pushed past the edge of a phone screen. Keep Carbon's minimum
+// on laptops and desktops, and let it shrink on phones only (0 collapsed the
+// track entirely inside flex rows).
+.cds--slider {
+  min-inline-size: min(12.5rem, 30vw);
+}
+// The dark header is a fixed 48px bar: keep the product name on one line and
+// tighten Carbon's 32px side padding on phones so the actions still fit.
+.cds--header__name {
+  white-space: nowrap;
+}
+@media (max-width: 671px) {
+  .cds--header__name {
+    padding-inline: 1rem;
+  }
+}
+
+// The evidence rail beside the player is already narrow (Figma 20:35), so the
+// 25% end padding Carbon reserves in Accordion content squeezed the summary
+// and transcript and stacked the entity tags one per line.
+.rcs-evidence-rail .cds--accordion__content {
+  padding-inline-end: 1rem;
+}
+
+// Carbon renders read-only ProgressIndicator steps as focusable buttons but
+// gives them no visible focus state (WCAG 2.4.7, found in the Task 99
+// keyboard pass). The ring uses the Carbon focus token.
+.cds--progress-step-button:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
