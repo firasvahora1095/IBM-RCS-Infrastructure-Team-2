@@ -196,6 +196,10 @@ export function AuditorDashboardPage() {
                             <SeverityTag tier={c.severity_tier} />
                           ) : (
                             <span className="cds--visually-hidden">No severity yet</span>
+                          ) : (
+                            // AI analysis finished without a severity: it failed (AR-AI-10). Say so
+                            // instead of leaving a blank that reads as "still loading".
+                            <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>Unknown</span>
                           )}
                         </TableCell>
                         <TableCell style={cellStyle}>

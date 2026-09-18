@@ -51,6 +51,19 @@ describe("AuditorDashboardPage", () => {
     expect(screen.queryByRole("link", { name: "AI analysis in progress" })).not.toBeInTheDocument();
   });
 
+  it("says Unknown for a case whose AI analysis failed, never a blank severity (AR-AI-10)", async () => {
+    vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
+      { case_id: "AR-2026-00421", status: "READY_FOR_REVIEW", severity_tier: null },
+      { case_id: "AR-2026-00418", status: "AI_PROCESSING", severity_tier: null },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("AR-2026-00421")).toBeInTheDocument();
+    // Only the failed case says Unknown; a case still processing has no severity yet.
+    expect(screen.getAllByText("Unknown")).toHaveLength(1);
+    expect(screen.getByText("No severity yet")).toBeInTheDocument();
+  });
+
   it("opens a ready case from its row", async () => {
     vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([
       { case_id: "AR-2026-00417", status: "READY_FOR_REVIEW", severity_tier: "S3" },
