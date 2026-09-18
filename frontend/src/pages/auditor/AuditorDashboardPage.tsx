@@ -194,7 +194,7 @@ export function AuditorDashboardPage() {
                         <TableCell style={cellStyle}>
                           {c.severity_tier ? (
                             <SeverityTag tier={c.severity_tier} />
-                          ) : (
+                          ) : c.status === "SUBMITTED" || c.status === "AI_PROCESSING" ? (
                             <span className="cds--visually-hidden">No severity yet</span>
                           ) : (
                             // AI analysis finished without a severity: it failed (AR-AI-10). Say so
