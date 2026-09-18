@@ -33,14 +33,31 @@ describe("UploadPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows a format error for an unsupported file and does not enable submit", () => {
+  it("shows a format error for an unsupported file and doesn't submit it", () => {
+    const create = vi.spyOn(services, "createReport");
     renderPage();
     chooseVideo("clip.exe", "application/octet-stream");
 
     expect(
       screen.getByText("That file format isn't supported. Try MP4, MOV, WEBM, or AVI instead."),
     ).toBeInTheDocument();
-    expect(submitButton()).toBeDisabled();
+    giveConsent();
+    fireEvent.click(submitButton());
+    expect(screen.getByText("Choose a video to upload before submitting.")).toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("keeps Submit report enabled and explains everything missing when pressed (Figma 5:2, 73:29)", () => {
+    const create = vi.spyOn(services, "createReport");
+    renderPage();
+    expect(submitButton()).toBeEnabled();
+
+    fireEvent.click(submitButton());
+    expect(screen.getByText("Choose a video to upload before submitting.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Please confirm you understand how your report will be used before submitting."),
+    ).toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("explains the missing consent instead of submitting (Figma 73:29)", () => {
@@ -60,17 +77,28 @@ describe("UploadPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("requires name and email only when the reporter chooses to identify themselves", () => {
+  it("requires name and email only when the reporter chooses to identify themselves", async () => {
+    vi.spyOn(services, "createReport").mockResolvedValueOnce({
+      case_id: "INSZNNJI4P",
+      status: "Being Reviewed",
+      assigned_auditor: "auditor-1",
+    });
     renderPage();
     chooseVideo("clip.mp4");
     giveConsent();
 
     fireEvent.click(screen.getByLabelText("Include my name & email"));
-    expect(submitButton()).toBeDisabled();
+    fireEvent.click(submitButton());
+    expect(screen.getByText("Enter your name, or choose to report anonymously.")).toBeInTheDocument();
+    expect(screen.getByText("Enter your email, or choose to report anonymously.")).toBeInTheDocument();
+    expect(services.createReport).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByLabelText("Name")).toHaveFocus());
 
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Jordan Lee" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jordan@example.com" } });
-    expect(submitButton()).toBeEnabled();
+    expect(screen.queryByText("Enter your name, or choose to report anonymously.")).not.toBeInTheDocument();
+    fireEvent.click(submitButton());
+    expect(await screen.findByText("Confirmation page")).toBeInTheDocument();
   });
 
   it("submits successfully, saves the Case ID, and navigates to the confirmation page", async () => {

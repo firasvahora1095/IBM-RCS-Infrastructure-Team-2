@@ -27,6 +27,12 @@ const EVIDENCE_TYPES: EvidenceType[] = ["video", "link", "screenshot"];
 
 const UNSUPPORTED_VIDEO_MESSAGE = "That file format isn't supported. Try MP4, MOV, WEBM, or AVI instead.";
 const UNSUPPORTED_IMAGE_MESSAGE = "That image format isn't supported. Try PNG or JPG instead.";
+/** What's missing when "Submit report" is pressed without evidence (errors on submit, not a disabled button). */
+const MISSING_EVIDENCE_MESSAGE: Record<EvidenceType, string> = {
+  video: "Choose a video to upload before submitting.",
+  link: "Paste a link to the content before submitting.",
+  screenshot: "Choose a screenshot to upload before submitting.",
+};
 const INVALID_LINK_MESSAGE =
   "That link doesn't look right. Make sure it's a public video link, not a private or password-protected page.";
 
@@ -76,6 +82,8 @@ export function UploadPage() {
   const [email, setEmail] = useState("");
   const [consentGiven, setConsentGiven] = useState(false);
   const [consentError, setConsentError] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [emailError, setEmailError] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [processingFailed, setProcessingFailed] = useState(false);
@@ -112,17 +120,38 @@ export function UploadPage() {
     (evidenceType === "video" && videoFile !== null) ||
     (evidenceType === "screenshot" && imageFile !== null) ||
     (evidenceType === "link" && link.trim() !== "");
-  const identityComplete = reportingChoice === "anonymous" || (name.trim() !== "" && email.trim() !== "");
-  const canSubmit = evidenceReady && identityComplete;
+  const identified = reportingChoice === "identified";
 
   async function handleSubmit() {
-    // Figma 73:29: an explicit consent error, rather than a silently disabled button.
-    if (!consentGiven) {
-      setConsentError(true);
-      return;
-    }
-    if (evidenceType === "link" && !isPublicWebLink(link)) {
-      setEvidenceError(INVALID_LINK_MESSAGE);
+    // "Submit report" is never disabled (Figma 5:2). Everything missing is
+    // explained at once, the way the consent error (73:29) already works, and
+    // focus goes to the first problem (WCAG 3.3.1). A disabled button can't
+    // be focused and never says what's missing.
+    const linkInvalid = evidenceType === "link" && evidenceReady && !isPublicWebLink(link);
+    const evidenceProblem = !evidenceReady
+      ? MISSING_EVIDENCE_MESSAGE[evidenceType]
+      : linkInvalid
+        ? INVALID_LINK_MESSAGE
+        : null;
+    const nameMissing = identified && name.trim() === "";
+    const emailMissing = identified && email.trim() === "";
+    if (evidenceProblem || nameMissing || emailMissing || !consentGiven) {
+      if (evidenceProblem) setEvidenceError(evidenceProblem);
+      setNameError(nameMissing);
+      setEmailError(emailMissing);
+      setConsentError(!consentGiven);
+      const firstInvalid =
+        evidenceProblem && evidenceType === "link"
+          ? "report-link"
+          : evidenceProblem
+            ? null
+            : nameMissing
+              ? "reporter-name"
+              : emailMissing
+                ? "reporter-email"
+                : "consent-checkbox";
+      // The evidence alert is announced on its own; fields get focus.
+      if (firstInvalid) requestAnimationFrame(() => document.getElementById(firstInvalid)?.focus());
       return;
     }
     setIsSubmitting(true);
@@ -285,7 +314,11 @@ export function UploadPage() {
           helperText="You don't need to share your identity to report — but you can if you'd like us to be able to follow up with you directly."
           orientation="vertical"
           valueSelected={reportingChoice}
-          onChange={(value) => setReportingChoice(value as ReportingChoice)}
+          onChange={(value) => {
+            setReportingChoice(value as ReportingChoice);
+            setNameError(false);
+            setEmailError(false);
+          }}
         >
           <RadioButton id="reporting-anonymous" labelText="Report anonymously" value="anonymous" />
           <RadioButton id="reporting-identified" labelText="Include my name & email" value="identified" />
@@ -299,7 +332,12 @@ export function UploadPage() {
               placeholder="e.g. Jordan Lee"
               autoComplete="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              invalid={nameError}
+              invalidText="Enter your name, or choose to report anonymously."
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(false);
+              }}
             />
             <TextInput
               id="reporter-email"
@@ -308,7 +346,12 @@ export function UploadPage() {
               placeholder="e.g. jordan@example.com"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              invalid={emailError}
+              invalidText="Enter your email, or choose to report anonymously."
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(false);
+              }}
             />
           </div>
         )}
@@ -352,7 +395,7 @@ export function UploadPage() {
       </div>
 
       <div>
-        <Button disabled={!canSubmit || isSubmitting} onClick={handleSubmit}>
+        <Button disabled={isSubmitting} onClick={handleSubmit}>
           {isSubmitting ? "Submitting…" : "Submit report"}
         </Button>
       </div>
