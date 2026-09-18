@@ -192,7 +192,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
       </div>
 
       <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-        Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold (AR-AI-04).
+        Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold.
         {!knownDuration &&
           " The scale ends shortly after the last flagged moment; the video's full length isn't available yet."}
       </p>

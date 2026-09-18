@@ -240,9 +240,8 @@ export function AuditorDashboardPage() {
               <EmptyPanel>No available cases right now</EmptyPanel>
             ) : (
               <p style={{ fontSize: 12, lineHeight: "16px", color: SECONDARY_TEXT }}>
-                Every &quot;Processing&quot; row is disabled — not just discouraged (AR-AS-04). A case only enters this
-                queue if the Look-Ahead Assignment Check confirmed your remaining exposure budget covers its full video
-                duration.
+                Every &quot;Processing&quot; row is disabled — not just discouraged. A case only enters this queue if
+                the Look-Ahead Assignment Check confirmed your remaining exposure budget covers its full video duration.
               </p>
             )}
           </>

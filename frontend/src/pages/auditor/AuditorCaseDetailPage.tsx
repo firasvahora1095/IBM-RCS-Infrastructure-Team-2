@@ -470,9 +470,8 @@ export function AuditorCaseDetailPage() {
               <span style={secondaryText}>AI&apos;s own pre-screen figure — may be adjusted after your review</span>
             </div>
             <p style={secondaryText}>
-              This is the effective score — reflects the weapon-detection floor rule (AR-WB-11) where it applies. The
-              model&apos;s original, pre-floor score is preserved separately in the case&apos;s audit log, never
-              overwritten.
+              This is the effective score — reflects the weapon-detection floor rule where it applies. The model&apos;s
+              original, pre-floor score is preserved separately in the case&apos;s audit log, never overwritten.
             </p>
           </div>
 
@@ -727,7 +726,7 @@ export function AuditorCaseDetailPage() {
               lowContrast
               hideCloseButton
               title="A cooldown starts now."
-              subtitle={`Because of this case's severity, a ${COOLDOWN_WORDS[confirmation.cooldown.trigger] ?? "mandatory"} cooldown applies before your next case (AR-WB-12).`}
+              subtitle={`Because of this case's severity, a ${COOLDOWN_WORDS[confirmation.cooldown.trigger] ?? "mandatory"} cooldown applies before your next case.`}
               style={{ maxWidth: "100%" }}
             />
           )}
