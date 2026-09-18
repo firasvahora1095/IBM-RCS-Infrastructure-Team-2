@@ -54,3 +54,50 @@ the Code Engine deployment once it is reachable again, and again at the Week 3 d
 the slider and the recorded rating disagreeing (e.g. slider 9, recorded 90), which would have
 submitted the wrong override score. Fixed in `fix(auditor): keep the CVI rating slider in sync
 while a rating is typed`, then re-verified in Chrome by typing and by keyboard.
+
+---
+
+## Update — 18 September 2026: scope change and mock-mode results
+
+### What changed since the 17 September run
+
+- **The backend used above was a personal test harness.** Hyuna (PM) clarified on 17 Sep that
+  `spike/week1-fullstack-experiment` and its Code Engine URL are her own test harness and will
+  never be merged. The 17 Sep results show the frontend works against that harness's API shape.
+  They are not evidence about the team's real backend.
+- **The frontend is now the full UI shell** (every Figma screen, Sprint 3 included). It runs on a
+  synthetic **mock data source** by default, with a **Demo data** badge in every header. Firas
+  connects Aiden's real API through the `api` data source
+  ([`docs/frontend/BACKEND-INTEGRATION.md`](../frontend/BACKEND-INTEGRATION.md)).
+- **Check 8 is out of date.** The Manager "scaffold" was replaced by the full Oversight
+  Dashboard. The honesty requirement behind check 8 still applies: nothing mock may pass for
+  live data (Task 96).
+
+### Mock-mode results (automated, `feature/frontend`)
+
+Each check below is covered by automated tests that run against the mock data source, which
+follows the BA rules. Full suite: **29 test files / 215 tests pass** (`npx vitest run
+--maxWorkers=2`, 18 Sep 2026). These are **test results, not a manual walkthrough**, and they
+do not replace the live UAT.
+
+| # | Stage | Result | Evidence (test file → test) |
+|---|---|---|---|
+| 1 | Upload | **Pass** | `UploadPage.test.tsx` → "submits successfully, saves the Case ID, and navigates to the confirmation page"; `mockDataService.test.ts` → "creates a case in the RCS-XXXX-XXXX format…" and "rejects unsupported formats like the backend does (UR-VU-06)" |
+| 2 | Case ID retention | **Pass** | `useCaseIdStorage.test.ts` → "survives being read back after a simulated page refresh"; `CaseIdConfirmationPage.test.tsx` → "shows the case ID saved in this browser (survives a refresh)", "copies the case ID to the clipboard…", and "tells the user to copy manually if the clipboard write fails…" |
+| 3 | Assignment | **Pass** | `mockDataService.test.ts` → "…assigns it automatically (AR-AS-03)", "assigns to the lowest weighted score (AR-AS-02) and skips auditors at their exposure limit", "never assigns to an Auditor in a cooldown (AR-WB-04)" |
+| 4 | AI result (mock) | **Pass** | `AuditorCaseDetailPage.test.tsx` → "shows the severity, narrative summary and timeline from the real API shape"; `mockDataService.test.ts` → "finishes simulated AI analysis once its time has passed"; `AuditorDashboardPage.test.tsx` → processing rows can't be opened |
+| 5 | Auditor review | **Pass** | `mockDataService.test.ts` → "requires a valid session and only shows an Auditor their own cases (AR-AS-01)", "rejects an override without a comment, and completes a case with one (AR-AI-07, MR-CR-06)"; `AuditorCaseDetailPage.test.tsx` → "requires an explicit outcome, and a comment only when the rating differs from the AI's" |
+| 6 | Complete | **Pass** | `AuditorCaseDetailPage.test.tsx` → "sends the RT-01 outcome value and shows the confirmation copy"; `KeyboardNavigation.test.tsx` → the Auditor review ends at "This case has been marked Complete." |
+| 7 | Status lookup | **Pass** | `mockDataService.test.ts` → "only ever returns public status labels (UR-ST-02)"; `StatusLookupPage.test.tsx` → "never shows an internal state name, even if the API returns one", "shows the RT-01 outcome copy for a completed case…", "disables lookups… once rate-limited (UR-ST-07)" |
+| 8 | Manager (now the full Oversight Dashboard) | **Pass** | `ManagerPages.test.tsx` → every Manager section "is reachable, renders without error and is labelled as demo data (Tasks 103, 96)"; "labels the validation data as a placeholder everywhere it appears"; `AppHeader.test.tsx` → the Demo data badge |
+
+Accessibility for these flows: jest-axe on every page and state, plus keyboard-only
+walkthroughs in `src/test/KeyboardNavigation.test.tsx`. See
+[`docs/ux/sprint2-accessibility-baseline.md`](../ux/sprint2-accessibility-baseline.md).
+
+### Still pending: the live UAT
+
+The checklist must still be run by hand against the **deployed** build and Aiden's real backend
+(Tasks 104 and 105, with Hyuna running the live UAT). That run should also re-check checks 3–4
+with real pipeline output (Task 83) and check 8 with a real Manager account. Until then,
+Sprint 2 UAT is **passed in mock mode only**.
