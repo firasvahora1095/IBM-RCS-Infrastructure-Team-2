@@ -30,11 +30,15 @@ const UNSUPPORTED_IMAGE_MESSAGE = "That image format isn't supported. Try PNG or
 const INVALID_LINK_MESSAGE =
   "That link doesn't look right. Make sure it's a public video link, not a private or password-protected page.";
 
-/** Consent wording per evidence type, as each Figma variant writes it (5:26, 72:55, 72:86). */
+/**
+ * Consent wording per evidence type (Figma 5:26, 72:55, 72:86). The link
+ * variant says "the linked content", not Figma's "my video": a reporter
+ * pasting a link is often reporting someone else's video (UX decision, 18 Sep 2026).
+ */
 const CONSENT_LABEL: Record<EvidenceType, string> = {
   video:
     "I understand my video and any details I provide will be used only to review this report, in line with the privacy notice.",
-  link: "I understand my video and any details I provide will be used only to review this report, in line with the privacy notice.",
+  link: "I understand the linked content and any details I provide will be used only to review this report, in line with the privacy notice.",
   screenshot:
     "I understand my screenshot and any details I provide will be used only to review this report, in line with the privacy notice.",
 };

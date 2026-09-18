@@ -108,6 +108,9 @@ describe("StatusLookupPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Policy Violation Found")).not.toBeInTheDocument();
     expect(screen.queryByText("No Violation Found")).not.toBeInTheDocument();
+    // RT-01 scope note: the preview must not imply content was actioned.
+    expect(screen.getByText(/whether a policy violation was found/)).toBeInTheDocument();
+    expect(screen.queryByText(/actioned/)).not.toBeInTheDocument();
   });
 
   it("never shows an internal state name, even if the API returns one", async () => {

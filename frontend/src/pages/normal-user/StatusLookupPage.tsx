@@ -341,8 +341,8 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             Outcome (shown once your case reaches Complete)
           </p>
           <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-            You&apos;ll see a plain-language result here — for example, whether the content was actioned — without any
-            internal review details.
+            You&apos;ll see a plain-language result here — whether a policy violation was found — without any internal
+            review details.
           </p>
         </section>
       )}

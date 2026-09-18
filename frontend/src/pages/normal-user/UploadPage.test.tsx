@@ -24,7 +24,8 @@ function chooseFile(label: string, name: string, type: string) {
 
 const chooseVideo = (name: string, type = "video/mp4") => chooseFile("Choose a video file", name, type);
 const submitButton = () => screen.getByRole("button", { name: /submit report/i });
-const giveConsent = () => fireEvent.click(screen.getByLabelText(/I understand my (video|screenshot) and any details/i));
+const giveConsent = () =>
+  fireEvent.click(screen.getByLabelText(/I understand (my video|my screenshot|the linked content) and any details/i));
 
 describe("UploadPage", () => {
   beforeEach(() => {
