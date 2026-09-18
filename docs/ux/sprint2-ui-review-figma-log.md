@@ -34,10 +34,10 @@ A responsive layout sweep was added during the review after the team reported th
 | Screen | Figma | Route / state | Difference | Class | Status | Reason |
 |---|---|---|---|---|---|---|
 | Upload — video | 5:2 | `/` | Content switcher selected segment is Carbon's dark fill, not blue | Deliberate | Keep | Stock Carbon `ContentSwitcher` (Carbon over Figma) |
-| Upload — video | 5:2 | `/` | "Submit report" is disabled until evidence (and name + email, if identified) is present; Figma shows it enabled | P2 | Open (§4) | The consent error (73:29) is still explicit; needs a UX decision on disabled vs error-on-submit |
+| Upload — video | 5:2 | `/` | "Submit report" is disabled until evidence (and name + email, if identified) is present; Figma shows it enabled | P2 | Fixed `272ce01` | UX decision 18 Sep 2026: button always enabled, every missing field explained on submit, as in 5:2 and 73:29 |
 | Upload — video | 5:2 | `/` | Reporting-choice helper text sits under the radios | Deliberate | Keep | Carbon `RadioButtonGroup` helper position |
 | Upload — link | 72:28 | `/` → Paste a link | App keeps the details and reporting-choice fields that the trimmed Figma variant omits | Deliberate | Keep | One form for all three evidence types |
-| Upload — link | 72:28 | `/` → Paste a link | Consent label says "my video" for a link — **matches Figma** | — | Needs sign-off | Logged in the Task 100 audit |
+| Upload — link | 72:28 | `/` → Paste a link | Consent label said "my video" for a link (Figma too) | P2 | Fixed `34fb706` | Now "the linked content"; Figma 72:28 updated to match (18 Sep 2026) |
 | Upload — screenshot | 72:58 | `/` → Add a screenshot | No difference beyond the switcher | — | — | — |
 | Upload — identified | 418:72 | `/` → Include my name & email | Name/email fields spanned the full card; Figma sizes them to about half | P2 | Fixed `18b6242` | — |
 | Consent error | 73:29 | `/` submit without consent | No difference | — | — | — |
@@ -52,12 +52,12 @@ A responsive layout sweep was added during the review after the team reported th
 
 | Screen | Figma | Route / state | Difference | Class | Status | Reason |
 |---|---|---|---|---|---|---|
-| Login / error / locked out | 8:2, 8:22, 36:129 | `/staff/login` | "RCS — Staff" eyebrow; Staff ID field. Figma 36:129 says "work email" while 8:2 says "Staff ID" | Deliberate | Needs sign-off | One login for both roles; backend contract uses staff ID |
+| Login / error / locked out | 8:2, 8:22, 36:129 | `/staff/login` | "RCS — Staff" eyebrow; Staff ID field. Figma 36:129 said "work email" while 8:2 says "Staff ID" | Deliberate | Keep (decided 18 Sep 2026) | One login for both roles; backend contract uses staff ID. Figma 36:129 updated to Staff ID to match 8:2 |
 | Queue | 10:6 | `/auditor` | "Assigned" header was left-aligned over right-aligned values | P2 | Fixed `8d4ae31` | Carbon's unlayered table styles beat Tailwind's `text-right` |
 | Queue | 10:6 | `/auditor` | Rows sorted by assignment time; completed rows (e.g. `AR-2026-00402`) are listed | Deliberate | Keep | Matches the page's own copy ("in the order the system assigned them") and the cooldown notice ("past case metadata") |
 | Queue | 10:6 | `/auditor` | Header table band is Carbon grey; Figma has no band | Deliberate | Keep | Carbon `DataTable` |
 | Queue | 10:6 | `/auditor` | Disabled rows use muted text, not 60–70% opacity | Deliberate | Keep | Opacity measured 3.39:1 (fails AA) |
-| Queue — AI failure row | — | `AR-2026-00421` | Severity cell is blank | P2 | Open (§4) | Consider "Unknown" text; no Figma frame for this row |
+| Queue — AI failure row | — | `AR-2026-00421` | Severity cell was blank | P2 | Fixed `b8471f9`, `0fefa55` | Now says "Unknown", matching the Manager SOS detail (AR-AI-10) |
 | Empty / cooldown active / exposure limit | 36:146, 36:189, 34:121 | Demo scenarios | Copy matches | — | — | — |
 | Content warning | 16:19 | `/auditor/cases/AR-2026-00417` | Focus opened on the close button, whose tooltip covered the flag reason | P2 | Fixed `04c0140` | Focus now starts on the consent checkbox |
 | Content warning | 16:19 | same | "This case was flagged for:" was not bold | P2 | Fixed `04c0140` | — |
@@ -69,7 +69,7 @@ A responsive layout sweep was added during the review after the team reported th
 | Review Workspace | 20:35 | Continue to review | On laptop-height windows the pinned video column was taller than the screen: the blur slider, **Continue** and **Back** could not be reached and the page seemed not to scroll | **P0** | Fixed `e0b8d42` | Column is capped at viewport height and scrolls within itself |
 | Review Workspace | 20:35 | same | Evidence rail text squeezed and entity tags stacked one per line (Carbon Accordion 25% end padding) | P2 | Fixed `e0b8d42` | — |
 | Review Workspace | 20:35 | same | Synthetic test pattern instead of footage; local-file preview in mock mode | Deliberate | Keep | Synthetic content only |
-| Review Workspace | 20:35 | same | "AI-suggested reference: 70%" line instead of a marker on the blur track; Carbon Slider with number input | Deliberate | Keep | S3 = 70% from Figma; other tiers are placeholders (sign-off) |
+| Review Workspace | 20:35 | same | "AI-suggested reference: 70%" line instead of a marker on the blur track; Carbon Slider with number input | Deliberate | Keep | S3 = 70% from Figma; S1 20%, S2 40%, S4 90% approved 18 Sep 2026 (reference only; the slider always starts at 100%) |
 | Review Workspace | 20:35 | same | Flagged-moment markers sit under the scrubber and are clickable | Deliberate | Keep | Keyboard-reachable jump targets |
 | Wellbeing check-in | 31:188 | Talk to your manager | Designer annotation paragraphs omitted | Deliberate | Keep | Annotations aren't UI |
 | Severity & comment | 25:53 | Continue to severity | Carbon Slider + number input; submit disabled with a reason line | Deliberate | Keep | Carbon over Figma; reason always shown |
@@ -77,7 +77,7 @@ A responsive layout sweep was added during the review after the team reported th
 | Submission confirmation | 25:280 | Submit | Figma says cooldowns "ship in Sprint 3 — this build does not yet trigger one"; the build does trigger AR-WB-12 cooldowns, so the line states the cooldown instead | Deliberate | Keep | Full shell includes Sprint 3 behaviour |
 | Cooldown | 31:99 | `/auditor/cooldown` | Check-in note is worded for S4 and SOS generally; wellbeing check-in shown inline | Deliberate | Keep | 31:188 annotation places the check-in inline here |
 | SOS confirmation | 31:257 | SOS | Copy matches | — | — | — |
-| AI/STT failure mid-review (AR-AI-11) | 25:212 annotation → 31:257 | Demo: Fail AI analysis mid-review (open case) | No frame of its own. Built as the SOS path, as the 25:212 annotation says: content hidden at once, Manager notified, S4-equivalent cooldown. One added line, "AI analysis for this case failed during your review.", so the Auditor knows why the case paused without pressing SOS. Checked at 1280×720, 1920×1080 and 375 wide (18 Sep 2026) | Deliberate | Keep (copy needs sign-off, microcopy audit §4) | The Auditor did not press SOS, so the pause needs a reason |
+| AI/STT failure mid-review (AR-AI-11) | 25:212 annotation → 31:257 | Demo: Fail AI analysis mid-review (open case) | No frame of its own. Built as the SOS path, as the 25:212 annotation says: content hidden at once, Manager notified, S4-equivalent cooldown. One added line, "AI analysis for this case failed during your review.", so the Auditor knows why the case paused without pressing SOS. Checked at 1280×720, 1920×1080 and 375 wide (18 Sep 2026) | Deliberate | Keep (copy approved 18 Sep 2026) | The Auditor did not press SOS, so the pause needs a reason |
 | Session expired | 36:235 | Demo: expire session | Staff ID shown in place of "J. Doe" | Deliberate | Keep | The API has no display name |
 | Connection lost | 42:352 | Demo: drop connection | Copy matches | — | — | — |
 | Header (all) | — | all staff routes | Header items ran off the edge on narrow windows; content stretched edge to edge on wide monitors | P2 | Fixed `a94588c` | Responsive header, table scrolling, 1584px centred body |
@@ -118,11 +118,7 @@ A responsive layout sweep was added during the review after the team reported th
 
 ## 4. P2 backlog (open)
 
-| # | Item | Owner |
-|---|---|---|
-| 1 | Upload "Submit report" disabled until evidence exists — keep, or enable and validate on submit as in Figma 5:2 | Aleeya |
-| 2 | AI-failure row in the Auditor queue has a blank severity cell — add "Unknown" text? | Aleeya |
-| 3 | Rounded corners (8px) on the public card, staff login card and TrustBanner, where Carbon is square — does "Carbon over Figma" extend to radius? | Aleeya |
+None. The three P2 items were decided by UX on 18 Sep 2026 and fixed: Submit report is always enabled with errors on submit (`272ce01`), the AI-failure queue row says "Unknown" (`b8471f9`, `0fefa55`), and cards, banners, drop zones and bars use Carbon's square corners (`fdd5751`).
 
 ## 5. Deliberate — keep (summary)
 
@@ -135,7 +131,7 @@ A responsive layout sweep was added during the review after the team reported th
 - The evidence rail uses Carbon Accordion; Carbon Modal/ComposedModal chrome replaces the custom Figma modal frames.
 - The Validation chart adds stripes and legend text so series don't rely on colour.
 - Seed case IDs are `AR-2026-…` in every role (one dataset); the header shows the staff ID (no display name in the API).
-- The login eyebrow is "RCS — Staff" and the field is Staff ID rather than work email (sign-off pending, Task 100 audit).
+- The login eyebrow is "RCS — Staff" and the field is Staff ID rather than work email (approved 18 Sep 2026; Figma 36:129 updated to match).
 - The Demo data badge and Demo scenarios menu appear in mock mode only.
 - The wellbeing check-in page omits the 31:188 designer annotations.
 - RT-02 status labels are used everywhere instead of Figma's variants, and the Auditor's relative-time format is used in both staff apps.

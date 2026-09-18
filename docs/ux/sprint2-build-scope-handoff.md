@@ -170,21 +170,12 @@ The "Build now / Sprint 3" split in the map above still describes the **backend 
 |---|---|---|---|
 | 1 | RT-01: add the `CLOSED_NO_REASSIGNMENT` public outcome ("This case has been reviewed and closed. No further action is required from you.") | Jana | Open |
 | 2 | RT-02 has no internal state for a declined or SOS case awaiting a Manager; the build derives "Manager Review" from `manager_flag`. Add a state or confirm the flag approach | Jana (with Aiden) | Open |
-| 3 | Suggested blur reference for S1/S2/S4 (placeholders 20/40/90%; only S3 = 70% comes from Figma) | Aleeya | Open |
-| 4 | Copy written during the build with no Figma source (microcopy audit §4, items 4a–4g) | Aleeya | Open |
-| 5 | Requirement IDs visible in staff UI copy (AR-WB-11, AR-WB-12, AR-AI-04, AR-AS-04) — keep or strip | Aleeya | Open |
-| 6 | Does "Carbon over Figma" extend to corner radius (8px on the public card, staff login card, TrustBanner)? | Aleeya | Open |
-| 7 | "Send me updates": mock says "Updates enabled", api mode says "aren't available yet" — confirm both | Aleeya | Open |
-| 8 | Status preview "whether the content was actioned" vs RT-01's scope note (proposed rewording in the audit) | Aleeya / Jana | Open |
-| 9 | Login: "RCS — Staff" eyebrow; Staff ID vs Figma 36:129 "work email" | Aleeya / Aiden | Open |
 | 10 | S2 cooldown rule as built (≥120s exposure on the case, or a second S2 within 45 min) — confirm | Jana | Open |
-| 11 | Seeded demo puts Auditors 2–5 in cooldowns, so new public uploads assign to auditor-1 in mock mode — acceptable for demos? | Aleeya | Open |
 | 12 | `MR-OV-08` validation pass/fail threshold | Firas / Aiden build the pipeline; Jana signs off | Sprint 3 |
 | 13 | Tag-to-tier taxonomy and the `weapon_use` floor against the real pipeline (Task 93); includes `AR-WB-11` confidence qualification | Jana / Aiden | Open |
 | 14 | Merge order of `feature/frontend` vs Aiden's backend; independent review by someone other than the implementer (Sprint 2 rule #4) | Hyuna | Open |
-| 15 | Link-report consent label says "my video" (Figma 72:28 too) — proposed wording in the audit | Aleeya | Open |
-| 16 | Upload "Submit report" disabled until evidence exists vs Figma's enabled button | Aleeya | Open (P2) |
-| 17 | AI-failure row in the Auditor queue has a blank severity cell — add "Unknown"? | Aleeya | Open (P2) |
 | 18 | AI/STT failure mid-review (AR-AI-11): build as the SOS path per the 25:212 annotation | Firas (UI shell) | **Done in the UI shell** (18 Sep 2026). Remaining: Aiden/Firas decide how the pipeline signals a mid-review failure and implement `reportUnexpectedExposure` |
 | 19 | Live-build re-check of the Figma review (Task 81) and axe sweep | Aleeya / Firas | Blocked on deployment (Task 104) |
-| 20 | Screen-reader pass (NVDA / VoiceOver) before Sprint 3 usability sessions | Aleeya | Open |
+| 20 | Screen-reader pass: NVDA, about 1–2 hours, on the report, Auditor review and SOS inbox flows, before the Sprint 3 usability sessions | Aleeya | Agreed 18 Sep 2026, not yet run |
+
+**Closed 18 Sep 2026 and removed from this list:** items 3–9, 11 and 15–17, all decided by Aleeya (UX). Kept as built: the blur references, the build-time copy, the "Send me updates" wording, the shared Staff ID login and the mock seed data. Changed: requirement IDs out of Auditor copy (`d100472`), Carbon square corners (`fdd5751`), status preview and link consent wording (`34fb706`), Submit report always enabled with errors on submit (`272ce01`), and "Unknown" on the AI-failure queue row (`b8471f9`, `0fefa55`). Figma 7:16, 72:28 and 36:129 and the Auditor copy with requirement IDs (10:6, 18:26) were updated to match. The Staff ID header item (accessibility baseline §7) was accepted as built. Remaining item numbers are unchanged so existing references still work.

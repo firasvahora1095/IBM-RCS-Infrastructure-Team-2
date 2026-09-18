@@ -188,8 +188,7 @@ Figma's Gray 50 secondary text (`#8d8d8d` on white, 3.32:1) was replaced by Carb
 | # | Item | Owner |
 |---|---|---|
 | 1 | jsdom can't compute contrast or run CSS transitions, so contrast and initial dialog focus are verified in Chrome; the keyboard tests assert what jsdom can | — |
-| 2 | Screen-reader testing (NVDA / VoiceOver) has not been done; recommended before the Sprint 3 usability sessions | Aleeya |
+| 2 | Screen-reader testing has not been done yet. Agreed 18 Sep 2026: an NVDA pass (about 1–2 hours) on the report, Auditor review and SOS inbox flows before the Sprint 3 usability sessions | Aleeya |
 | 3 | The whole sweep ran on the local build; re-run axe on the deployed build once Task 104 is done (with Task 101) | Firas / Aleeya |
 | 4 | Only the mock data source was swept; re-check api-mode screens once real data flows (longer names, empty states) | Firas |
 | 5 | The Review Workspace's pinned column scrolls within itself on short screens — usable by keyboard and wheel, but worth watching in usability testing | Aleeya |
-| 6 | Staff ID is hidden in the staff header below 1024px wide, to keep the header on one line | Aleeya (confirm) |

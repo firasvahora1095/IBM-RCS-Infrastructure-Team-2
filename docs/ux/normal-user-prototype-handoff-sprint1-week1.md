@@ -225,7 +225,7 @@ Every screen in this file is built in the frontend (`frontend/`, React + IBM Car
 | Outcome / Complete | 145:75 | `/status` → `RCS-4H8P-2DXC` |
 | Add more information | 80:31 | `/status` → Add more information |
 
-Main deviations for this file: the Carbon content switcher colour, "Submit report" disabled until evidence exists (P2, open), and the link-report consent label that still says "my video" (matches Figma, rewording proposed).
+Main deviations for this file: the Carbon content switcher colour and Carbon square corners on the cards and banners. Decided and fixed on 18 Sep 2026: "Submit report" is always enabled and explains what's missing on submit, as in 5:2 and 73:29; the link-report consent label now says "the linked content"; and the status preview says "whether a policy violation was found". Figma 72:28 and the 7:16 preview text were updated to match.
 
 **Deliberate deviations from Figma:** every difference between this file and the build, with its class (P0/P2/Deliberate), status and reason, is in the [Sprint 2 UI review log](sprint2-ui-review-figma-log.md). The rule used throughout: **IBM Carbon over Figma** — where a Figma colour or control differs from Carbon, the build uses the Carbon theme token or stock Carbon component. No hex colours are hardcoded in the app.
 

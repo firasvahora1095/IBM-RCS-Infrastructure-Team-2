@@ -360,7 +360,7 @@ Every screen in this file is built, including the Sprint 3 wellbeing screens, an
 | Session expired | 36:235 | Demo scenarios → Expire my session |
 | Connection lost | 42:352 | Demo scenarios → Drop the connection |
 
-Main deviations for this file: the Review Workspace column now fits laptop-height windows (a P0 fix — the blur slider and Continue were unreachable), Carbon sliders with number inputs, the "RCS — Staff" shared login eyebrow, and the submission confirmation stating the AR-WB-12 cooldown that the full shell now applies.
+Main deviations for this file: the Review Workspace column now fits laptop-height windows (a P0 fix — the blur slider and Continue were unreachable), Carbon sliders with number inputs, the "RCS — Staff" shared login eyebrow (approved; Figma 36:129 now says Staff ID like 8:2), and the submission confirmation stating the AR-WB-12 cooldown that the full shell now applies. Requirement IDs were removed from Auditor-facing copy in both the build and Figma (10:6, 18:26), and an AI-failed case says "Unknown" in the queue (18 Sep 2026).
 
 **Deliberate deviations from Figma:** every difference between this file and the build, with its class (P0/P2/Deliberate), status and reason, is in the [Sprint 2 UI review log](sprint2-ui-review-figma-log.md). The rule used throughout: **IBM Carbon over Figma** — where a Figma colour or control differs from Carbon, the build uses the Carbon theme token or stock Carbon component. No hex colours are hardcoded in the app.
 
