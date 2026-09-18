@@ -76,7 +76,7 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
 
         <div
           className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-          style={{ border: "1px dashed var(--cds-border-subtle-00)", borderRadius: 4 }}
+          style={{ border: "1px dashed var(--cds-border-subtle-00)" }}
         >
           <Button kind="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
             + Attach a file (optional)

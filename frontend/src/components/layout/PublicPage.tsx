@@ -26,7 +26,6 @@ export function PublicPage({ cardWidth, children }: PublicPageProps) {
         style={{
           maxWidth: cardWidth,
           backgroundColor: "var(--cds-background)",
-          borderRadius: 8,
           boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
         }}
       >

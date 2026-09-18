@@ -189,7 +189,6 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
           className="flex flex-col gap-4 p-4"
           style={{
             borderLeft: "4px solid var(--cds-support-success)",
-            borderRadius: 8,
             boxShadow: "inset 0 0 0 1px var(--cds-layer-01)",
           }}
         >
@@ -225,7 +224,6 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             className="flex flex-col gap-4 p-4"
             style={{
               borderLeft: "4px solid var(--cds-border-interactive)",
-              borderRadius: 8,
               boxShadow: "inset 0 0 0 1px var(--cds-layer-01)",
             }}
           >
@@ -332,7 +330,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
         <section
           aria-label="Outcome preview"
           className="flex flex-col gap-2.5 p-5"
-          style={{ border: "1px dashed var(--cds-border-subtle-00)", borderRadius: 8 }}
+          style={{ border: "1px dashed var(--cds-border-subtle-00)" }}
         >
           <div>
             <Tag type="gray" size="sm">

@@ -20,7 +20,6 @@ export function TrustBanner() {
       style={{
         backgroundColor: "var(--cds-notification-background-info)",
         borderLeft: "4px solid var(--cds-border-interactive)",
-        borderRadius: 8,
       }}
     >
       <InformationFilled

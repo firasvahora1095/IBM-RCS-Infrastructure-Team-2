@@ -73,7 +73,6 @@ export function StaffLoginPage() {
           maxWidth: 480,
           backgroundColor: "var(--cds-background)",
           borderTop: "4px solid var(--cds-border-interactive)",
-          borderRadius: 8,
           boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
         }}
       >

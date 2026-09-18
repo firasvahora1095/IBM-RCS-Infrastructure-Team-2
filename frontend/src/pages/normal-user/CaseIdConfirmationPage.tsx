@@ -96,7 +96,6 @@ export function CaseIdConfirmationPage() {
           style={{
             backgroundColor: "var(--cds-layer-01)",
             borderLeft: "4px solid var(--cds-border-interactive)",
-            borderRadius: 4,
           }}
         >
           <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>Your case ID</p>

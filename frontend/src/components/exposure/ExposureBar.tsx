@@ -50,7 +50,7 @@ export function ExposureBar({
         aria-valuemax={safeLimit}
         aria-valuenow={Math.min(minutes, safeLimit)}
         aria-valuetext={label}
-        style={{ height: 8, borderRadius: 4, backgroundColor: track, overflow: "hidden" }}
+        style={{ height: 8, backgroundColor: track, overflow: "hidden" }}
       >
         <div style={{ height: 8, width: `${percent}%`, backgroundColor: fill }} />
       </div>

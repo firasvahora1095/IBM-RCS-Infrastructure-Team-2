@@ -61,7 +61,6 @@ export function FileDropZone({ onFileSelected, prompt, inputLabel, accept, empha
       className={`flex w-full cursor-pointer flex-col items-center justify-center px-6 py-8 ${primary ? "gap-3" : "gap-2"}`}
       style={{
         border: primary ? "1.5px dashed var(--cds-border-interactive)" : "1px dashed var(--cds-border-subtle-00)",
-        borderRadius: 4,
         // Info-blue fill while a file is dragged over, as drop feedback.
         backgroundColor: isDraggingOver
           ? "var(--cds-notification-background-info)"

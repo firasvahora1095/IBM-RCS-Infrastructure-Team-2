@@ -119,7 +119,6 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
             right: 0,
             height: 4,
             backgroundColor: "var(--cds-layer-accent-01)",
-            borderRadius: 2,
           }}
         />
         <span style={{ ...axisLabelStyle, left: 0 }}>00:00</span>
@@ -171,7 +170,6 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                     backgroundColor: info.background,
                     // A thin dark outline keeps the pale S1 fill visible against the grey track.
                     boxShadow: "0 0 0 1px var(--cds-border-inverse)",
-                    borderRadius: 2,
                   }}
                 />
               )}

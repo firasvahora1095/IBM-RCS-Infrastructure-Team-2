@@ -323,7 +323,7 @@ export function UploadPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        <div className="p-3" style={{ border: "1px solid var(--cds-border-subtle-00)", borderRadius: 6 }}>
+        <div className="p-3" style={{ border: "1px solid var(--cds-border-subtle-00)" }}>
           <Checkbox
             id="consent-checkbox"
             labelText={CONSENT_LABEL[evidenceType]}
