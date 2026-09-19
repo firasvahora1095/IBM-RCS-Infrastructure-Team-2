@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rcs_infra}
+      POSTGRES_USER: ${POSTGRES_USER:-rcs_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - rcs_postgres_data:/var/lib/postgresql/data
+      - ./backend/schemas/db_schema.sql:/docker-entrypoint-initdb.d/001-core-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  rcs_postgres_data:
