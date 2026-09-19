@@ -6,3 +6,5 @@ ibm-watson-openscale
 ibm-watsonx-ai==1.3.42
 python-dotenv
 jsonschema
+SQLAlchemy>=2.0,<3.0
+psycopg2-binary>=2.9,<3.0
