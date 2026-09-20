@@ -8,6 +8,7 @@ import type {
   ManagerDashboardResponse,
   FinalOutcome,
 } from "../types";
+
 import { ApiError } from "../types";
 
 // Read once from the environment rather than hard-coding the URL in every
@@ -33,26 +34,34 @@ async function parseJsonOrThrow<T>(response: Response): Promise<T> {
     // backend raises itself, or an array of {msg, loc, type} for validation
     // errors.
     const detail = (body as { detail?: unknown } | null)?.detail;
+
     const message =
       typeof detail === "string"
         ? detail
         : Array.isArray(detail)
           ? detail.map((d: { msg: string }) => d.msg).join("; ")
           : GENERIC_ERROR;
+
     throw new ApiError(message, response.status);
   }
+
   // A successful status with no JSON body means the request never reached the
   // API — typically a wrong VITE_API_BASE_URL, where the web server answers
-  // with its HTML page. Fail loudly instead of handing the page `null`, which
-  // left screens stuck on their loading skeleton.
+  // with its HTML page. Fail loudly instead of handing the page `null`.
   if (body === null && response.status !== 204) {
-    throw new ApiError("The server sent an unexpected response. Check the API address and try again.", 502);
+    throw new ApiError(
+      "The server sent an unexpected response. Check the API address and try again.",
+      502,
+    );
   }
+
   return body as T;
 }
 
 /** Normal User uploads a video and gets back a Case ID. Public — no auth. */
-export async function createReport(videoFile: File): Promise<CreateReportResponse> {
+export async function createReport(
+  videoFile: File,
+): Promise<CreateReportResponse> {
   // The backend expects multipart/form-data with a single field named "video".
   const formData = new FormData();
   formData.append("video", videoFile);
@@ -61,51 +70,84 @@ export async function createReport(videoFile: File): Promise<CreateReportRespons
     method: "POST",
     body: formData,
     // Deliberately no Content-Type header — the browser adds the multipart
-    // boundary itself when the body is FormData. Setting it by hand drops
-    // the boundary and the server can't parse the upload.
+    // boundary itself when the body is FormData.
   });
+
   return parseJsonOrThrow<CreateReportResponse>(response);
 }
 
-/** Public status lookup by Case ID. No auth, no signup, ever (UR-VU-02). */
-export async function getStatus(caseId: string): Promise<PublicStatusResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/status/${encodeURIComponent(caseId)}`);
+/** Public status lookup by Case ID. No auth, no signup. */
+export async function getStatus(
+  caseId: string,
+): Promise<PublicStatusResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/status/${encodeURIComponent(caseId)}`,
+  );
+
   return parseJsonOrThrow<PublicStatusResponse>(response);
 }
 
 /**
- * Staff login. The live backend takes query parameters, not a JSON body —
- * unusual for a login endpoint, but that's what it expects.
+ * Staff login.
+ * Backend expects a JSON body with staff_id and password.
  */
-export async function staffLogin(auditorId: string, password: string): Promise<StaffLoginResponse> {
-  const params = new URLSearchParams({ auditor_id: auditorId, password });
-  const response = await fetch(`${API_BASE_URL}/api/staff/login?${params.toString()}`, {
+export async function staffLogin(
+  staffId: string,
+  password: string,
+): Promise<StaffLoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/staff/login`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      staff_id: staffId,
+      password,
+    }),
   });
+
   return parseJsonOrThrow<StaffLoginResponse>(response);
 }
 
-/** Cases assigned to the logged-in Auditor only (AR-AS-01 — enforced server-side). */
-export async function getAuditorCases(token: string): Promise<AuditorCaseListItem[]> {
+/** Cases assigned to the logged-in Auditor only. */
+export async function getAuditorCases(
+  token: string,
+): Promise<AuditorCaseListItem[]> {
   const response = await fetch(`${API_BASE_URL}/api/auditor/cases`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
+
   return parseJsonOrThrow<AuditorCaseListItem[]>(response);
 }
 
-/** Full detail (severity/summary/timeline) for one case, Auditor-only. */
-export async function getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail> {
-  const response = await fetch(`${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+/** Full detail for one Auditor-owned case. */
+export async function getAuditorCaseDetail(
+  caseId: string,
+  token: string,
+): Promise<AuditorCaseDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
   return parseJsonOrThrow<AuditorCaseDetail>(response);
 }
 
 /**
- * Submit the Auditor's final decision. `auditorSeverityScore` is only sent
- * when the Auditor changed the AI's rating, and the backend rejects that
- * without a comment (AR-AI-07) — the UI enforces the same rule before
- * submitting, so an Auditor never has to hit that server error.
+ * Submit the Auditor's final decision.
+ *
+ * Backend expects JSON:
+ * {
+ *   final_outcome,
+ *   auditor_severity_score?,
+ *   auditor_comment?
+ * }
  */
 export async function resolveCase(
   caseId: string,
@@ -114,22 +156,45 @@ export async function resolveCase(
   auditorSeverityScore?: number,
   auditorComment?: string,
 ): Promise<ResolveCaseResponse> {
-  const params = new URLSearchParams({ final_outcome: finalOutcome });
+  const body: Record<string, unknown> = {
+    final_outcome: finalOutcome,
+  };
+
   if (auditorSeverityScore !== undefined) {
-    params.set("auditor_severity_score", String(auditorSeverityScore));
+    body.auditor_severity_score = auditorSeverityScore;
   }
+
   if (auditorComment !== undefined) {
-    params.set("auditor_comment", auditorComment);
+    body.auditor_comment = auditorComment;
   }
+
   const response = await fetch(
-    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/resolve?${params.toString()}`,
-    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/resolve`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
   );
+
   return parseJsonOrThrow<ResolveCaseResponse>(response);
 }
 
-/** Manager dashboard data. Sprint 2 renders this as an honest scaffold (Task 10). */
-export async function getManagerDashboard(): Promise<ManagerDashboardResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/manager/dashboard`);
+/**
+ * Manager dashboard data.
+ * Backend requires a Manager Bearer token.
+ */
+export async function getManagerDashboard(
+  token: string,
+): Promise<ManagerDashboardResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/manager/dashboard`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
   return parseJsonOrThrow<ManagerDashboardResponse>(response);
 }

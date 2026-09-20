@@ -333,7 +333,7 @@ export interface DataService {
     auditorSeverityScore?: number,
     auditorComment?: string,
   ): Promise<ResolveCaseResponse>;
-  getManagerDashboard(): Promise<ManagerDashboardResponse>;
+  getManagerDashboard(token: string): Promise<ManagerDashboardResponse>;
   getMyWellbeing(token: string): Promise<AuditorWellbeing>;
   /** AR-PV-01/08: records the Auditor's deliberate Proceed and moves the case into review. */
   acknowledgeContentWarning(caseId: string, token: string): Promise<{ acknowledged: true }>;
