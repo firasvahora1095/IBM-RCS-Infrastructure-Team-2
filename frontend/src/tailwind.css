@@ -1,0 +1,15 @@
+/*
+ * Tailwind v4, utilities only.
+ *
+ * `@import "tailwindcss"` would also pull in Preflight (Tailwind's CSS
+ * reset), which strips Carbon components like Button and TextInput back to
+ * unstyled browser defaults. Importing the theme and utilities files on
+ * their own is Tailwind v4's documented way to skip Preflight.
+ *
+ * The utilities import is deliberately NOT wrapped in a cascade layer:
+ * Carbon's CSS is unlayered, and unlayered CSS always beats layered CSS
+ * regardless of specificity — so a layered `mb-4` on a Carbon Button would
+ * silently lose to Carbon's own margin rule.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
