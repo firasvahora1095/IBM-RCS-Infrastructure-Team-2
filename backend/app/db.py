@@ -1,6 +1,6 @@
 import os
 from contextlib import contextmanager
-from typing import Iterator
+from typing import AsyncIterator, Iterator
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -36,6 +36,18 @@ def database_session() -> Iterator[Session]:
     try:
         yield session
         session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+async def get_db() -> AsyncIterator[Session]:
+    """FastAPI dependency that provides one database session per request."""
+    session = SessionLocal()
+    try:
+        yield session
     except Exception:
         session.rollback()
         raise

@@ -7,6 +7,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    JSON,
     String,
     Text,
 )
@@ -16,6 +17,11 @@ from sqlalchemy.sql import func
 
 
 Base = declarative_base()
+
+# Keep PostgreSQL's efficient JSONB representation in deployed environments,
+# while allowing the API contract tests to run against an isolated SQLite DB.
+JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
+AUDIT_LOG_ID = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Auditor(Base):
@@ -93,7 +99,7 @@ class Case(Base):
     effective_severity_score = Column(Integer, nullable=True)
     severity_tier = Column(String(2), nullable=True)
     narrative_summary = Column(Text, nullable=True)
-    incident_timeline = Column(JSONB, nullable=True)
+    incident_timeline = Column(JSON_DOCUMENT, nullable=True)
 
     # Nullable fields populated by the later review/outcome workflow.
     auditor_severity_score = Column(Integer, nullable=True)
@@ -116,7 +122,7 @@ class AuditLog(Base):
     )
 
     audit_log_id = Column(
-        BigInteger,
+        AUDIT_LOG_ID,
         Identity(),
         primary_key=True,
     )
@@ -127,8 +133,8 @@ class AuditLog(Base):
     )
     actor = Column(String(50), nullable=False)
     action = Column(String(50), nullable=False)
-    before_value = Column(JSONB, nullable=True)
-    after_value = Column(JSONB, nullable=True)
+    before_value = Column(JSON_DOCUMENT, nullable=True)
+    after_value = Column(JSON_DOCUMENT, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
