@@ -8,7 +8,7 @@ The platform will support a case lifecycle where submitted content is assigned t
 
 The client-confirmed high-level flow is:
 
-Submitted → Assigned → AI Processing → Under Review → Manager Review → Completed
+Submitted → AI Processing → Under Review → Manager Review → Completed
 
 ## Core Project Goals
 
