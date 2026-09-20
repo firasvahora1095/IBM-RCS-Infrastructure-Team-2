@@ -172,7 +172,7 @@ class ApiContractTests(unittest.TestCase):
                     stored = db.get(Case, response.json()["case_id"])
                     self.assertIsNotNone(stored)
                     self.assertTrue(Path(stored.video_storage_path).is_file())
-                    self.assertEqual(stored.status, "SUBMITTED")
+                    self.assertEqual(stored.status, "AI_PROCESSING")
                     self.assertIn(stored.assigned_auditor_id, {"auditor-1", "auditor-2"})
                     actions = db.scalars(
                         select(AuditLog.action)
@@ -221,8 +221,7 @@ class ApiContractTests(unittest.TestCase):
         with self.Session() as db:
             stored = db.get(Case, case_id)
             self.assertEqual(stored.assigned_auditor_id, "auditor-2")
-            # Assignment is an event, not a state. AI_PROCESSING is a later task.
-            self.assertEqual(stored.status, "SUBMITTED")
+            self.assertEqual(stored.status, "AI_PROCESSING")
             assignment_event = db.scalar(
                 select(AuditLog).where(
                     AuditLog.case_id == case_id,
@@ -234,7 +233,7 @@ class ApiContractTests(unittest.TestCase):
                 assignment_event.after_value["assigned_auditor_id"],
                 "auditor-2",
             )
-            self.assertEqual(assignment_event.after_value["status"], "SUBMITTED")
+            self.assertEqual(assignment_event.after_value["status"], "AI_PROCESSING")
 
         assigned_list = self.client.get(
             "/api/auditor/cases",
