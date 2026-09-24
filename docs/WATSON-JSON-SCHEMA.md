@@ -2,9 +2,12 @@
 
 This schema follows the revised severity scale and explains the expected JSON for a single frame.  
 
-- `watsonx-analysis.schema.json` contains the validation rules.
-- `watsonx-analysis.example.json` shows an example result that follows the rules.
-The jsons are located in the backend/schemas directory.  
+- `frame-analysis.schema.json` contains the validation rules.
+- `frame-analysis.example.json` shows an example result that follows the rules.
+The JSON files are located in `backend/schemas`. The real video pipeline
+validates every normalized frame against this schema before it can contribute
+to case-level output. The original provider response is stored separately as
+`frame-xxxxx.raw.json`.
 
 ## Schema Fields
 
@@ -54,8 +57,8 @@ import json
 from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
 
-schema = json.loads(Path("schemas/frame-analysis.schema.json").read_text())
-result = json.loads(Path("schemas/frame-analysis.example.json").read_text())
+schema = json.loads(Path("backend/schemas/frame-analysis.schema.json").read_text())
+result = json.loads(Path("backend/schemas/frame-analysis.example.json").read_text())
 
 validator = Draft202012Validator(schema, format_checker=FormatChecker())
 validator.validate(result)

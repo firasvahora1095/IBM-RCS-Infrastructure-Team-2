@@ -1,17 +1,16 @@
 from io import BytesIO
-
-from app.storage import store_video
-
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
+import app.frame_extraction as frame_extraction
 from app.frame_extraction import (
     FrameExtractionError,
     extract_frames_from_storage,
 )
+from app.storage import store_video
 
 
 def create_synthetic_video(path: Path) -> None:
@@ -142,3 +141,30 @@ def test_real_storage_flow_produces_timestamped_frames(
         assert frame.content_type == "image/jpeg"
         assert frame.image_bytes.startswith(b"\xff\xd8")
         assert frame.as_file().read(2) == b"\xff\xd8"
+
+
+def test_cos_video_body_is_materialized_for_streaming_extraction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_video = tmp_path / "cos-source.avi"
+    create_synthetic_video(source_video)
+
+    class FakeCosClient:
+        def get_object(self, *, Bucket: str, Key: str):
+            assert Bucket == "evidence-bucket"
+            assert Key == "cases/CASE-COS/source.avi"
+            return {"Body": BytesIO(source_video.read_bytes())}
+
+    monkeypatch.setattr(
+        frame_extraction,
+        "create_cos_client",
+        lambda: FakeCosClient(),
+    )
+
+    frames = extract_frames_from_storage(
+        "cos://evidence-bucket/cases/CASE-COS/source.avi",
+        interval_seconds=2,
+    )
+
+    assert [frame.timestamp for frame in frames] == pytest.approx([0, 2, 4])

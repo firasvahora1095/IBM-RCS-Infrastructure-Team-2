@@ -11,8 +11,9 @@ be passed directly to the watsonx image-analysis layer.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -38,6 +39,7 @@ class ExtractedFrame:
     timestamp: float
     image_bytes: bytes
     content_type: str = "image/jpeg"
+    source_duration_seconds: float | None = None
 
     def as_file(self) -> BytesIO:
         """Return a file-like object accepted by watsonx_image.analyse_image."""
@@ -84,18 +86,21 @@ def _materialize_video(storage_reference: str) -> Iterator[Path]:
             Key=object_key,
         )
 
-        video_bytes = response["Body"].read()
-
-        if not video_bytes:
-            raise FrameExtractionError("Stored video is empty")
-
         with tempfile.NamedTemporaryFile(
             mode="wb",
             suffix=suffix,
             delete=False,
         ) as temporary_file:
-            temporary_file.write(video_bytes)
             temporary_path = Path(temporary_file.name)
+            # Avoid holding an entire 10--15 minute COS object in memory.
+            with closing(response["Body"]) as response_body:
+                shutil.copyfileobj(
+                    response_body,
+                    temporary_file,
+                    length=1024 * 1024,
+                )
+            if temporary_file.tell() == 0:
+                raise FrameExtractionError("Stored video is empty")
 
         yield temporary_path
 
@@ -112,15 +117,17 @@ def _materialize_video(storage_reference: str) -> Iterator[Path]:
             temporary_path.unlink(missing_ok=True)
 
 
-def extract_frames_from_storage(
+def iter_frames_from_storage(
     storage_reference: str,
     *,
     interval_seconds: float = DEFAULT_FRAME_INTERVAL_SECONDS,
-) -> list[ExtractedFrame]:
-    """Extract timestamped JPEG frames from a stored video.
+) -> Iterator[ExtractedFrame]:
+    """Yield timestamped JPEG frames from a stored video.
 
     The default sampling interval is one frame every five seconds, matching
-    the Sprint 1 prototype.
+    the Sprint 1 prototype. Frames are yielded as they are encoded so a
+    10--15 minute source does not have to keep every JPEG in memory while
+    watsonx calls are in progress.
 
     Returned JPEG bytes can be passed directly to:
         watsonx_image.analyse_image(
@@ -148,8 +155,14 @@ def extract_frames_from_storage(
 
             frame_interval = max(1, round(fps * interval_seconds))
 
-            frames: list[ExtractedFrame] = []
+            source_frame_count = float(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            source_duration = (
+                source_frame_count / fps
+                if source_frame_count > 0
+                else None
+            )
             frame_index = 0
+            extracted_count = 0
 
             while True:
                 success, frame = video.read()
@@ -167,22 +180,24 @@ def extract_frames_from_storage(
 
                     timestamp = frame_index / fps
 
-                    frames.append(
-                        ExtractedFrame(
-                            frame_num=len(frames),
-                            timestamp=round(timestamp, 3),
-                            image_bytes=jpeg.tobytes(),
-                        )
+                    yield ExtractedFrame(
+                        frame_num=extracted_count,
+                        timestamp=round(timestamp, 3),
+                        image_bytes=jpeg.tobytes(),
+                        source_duration_seconds=(
+                            round(source_duration, 3)
+                            if source_duration is not None
+                            else None
+                        ),
                     )
+                    extracted_count += 1
 
                 frame_index += 1
 
-            if not frames:
+            if extracted_count == 0:
                 raise FrameExtractionError(
                     "Video did not produce any extractable frames"
                 )
-
-            return frames
 
         except FrameExtractionError:
             raise
@@ -194,3 +209,18 @@ def extract_frames_from_storage(
 
         finally:
             video.release()
+
+
+def extract_frames_from_storage(
+    storage_reference: str,
+    *,
+    interval_seconds: float = DEFAULT_FRAME_INTERVAL_SECONDS,
+) -> list[ExtractedFrame]:
+    """Return all extracted frames for callers that need the legacy list API."""
+
+    return list(
+        iter_frames_from_storage(
+            storage_reference,
+            interval_seconds=interval_seconds,
+        )
+    )

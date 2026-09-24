@@ -4,6 +4,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Float,
     Identity,
     Index,
     Integer,
@@ -80,6 +81,10 @@ class Case(Base):
             "OR final_outcome IN ('NO_VIOLATION_FOUND', 'POLICY_VIOLATION_FOUND')",
             name="ck_cases_final_outcome",
         ),
+        CheckConstraint(
+            "ai_failure IS NULL OR ai_failure IN ('vision', 'speech_to_text')",
+            name="ck_cases_ai_failure",
+        ),
         Index("idx_cases_assigned_auditor_id", "assigned_auditor_id"),
     )
 
@@ -100,6 +105,11 @@ class Case(Base):
     severity_tier = Column(String(2), nullable=True)
     narrative_summary = Column(Text, nullable=True)
     incident_timeline = Column(JSON_DOCUMENT, nullable=True)
+    video_duration_seconds = Column(Float, nullable=True)
+    analysis_output_path = Column(Text, nullable=True)
+    # A non-null value is an explicit reduced-AI-support state. The frontend
+    # requires protected, deliberate raw-content access in this state.
+    ai_failure = Column(String(30), nullable=True)
 
     # Nullable fields populated by the later review/outcome workflow.
     auditor_severity_score = Column(Integer, nullable=True)

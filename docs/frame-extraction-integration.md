@@ -72,4 +72,6 @@ Regression result:
 
 This task provides the storage-to-frame-extraction integration seam.
 
-Full watsonx vision analysis, aggregation and governance processing is validated separately by the real AI-pipeline integration/cross-test tasks.
+Real watsonx vision analysis, raw-response persistence, case aggregation, and
+failure fallback now consume this seam through `app.video_analysis`. See
+`docs/WATSONX_AI.md` and `backend/tests/test_video_analysis.py`.

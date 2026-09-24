@@ -1,4 +1,4 @@
-# Initial Architecture
+# Architecture
 
 ## High-Level Flow
 
@@ -50,15 +50,19 @@ Folder Structure:
 ```
 cases/
 └── {caseId}/
-    ├── original/
-    │   └── video.mp4
+    ├── source.mp4
     ├── processed/
     │   └── blur-greyscale-video.mp4
     ├── metadata/
     │   └── case.json
+    ├── analysis-output/
+    │   ├── frame-00000.raw.json
+    │   ├── frame-00000.analysis.json
+    │   ├── ...
+    │   ├── case-analysis.json
+    │   └── manifest.json
     ├── analysis/
-    │   ├── transcript.json
-    │   └── severity-rating.json
+    │   └── transcript.json
     └── review/
         ├── assessment.json
         └── decision.json
@@ -66,15 +70,15 @@ cases/
 Note: caseId will use generated ids rather than iterative numbering.
 ```
 Considerations:
-- The original video should be kept seperate to processed versions
-- Case Id's need to be unique
-- The generated severity and transcriptis kept seperate, stored in analysis
-- Auditor decisions and assessment are kept seperate, stored in review
-- case.json keeps track of all relevant details to the case, including its current status
-- The folder structure may be updated to account for changes in the project
+- The original video is kept separate from processed versions.
+- Case IDs are unique and non-sequential.
+- Each raw watsonx response is preserved separately from the backend-normalized result.
+- Generated analysis remains separate from Auditor decisions and assessments.
+- Database case state points to the internal analysis-output path; the raw response is not returned by public APIs.
 
 ### watsonx.ai
 Responsible for:
+- Per-frame visual tags, raw CVI score, reasoning and entities
 - AI/ML processing and experimentation
 
 ### watsonx Orchestrate
@@ -84,6 +88,4 @@ Responsible for:
 
 ## Open Items
 
-- Exact AI failure fallback behaviour
-- Final AI severity scoring format
 - Final infrastructure deployment topology
