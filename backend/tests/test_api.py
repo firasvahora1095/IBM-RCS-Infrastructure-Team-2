@@ -303,6 +303,146 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(selected.json()["active_case_count"], 0)
         self.assertEqual(selected.json()["exposure_minutes"], 0)
 
+    def test_selector_prefers_never_assigned_auditor_on_tie(self) -> None:
+        """A never-assigned Auditor wins when weighted scores are equal."""
+
+        history_case_id = "HISTORYCASE00001"
+
+        # COMPLETE cases do not affect active-case weighting.
+        self.add_case(
+            history_case_id,
+            auditor_id="auditor-1",
+            status="COMPLETE",
+        )
+
+        with self.Session.begin() as db:
+            db.add(
+                AuditLog(
+                    case_id=history_case_id,
+                    actor="watsonx-orchestrate",
+                    action="CASE_ASSIGNED",
+                    after_value={
+                        "assigned_auditor_id": "auditor-1",
+                    },
+                )
+            )
+
+        selected = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+
+        self.assertEqual(selected.status_code, 200, selected.text)
+
+        # Both Auditors have the same weighted score, but auditor-2 has
+        # never previously been assigned a case.
+        self.assertEqual(selected.json()["auditor_id"], "auditor-2")
+        self.assertEqual(selected.json()["active_case_count"], 0)
+
+    def test_selector_uses_least_recently_assigned_auditor_on_tie(self) -> None:
+        """Equal-score Auditors rotate to the least recently assigned Auditor."""
+
+        older_case_id = "OLDERASSIGN00001"
+        newer_case_id = "NEWERASSIGN00001"
+
+        # Both historical cases are COMPLETE so they do not change the
+        # current active-case weighting.
+        self.add_case(
+            older_case_id,
+            auditor_id="auditor-2",
+            status="COMPLETE",
+        )
+        self.add_case(
+            newer_case_id,
+            auditor_id="auditor-1",
+            status="COMPLETE",
+        )
+
+        with self.Session.begin() as db:
+            # auditor-2 was assigned first, therefore it is the
+            # least recently assigned Auditor.
+            db.add(
+                AuditLog(
+                    case_id=older_case_id,
+                    actor="watsonx-orchestrate",
+                    action="CASE_ASSIGNED",
+                    after_value={
+                        "assigned_auditor_id": "auditor-2",
+                    },
+                )
+            )
+
+            # Flush guarantees the first event gets the earlier
+            # audit_log_id/sequence.
+            db.flush()
+
+            db.add(
+                AuditLog(
+                    case_id=newer_case_id,
+                    actor="watsonx-orchestrate",
+                    action="CASE_ASSIGNED",
+                    after_value={
+                        "assigned_auditor_id": "auditor-1",
+                    },
+                )
+            )
+
+        selected = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+
+        self.assertEqual(selected.status_code, 200, selected.text)
+
+        # Both have equal active counts and scores. auditor-2 wins because
+        # it was assigned less recently.
+        self.assertEqual(selected.json()["auditor_id"], "auditor-2")
+        self.assertEqual(selected.json()["active_case_count"], 0)
+
+    def test_selector_returns_single_available_auditor(self) -> None:
+        """The selector works when only one Auditor account is eligible."""
+
+        with self.Session.begin() as db:
+            auditor_2 = db.get(Auditor, "auditor-2")
+            self.assertIsNotNone(auditor_2)
+
+            # The selector only considers role="auditor".
+            auditor_2.role = "manager"
+
+        selected = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+
+        self.assertEqual(selected.status_code, 200, selected.text)
+        self.assertEqual(selected.json()["auditor_id"], "auditor-1")
+        self.assertEqual(selected.json()["active_case_count"], 0)
+
+    def test_selector_handles_no_available_auditors(self) -> None:
+        """No eligible Auditor returns a handled 409 instead of crashing."""
+
+        with self.Session.begin() as db:
+            auditor_1 = db.get(Auditor, "auditor-1")
+            auditor_2 = db.get(Auditor, "auditor-2")
+
+            self.assertIsNotNone(auditor_1)
+            self.assertIsNotNone(auditor_2)
+
+            # Remove both accounts from the eligible Auditor pool.
+            auditor_1.role = "manager"
+            auditor_2.role = "manager"
+
+        selected = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+
+        self.assertEqual(selected.status_code, 409, selected.text)
+        self.assertEqual(
+            selected.json()["detail"],
+            "No eligible Auditors are available",
+        )
+
     def test_upload_rejects_bad_extension_and_bad_signature_without_storage(self) -> None:
         unsupported = self.client.post(
             "/api/reports",
