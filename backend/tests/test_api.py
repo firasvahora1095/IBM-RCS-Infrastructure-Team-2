@@ -398,6 +398,23 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(fifth.status_code, 429)
         self.assertEqual(self.client.get(f"/api/status/{case_id}").status_code, 429)
 
+    def test_auditor_detail_exposes_protected_vision_failure_state(self) -> None:
+        case_id = "VISIONFAILURE001"
+        self.add_case(case_id, status="READY_FOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.ai_failure = "vision"
+
+        detail = self.client.get(
+            f"/api/auditor/cases/{case_id}",
+            headers=self.auth_headers(),
+        )
+
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["ai_failure"], "vision")
+        self.assertIsNone(detail.json()["effective_severity_score"])
+        self.assertIsNone(detail.json()["severity_tier"])
+
     def test_case_ids_are_redacted_from_application_request_logs(self) -> None:
         case_id = "SECRETCASE000001"
         self.add_case(case_id, status="SUBMITTED")
@@ -457,6 +474,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(detail.json()["severity_tier"], "S3")
         self.assertEqual(detail.json()["effective_severity_score"], 72)
         self.assertEqual(detail.json()["incident_timeline"][0]["start"], 12.0)
+        self.assertIsNone(detail.json()["ai_failure"])
 
         missing_comment = self.client.post(
             f"/api/auditor/cases/{case_id}/resolve",
