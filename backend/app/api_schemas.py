@@ -54,3 +54,35 @@ class ResolutionRequest(BaseModel):
     final_outcome: FinalOutcome
     auditor_severity_score: int | None = Field(default=None, ge=0, le=100)
     auditor_comment: str | None = Field(default=None, max_length=5000)
+
+
+class DeclineReason(str, Enum):
+    MORE_SEVERE_THAN_AI = "MORE_SEVERE_THAN_AI"
+    NEAR_EXPOSURE_LIMIT = "NEAR_EXPOSURE_LIMIT"
+    PERSONAL_TRIGGER = "PERSONAL_TRIGGER"
+    OTHER = "OTHER"
+
+
+class DeclineCaseRequest(BaseModel):
+    reason: DeclineReason
+    other_text: str | None = Field(default=None, max_length=1000)
+
+
+class SosFollowUpOutcome(str, Enum):
+    NO_FURTHER_ACTION = "NO_FURTHER_ACTION"
+    REASSIGNED_REMAINING_CASES = "REASSIGNED_REMAINING_CASES"
+    AUDITOR_STOPPED_SHIFT = "AUDITOR_STOPPED_SHIFT"
+
+
+class SosFollowUpRequest(BaseModel):
+    notes: str = Field(max_length=5000)
+    outcome: SosFollowUpOutcome
+
+
+class ExposureSampleRequest(BaseModel):
+    seconds: float = Field(ge=0)
+    case_id: str | None = None
+
+
+class SetExposureLimitRequest(BaseModel):
+    minutes: int = Field(ge=0, le=1440)

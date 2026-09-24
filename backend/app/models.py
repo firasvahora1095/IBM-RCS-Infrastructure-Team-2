@@ -3,6 +3,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Float,
     Identity,
@@ -37,6 +38,10 @@ class Auditor(Base):
     auditor_id = Column(String(50), primary_key=True)
     login_hash = Column(Text, nullable=False)
     role = Column(String(20), nullable=False, server_default="auditor")
+    active_case_count = Column(Integer, nullable=False, server_default="0")
+    exposure_minutes = Column(Float, nullable=False, server_default="0")
+    exposure_limit_minutes = Column(Integer, nullable=False, server_default="120")
+    last_assigned_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -53,7 +58,9 @@ class Case(Base):
             "'AI_PROCESSING', "
             "'READY_FOR_REVIEW', "
             "'AUDITOR_REVIEW', "
-            "'COMPLETE'"
+            "'COMPLETE', "
+            "'DECLINED', "
+            "'SOS_FLAGGED'"
             ")",
             name="ck_cases_status",
         ),
@@ -78,12 +85,16 @@ class Case(Base):
         ),
         CheckConstraint(
             "final_outcome IS NULL "
-            "OR final_outcome IN ('NO_VIOLATION_FOUND', 'POLICY_VIOLATION_FOUND')",
+            "OR final_outcome IN ('NO_VIOLATION_FOUND', 'POLICY_VIOLATION_FOUND', 'CLOSED_NO_REASSIGNMENT')",
             name="ck_cases_final_outcome",
         ),
         CheckConstraint(
             "ai_failure IS NULL OR ai_failure IN ('vision', 'speech_to_text')",
             name="ck_cases_ai_failure",
+        ),
+        CheckConstraint(
+            "manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS')",
+            name="ck_cases_manager_flag",
         ),
         Index("idx_cases_assigned_auditor_id", "assigned_auditor_id"),
     )
@@ -116,6 +127,7 @@ class Case(Base):
     auditor_severity_score = Column(Integer, nullable=True)
     auditor_comment = Column(Text, nullable=True)
     final_outcome = Column(String(50), nullable=True)
+    manager_flag = Column(String(10), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),

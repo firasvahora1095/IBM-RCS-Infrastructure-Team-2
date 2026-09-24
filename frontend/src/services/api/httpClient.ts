@@ -1,12 +1,29 @@
 import type {
-  CreateReportResponse,
-  PublicStatusResponse,
-  StaffLoginResponse,
-  AuditorCaseListItem,
   AuditorCaseDetail,
-  ResolveCaseResponse,
-  ManagerDashboardResponse,
+  AuditorCaseListItem,
+  AuditorDetail,
+  AuditorOverviewRow,
+  AuditorWellbeing,
+  CooldownState,
+  CreateReportResponse,
+  DeclinedCaseRow,
+  DeclineReason,
+  ExposureSample,
   FinalOutcome,
+  ManagerCaseReview,
+  ManagerCaseRow,
+  ManagerDashboardResponse,
+  PublicStatusResponse,
+  ReassignmentContext,
+  ResolveCaseResponse,
+  SosAlert,
+  SosAlertDetail,
+  SosFollowUpOutcome,
+  SosSummary,
+  StaffLoginResponse,
+  UnexpectedExposureReason,
+  ValidationSummary,
+  WellbeingRequestKind,
 } from "../types";
 
 import { ApiError } from "../types";
@@ -197,4 +214,292 @@ export async function getManagerDashboard(
   });
 
   return parseJsonOrThrow<ManagerDashboardResponse>(response);
+}
+
+// ---------------------------------------------------------------------------
+// Auditor wellbeing
+// ---------------------------------------------------------------------------
+
+export async function getMyWellbeing(token: string): Promise<AuditorWellbeing> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/wellbeing`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<AuditorWellbeing>(r);
+}
+
+export async function acknowledgeContentWarning(
+  caseId: string,
+  token: string,
+): Promise<{ acknowledged: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/acknowledge-content-warning`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ acknowledged: true }>(r);
+}
+
+export async function declineCase(
+  caseId: string,
+  token: string,
+  reason: DeclineReason,
+  otherText?: string,
+): Promise<{ declined: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/decline`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, other_text: otherText ?? null }),
+    },
+  );
+  return parseJsonOrThrow<{ declined: true }>(r);
+}
+
+export async function recordExposure(
+  caseId: string,
+  token: string,
+  sample: ExposureSample,
+): Promise<{ recorded: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/exposure`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ seconds: sample.seconds }),
+    },
+  );
+  return parseJsonOrThrow<{ recorded: true }>(r);
+}
+
+export async function triggerSos(
+  caseId: string,
+  token: string,
+): Promise<{ cooldown: CooldownState }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/sos`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ cooldown: CooldownState }>(r);
+}
+
+export async function reportUnexpectedExposure(
+  caseId: string,
+  token: string,
+  reason: UnexpectedExposureReason,
+): Promise<{ cooldown: CooldownState }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/unexpected-exposure`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    },
+  );
+  return parseJsonOrThrow<{ cooldown: CooldownState }>(r);
+}
+
+export async function requestWellbeingSupport(
+  token: string,
+  kind: WellbeingRequestKind,
+  caseId?: string,
+): Promise<{ received: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/wellbeing-support`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, case_id: caseId ?? null }),
+  });
+  return parseJsonOrThrow<{ received: true }>(r);
+}
+
+// ---------------------------------------------------------------------------
+// Manager
+// ---------------------------------------------------------------------------
+
+export async function getAuditorOverview(token: string): Promise<AuditorOverviewRow[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/auditors`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<AuditorOverviewRow[]>(r);
+}
+
+export async function getSosSummary(token: string): Promise<SosSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/sos-summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<SosSummary>(r);
+}
+
+export async function getAuditorDetail(auditorId: string, token: string): Promise<AuditorDetail> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/auditors/${encodeURIComponent(auditorId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<AuditorDetail>(r);
+}
+
+export async function setExposureLimit(
+  auditorId: string,
+  token: string,
+  minutes: number,
+): Promise<{ exposure_limit_minutes: number }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/auditors/${encodeURIComponent(auditorId)}/exposure-limit`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ minutes }),
+    },
+  );
+  return parseJsonOrThrow<{ exposure_limit_minutes: number }>(r);
+}
+
+export async function approveBreakRequest(
+  requestId: string,
+  token: string,
+): Promise<{ approved: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/auditors/_/break-requests/${encodeURIComponent(requestId)}/approve`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ approved: true }>(r);
+}
+
+export async function getCaseOversight(token: string): Promise<ManagerCaseRow[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/cases`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<ManagerCaseRow[]>(r);
+}
+
+export async function listSosAlerts(token: string): Promise<SosAlert[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/sos-alerts`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<SosAlert[]>(r);
+}
+
+export async function getSosAlert(alertId: string, token: string): Promise<SosAlertDetail> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/sos-alerts/${encodeURIComponent(alertId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<SosAlertDetail>(r);
+}
+
+export async function acknowledgeSosAlert(
+  alertId: string,
+  token: string,
+): Promise<{ acknowledged: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/sos-alerts/${encodeURIComponent(alertId)}/acknowledge`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ acknowledged: true }>(r);
+}
+
+export async function logSosFollowUp(
+  alertId: string,
+  token: string,
+  notes: string,
+  outcome: SosFollowUpOutcome,
+): Promise<{ resolved: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/sos-alerts/${encodeURIComponent(alertId)}/follow-up`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ notes, outcome }),
+    },
+  );
+  return parseJsonOrThrow<{ resolved: true }>(r);
+}
+
+export async function listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/declined-cases`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<DeclinedCaseRow[]>(r);
+}
+
+export async function getManagerCaseReview(
+  caseId: string,
+  token: string,
+): Promise<ManagerCaseReview> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/review`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<ManagerCaseReview>(r);
+}
+
+export async function getReassignmentContext(
+  caseId: string,
+  token: string,
+): Promise<ReassignmentContext> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/reassignment`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<ReassignmentContext>(r);
+}
+
+export async function reassignCase(
+  caseId: string,
+  token: string,
+  auditorId: string,
+): Promise<{ assigned_to_name: string }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/reassign`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ auditor_id: auditorId }),
+    },
+  );
+  return parseJsonOrThrow<{ assigned_to_name: string }>(r);
+}
+
+export async function closeWithoutReassignment(
+  caseId: string,
+  token: string,
+  note: string,
+): Promise<{ status: string }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/close`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    },
+  );
+  return parseJsonOrThrow<{ status: string }>(r);
+}
+
+export async function getCaseForExceptionalAccess(
+  caseId: string,
+  token: string,
+): Promise<AuditorCaseDetail> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/exceptional-access`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<AuditorCaseDetail>(r);
+}
+
+export async function recordExceptionalAccess(
+  caseId: string,
+  token: string,
+): Promise<{ recorded: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/exceptional-access`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ recorded: true }>(r);
+}
+
+export async function getValidationSummary(token: string): Promise<ValidationSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/validation`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<ValidationSummary>(r);
 }
