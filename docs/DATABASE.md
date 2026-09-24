@@ -1,14 +1,11 @@
 # Database Provisioning and Core Schema
 
-This document covers the Sprint 2 T20 database task only. It provisions a local
-PostgreSQL database and defines the three core tables used by later backend work:
+This document covers the Sprint 2 database schema. It provisions a local
+PostgreSQL database and defines the three core tables used by the backend:
 
 - `auditors`
 - `cases`
 - `audit_logs`
-
-API routes, authentication behaviour, assignment logic, uploads, AI processing,
-and Auditor resolution behaviour are implemented in later tasks.
 
 ## Prerequisites
 
@@ -76,7 +73,8 @@ Stores each submitted case and the fields filled during later Sprint 2 stages:
 - internal workflow `status`
 - nullable `assigned_auditor_id` foreign key
 - video storage reference
-- nullable placeholder AI severity, tier, summary, and incident-timeline fields
+- nullable AI severity, tier, summary, and incident-timeline fields
+- source duration, internal analysis-output reference, and explicit AI-failure state
 - nullable Auditor-adjusted severity, comment, and final-outcome fields
 - creation and completion timestamps
 
@@ -99,6 +97,8 @@ POLICY_VIOLATION_FOUND
 
 AI and Auditor severity values are constrained to integers from 0 through 100.
 Severity tiers are constrained to `S1`, `S2`, `S3`, or `S4`.
+AI failures are constrained to `vision` or `speech_to_text`; null means no
+known processing failure.
 
 ### `audit_logs`
 
@@ -164,6 +164,21 @@ the container does not erase the database.
 
 The initialization SQL runs only when PostgreSQL creates a fresh data directory.
 Editing `db_schema.sql` does not update an already-initialized database.
+
+For the watsonx video-pipeline columns, safely reapply the idempotent schema to
+an existing local development database (adjust user/database names if your
+`.env` differs):
+
+```bash
+docker compose exec postgres psql \
+  -U rcs_app \
+  -d rcs_infra \
+  -f /docker-entrypoint-initdb.d/001-core-schema.sql
+```
+
+This preserves existing rows and adds missing `video_duration_seconds`,
+`analysis_output_path`, and `ai_failure` columns plus the failure-value
+constraint.
 
 During disposable local development, a fresh database can be created with:
 
