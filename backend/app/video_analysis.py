@@ -191,6 +191,43 @@ def _build_incident_timeline(
     return sorted(completed, key=lambda item: (item["start"], item["tag"]))
 
 
+def _format_timestamp(timestamp: float) -> str:
+    return f"{timestamp:.3f}".rstrip("0").rstrip(".")
+
+
+def _build_narrative_summary(
+    severity_tier: str,
+    highest_frame: dict[str, Any],
+    incident_timeline: list[dict[str, Any]],
+) -> str:
+    """Describe a case-level AI signal without copying model-authored prose."""
+
+    timestamp = float(highest_frame["timestamp"])
+    matching_incident = next(
+        (
+            incident
+            for incident in incident_timeline
+            if incident["severity_tier"] == severity_tier
+            and incident["start"] <= timestamp <= incident["end"]
+        ),
+        None,
+    )
+    if matching_incident is None:
+        return (
+            f"AI assigned {severity_tier} severity at "
+            f"{_format_timestamp(timestamp)}s without a listed visual tag."
+        )
+
+    start = _format_timestamp(matching_incident["start"])
+    end = _format_timestamp(matching_incident["end"])
+    if start == end:
+        return f"AI flagged an {severity_tier} visual indicator at {start}s."
+    return (
+        f"AI flagged an {severity_tier} visual indicator "
+        f"between {start}s and {end}s."
+    )
+
+
 def _build_case_analysis(
     case_id: str,
     frame_results: list[dict[str, Any]],
@@ -202,16 +239,21 @@ def _build_case_analysis(
         for frame in frame_results
         if frame["frame_num"] == severity["highest_frame"]
     )
+    incident_timeline = _build_incident_timeline(
+        frame_results,
+        interval_seconds,
+    )
     return {
         "case_id": case_id,
         "watson_severity_score": highest["watson_severity_score"],
         "effective_severity_score": severity["severity_score"],
         "severity_tier": severity["severity_tier"],
-        "narrative_summary": highest["reasoning"],
-        "incident_timeline": _build_incident_timeline(
-            frame_results,
-            interval_seconds,
+        "narrative_summary": _build_narrative_summary(
+            severity["severity_tier"],
+            highest,
+            incident_timeline,
         ),
+        "incident_timeline": incident_timeline,
         "highest_frame": severity["highest_frame"],
     }
 
