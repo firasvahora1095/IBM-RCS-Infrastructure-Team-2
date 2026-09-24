@@ -1,112 +1,154 @@
-# Watsonx.ai Image Analysis
+# Watsonx.ai Frame-Level Video Analysis
 
-## Overview
+## Implemented flow
 
-`backend/app/watsonx_image.py` provides the reusable connection between the backend and IBM watsonx.ai for image analysis.
-It:
+The vision integration processes a stored video as follows:
 
-* reads the watsonx.ai credentials, project ID and vision model from environment variables;
-* creates an authenticated `ModelInference` client;
-* validates that the uploaded file is a PNG or JPEG image and that its contents match the declared content type;
-* base64 encodes the image;
-* sends the image and analysis prompt to the configured watsonx.ai vision model; and
-* returns the selected model, extracted analysis and original watsonx.ai response.
+1. `app.frame_extraction.iter_frames_from_storage()` streams timestamped JPEG
+   frames from local storage or IBM Cloud Object Storage (COS), one frame every
+   five seconds by default.
+2. `app.video_analysis.analyse_video()` reuses one authenticated watsonx
+   `ModelInference` client and sends every frame through
+   `app.watsonx_image.analyse_image()`.
+3. The versioned prompt asks for visual-only JSON fields: `tags`,
+   `watson_severity_score`, `reasoning`, and `entities`. It includes the BA
+   neutral-language and uncertainty requirements.
+4. The complete provider response is stored before its model content is
+   parsed. Markdown-fenced JSON is accepted, but prose, missing fields,
+   unknown tags, invalid scores, and schema violations fail the run.
+5. Python computes `effective_severity_score` and `severity_tier`, validates
+   the normalized frame record, and stores it separately.
+6. The maximum effective frame score becomes the case score. Adjacent
+   detections of the same tag become timeline ranges.
+7. `app.analysis_service.process_case_analysis()` writes the completed case
+   output to the database and moves the case to `READY_FOR_REVIEW`.
 
-The script does not permanently save the image or analysis result. It returns a Python dictionary that another part of the backend can use.
+The public upload request is not held open for 120–180 remote model calls.
+The current Sprint 2 execution boundary is the worker-compatible CLI/service
+below. A production queue may call the same `process_case_analysis()` service
+after upload without changing analysis behavior.
 
 ## Configuration
 
-The following variables must be configured in `.env`:
+Configure these values in the repository-root `.env`:
 
 ```dotenv
 WATSONX_API_KEY=
 WATSONX_URL=
 WATSONX_VISION_MODEL_ID=
 WATSONX_PROJECT_ID=
+
+# Optional for direct-file runs. Stored local cases write beside source video.
+ANALYSIS_OUTPUT_DIRECTORY=
 ```
 
-## Reuse
+The tested model is selected only through `WATSONX_VISION_MODEL_ID`; do not
+hard-code credentials or a model ID in source.
 
-Import `analyse_image` wherever the backend needs to analyse an image:
+## Analysis-output layout
 
-```python
-from app.watsonx_image import analyse_image
+COS cases use:
 
-with open("test.jpg", "rb") as image_file:
-    result = analyse_image(
-        image_file,
-        "image/jpeg",
-        "Describe the visible content in this image."
-    )
-
-analysis = result["analysis"]
+```text
+cos://{bucket}/cases/{case_id}/analysis-output/
+├── frame-00000.raw.json       complete watsonx provider response
+├── frame-00000.analysis.json  normalized, schema-validated frame result
+├── ...
+├── case-analysis.json         case score, narrative and incident timeline
+└── manifest.json              run status, timing, counts and file references
 ```
 
-The function accepts an open image stream, its content type and an analysis prompt, so it can be reused with local or uploaded files.
+Local stored cases use the same `analysis-output` directory beside
+`source.<extension>`. For a directly supplied file, the default is
+`<video-directory>/analysis-output/{case_id}`. Set
+`ANALYSIS_OUTPUT_DIRECTORY` or pass `--output-directory` to isolate test
+artefacts elsewhere.
 
-Supported content types are:
+`*.raw.json` is the raw response object returned by watsonx, not an envelope or
+reconstructed subset. `*.analysis.json` follows
+`backend/schemas/frame-analysis.schema.json`.
 
-* `image/jpeg`
-* `image/png`
+## Run against a provided video
 
-Before the image is sent to watsonx.ai, the function checks the file signature to confirm that its contents match the declared content type.
-
-### Scalability
-
-The current implementation uses the synchronous `ModelInference.chat()` method. This is appropriate for the initial implementation because each image can be sent to watsonx.ai and its analysis returned directly to the caller. However, the backend request remains blocked while the remote model performs inference.
-
-For improved scalability, the watsonx.ai Python SDK also provides the asynchronous `achat()` method. The reusable image analysis function could therefore be converted to an asynchronous function and the model request changed from:
-
-```python
-response = client.chat(
-    messages=messages,
-    params=params
-)
-```
-
-to:
-
-```python
-response = await client.achat(
-    messages=messages,
-    params=params
-)
-```
-
-The calling FastAPI endpoint could then use `await analyse_image(...)`. This would allow the application to perform other work while waiting for the watsonx.ai network request rather than blocking the worker handling the request.
-
-As the system expands to analyse multiple images or frames from multiple reported videos, asynchronous requests could also allow independent images to be processed concurrently. Concurrency should still be controlled to remain within watsonx.ai service limits rather than submitting an unrestricted number of model requests at once.
-
-### Model Selection
-
-The image analysis model is configured through `WATSONX_VISION_MODEL_ID`, allowing different multimodal models to be tested without changing the reusable image analysis code.
-
-The current implementation uses **Meta Llama 4 Maverick**. Llama 4 Maverick is a multimodal model designed for both text and image input and is suited to general visual recognition, image reasoning, captioning and answering questions about image content. These capabilities make it a suitable initial model for analysing reported online content, where images may contain a combination of people, objects, scenes and visible text.
-
-The current model can be configured as:
-
-```dotenv
-WATSONX_VISION_MODEL_ID=meta-llama/llama-4-maverick-17b-128e-instruct-fp8
-```
-
-IBM Granite Vision should also be evaluated during later development. Granite Vision supports general image analysis but is particularly focused on visual document understanding, including tables, charts, diagrams and structured visual information.
-
-The project should therefore compare Llama 4 Maverick and the Granite Vision model using test images later in development. The comparison should evaluate how reliably each model identifies relevant visual information and produces the structured fields required by the moderation pipeline.
-
-## Testing
-
-`backend/scripts/watsonx_image_test.py` is a manual integration test that sends an image to the watsonx.ai service and prints the returned JSON. From the `backend` directory, run:
+From the repository root:
 
 ```bash
-python scripts/watsonx_image_test.py <image.file>
+.venv/bin/python backend/scripts/WATSONX_VIDEO_TEST.py \
+  --video-file /absolute/path/to/video.mp4 \
+  --test-case-id VIDEO-TEST-001 \
+  --output-directory /tmp/ibm-rcs-analysis
 ```
 
-Note: `backend/scripts/watsonx_image_test.jpg` is intended for testing purposes only.
+The command prints a compact summary containing duration, attempted/completed
+frame counts, elapsed time, case output, output path, and any handled failure.
+Progress is written after every persisted frame. It exits `0` on completion
+and `1` on a handled failed run.
 
-The test requires the watsonx.ai environment variables, network access and a supported PNG or JPEG image. The included test prompt requests a concise JSON response containing `summary`, `visible_objects`, `visible_text`, `risk_indicators` and `requires_human_review`.
+To process a case already uploaded through the API and persist its database
+state:
 
-A successful result prints:
+```bash
+.venv/bin/python backend/scripts/WATSONX_VIDEO_TEST.py \
+  --case-id THE_CASE_ID
+```
 
-* the configured vision model;
-* the extracted image analysis; and
-* the original watsonx.ai response.
+This mode requires `DATABASE_URL` as well as the watsonx and selected storage
+credentials.
+
+The five-second cadence means approximately:
+
+| Video duration | Model calls |
+| --- | ---: |
+| 1 minute | 12 |
+| 10 minutes | 120 |
+| 15 minutes | 180 |
+
+Use `--frame-interval` only for an explicit test; changing it changes incident
+timeline resolution and call volume.
+
+## Failure behavior (`AR-AI-10`)
+
+An extraction, model-call, JSON-validation, schema-validation, or storage
+failure is represented by a failed `VideoAnalysisRun`; it does not escape as
+an unhandled model exception. When processing a database case:
+
+- the manifest records the failure stage, exception type, failed frame and
+  number of completed frames;
+- partial frame outputs already written remain available for internal audit;
+- no partial or invented AI severity is put on the case;
+- the case becomes `READY_FOR_REVIEW` with `ai_failure = "vision"`; and
+- the existing frontend requires explicit consent and maximum-protection
+  viewer settings before raw content can be shown.
+
+If analysis-output storage itself is unavailable, the database fallback is
+still applied and the storage problem is logged. Provider error text remains
+internal and is not returned from the Auditor or public status APIs.
+
+## Automated validation
+
+Run:
+
+```bash
+PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests
+```
+
+`backend/tests/test_video_analysis.py` covers:
+
+- real OpenCV video frames passed through the frame-level analysis seam;
+- returned tags/scores and exact raw-response persistence;
+- normalized JSON/schema output and incident timeline aggregation;
+- a simulated watsonx outage producing the database fallback state;
+- COS analysis-output keys; and
+- 7-second, 23-second, and 600-second (10-minute) synthetic videos, verifying
+  2, 5, and 120 calls respectively at the default cadence.
+
+These tests use a deterministic fake model at the network seam, so they do not
+spend service quota. A live credentialed run of the client-provided 10–15
+minute video is still required for final UAT evidence.
+
+## Single-image diagnostic
+
+`backend/scripts/WATSONX_IMAGE_TEST.py` remains a small live connectivity test
+for one JPEG/PNG. It does not exercise extraction, per-frame persistence,
+aggregation, database state, duration, or failure fallback; use the video
+runner for this deliverable.
