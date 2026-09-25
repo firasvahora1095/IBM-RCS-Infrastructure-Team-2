@@ -147,18 +147,42 @@ def store_video(
     return str(destination)
 
 
-def stream_video_from_storage(storage_reference: str):
-    """Yield raw video bytes from COS or local storage for proxy streaming."""
+def stream_video_from_storage(storage_reference: str, byte_range: str | None = None):
+    """Yield raw video bytes from COS or local storage for proxy streaming.
+
+    byte_range: optional HTTP Range header value e.g. "bytes=0-1023"
+    Returns (body, media_type, content_length, is_partial, content_range)
+    """
     if storage_reference.startswith("cos://"):
         bucket_and_key = storage_reference.removeprefix("cos://")
         bucket_name, object_key = bucket_and_key.split("/", 1)
-        response = create_cos_client().get_object(Bucket=bucket_name, Key=object_key)
-        return response["Body"], response.get("ContentType", "video/mp4"), response.get("ContentLength")
-    path = Path(storage_reference)
+        kwargs: dict = {"Bucket": bucket_name, "Key": object_key}
+        if byte_range:
+            kwargs["Range"] = byte_range
+        response = create_cos_client().get_object(**kwargs)
+        is_partial = response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 206
+        return (
+            response["Body"],
+            response.get("ContentType", "video/mp4"),
+            response.get("ContentLength"),
+            is_partial,
+            response.get("ContentRange"),
+        )
     import mimetypes
+    path = Path(storage_reference)
     media_type = mimetypes.guess_type(str(path))[0] or "video/mp4"
-    size = path.stat().st_size if path.exists() else None
-    return open(path, "rb"), media_type, size
+    total_size = path.stat().st_size if path.exists() else None
+    if byte_range and total_size:
+        range_val = byte_range.strip().removeprefix("bytes=")
+        start_str, _, end_str = range_val.partition("-")
+        start = int(start_str) if start_str else 0
+        end = int(end_str) if end_str else total_size - 1
+        end = min(end, total_size - 1)
+        chunk_size = end - start + 1
+        f = open(path, "rb")
+        f.seek(start)
+        return f, media_type, chunk_size, True, f"bytes {start}-{end}/{total_size}"
+    return open(path, "rb"), media_type, total_size, False, None
 
 
 def delete_stored_video(storage_reference: str) -> None:

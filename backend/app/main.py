@@ -399,6 +399,7 @@ async def get_auditor_case_detail(
 
 @app.get("/api/auditor/cases/{case_id}/video")
 async def stream_case_video(
+    request: Request,
     case_id: str,
     token: str | None = None,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
@@ -415,14 +416,22 @@ async def stream_case_video(
     case = _get_owned_case(db, case_id, auditor.staff_id)
     if not case.video_storage_path:
         raise HTTPException(status_code=404, detail="No video on file for this case")
+    range_header = request.headers.get("Range")
     try:
-        body, media_type, content_length = stream_video_from_storage(case.video_storage_path)
+        body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
+            case.video_storage_path, byte_range=range_header
+        )
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
-    headers = {}
+
+    headers: dict[str, str] = {"Accept-Ranges": "bytes"}
     if content_length is not None:
         headers["Content-Length"] = str(content_length)
-    return StreamingResponse(body, media_type=media_type, headers=headers)
+    if content_range:
+        headers["Content-Range"] = content_range
+
+    status_code = 206 if is_partial else 200
+    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
 
 
 @app.post("/api/internal/cases/{case_id}/mock-ai-result")
