@@ -139,6 +139,11 @@ export async function getAuditorCases(
   return parseJsonOrThrow<AuditorCaseListItem[]>(response);
 }
 
+/** Returns the streaming URL for a case's source video (auth via token in URL is not used — caller sets Authorization header separately via a blob URL). */
+export function getCaseVideoStreamUrl(caseId: string): string {
+  return `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/video`;
+}
+
 /** Full detail for one Auditor-owned case. */
 export async function getAuditorCaseDetail(
   caseId: string,

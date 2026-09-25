@@ -41,6 +41,8 @@ interface ReviewWorkspaceProps {
   /** Auditor only. Omitted in the Manager's exceptional-access session, with SOS and the exposure counter (Manager handoff screen 14). */
   onTalkToManager?: () => void;
   onSos?: () => void;
+  /** Signed URL for the real source video from COS. When provided, replaces the test pattern. */
+  videoUrl?: string | null;
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -76,6 +78,7 @@ export function ReviewWorkspace({
   onBack,
   onTalkToManager,
   onSos,
+  videoUrl,
 }: ReviewWorkspaceProps) {
   const duration = caseDetail.video_duration_seconds ?? FALLBACK_DURATION_SECONDS;
   const aiFailed = Boolean(caseDetail.ai_failure);
@@ -85,6 +88,7 @@ export function ReviewWorkspace({
   const [totals, setTotals] = useState<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
+  const activeVideoUrl = videoUrl ?? localVideoUrl;
   const [blurStart] = useState(settings.blur);
 
   const positionRef = useRef(0);
@@ -260,10 +264,10 @@ export function ReviewWorkspace({
                 transform: "scale(1.1)",
               }}
             >
-              {localVideoUrl ? (
+              {activeVideoUrl ? (
                 <video
                   ref={videoRef}
-                  src={localVideoUrl}
+                  src={activeVideoUrl}
                   className="h-full w-full object-contain"
                   playsInline
                   onLoadedMetadata={(e) => seek(Math.min(positionRef.current, e.currentTarget.duration))}

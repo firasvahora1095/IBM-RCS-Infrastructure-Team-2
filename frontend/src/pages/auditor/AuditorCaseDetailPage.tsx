@@ -32,6 +32,7 @@ import {
   resolveCase,
   triggerSos,
 } from "../../services";
+import { getCaseVideoStreamUrl } from "../../services/api/httpClient";
 import { DEMO_AI_FAILURE_EVENT, DEMO_SCENARIO_EVENT } from "../../services/mock/demo";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type {
@@ -127,6 +128,7 @@ export function AuditorCaseDetailPage() {
   const [sosState, setSosState] = useState<"sending" | "sent" | "failed">("sending");
   const [pauseCause, setPauseCause] = useState<PauseCause>("sos");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [signedVideoUrl, setSignedVideoUrl] = useState<string | null>(null);
 
   const tokenRef = useRef(token);
   const unsentExposureRef = useRef<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
@@ -152,6 +154,18 @@ export function AuditorCaseDetailPage() {
       .then((detail) => {
         if (cancelled) return;
         setCaseDetail(detail);
+        if (tokenRef.current) {
+          const streamUrl = getCaseVideoStreamUrl(caseId);
+          fetch(streamUrl, { headers: { Authorization: `Bearer ${tokenRef.current}` } })
+            .then((res) => {
+              if (!res.ok || cancelled) return;
+              return res.blob();
+            })
+            .then((blob) => {
+              if (blob && !cancelled) setSignedVideoUrl(URL.createObjectURL(blob));
+            })
+            .catch(() => { /* video is best-effort; fail silently */ });
+        }
         // Task 102: an in-progress review resumes where it left off — but only
         // after the content warning again. Otherwise the rating starts at the
         // AI's effective score, since the Auditor adjusts FROM that suggestion.
@@ -529,6 +543,7 @@ export function AuditorCaseDetailPage() {
             onBack={aiFailed ? undefined : () => setStep("summary")}
             onTalkToManager={() => setStep("check-in")}
             onSos={handleSos}
+            videoUrl={signedVideoUrl}
           />
         </StaffPage>
       )}
