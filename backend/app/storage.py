@@ -147,6 +147,20 @@ def store_video(
     return str(destination)
 
 
+def stream_video_from_storage(storage_reference: str):
+    """Yield raw video bytes from COS or local storage for proxy streaming."""
+    if storage_reference.startswith("cos://"):
+        bucket_and_key = storage_reference.removeprefix("cos://")
+        bucket_name, object_key = bucket_and_key.split("/", 1)
+        response = create_cos_client().get_object(Bucket=bucket_name, Key=object_key)
+        return response["Body"], response.get("ContentType", "video/mp4"), response.get("ContentLength")
+    path = Path(storage_reference)
+    import mimetypes
+    media_type = mimetypes.guess_type(str(path))[0] or "video/mp4"
+    size = path.stat().st_size if path.exists() else None
+    return open(path, "rb"), media_type, size
+
+
 def delete_stored_video(storage_reference: str) -> None:
     """Best-effort cleanup when database persistence fails after storage."""
     if storage_reference.startswith("cos://"):

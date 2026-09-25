@@ -80,8 +80,17 @@ class SosFollowUpRequest(BaseModel):
 
 
 class ExposureSampleRequest(BaseModel):
-    seconds: float = Field(ge=0)
+    active_seconds: float = Field(default=0, ge=0)
+    replay_seconds: float = Field(default=0, ge=0)
+    # Legacy single-field shape — kept for backward compatibility.
+    seconds: float | None = Field(default=None, ge=0)
     case_id: str | None = None
+
+    @property
+    def total_seconds(self) -> float:
+        if self.seconds is not None:
+            return self.seconds
+        return self.active_seconds + self.replay_seconds
 
 
 class SetExposureLimitRequest(BaseModel):
