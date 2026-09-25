@@ -113,8 +113,14 @@ def test_real_frame_tags_scores_and_raw_responses_are_persisted(tmp_path: Path) 
     assert run.case_analysis["watson_severity_score"] == 73
     assert run.case_analysis["effective_severity_score"] == 73
     assert run.case_analysis["narrative_summary"] == (
-        "AI flagged an S3 visual indicator between 5s and 10s."
+        "AI flagged an S3 visual indicator between 5s and 10s. "
+        "AI frame descriptions: At 10s: Two people appear to be involved "
+        "in a physical confrontation."
     )
+    assert run.case_analysis["flagged_entities"] == [
+        {"label": "person on the left", "start": 5.0, "end": 10.0},
+        {"label": "person on the right", "start": 5.0, "end": 10.0},
+    ]
     assert run.case_analysis["incident_timeline"] == [
         {
             "start": 5.0,
@@ -143,11 +149,39 @@ def test_real_frame_tags_scores_and_raw_responses_are_persisted(tmp_path: Path) 
 
 def test_multiple_tags_produce_worst_tier_timeline_and_template_summary() -> None:
     samples = [
-        (0.0, [], 10, "S1"),
-        (5.0, ["physical_violence", "multi_person_conflict"], 70, "S3"),
-        (10.0, ["physical_violence"], 50, "S2"),
-        (15.0, ["weapon_use"], 90, "S4"),
-        (20.0, ["weapon_use"], 70, "S3"),
+        (0.0, [], 10, "S1", [], "No listed visual indicator is visible."),
+        (
+            5.0,
+            ["physical_violence", "multi_person_conflict"],
+            70,
+            "S3",
+            ["Person on the left", "person on the right"],
+            "Two people appear to be in contact.",
+        ),
+        (
+            10.0,
+            ["physical_violence"],
+            50,
+            "S2",
+            ["person on the left"],
+            "A person appears to move away.",
+        ),
+        (
+            15.0,
+            ["weapon_use"],
+            90,
+            "S4",
+            ["knife-like object"],
+            "A person appears to hold an object resembling a weapon.",
+        ),
+        (
+            20.0,
+            ["weapon_use"],
+            70,
+            "S3",
+            ["Knife-like object"],
+            "The object is still visible near a person.",
+        ),
     ]
     frames = [
         {
@@ -158,9 +192,10 @@ def test_multiple_tags_produce_worst_tier_timeline_and_template_summary() -> Non
             "watson_severity_score": score,
             "effective_severity_score": score,
             "severity_tier": tier,
-            "reasoning": "This model wording should not be used as the case summary.",
+            "reasoning": reasoning,
+            "entities": entities,
         }
-        for index, (timestamp, tags, score, tier) in enumerate(samples)
+        for index, (timestamp, tags, score, tier, entities, reasoning) in enumerate(samples)
     ]
 
     result = _build_case_analysis("CASE-AGGREGATION-001", frames, 5)
@@ -174,8 +209,16 @@ def test_multiple_tags_produce_worst_tier_timeline_and_template_summary() -> Non
         {"start": 15.0, "end": 20.0, "severity_tier": "S4", "tag": "weapon_use"},
     ]
     assert result["narrative_summary"] == (
-        "AI flagged an S4 visual indicator between 15s and 20s."
+        "AI flagged an S4 visual indicator between 15s and 20s. "
+        "AI frame descriptions: At 5s: Two people appear to be in contact. "
+        "At 15s: A person appears to hold an object resembling a weapon. "
+        "At 20s: The object is still visible near a person."
     )
+    assert result["flagged_entities"] == [
+        {"label": "Person on the left", "start": 5.0, "end": 10.0},
+        {"label": "person on the right", "start": 5.0, "end": 5.0},
+        {"label": "knife-like object", "start": 15.0, "end": 20.0},
+    ]
 
 
 def test_tagless_high_score_uses_summary_without_inventing_incident() -> None:
@@ -188,6 +231,7 @@ def test_tagless_high_score_uses_summary_without_inventing_incident() -> None:
         "effective_severity_score": 86,
         "severity_tier": "S4",
         "reasoning": "Model prose is not the template.",
+        "entities": [],
     }
 
     result = _build_case_analysis("CASE-NO-TAGS-001", [frame], 5)
@@ -195,8 +239,10 @@ def test_tagless_high_score_uses_summary_without_inventing_incident() -> None:
     assert result["severity_tier"] == "S4"
     assert result["incident_timeline"] == []
     assert result["narrative_summary"] == (
-        "AI assigned S4 severity at 2.5s without a listed visual tag."
+        "AI assigned S4 severity at 2.5s without a listed visual tag. "
+        "AI frame descriptions: At 2.5s: Model prose is not the template."
     )
+    assert result["flagged_entities"] == []
 
 
 def test_model_failure_returns_handled_state_and_database_fallback(tmp_path: Path) -> None:
@@ -241,6 +287,7 @@ def test_model_failure_returns_handled_state_and_database_fallback(tmp_path: Pat
         assert stored.watson_severity_score is None
         assert stored.effective_severity_score is None
         assert stored.severity_tier is None
+        assert stored.flagged_entities is None
         assert audit.action == "AI_ANALYSIS_FAILED"
 
     manifest = json.loads((tmp_path / "failed-output/manifest.json").read_text())
@@ -330,8 +377,14 @@ def test_completed_pipeline_updates_case_and_audit_record(tmp_path: Path) -> Non
         assert stored.incident_timeline[0]["start"] == 0
         assert stored.incident_timeline[0]["end"] == 5
         assert stored.narrative_summary == (
-            "AI flagged an S3 visual indicator between 0s and 5s."
+            "AI flagged an S3 visual indicator between 0s and 5s. "
+            "AI frame descriptions: At 5s: Two people appear to be involved "
+            "in a physical confrontation."
         )
+        assert stored.flagged_entities == [
+            {"label": "person on the left", "start": 0.0, "end": 5.0},
+            {"label": "person on the right", "start": 0.0, "end": 5.0},
+        ]
         assert audit.action == "AI_ANALYSIS_COMPLETED"
 
 

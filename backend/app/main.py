@@ -361,6 +361,7 @@ async def get_auditor_case_detail(
         "severity_tier": case.severity_tier,
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
+        "flagged_entities": case.flagged_entities,
         "video_duration_seconds": case.video_duration_seconds,
         "ai_failure": case.ai_failure,
     }
@@ -391,6 +392,7 @@ async def insert_mock_ai_result(
     case.severity_tier = payload.severity_tier.value
     case.narrative_summary = payload.narrative_summary
     case.incident_timeline = [entry.model_dump(mode="json") for entry in payload.incident_timeline]
+    case.flagged_entities = []
     case.ai_failure = None
     case.status = "READY_FOR_REVIEW"
     db.add(

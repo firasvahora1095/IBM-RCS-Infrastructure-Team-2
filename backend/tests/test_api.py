@@ -398,6 +398,25 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(fifth.status_code, 429)
         self.assertEqual(self.client.get(f"/api/status/{case_id}").status_code, 429)
 
+    def test_auditor_detail_exposes_spanned_flagged_entities(self) -> None:
+        case_id = "ENTITYCASE000001"
+        self.add_case(case_id, status="READY_FOR_REVIEW")
+        expected = [
+            {"label": "person on the left", "start": 5.0, "end": 10.0},
+            {"label": "knife-like object", "start": 10.0, "end": 10.0},
+        ]
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.flagged_entities = expected
+
+        detail = self.client.get(
+            f"/api/auditor/cases/{case_id}",
+            headers=self.auth_headers(),
+        )
+
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["flagged_entities"], expected)
+
     def test_auditor_detail_exposes_protected_vision_failure_state(self) -> None:
         case_id = "VISIONFAILURE001"
         self.add_case(case_id, status="READY_FOR_REVIEW")
@@ -414,6 +433,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(detail.json()["ai_failure"], "vision")
         self.assertIsNone(detail.json()["effective_severity_score"])
         self.assertIsNone(detail.json()["severity_tier"])
+        self.assertIsNone(detail.json()["flagged_entities"])
 
     def test_case_ids_are_redacted_from_application_request_logs(self) -> None:
         case_id = "SECRETCASE000001"

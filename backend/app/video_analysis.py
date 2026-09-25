@@ -199,8 +199,9 @@ def _build_narrative_summary(
     severity_tier: str,
     highest_frame: dict[str, Any],
     incident_timeline: list[dict[str, Any]],
+    frame_results: list[dict[str, Any]],
 ) -> str:
-    """Describe a case-level AI signal without copying model-authored prose."""
+    """Combine a stable case-level lead with representative frame descriptions."""
 
     timestamp = float(highest_frame["timestamp"])
     matching_incident = next(
@@ -213,19 +214,74 @@ def _build_narrative_summary(
         None,
     )
     if matching_incident is None:
-        return (
+        lead = (
             f"AI assigned {severity_tier} severity at "
             f"{_format_timestamp(timestamp)}s without a listed visual tag."
         )
+    else:
+        start = _format_timestamp(matching_incident["start"])
+        end = _format_timestamp(matching_incident["end"])
+        if start == end:
+            lead = f"AI flagged an {severity_tier} visual indicator at {start}s."
+        else:
+            lead = (
+                f"AI flagged an {severity_tier} visual indicator "
+                f"between {start}s and {end}s."
+            )
 
-    start = _format_timestamp(matching_incident["start"])
-    end = _format_timestamp(matching_incident["end"])
-    if start == end:
-        return f"AI flagged an {severity_tier} visual indicator at {start}s."
-    return (
-        f"AI flagged an {severity_tier} visual indicator "
-        f"between {start}s and {end}s."
-    )
+    # Keep the highest-scoring frame plus early and late distinct descriptions
+    # from other flagged frames so a long case is not summarized by one moment.
+    seen = {re.sub(r"\s+", " ", highest_frame["reasoning"]).strip().casefold()}
+    candidates = []
+    for frame in sorted(frame_results, key=lambda item: item["timestamp"]):
+        reasoning = re.sub(r"\s+", " ", frame["reasoning"]).strip()
+        if frame is highest_frame or not frame["tags"] or not reasoning:
+            continue
+        if reasoning.casefold() in seen:
+            continue
+        candidates.append(frame)
+        seen.add(reasoning.casefold())
+
+    selected = [highest_frame]
+    if candidates:
+        selected.append(candidates[0])
+    if len(candidates) > 1:
+        selected.append(candidates[-1])
+
+    observations = []
+    for frame in sorted(selected, key=lambda item: item["timestamp"]):
+        reasoning = re.sub(r"\s+", " ", frame["reasoning"]).strip()
+        if not reasoning:
+            continue
+        if len(reasoning) > 350:
+            reasoning = reasoning[:347].rstrip() + "..."
+        observations.append(
+            f"At {_format_timestamp(float(frame['timestamp']))}s: {reasoning}"
+        )
+    return lead if not observations else lead + " AI frame descriptions: " + " ".join(observations)
+
+
+def _aggregate_flagged_entities(
+    frame_results: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Associate each unique entity in flagged frames with its observed span."""
+
+    by_name: dict[str, dict[str, Any]] = {}
+    for frame in sorted(frame_results, key=lambda item: item["timestamp"]):
+        if not frame["tags"]:
+            continue
+        timestamp = float(frame["timestamp"])
+        for raw_name in frame["entities"]:
+            name = raw_name.strip()
+            if not name:
+                continue
+            entity = by_name.setdefault(
+                name.casefold(),
+                {"label": name, "start": timestamp, "end": timestamp},
+            )
+            entity["start"] = min(entity["start"], timestamp)
+            entity["end"] = max(entity["end"], timestamp)
+    return list(by_name.values())
 
 
 def _build_case_analysis(
@@ -252,8 +308,10 @@ def _build_case_analysis(
             severity["severity_tier"],
             highest,
             incident_timeline,
+            frame_results,
         ),
         "incident_timeline": incident_timeline,
+        "flagged_entities": _aggregate_flagged_entities(frame_results),
         "highest_frame": severity["highest_frame"],
     }
 

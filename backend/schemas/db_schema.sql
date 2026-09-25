@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS cases (
     severity_tier VARCHAR(2),
     narrative_summary TEXT,
     incident_timeline JSONB,
+    flagged_entities JSONB,
     video_duration_seconds DOUBLE PRECISION,
     analysis_output_path TEXT,
     ai_failure VARCHAR(30),
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS cases (
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30);
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB;
 DO $$
 BEGIN
     IF NOT EXISTS (
