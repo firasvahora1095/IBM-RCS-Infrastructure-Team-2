@@ -42,6 +42,9 @@ class Auditor(Base):
     exposure_minutes = Column(Float, nullable=False, server_default="0")
     exposure_limit_minutes = Column(Integer, nullable=False, server_default="120")
     last_assigned_at = Column(DateTime(timezone=True), nullable=True)
+    cooldown_ends_at = Column(DateTime(timezone=True), nullable=True)
+    cooldown_trigger = Column(String(10), nullable=True)
+    cooldown_check_in_done = Column(Integer, nullable=False, server_default="0")
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
