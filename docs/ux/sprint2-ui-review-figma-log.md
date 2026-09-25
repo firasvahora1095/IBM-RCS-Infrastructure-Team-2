@@ -1,7 +1,7 @@
 # Sprint 2 Integrated UI Review Against Figma (Tasks 57, 81) + Manager Honesty Checklist (Task 96)
 
-**Track:** Design / Product · **Sprint:** Sprint 2 · **Owner:** Aleeya Ahmad (UX) · **Date:** 18 Sep 2026
-**Branch reviewed:** `feature/frontend` · **Related:** [Build-scope handoff (Task 54)](sprint2-build-scope-handoff.md) · [Microcopy audit (Task 100)](sprint2-microcopy-audit.md) · [Accessibility baseline (Task 99)](sprint2-accessibility-baseline.md)
+**Track:** Design / Product · **Sprint:** Sprint 2 · **Owner:** Aleeya Ahmad (UX) · **Date:** 18 Sep 2026, re-checked 25 Sep 2026 (§6)
+**Branch reviewed:** `feature/frontend` (merged to `main` via PR #9, `abdaf1b`); re-check reviewed `main` at `c350931` · **Related:** [Build-scope handoff (Task 54)](sprint2-build-scope-handoff.md) · [Microcopy audit (Task 100)](sprint2-microcopy-audit.md) · [Accessibility baseline (Task 99)](sprint2-accessibility-baseline.md) · [Integration board](../INTEGRATION-BOARD.md)
 
 ---
 
@@ -66,11 +66,15 @@ A responsive layout sweep was added during the review after the team reported th
 | AI/STT failure gate | 25:212 | `AR-2026-00421` | Footnote had been shortened | P2 | Fixed `04c0140` | Restored the full Figma sentence |
 | Decline reason / confirmation | 25:137, 25:353 | Decline | Copy matches AR-DF-03 order | — | — | — |
 | AI Analysis Summary | 18:26 | Proceed | Timeline markers are coloured by tag tier, with text labels | Deliberate | Keep | Tagged timeline restored from Figma; colour never the only signal |
+| AI Analysis Summary — timeline | 18:26 | Proceed | **25 Sep 2026:** `076e7fe` redrew every timeline entry (point *and* multi-second range) as a single 10px dot at its start time. Duration is no longer shown as a proportional bar — the real pipeline's ranges (e.g. a logged 200s and a 295s span in the same case, `docs/VERIFCATION-LOG.md` §"Watsonx Frame-Level Video Pipeline") now render identically to a 0-length flagged moment | **P1 — needs a decision** | Open | Regresses Task 78's own AC ("markers positioned proportionally to their real timestamps") and the AR-AI-04 comment the same commit deleted ("even an instantaneous flagged moment must stay visible, however brief" — the point-vs-range distinction this comment protected is now gone both ways). Likely a deliberate simplification for real-data density (the live pipeline test produced ~50 overlapping entries), but it wasn't logged as a UX decision anywhere. Recommend: either restore proportional-width segments for ranges ≥ some minimum (e.g. 2s) with dots only for true point events, or explicitly re-approve the all-dots simplification and log it here as deliberate. Flagging to Firas as the author of `076e7fe`, not fixing it myself since it's a design call, not a bug |
 | Review Workspace | 20:35 | Continue to review | On laptop-height windows the pinned video column was taller than the screen: the blur slider, **Continue** and **Back** could not be reached and the page seemed not to scroll | **P0** | Fixed `e0b8d42` | Column is capped at viewport height and scrolls within itself |
 | Review Workspace | 20:35 | same | Evidence rail text squeezed and entity tags stacked one per line (Carbon Accordion 25% end padding) | P2 | Fixed `e0b8d42` | — |
-| Review Workspace | 20:35 | same | Synthetic test pattern instead of footage; local-file preview in mock mode | Deliberate | Keep | Synthetic content only |
+| Review Workspace | 20:35 | same | Synthetic test pattern instead of footage; local-file preview in mock mode | Deliberate | Keep | Synthetic content only. **25 Sep 2026:** `4cde05b`/`ba1b6b8` wired real COS-streamed case video into the same `<video>` element in `api` mode (falls back to the synthetic pattern when no signed URL is available) — same chrome, no new Figma difference. Not yet checked against real footage in a browser (no live deploy — see §6) |
+| Review Workspace — scrubber markers | 20:35 | same | **25 Sep 2026:** `4cde05b` added horizontal offsetting so flagged-moment markers sharing the same start time no longer sit exactly on top of each other | Deliberate | Keep | Improves on the 18 Sep state, no Figma conflict — 20:35 doesn't show overlapping markers at all |
 | Review Workspace | 20:35 | same | "AI-suggested reference: 70%" line instead of a marker on the blur track; Carbon Slider with number input | Deliberate | Keep | S3 = 70% from Figma; S1 20%, S2 40%, S4 90% approved 18 Sep 2026 (reference only; the slider always starts at 100%) |
 | Review Workspace | 20:35 | same | Flagged-moment markers sit under the scrubber and are clickable | Deliberate | Keep | Keyboard-reachable jump targets |
+| Review Workspace — exposure line | 20:35 | same | **25 Sep 2026:** "5:00 active review, 7:34 replay" shortened to "5:00 active, 7:34 replay" (`f3f61fe`) | P2 | Fixed already, not by UX | Not in `docs/ux/sprint2-microcopy-audit.md` (Task 100) — the audit was locked 18 Sep, before this commit. Low-risk wording, no meaning change, but logging it here so Task 100 doesn't silently drift out of date. No action needed unless Jana wants it back in the audit |
+| Header — exposure badge | — | all staff routes | **25 Sep 2026:** exposure minutes now rounded to a whole number before display, e.g. "12 / 90 min today" instead of "12.4 / 90 min today" (`f3f61fe`) | Deliberate | Keep | Fixes a real display bug (fractional minutes reading like a typo), no Figma frame shows a fractional value |
 | Wellbeing check-in | 31:188 | Talk to your manager | Designer annotation paragraphs omitted | Deliberate | Keep | Annotations aren't UI |
 | Severity & comment | 25:53 | Continue to severity | Carbon Slider + number input; submit disabled with a reason line | Deliberate | Keep | Carbon over Figma; reason always shown |
 | Submission fails | 42:405 | Demo: fail next submission | Copy matches | — | — | — |
@@ -99,6 +103,7 @@ A responsive layout sweep was added during the review after the team reported th
 | SOS Alert Detail / Follow-up | 103:197, 103:228 | `/manager/sos/SOS-demo0001` | Narrative summaries prefixed "Mock:" | Deliberate | Keep | Task 96 honesty labelling |
 | SOS Alert Detail | 103:197 | an alert raised by AR-AI-11 | Extra "Raised by" figure: "Auditor SOS" or "AI failure mid-review" | Deliberate | Keep | AR-AI-11 alerts share the SOS inbox; the Manager should know the Auditor did not press SOS |
 | Case Review Detail | 118:198 | `/manager/cases/AR-2026-00398/review` | Copy matches | — | — | — |
+| Case Review Detail — flagged entities | 118:198 | same | **25 Sep 2026:** plain grey `Tag` chips replaced with the same `EntityPills` component the Auditor side uses, so an entity now shows its timestamp (or a single time instead of a redundant `0:05–0:05` when start equals end, `c334a0e`) | Deliberate | Keep | "One component for Auditor and Manager" — same principle already logged for the raw-access timeline (row above, §"Raw access gate") |
 | Declined queue | 119:289 | `/manager/reassignment` | "Time declined" showed a full date and time on every row | P2 | Fixed `18e6dfa` | Now "9:40 AM" / "Yesterday, 2:15 PM" / "2 days ago" |
 | Reassignment | 119:405 | `/manager/cases/AR-2026-00398/reassign` | Cooling-down candidates are marked "Unavailable" and listed; Figma shows "Limited headroom" only | Deliberate | Keep | Re-validation rule (cooldown = not assignable); seed puts Auditors 3–5 in cooldowns |
 | No reassignment / confirmed / target unavailable | 344:282, 357:397, 197:321 | Confirm / Demo: target unavailable | Copy matches; unavailable state reuses the decision form with the error | Deliberate | Keep | Same page, error inline |
@@ -118,7 +123,9 @@ A responsive layout sweep was added during the review after the team reported th
 
 ## 4. P2 backlog (open)
 
-None. The three P2 items were decided by UX on 18 Sep 2026 and fixed: Submit report is always enabled with errors on submit (`272ce01`), the AI-failure queue row says "Unknown" (`b8471f9`, `0fefa55`), and cards, banners, drop zones and bars use Carbon's square corners (`fdd5751`).
+None from the 18 Sep pass. The three P2 items from that review were decided by UX on 18 Sep 2026 and fixed: Submit report is always enabled with errors on submit (`272ce01`), the AI-failure queue row says "Unknown" (`b8471f9`, `0fefa55`), and cards, banners, drop zones and bars use Carbon's square corners (`fdd5751`).
+
+**Opened 25 Sep 2026 (see §2, Auditor):** 1 item at **P1**, needs a decision — the incident timeline's dot-only redesign (`076e7fe`) drops the proportional-width range display that Task 78's own AC and 18:26 called for. Not fixed here because it's a design call for whoever made it (Firas), not a bug for UX to silently revert.
 
 ## 5. Deliberate — keep (summary)
 
@@ -126,7 +133,7 @@ None. The three P2 items were decided by UX on 18 Sep 2026 and fixed: Submit rep
 - Disabled queue rows use muted text instead of opacity (opacity measured 3.39:1).
 - Severity tags are Carbon Tags on Carbon status tokens; S3 = `support-caution-major`.
 - Proceed and Decline are both Carbon `secondary` (equal weight, AR-PV-02); SOS is Carbon `secondary`.
-- The Review Workspace shows a synthetic test pattern; the local-file preview is mock-mode only.
+- The Review Workspace shows a synthetic test pattern in mock mode; `api` mode now streams the real COS video into the same player (25 Sep 2026, unverified live — see §6a).
 - The blur reference is a text line rather than a marker on the track (S3 = 70% from Figma; the other tiers are placeholders).
 - The evidence rail uses Carbon Accordion; Carbon Modal/ComposedModal chrome replaces the custom Figma modal frames.
 - The Validation chart adds stripes and legend text so series don't rely on colour.
@@ -138,7 +145,21 @@ None. The three P2 items were decided by UX on 18 Sep 2026 and fixed: Submit rep
 
 ## 6. Task 81 note
 
-Task 81 asks for this review against the **live Week 2 build**. No deployed build exists yet, because the IBM Cloud Code Engine deploy is Task 104. This review ran against the local build of the same branch, and every difference above is already classed as "fix" or "deliberate, keep". **The live-build re-check stays open under Task 101 until Task 104 is done.**
+Task 81 asks for this review against the **live Week 2 build**. No deployed build existed at the 18 Sep review, because the IBM Cloud Code Engine deploy is Task 104. That review ran against the local build of `feature/frontend`, and every difference found is classed as "fix" or "deliberate, keep" above.
+
+### 6a. Re-checked 25 Sep 2026 — still blocked, root cause changed
+
+`feature/frontend` merged to `main` (PR #9, `abdaf1b`) since the 18 Sep review, alongside Aiden's real watsonx.ai/frame-extraction pipeline and Firas's backend API (PRs #10–#16). A live UI cross-check is still not possible, for two compounding reasons, both confirmed today rather than assumed:
+
+1. **No frontend has ever been deployed.** There's no deploy workflow in `.github/workflows` (none exists) and no frontend URL anywhere in the repo — only a backend Code Engine app. So there is no "live UI" to open in a browser at all, regardless of which backend build it would talk to.
+2. **The one thing that is deployed is stale, and more incomplete than "Week 1 build" implies.** `docs/INTEGRATION-BOARD.md` (dated 25 Sep 2026, on `main`) logs "Code Engine redeployment (Week 2 build): ❌ Pending — prod still runs Week 1 build." Checked the live backend directly today: `https://ibm-rcs-backend.2e2pxih6g5a9.ca-tor.codeengine.appdomain.cloud/health` returns `200 {"status":"ok"}`, but its live OpenAPI schema (`/openapi.json`) exposes only 5 routes — `GET /`, `GET /health`, `GET /api/reports/{case_id}`, `GET /api/manager/dashboard`, `POST /api/auditor/cases/{case_id}/decline`. It has no `/api/staff/login`, no report-upload endpoint, no `/api/status/{id}`, no auditor case list, and no `/resolve`. That's not "Week 1 with a stale pipeline" — it can't serve the public upload, status lookup, staff login, auditor queue or resolution flows at all. Even a deployed frontend pointed at this backend today would fail on nearly every screen.
+
+**What I could verify instead, without a live deploy and without reopening Figma** (cross-referencing this log's existing entries against every frontend commit merged since the 18 Sep review, `git diff b4b1a20..main -- frontend/`): six commits touched the UI (`c334a0e`, `4cde05b`, `ba1b6b8`, `f3f61fe`, `076e7fe`, plus the pre-merge `b4b1a20` API-client contract fix, which changed no JSX). Findings folded into §2 and §5 above:
+- Real COS video streaming replaces the synthetic pattern in `api` mode (`4cde05b`, `ba1b6b8`) — same chrome, no new Figma difference, but unverified in an actual browser since there's still nothing live to open it against.
+- The incident timeline was redrawn as dots-only, losing the proportional-range display (`076e7fe`) — **new P1, logged in §2 and §4**, needs Firas's or Aleeya's decision, not silently fixed here.
+- Entity-pill consistency, marker de-overlapping, exposure-minute rounding, and one un-audited wording tweak — all minor, logged in §2, no action needed beyond the microcopy-audit note.
+
+**Conclusion: Task 81 stays blocked**, now specifically on Task 104 (redeploy) *and* on the backend actually serving the Week 2 (or even Week 1) contract once redeployed — confirm the deployed `/openapi.json` matches `docs/BACKEND-API.md` before treating a future re-check as meaningful. The one open item this pass surfaced (the timeline dot redesign) doesn't need a live deploy to resolve and can be decided independently. **Re-run this full log against the live URL once Task 104 lands and `/health`'s sibling `/openapi.json` shows the full route set — tracked under Task 101.**
 
 ---
 
