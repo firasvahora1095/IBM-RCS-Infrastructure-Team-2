@@ -42,6 +42,7 @@ def process_case_analysis(
     case.severity_tier = None
     case.narrative_summary = None
     case.incident_timeline = None
+    case.flagged_entities = None
     case.video_duration_seconds = None
     case.analysis_output_path = None
     db.commit()
@@ -62,6 +63,7 @@ def process_case_analysis(
         case.severity_tier = result["severity_tier"]
         case.narrative_summary = result["narrative_summary"]
         case.incident_timeline = result["incident_timeline"]
+        case.flagged_entities = result["flagged_entities"]
         case.ai_failure = None
         action = "AI_ANALYSIS_COMPLETED"
         audit_detail = {
@@ -77,6 +79,7 @@ def process_case_analysis(
         case.severity_tier = None
         case.narrative_summary = None
         case.incident_timeline = None
+        case.flagged_entities = None
         case.ai_failure = "vision"
         action = "AI_ANALYSIS_FAILED"
         audit_detail = {

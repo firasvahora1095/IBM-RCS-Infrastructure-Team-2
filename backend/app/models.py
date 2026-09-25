@@ -105,6 +105,7 @@ class Case(Base):
     severity_tier = Column(String(2), nullable=True)
     narrative_summary = Column(Text, nullable=True)
     incident_timeline = Column(JSON_DOCUMENT, nullable=True)
+    flagged_entities = Column(JSON_DOCUMENT, nullable=True)
     video_duration_seconds = Column(Float, nullable=True)
     analysis_output_path = Column(Text, nullable=True)
     # A non-null value is an explicit reduced-AI-support state. The frontend

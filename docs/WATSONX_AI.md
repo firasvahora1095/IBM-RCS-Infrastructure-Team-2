@@ -21,10 +21,12 @@ The vision integration processes a stored video as follows:
 6. The maximum effective frame score becomes the case score and determines its
    severity tier (worst-tier-wins). Adjacent detections of the same tag become
    timeline ranges; isolated detections remain point markers.
-7. A fixed, neutral template generates the case narrative from that tier and
-   the corresponding timeline range. The model's `reasoning` remains in each
-   frame record and is not copied into the case narrative.
-8. `app.analysis_service.process_case_analysis()` writes the completed case
+7. A neutral template introduces the case tier and corresponding timeline
+   range. Up to three distinct, time-stamped frame descriptions drawn from
+   watsonx `reasoning` add visual context across the case.
+8. Entities from flagged frames are deduplicated by name and retain the first
+   and last sampled timestamps where they appeared.
+9. `app.analysis_service.process_case_analysis()` writes the completed case
    output to the database and moves the case to `READY_FOR_REVIEW`.
 
 The public upload request is not held open for 120–180 remote model calls.
@@ -58,7 +60,7 @@ cos://{bucket}/cases/{case_id}/analysis-output/
 ├── frame-00000.raw.json       complete watsonx provider response
 ├── frame-00000.analysis.json  normalized, schema-validated frame result
 ├── ...
-├── case-analysis.json         case score, narrative and incident timeline
+├── case-analysis.json         case score, narrative, timeline and flagged entities
 └── manifest.json              run status, timing, counts and file references
 ```
 
@@ -80,14 +82,23 @@ that frame. The timeline groups consecutive samples of each visual tag and
 retains the highest tier reached within each group. A tag that appears in only
 one sample has a point marker with equal start and end times.
 
-The placeholder case narrative names the winning tier and the timeline range
+The case narrative starts with the winning tier and the timeline range
 containing its highest-scoring frame, for example: “AI flagged an S3 visual
-indicator between 5s and 10s.” If that frame has no listed tag, the template
-reports its tier and timestamp without inventing an incident. This sentence is
-stored in `cases.narrative_summary` and `case-analysis.json` alongside the
-severity and timeline. Frame-level model `reasoning` is retained separately.
-The wording is deliberately limited pending later refinement under Jana's
-neutral, evidence-based narrative guidelines.
+indicator between 5s and 10s.” It then includes the highest-scoring frame's
+description and up to two distinct descriptions from early and late flagged
+frames, each labeled with its source timestamp. If the winning frame has no
+listed tag, the lead reports its tier and timestamp without inventing an
+incident. The narrative is stored in `cases.narrative_summary` and
+`case-analysis.json`; full model reasoning stays in each frame record. These
+descriptions are attributed to AI and remain subject to Auditor review under
+Jana's neutral, evidence-based narrative guidelines.
+
+`flagged_entities` in `case-analysis.json`, the `cases` row, and the Auditor
+case-detail API is a list of objects with `label`, `start`, and `end`. Names are
+deduplicated case-insensitively; `start` and `end` are the first and last sampled
+source-video timestamps where the entity appeared in a flagged frame. A
+single-frame observation has equal `start` and `end` values. Entities from
+unflagged frames are excluded. The public status API does not expose them.
 
 ## Run against a provided video
 
@@ -158,7 +169,8 @@ PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests
 - real OpenCV video frames passed through the frame-level analysis seam;
 - returned tags/scores and exact raw-response persistence;
 - normalized JSON/schema output, multiple-tag timeline aggregation,
-  worst-tier-wins severity, and the persisted template summary;
+  worst-tier-wins severity, a summary using frame reasoning, and timestamped
+  flagged entities persisted to the case and returned by the Auditor API;
 - a simulated watsonx outage producing the database fallback state;
 - COS analysis-output keys; and
 - 7-second, 23-second, and 600-second (10-minute) synthetic videos, verifying
