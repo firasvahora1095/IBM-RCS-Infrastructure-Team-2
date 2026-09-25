@@ -159,7 +159,15 @@ Task 81 asks for this review against the **live Week 2 build**. No deployed buil
 - The incident timeline was redrawn as dots-only, losing the proportional-range display (`076e7fe`) — **new P1, logged in §2 and §4**, needs Firas's or Aleeya's decision, not silently fixed here.
 - Entity-pill consistency, marker de-overlapping, exposure-minute rounding, and one un-audited wording tweak — all minor, logged in §2, no action needed beyond the microcopy-audit note.
 
-**Conclusion: Task 81 stays blocked**, now specifically on Task 104 (redeploy) *and* on the backend actually serving the Week 2 (or even Week 1) contract once redeployed — confirm the deployed `/openapi.json` matches `docs/BACKEND-API.md` before treating a future re-check as meaningful. The one open item this pass surfaced (the timeline dot redesign) doesn't need a live deploy to resolve and can be decided independently. **Re-run this full log against the live URL once Task 104 lands and `/health`'s sibling `/openapi.json` shows the full route set — tracked under Task 101.**
+**Conclusion (first pass, 25 Sep 2026 morning):** Task 81 stays blocked, on Task 104 (redeploy) *and* on the backend actually serving the Week 2 (or even Week 1) contract once redeployed — confirm the deployed `/openapi.json` matches `docs/BACKEND-API.md` before treating a future re-check as meaningful. The one open item this pass surfaced (the timeline dot redesign) doesn't need a live deploy to resolve and can be decided independently.
+
+### 6b. Clarified same day — Task 81 only ever needed a **local** run, not a deployment
+
+Aleeya confirmed Task 81's "live" means the current code running locally, not the IBM Cloud deploy — Task 104 stays a separate, later task. That removes the deployment blocker above entirely; §6a's findings on the live backend (5-route `/openapi.json`) still stand as a real gap, but they're not what Task 81 needed.
+
+Attempted a real local end-to-end run the same session to close this out properly: installed PostgreSQL locally (this machine has no Docker), hit its Windows-service password reset being blocked by Postgres's own single-user-mode-as-Administrator restriction, worked around it by uninstalling and reinstalling with the superuser password set explicitly at install time — then EnterpriseDB's installer CDN (`get.enterprisedb.com`) started returning `403 Forbidden` on repeat downloads (likely a short-lived rate limit after several downloads in one session) and the local run didn't get done in the time available.
+
+**Net result:** still not run against a live local instance. Nothing in this file's screen-by-screen findings changed as a result — §6a's code-diff audit already covers every UI change since the 18 Sep review. What's missing is the thing a code diff can't show: actually watching the wired screens render with real backend responses (real severity/timeline/entity shapes from Aiden's pipeline, real 401 session-expiry behaviour, etc.) in a browser. **Re-run this against a running local stack (`docker compose up` on a machine that has Docker, or Postgres set up by someone with admin rights) — tracked as the actual remaining step, separate from Task 104/101.**
 
 ---
 
