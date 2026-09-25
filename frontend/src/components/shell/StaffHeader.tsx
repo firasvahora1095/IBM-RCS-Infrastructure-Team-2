@@ -61,8 +61,8 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               width="clamp(72px, 16vw, 200px)"
               minutes={wellbeing.exposure_minutes_today}
               limit={wellbeing.exposure_limit_minutes}
-              label={`${wellbeing.exposure_minutes_today} / ${wellbeing.exposure_limit_minutes} min today`}
-              compactLabel={`${wellbeing.exposure_minutes_today}/${wellbeing.exposure_limit_minutes} min`}
+              label={`${Math.round(wellbeing.exposure_minutes_today)} / ${wellbeing.exposure_limit_minutes} min today`}
+              compactLabel={`${Math.round(wellbeing.exposure_minutes_today)}/${wellbeing.exposure_limit_minutes} min`}
               ariaLabel="Your exposure today"
             />
           )}

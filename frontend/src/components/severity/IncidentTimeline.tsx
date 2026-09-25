@@ -15,11 +15,6 @@ const LABEL_WIDTH_PX = 120;
 /** Vertical space per label row (time on one line, tag or tier on the next). */
 const LABEL_ROW_HEIGHT_PX = 48;
 const LABELS_TOP_PX = 44;
-/**
- * Even an instantaneous flagged moment must stay visible: AR-AI-04 gives
- * every AI-flagged moment a marker, "however brief".
- */
-const MIN_SEGMENT_WIDTH_PX = 6;
 /** Used before the first measurement, and in jsdom (which has no layout). */
 const FALLBACK_WIDTH_PX = 1104;
 
@@ -66,13 +61,9 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
     .map((entry) => {
       const isPoint = entry.start === entry.end;
       const leftPct = (entry.start / totalSpan) * 100;
-      const widthPct = isPoint
-        ? 0
-        : Math.max(((entry.end - entry.start) / totalSpan) * 100, (MIN_SEGMENT_WIDTH_PX / widthPx) * 100);
-      // Centre the label under its marker, clamped inside the track.
-      const centerPx = ((leftPct + widthPct / 2) / 100) * widthPx;
+      const centerPx = (leftPct / 100) * widthPx;
       const labelLeftPx = Math.min(Math.max(0, centerPx - LABEL_WIDTH_PX / 2), Math.max(0, widthPx - LABEL_WIDTH_PX));
-      return { entry, isPoint, leftPct, widthPct, labelLeftPx };
+      return { entry, isPoint, leftPct, labelLeftPx };
     });
 
   // Greedy row assignment: rowEnds[r] is where the last label in row r ends.
@@ -124,55 +115,19 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         <span style={{ ...axisLabelStyle, left: 0 }}>00:00</span>
         <span style={{ ...axisLabelStyle, right: 0 }}>{formatTimestamp(totalSpan)}</span>
 
-        {withRows.map(({ entry, isPoint, leftPct, widthPct, labelLeftPx, row }, i) => {
+        {withRows.map(({ entry, isPoint, leftPct, labelLeftPx, row }, i) => {
           const info = getSeverityInfo(entry.severity_tier);
           const labelTop = LABELS_TOP_PX + row * LABEL_ROW_HEIGHT_PX;
           return (
             <div key={i}>
-              {isPoint ? (
-                <>
-                  <div
-                    data-testid="timeline-marker"
-                    title={`${formatTimestamp(entry.start)} · ${entry.tag ?? info.label}`}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: `calc(${leftPct}% - 5px)`,
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      backgroundColor: info.background,
-                      boxShadow: "0 0 0 1px var(--cds-border-inverse)",
-                    }}
-                  />
-                  {/* Tick from the dot down to its label. */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 10,
-                      left: `${leftPct}%`,
-                      width: 1,
-                      height: labelTop - 12,
-                      backgroundColor: "var(--cds-border-inverse)",
-                    }}
-                  />
-                </>
-              ) : (
-                <div
-                  data-testid="timeline-segment"
-                  title={`${timeLabel(entry)} · ${entry.severity_tier} ${info.label}`}
-                  style={{
-                    position: "absolute",
-                    top: 1,
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    height: 8,
-                    backgroundColor: info.background,
-                    // A thin dark outline keeps the pale S1 fill visible against the grey track.
-                    boxShadow: "0 0 0 1px var(--cds-border-inverse)",
-                  }}
-                />
-              )}
+              <div
+                data-testid={isPoint ? "timeline-marker" : "timeline-segment"}
+                title={`${timeLabel(entry)} · ${entry.tag ?? info.label}`}
+                style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
+                <div style={{ width: 1, height: 8, backgroundColor: "var(--cds-border-inverse)", margin: "0 auto" }} />
+              </div>
               <div
                 className="flex flex-col items-center gap-1"
                 style={{ position: "absolute", top: labelTop, left: labelLeftPx, width: LABEL_WIDTH_PX }}

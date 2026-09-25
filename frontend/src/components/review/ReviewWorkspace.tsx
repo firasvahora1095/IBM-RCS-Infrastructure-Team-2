@@ -41,6 +41,8 @@ interface ReviewWorkspaceProps {
   /** Auditor only. Omitted in the Manager's exceptional-access session, with SOS and the exposure counter (Manager handoff screen 14). */
   onTalkToManager?: () => void;
   onSos?: () => void;
+  /** Signed URL for the real source video from COS. When provided, replaces the test pattern. */
+  videoUrl?: string | null;
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -76,6 +78,7 @@ export function ReviewWorkspace({
   onBack,
   onTalkToManager,
   onSos,
+  videoUrl,
 }: ReviewWorkspaceProps) {
   const duration = caseDetail.video_duration_seconds ?? FALLBACK_DURATION_SECONDS;
   const aiFailed = Boolean(caseDetail.ai_failure);
@@ -85,6 +88,7 @@ export function ReviewWorkspace({
   const [totals, setTotals] = useState<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
+  const activeVideoUrl = videoUrl ?? localVideoUrl;
   const [blurStart] = useState(settings.blur);
 
   const positionRef = useRef(0);
@@ -219,7 +223,6 @@ export function ReviewWorkspace({
           ? "Blurred — reduce the slider below to view"
           : null;
 
-  const total = totals.active_seconds + totals.replay_seconds;
   const timeline = caseDetail.incident_timeline ?? [];
 
   return (
@@ -237,7 +240,7 @@ export function ReviewWorkspace({
       )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-          This case: {formatDuration(total)} ({formatDuration(totals.active_seconds)} active review,{" "}
+          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} ({formatDuration(totals.active_seconds)} active,{" "}
           {formatDuration(totals.replay_seconds)} replay) · {isPlaying ? "● Counting" : "○ Paused"}
         </p>
       )}
@@ -260,13 +263,14 @@ export function ReviewWorkspace({
                 transform: "scale(1.1)",
               }}
             >
-              {localVideoUrl ? (
+              {activeVideoUrl ? (
                 <video
                   ref={videoRef}
-                  src={localVideoUrl}
+                  src={activeVideoUrl}
                   className="h-full w-full object-contain"
                   playsInline
                   onLoadedMetadata={(e) => seek(Math.min(positionRef.current, e.currentTarget.duration))}
+                  onEnded={() => setPlaying(false)}
                 />
               ) : (
                 <SyntheticTestPattern position={position} />
@@ -324,6 +328,9 @@ export function ReviewWorkspace({
                 {timeline.map((entry, i) => {
                   const info = getSeverityInfo(entry.severity_tier);
                   const label = `Jump to ${formatTimestamp(entry.start)}, ${entry.tag ?? "flagged"}, ${entry.severity_tier} ${info.label}`;
+                  const sameStart = timeline.filter((e) => e.start === entry.start);
+                  const indexInGroup = sameStart.indexOf(entry);
+                  const groupOffset = (indexInGroup - (sameStart.length - 1) / 2) * 5;
                   return (
                     <button
                       key={i}
@@ -333,7 +340,7 @@ export function ReviewWorkspace({
                       onClick={() => seek(entry.start)}
                       className="absolute top-0 flex cursor-pointer justify-center"
                       style={{
-                        left: `calc(${(entry.start / duration) * 100}% - 8px)`,
+                        left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)`,
                         width: 16,
                         height: 16,
                         background: "none",
@@ -347,7 +354,6 @@ export function ReviewWorkspace({
                           width: 4,
                           height: 14,
                           backgroundColor: info.background,
-                          boxShadow: "0 0 0 1px var(--cds-border-inverse)",
                         }}
                       />
                     </button>

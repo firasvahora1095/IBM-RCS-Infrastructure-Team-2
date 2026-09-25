@@ -15,7 +15,6 @@ function notConnected(operation: keyof DataService): Promise<never> {
 }
 
 export const apiDataService: DataService = {
-  // Wired to the Sprint 2 endpoints captured from the team's test harness.
   createReport: http.createReport,
   getStatus: http.getStatus,
   staffLogin: http.staffLogin,
@@ -24,36 +23,38 @@ export const apiDataService: DataService = {
   resolveCase: http.resolveCase,
   getManagerDashboard: http.getManagerDashboard,
 
-  // No endpoint yet.
+  // Nice-to-have / not planned for MVP.
   createLinkReport: () => notConnected("createLinkReport"),
   createScreenshotReport: () => notConnected("createScreenshotReport"),
   addCaseInformation: () => notConnected("addCaseInformation"),
   requestStatusUpdates: () => notConnected("requestStatusUpdates"),
-  getMyWellbeing: () => notConnected("getMyWellbeing"),
-  acknowledgeContentWarning: () => notConnected("acknowledgeContentWarning"),
-  declineCase: () => notConnected("declineCase"),
-  recordExposure: () => notConnected("recordExposure"),
-  triggerSos: () => notConnected("triggerSos"),
-  reportUnexpectedExposure: () => notConnected("reportUnexpectedExposure"),
-  requestWellbeingSupport: () => notConnected("requestWellbeingSupport"),
 
-  // Manager — no endpoints yet.
-  getAuditorOverview: () => notConnected("getAuditorOverview"),
-  getSosSummary: () => notConnected("getSosSummary"),
-  getAuditorDetail: () => notConnected("getAuditorDetail"),
-  setExposureLimit: () => notConnected("setExposureLimit"),
-  approveBreakRequest: () => notConnected("approveBreakRequest"),
-  getCaseOversight: () => notConnected("getCaseOversight"),
-  listSosAlerts: () => notConnected("listSosAlerts"),
-  getSosAlert: () => notConnected("getSosAlert"),
-  acknowledgeSosAlert: () => notConnected("acknowledgeSosAlert"),
-  logSosFollowUp: () => notConnected("logSosFollowUp"),
-  listDeclinedCases: () => notConnected("listDeclinedCases"),
-  getManagerCaseReview: () => notConnected("getManagerCaseReview"),
-  getReassignmentContext: () => notConnected("getReassignmentContext"),
-  reassignCase: () => notConnected("reassignCase"),
-  closeWithoutReassignment: () => notConnected("closeWithoutReassignment"),
-  getCaseForExceptionalAccess: () => notConnected("getCaseForExceptionalAccess"),
-  recordExceptionalAccess: () => notConnected("recordExceptionalAccess"),
-  getValidationSummary: () => notConnected("getValidationSummary"),
+  // Auditor wellbeing (Sprint 3).
+  getMyWellbeing: http.getMyWellbeing,
+  acknowledgeContentWarning: http.acknowledgeContentWarning,
+  declineCase: http.declineCase,
+  recordExposure: http.recordExposure,
+  triggerSos: http.triggerSos,
+  reportUnexpectedExposure: http.reportUnexpectedExposure,
+  requestWellbeingSupport: http.requestWellbeingSupport,
+
+  // Manager (Sprint 3).
+  getAuditorOverview: http.getAuditorOverview,
+  getSosSummary: http.getSosSummary,
+  getAuditorDetail: http.getAuditorDetail,
+  setExposureLimit: http.setExposureLimit,
+  approveBreakRequest: http.approveBreakRequest,
+  getCaseOversight: http.getCaseOversight,
+  listSosAlerts: http.listSosAlerts,
+  getSosAlert: http.getSosAlert,
+  acknowledgeSosAlert: http.acknowledgeSosAlert,
+  logSosFollowUp: http.logSosFollowUp,
+  listDeclinedCases: http.listDeclinedCases,
+  getManagerCaseReview: http.getManagerCaseReview,
+  getReassignmentContext: http.getReassignmentContext,
+  reassignCase: http.reassignCase,
+  closeWithoutReassignment: http.closeWithoutReassignment,
+  getCaseForExceptionalAccess: http.getCaseForExceptionalAccess,
+  recordExceptionalAccess: http.recordExceptionalAccess,
+  getValidationSummary: http.getValidationSummary,
 };

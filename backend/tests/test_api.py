@@ -688,6 +688,280 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"detail": "Case not found"})
 
+    # ------------------------------------------------------------------
+    # Exposure schema — active_seconds + replay_seconds (not just seconds)
+    # ------------------------------------------------------------------
+
+    def test_exposure_accepts_active_and_replay_seconds(self) -> None:
+        case_id = "EXPOSURECASE0001"
+        self.add_case(case_id)
+        headers = self.auth_headers()
+
+        # New shape: separate active + replay fields
+        r = self.client.post(
+            f"/api/auditor/cases/{case_id}/exposure",
+            headers=headers,
+            json={"active_seconds": 30.0, "replay_seconds": 10.0},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json(), {"recorded": True})
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            # 40 total seconds = 40/60 minutes
+            self.assertAlmostEqual(auditor.exposure_minutes, 40 / 60, places=4)
+
+    def test_exposure_accepts_legacy_seconds_field(self) -> None:
+        case_id = "EXPOSURELEGACY01"
+        self.add_case(case_id)
+        headers = self.auth_headers()
+
+        # Old shape: single seconds field
+        r = self.client.post(
+            f"/api/auditor/cases/{case_id}/exposure",
+            headers=headers,
+            json={"seconds": 60.0},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertAlmostEqual(auditor.exposure_minutes, 1.0, places=4)
+
+    # ------------------------------------------------------------------
+    # Cooldown — SOS saves to DB and wellbeing API returns real state
+    # ------------------------------------------------------------------
+
+    def test_sos_saves_cooldown_to_db_and_wellbeing_returns_it(self) -> None:
+        case_id = "SOSCASE000000001"
+        self.add_case(case_id)
+        headers = self.auth_headers()
+
+        r = self.client.post(
+            f"/api/auditor/cases/{case_id}/sos",
+            headers=headers,
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        cooldown = r.json()["cooldown"]
+        self.assertEqual(cooldown["trigger"], "SOS")
+        self.assertTrue(cooldown["requires_check_in"])
+        self.assertIsNone(cooldown["check_in_completed_at"])
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNotNone(auditor.cooldown_ends_at)
+            self.assertEqual(auditor.cooldown_trigger, "SOS")
+            self.assertEqual(auditor.cooldown_check_in_done, 0)
+
+        wellbeing = self.client.get("/api/auditor/wellbeing", headers=headers)
+        self.assertEqual(wellbeing.status_code, 200, wellbeing.text)
+        wb_cooldown = wellbeing.json()["cooldown"]
+        self.assertIsNotNone(wb_cooldown)
+        self.assertEqual(wb_cooldown["trigger"], "SOS")
+        self.assertTrue(wb_cooldown["requires_check_in"])
+
+    def test_cooldown_clears_after_manager_follow_up(self) -> None:
+        case_id = "SOSCASE000000002"
+        self.add_case(case_id)
+        auditor_headers = self.auth_headers("auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+
+        sos = self.client.post(
+            f"/api/auditor/cases/{case_id}/sos",
+            headers=auditor_headers,
+        )
+        self.assertEqual(sos.status_code, 200, sos.text)
+
+        # Find the SOS alert that was just created
+        alerts = self.client.get("/api/manager/sos-alerts", headers=manager_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        self.assertEqual(len(alerts.json()), 1)
+        alert_id = alerts.json()[0]["id"]
+
+        follow_up = self.client.post(
+            f"/api/manager/sos-alerts/{alert_id}/follow-up",
+            headers=manager_headers,
+            json={"notes": "Spoke with auditor, they are okay.", "outcome": "NO_FURTHER_ACTION"},
+        )
+        self.assertEqual(follow_up.status_code, 200, follow_up.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertEqual(auditor.cooldown_check_in_done, 1)
+
+    # ------------------------------------------------------------------
+    # Wellbeing support — case_id=None must not crash (NULL FK bug)
+    # ------------------------------------------------------------------
+
+    def test_wellbeing_support_without_case_id_succeeds(self) -> None:
+        headers = self.auth_headers()
+
+        # Triggered from CooldownPage where there's no active case
+        r = self.client.post(
+            "/api/auditor/wellbeing-support",
+            headers=headers,
+            json={"kind": "TALK_TO_MANAGER"},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json(), {"received": True})
+
+        # Must not have created an AuditLog row (case_id would be NULL → FK error)
+        with self.Session() as db:
+            logs = db.scalars(select(AuditLog)).all()
+            self.assertEqual(logs, [])
+
+    def test_wellbeing_support_with_case_id_logs_to_audit(self) -> None:
+        case_id = "WBSUPPORTCASE001"
+        self.add_case(case_id)
+        headers = self.auth_headers()
+
+        r = self.client.post(
+            "/api/auditor/wellbeing-support",
+            headers=headers,
+            json={"kind": "REQUEST_BREAK", "case_id": case_id},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            log = db.scalar(
+                select(AuditLog).where(AuditLog.action == "WELLBEING_SUPPORT_REQUESTED")
+            )
+            self.assertIsNotNone(log)
+            self.assertEqual(log.case_id, case_id)
+            self.assertEqual(log.after_value["kind"], "REQUEST_BREAK")
+
+
+    # ------------------------------------------------------------------
+    # Decline → declined queue → reassign / close flow
+    # ------------------------------------------------------------------
+
+    def test_auditor_can_decline_case_and_it_appears_in_manager_declined_queue(self) -> None:
+        case_id = "DECLINECASE00001"
+        self.add_case(case_id)
+        auditor_headers = self.auth_headers("auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+
+        r = self.client.post(
+            f"/api/auditor/cases/{case_id}/decline",
+            headers=auditor_headers,
+            json={"reason": "NEAR_EXPOSURE_LIMIT"},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json(), {"declined": True})
+
+        queue = self.client.get("/api/manager/declined-cases", headers=manager_headers)
+        self.assertEqual(queue.status_code, 200, queue.text)
+        case_ids = [c["case_id"] for c in queue.json()]
+        self.assertIn(case_id, case_ids)
+        row = next(c for c in queue.json() if c["case_id"] == case_id)
+        self.assertEqual(row["reason"], "NEAR_EXPOSURE_LIMIT")
+
+    def test_manager_can_reassign_declined_case_to_another_auditor(self) -> None:
+        case_id = "REASSIGNCASE0001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        auditor_headers = self.auth_headers("auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+
+        # Auditor 1 declines
+        self.client.post(
+            f"/api/auditor/cases/{case_id}/decline",
+            headers=auditor_headers,
+            json={"reason": "CONTENT_MORE_SEVERE"},
+        )
+
+        # Manager checks reassignment candidates
+        ctx = self.client.get(
+            f"/api/manager/cases/{case_id}/reassignment",
+            headers=manager_headers,
+        )
+        self.assertEqual(ctx.status_code, 200, ctx.text)
+        candidate_ids = [c["auditor_id"] for c in ctx.json()["candidates"]]
+        self.assertIn("auditor-2", candidate_ids)
+        self.assertNotIn("auditor-1", candidate_ids)  # declining auditor excluded
+
+        # Manager reassigns to auditor-2
+        reassign = self.client.post(
+            f"/api/manager/cases/{case_id}/reassign",
+            headers=manager_headers,
+            json={"auditor_id": "auditor-2"},
+        )
+        self.assertEqual(reassign.status_code, 200, reassign.text)
+        self.assertEqual(reassign.json()["assigned_to_name"], "auditor-2")
+
+        # Case now visible to auditor-2, not auditor-1
+        with self.Session() as db:
+            case = db.get(Case, case_id)
+            self.assertEqual(case.assigned_auditor_id, "auditor-2")
+            self.assertEqual(case.status, "READY_FOR_REVIEW")
+            self.assertIsNone(case.manager_flag)
+
+        a2_list = self.client.get("/api/auditor/cases", headers=self.auth_headers("auditor-2"))
+        self.assertIn(case_id, [c["case_id"] for c in a2_list.json()])
+
+    def test_manager_can_close_case_without_reassignment(self) -> None:
+        case_id = "CLOSECASE0000001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+
+        close = self.client.post(
+            f"/api/manager/cases/{case_id}/close",
+            headers=manager_headers,
+            json={"note": "Case closed after review — no suitable auditor available."},
+        )
+        self.assertEqual(close.status_code, 200, close.text)
+
+        with self.Session() as db:
+            case = db.get(Case, case_id)
+            self.assertEqual(case.final_outcome, "CLOSED_NO_REASSIGNMENT")
+
+    def test_auditor_cannot_access_manager_declined_queue(self) -> None:
+        headers = self.auth_headers("auditor-1")
+        r = self.client.get("/api/manager/declined-cases", headers=headers)
+        self.assertEqual(r.status_code, 403)
+
+    # ------------------------------------------------------------------
+    # Manager dashboard and case oversight
+    # ------------------------------------------------------------------
+
+    def test_manager_dashboard_returns_overview_counts(self) -> None:
+        self.add_case("DASHCASE0000001", auditor_id="auditor-1", status="READY_FOR_REVIEW")
+        self.add_case("DASHCASE0000002", auditor_id="auditor-1", status="COMPLETE")
+        manager_headers = self.auth_headers("manager-1")
+
+        r = self.client.get("/api/manager/dashboard", headers=manager_headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertIn("auditors", data)
+        self.assertIn("pending_declined_cases", data)
+
+    def test_manager_case_oversight_lists_all_cases(self) -> None:
+        self.add_case("OVERSIGHTCASE001", auditor_id="auditor-1", status="READY_FOR_REVIEW")
+        self.add_case("OVERSIGHTCASE002", auditor_id="auditor-2", status="AI_PROCESSING")
+        manager_headers = self.auth_headers("manager-1")
+
+        r = self.client.get("/api/manager/cases", headers=manager_headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        case_ids = [c["case_id"] for c in r.json()]
+        self.assertIn("OVERSIGHTCASE001", case_ids)
+        self.assertIn("OVERSIGHTCASE002", case_ids)
+
+    def test_manager_case_review_shows_decline_reason(self) -> None:
+        case_id = "REVIEWCASE000001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        auditor_headers = self.auth_headers("auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+
+        self.client.post(
+            f"/api/auditor/cases/{case_id}/decline",
+            headers=auditor_headers,
+            json={"reason": "PERSONAL_TRIGGER", "other_text": None},
+        )
+
+        r = self.client.get(f"/api/manager/cases/{case_id}/review", headers=manager_headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["manager_flag"], "DECLINED")
+        self.assertEqual(r.json()["decline"]["reason"], "PERSONAL_TRIGGER")
+
 
 if __name__ == "__main__":
     unittest.main()
