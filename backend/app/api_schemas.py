@@ -82,7 +82,6 @@ class SosFollowUpRequest(BaseModel):
 class ExposureSampleRequest(BaseModel):
     active_seconds: float = Field(default=0, ge=0)
     replay_seconds: float = Field(default=0, ge=0)
-    # Legacy single-field shape — kept for backward compatibility.
     seconds: float | None = Field(default=None, ge=0)
     case_id: str | None = None
 

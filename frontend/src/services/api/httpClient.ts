@@ -270,7 +270,7 @@ export async function recordExposure(
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ seconds: sample.seconds }),
+      body: JSON.stringify({ active_seconds: sample.active_seconds, replay_seconds: sample.replay_seconds }),
     },
   );
   return parseJsonOrThrow<{ recorded: true }>(r);

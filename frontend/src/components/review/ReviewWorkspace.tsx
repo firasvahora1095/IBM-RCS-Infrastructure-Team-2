@@ -223,7 +223,6 @@ export function ReviewWorkspace({
           ? "Blurred — reduce the slider below to view"
           : null;
 
-  const total = totals.active_seconds + totals.replay_seconds;
   const timeline = caseDetail.incident_timeline ?? [];
 
   return (
@@ -241,7 +240,7 @@ export function ReviewWorkspace({
       )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-          This case: {formatDuration(total)} ({formatDuration(totals.active_seconds)} active review,{" "}
+          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} ({formatDuration(totals.active_seconds)} active,{" "}
           {formatDuration(totals.replay_seconds)} replay) · {isPlaying ? "● Counting" : "○ Paused"}
         </p>
       )}
@@ -271,6 +270,7 @@ export function ReviewWorkspace({
                   className="h-full w-full object-contain"
                   playsInline
                   onLoadedMetadata={(e) => seek(Math.min(positionRef.current, e.currentTarget.duration))}
+                  onEnded={() => setPlaying(false)}
                 />
               ) : (
                 <SyntheticTestPattern position={position} />
@@ -328,6 +328,9 @@ export function ReviewWorkspace({
                 {timeline.map((entry, i) => {
                   const info = getSeverityInfo(entry.severity_tier);
                   const label = `Jump to ${formatTimestamp(entry.start)}, ${entry.tag ?? "flagged"}, ${entry.severity_tier} ${info.label}`;
+                  const sameStart = timeline.filter((e) => e.start === entry.start);
+                  const indexInGroup = sameStart.indexOf(entry);
+                  const groupOffset = (indexInGroup - (sameStart.length - 1) / 2) * 5;
                   return (
                     <button
                       key={i}
@@ -337,7 +340,7 @@ export function ReviewWorkspace({
                       onClick={() => seek(entry.start)}
                       className="absolute top-0 flex cursor-pointer justify-center"
                       style={{
-                        left: `calc(${(entry.start / duration) * 100}% - 8px)`,
+                        left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)`,
                         width: 16,
                         height: 16,
                         background: "none",
@@ -351,7 +354,6 @@ export function ReviewWorkspace({
                           width: 4,
                           height: 14,
                           backgroundColor: info.background,
-                          boxShadow: "0 0 0 1px var(--cds-border-inverse)",
                         }}
                       />
                     </button>
