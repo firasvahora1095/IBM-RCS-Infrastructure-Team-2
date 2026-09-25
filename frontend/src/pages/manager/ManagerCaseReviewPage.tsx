@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Tag } from "@carbon/react";
+import { Button } from "@carbon/react";
+import { EntityPills } from "../../components/review/AiEvidencePanels";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
 import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
@@ -41,16 +42,10 @@ export function ManagerCaseReviewPage() {
             <p style={{ fontSize: 14, lineHeight: "20px" }}>
               {data.narrative_summary ?? "No narrative summary is available for this case."}
             </p>
-            {data.tags.length > 0 && (
+            {data.flagged_entities.length > 0 && (
               <>
                 <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>Flagged entities</h3>
-                <div className="flex flex-wrap gap-2">
-                  {data.tags.map((tag) => (
-                    <Tag key={tag} type="gray" size="sm" style={{ ...mono, margin: 0 }}>
-                      {tag}
-                    </Tag>
-                  ))}
-                </div>
+                <EntityPills entities={data.flagged_entities} />
               </>
             )}
           </Panel>

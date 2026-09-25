@@ -274,7 +274,7 @@ export interface ManagerCaseReview {
   severity_tier: SeverityTier | null;
   effective_severity_score: number | null;
   narrative_summary: string | null;
-  tags: string[];
+  flagged_entities: FlaggedEntity[];
   auditor_name: string | null;
   auditor_severity_score: number | null;
   auditor_comment: string | null;

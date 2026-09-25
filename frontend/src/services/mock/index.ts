@@ -975,7 +975,7 @@ export const mockDataService: DataService = {
         severity_tier: c.severity_tier,
         effective_severity_score: c.effective_severity_score,
         narrative_summary: c.narrative_summary,
-        tags: [...new Set((c.incident_timeline ?? []).map((e) => e.tag).filter((t): t is string => !!t))],
+        flagged_entities: c.flagged_entities ?? [],
         auditor_name: displayName(db, routingAuditor(db, c) ?? c.assigned_auditor),
         auditor_severity_score: c.auditor_severity_score,
         auditor_comment: c.auditor_comment,
