@@ -1,7 +1,5 @@
 ## Week 1 E2E Acceptance Scenarios
 
-**Owner:** Janataarah Begum
-
 ### 1. Upload Returns a Case ID
 **Given** a public user selects a valid supported video, **when** they submit the report, **then** the upload should succeed and a unique Case ID should be generated and displayed.
 

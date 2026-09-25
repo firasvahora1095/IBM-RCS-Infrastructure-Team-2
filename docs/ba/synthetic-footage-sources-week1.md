@@ -1,7 +1,4 @@
-# Candidate Synthetic/Staged Footage Sources
-
-**Owner:** Janataarah Begum  
-**Sprint:** Sprint 1 — Week 1  
+# Candidate Synthetic/Staged Footage Sources Sprint 1 — Week 1  
 
 # Source Synthetic Footage
 

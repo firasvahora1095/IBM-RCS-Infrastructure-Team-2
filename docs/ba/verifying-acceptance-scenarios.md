@@ -1,7 +1,7 @@
 ## Acceptance Scenarios (Sprint 2 Week 1 E2E)
 
 **Source:** `docs/ba/acceptance-scenarios-sprint2.md`  
-**Owner:** Janataarah Begum  
+
 **Method:** Manual — clicked through the live UI at http://localhost:5174 connected to the real backend at http://localhost:8081. One step (mock AI injection) has no UI button and required a direct API call — see note in the table below.
 
 ### Pre-test fixes required before manual testing was possible

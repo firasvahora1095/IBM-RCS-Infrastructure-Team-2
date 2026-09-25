@@ -1,7 +1,5 @@
 # BA Requirements — Sprint 2 / Sprint 3 Baseline
 
-**Owner:** Janataarah Begum
-
 **Deliverable:** [Persona Requirements (Google Doc)](https://docs.google.com/document/d/1SAOUOVnqpCN3qOr2rrSvqSAdFRdQJcy-A9cx9GHYKCQ/edit?usp=sharing) — live source document. This Markdown file mirrors the current in-repo requirements baseline.
 
 **Document status:** Functional BA baseline across Sprint 2 and Sprint 3; implementation timing and Sprint 2 Week 3 follow-ups explicitly noted.

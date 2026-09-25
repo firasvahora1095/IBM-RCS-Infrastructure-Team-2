@@ -1,5 +1,4 @@
 # Narrative Summary Language Guidelines - Sprint 2 Week 2
-**Owner:** Janataarah Begum
 
 ## Purpose
 
