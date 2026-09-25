@@ -33,7 +33,7 @@ export function EntityPills({ entities }: { entities: FlaggedEntity[] }) {
             lineHeight: "16px",
           }}
         >
-          {entity.label} · {formatTimestamp(entity.start)}–{formatTimestamp(entity.end)}
+          {entity.label} · {formatTimestamp(entity.start)}{entity.end !== entity.start ? `–${formatTimestamp(entity.end)}` : ""}
         </li>
       ))}
     </ul>
