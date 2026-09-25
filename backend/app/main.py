@@ -400,9 +400,18 @@ async def get_auditor_case_detail(
 @app.get("/api/auditor/cases/{case_id}/video")
 async def stream_case_video(
     case_id: str,
-    auditor: StaffSession = Depends(get_current_auditor),
+    token: str | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ):
+    # <video src> cannot send headers, so accept token as a query param too.
+    raw_token = (credentials.credentials if credentials else None) or token
+    if not raw_token:
+        raise _not_authenticated()
+    session = session_store.get(raw_token)
+    if session is None or session.role != StaffRole.AUDITOR.value:
+        raise _not_authenticated()
+    auditor = session
     case = _get_owned_case(db, case_id, auditor.staff_id)
     if not case.video_storage_path:
         raise HTTPException(status_code=404, detail="No video on file for this case")
