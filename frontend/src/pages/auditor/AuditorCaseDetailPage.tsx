@@ -155,16 +155,10 @@ export function AuditorCaseDetailPage() {
         if (cancelled) return;
         setCaseDetail(detail);
         if (tokenRef.current) {
-          const streamUrl = getCaseVideoStreamUrl(caseId);
-          fetch(streamUrl, { headers: { Authorization: `Bearer ${tokenRef.current}` } })
-            .then((res) => {
-              if (!res.ok || cancelled) return;
-              return res.blob();
-            })
-            .then((blob) => {
-              if (blob && !cancelled) setSignedVideoUrl(URL.createObjectURL(blob));
-            })
-            .catch(() => { /* video is best-effort; fail silently */ });
+          // Pass token as query param so <video src> can stream without needing
+          // an Authorization header (browsers don't send custom headers for video).
+          const streamUrl = `${getCaseVideoStreamUrl(caseId)}?token=${encodeURIComponent(tokenRef.current)}`;
+          if (!cancelled) setSignedVideoUrl(streamUrl);
         }
         // Task 102: an in-progress review resumes where it left off — but only
         // after the content warning again. Otherwise the rating starts at the

@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "@carbon/react";
+import { Button, Tag } from "@carbon/react";
 import { EntityPills } from "../../components/review/AiEvidencePanels";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
