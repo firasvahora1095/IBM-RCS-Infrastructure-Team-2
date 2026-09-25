@@ -20,7 +20,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -351,7 +351,10 @@ async def list_auditor_cases(
 ):
     assigned_cases = db.scalars(
         select(Case)
-        .where(Case.assigned_auditor_id == auditor.staff_id)
+        .where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            (Case.manager_flag != "DECLINED") | (Case.manager_flag == None),
+        )
         .order_by(Case.created_at.desc())
     ).all()
     return [
@@ -537,9 +540,33 @@ async def resolve_case(
 @app.get("/api/manager/dashboard")
 async def manager_dashboard(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
-    """Retain the Sprint 2 manager scaffold behind the correct role boundary."""
-    return {"auditors": [], "pending_declined_cases": 0}
+    now = datetime.now(timezone.utc)
+    auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
+    auditor_list = []
+    for a in auditors:
+        ends_at = a.cooldown_ends_at
+        if ends_at and ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        in_cooldown = bool(ends_at and ends_at > now)
+        requires_check_in = a.cooldown_trigger in ("S4", "SOS")
+        check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
+        auditor_list.append({
+            "auditor_id": a.auditor_id,
+            "exposure_minutes_today": float(a.exposure_minutes or 0),
+            "exposure_limit_minutes": int(a.exposure_limit_minutes or 120),
+            "active_case_count": int(a.active_case_count or 0),
+            "in_cooldown": in_cooldown,
+            "check_in_pending": check_in_pending,
+        })
+    pending_declined = db.scalar(
+        select(func.count()).select_from(Case).where(
+            Case.manager_flag == "DECLINED",
+            Case.status != "COMPLETE",
+        )
+    ) or 0
+    return {"auditors": auditor_list, "pending_declined_cases": pending_declined}
 
 
 # ---------------------------------------------------------------------------
@@ -625,11 +652,12 @@ async def record_exposure(
     db: Session = Depends(get_db),
 ):
     _get_owned_case(db, case_id, auditor.staff_id)
-    row = db.get(Auditor, auditor.staff_id)
-    if row:
-        current = float(row.exposure_minutes or 0)
-        row.exposure_minutes = current + (payload.total_seconds / 60.0)
-        db.commit()
+    db.execute(
+        update(Auditor)
+        .where(Auditor.auditor_id == auditor.staff_id)
+        .values(exposure_minutes=Auditor.exposure_minutes + (payload.total_seconds / 60.0))
+    )
+    db.commit()
     return {"recorded": True}
 
 
@@ -872,13 +900,14 @@ async def list_sos_alerts(
     result = []
     for log in logs:
         after = log.after_value or {}
+        status = "ACKNOWLEDGED" if after.get("acknowledged") else "UNACKNOWLEDGED"
         result.append({
             "id": str(log.audit_log_id),
             "auditor_id": log.actor,
             "auditor_name": auditor_names.get(log.actor, log.actor),
             "case_id": log.case_id,
             "triggered_at": after.get("triggered_at", log.created_at.isoformat()),
-            "status": "UNACKNOWLEDGED",
+            "status": status,
             "trigger": "AUDITOR_SOS",
         })
     return result
@@ -920,8 +949,20 @@ async def get_sos_alert(
 @app.post("/api/manager/sos-alerts/{alert_id}/acknowledge")
 async def acknowledge_sos_alert(
     alert_id: str,
-    _: StaffSession = Depends(get_current_manager),
+    manager: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    try:
+        log_id = int(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="SOS alert not found")
+    log = db.get(AuditLog, log_id)
+    if log is None or log.action != "SOS_TRIGGERED":
+        raise HTTPException(status_code=404, detail="SOS alert not found")
+    after = log.after_value or {}
+    if not after.get("acknowledged"):
+        log.after_value = {**after, "acknowledged": True, "acknowledged_by": manager.staff_id}
+        db.commit()
     return {"acknowledged": True}
 
 
@@ -1001,7 +1042,7 @@ async def get_manager_case_review(
         "auditor_comment": case.auditor_comment,
         "auditor_name": auditor.auditor_id if auditor else None,
         "final_outcome": case.final_outcome,
-        "tags": [],
+        "flagged_entities": case.flagged_entities or [],
         "decline": {
             "reason": decline_log.after_value.get("reason", "OTHER"),
             "other_text": decline_log.after_value.get("other_text"),
