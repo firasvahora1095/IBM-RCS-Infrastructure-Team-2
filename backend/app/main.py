@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 from fastapi import (
+    BackgroundTasks,
     Body,
     Depends,
     FastAPI,
@@ -16,6 +17,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select
@@ -46,7 +48,7 @@ from app.orchestrate import (
 )
 from app.rate_limit import status_lookup_limiter
 from app.request_logging import install_access_log_redaction, redact_case_ids
-from app.storage import delete_stored_video, store_video, verify_storage_connection
+from app.storage import delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
 
 
@@ -173,8 +175,25 @@ async def storage_check():
         ) from error
 
 
+def _run_analysis_in_background(case_id: str) -> None:
+    try:
+        from app.analysis_service import CaseAnalysisError, process_case_analysis
+    except ImportError:
+        logger.warning("Analysis pipeline unavailable (missing dependencies); skipping case %s", case_id)
+        return
+    from app.db import SessionLocal
+    with SessionLocal() as db:
+        try:
+            process_case_analysis(db, case_id)
+        except CaseAnalysisError as exc:
+            logger.warning("Background analysis skipped for %s: %s", case_id, exc)
+        except Exception:
+            logger.exception("Background analysis failed for case %s", case_id)
+
+
 @app.post("/api/reports", status_code=status.HTTP_201_CREATED)
 async def create_report(
+    background_tasks: BackgroundTasks,
     video: UploadFile = File(...),
     db: Session = Depends(get_db),
     orchestrator: AssignmentOrchestrator = Depends(get_assignment_orchestrator),
@@ -226,6 +245,7 @@ async def create_report(
             )
         record_case_assignment(db, case, decision)
         db.commit()
+        background_tasks.add_task(_run_analysis_in_background, case_id)
     except (
         AssignmentOrchestrationError,
         IntegrityError,
@@ -377,6 +397,25 @@ async def get_auditor_case_detail(
     }
 
 
+@app.get("/api/auditor/cases/{case_id}/video")
+async def stream_case_video(
+    case_id: str,
+    auditor: StaffSession = Depends(get_current_auditor),
+    db: Session = Depends(get_db),
+):
+    case = _get_owned_case(db, case_id, auditor.staff_id)
+    if not case.video_storage_path:
+        raise HTTPException(status_code=404, detail="No video on file for this case")
+    try:
+        body, media_type, content_length = stream_video_from_storage(case.video_storage_path)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
+    headers = {}
+    if content_length is not None:
+        headers["Content-Length"] = str(content_length)
+    return StreamingResponse(body, media_type=media_type, headers=headers)
+
+
 @app.post("/api/internal/cases/{case_id}/mock-ai-result")
 async def insert_mock_ai_result(
     case_id: str,
@@ -498,12 +537,28 @@ async def get_my_wellbeing(
     db: Session = Depends(get_db),
 ):
     row = db.get(Auditor, auditor.staff_id)
-    exposure = int(row.exposure_minutes or 0) if row else 0
-    limit = _DEFAULT_EXPOSURE_LIMIT
+    exposure = float(row.exposure_minutes or 0) if row else 0
+    limit = int(row.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT) if row else _DEFAULT_EXPOSURE_LIMIT
+    cooldown = None
+    if row and row.cooldown_ends_at:
+        now = datetime.now(timezone.utc)
+        ends_at = row.cooldown_ends_at
+        if ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        requires_check_in = row.cooldown_trigger in ("S4", "SOS")
+        check_in_done = bool(row.cooldown_check_in_done)
+        if ends_at > now or (requires_check_in and not check_in_done):
+            cooldown = {
+                "started_at": (ends_at - __import__("datetime").timedelta(minutes=30)).isoformat(),
+                "ends_at": ends_at.isoformat(),
+                "trigger": row.cooldown_trigger,
+                "requires_check_in": requires_check_in,
+                "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
+            }
     return {
         "exposure_minutes_today": exposure,
         "exposure_limit_minutes": limit,
-        "cooldown": None,
+        "cooldown": cooldown,
         "cases_reviewed_today": 0,
     }
 
@@ -555,7 +610,7 @@ async def record_exposure(
     row = db.get(Auditor, auditor.staff_id)
     if row:
         current = float(row.exposure_minutes or 0)
-        row.exposure_minutes = current + (payload.seconds / 60.0)
+        row.exposure_minutes = current + (payload.total_seconds / 60.0)
         db.commit()
     return {"recorded": True}
 
@@ -566,10 +621,17 @@ async def trigger_sos(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
+    from datetime import timedelta
     case = _get_owned_case(db, case_id, auditor.staff_id)
     before = {"status": case.status, "manager_flag": case.manager_flag}
     case.manager_flag = "SOS"
     now = datetime.now(timezone.utc)
+    ends_at = now + timedelta(minutes=30)
+    auditor_row = db.get(Auditor, auditor.staff_id)
+    if auditor_row:
+        auditor_row.cooldown_ends_at = ends_at
+        auditor_row.cooldown_trigger = "SOS"
+        auditor_row.cooldown_check_in_done = 0
     db.add(AuditLog(
         case_id=case.case_id,
         actor=auditor.staff_id,
@@ -581,9 +643,10 @@ async def trigger_sos(
     return {
         "cooldown": {
             "started_at": now.isoformat(),
-            "ends_at": now.isoformat(),
+            "ends_at": ends_at.isoformat(),
             "trigger": "SOS",
             "requires_check_in": True,
+            "check_in_completed_at": None,
         }
     }
 
@@ -622,14 +685,18 @@ async def request_wellbeing_support(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
-    db.add(AuditLog(
-        case_id=case_id,
-        actor=auditor.staff_id,
-        action="WELLBEING_SUPPORT_REQUESTED",
-        before_value=None,
-        after_value={"kind": kind, "case_id": case_id},
-    ))
-    db.commit()
+    # AuditLog.case_id is NOT NULL — only log when we have a real case reference.
+    if case_id:
+        db.add(AuditLog(
+            case_id=case_id,
+            actor=auditor.staff_id,
+            action="WELLBEING_SUPPORT_REQUESTED",
+            before_value=None,
+            after_value={"kind": kind},
+        ))
+        db.commit()
+    else:
+        logger.info("Wellbeing support requested by %s (kind=%s, no case)", auditor.staff_id, kind)
     return {"received": True}
 
 
@@ -845,7 +912,14 @@ async def log_sos_follow_up(
     alert_id: str,
     payload: SosFollowUpRequest,
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    log = db.get(AuditLog, int(alert_id))
+    if log and log.action == "SOS_TRIGGERED":
+        auditor_row = db.get(Auditor, log.actor)
+        if auditor_row:
+            auditor_row.cooldown_check_in_done = 1
+            db.commit()
     return {"resolved": True}
 
 
