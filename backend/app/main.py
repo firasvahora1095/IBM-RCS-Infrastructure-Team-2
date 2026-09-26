@@ -691,11 +691,17 @@ async def get_my_wellbeing(
                 "requires_check_in": requires_check_in,
                 "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
             }
+    cases_reviewed_today = db.scalar(
+        select(func.count()).select_from(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.status == "COMPLETE",
+        )
+    ) or 0
     return {
         "exposure_minutes_today": exposure,
         "exposure_limit_minutes": limit,
         "cooldown": cooldown,
-        "cases_reviewed_today": 0,
+        "cases_reviewed_today": cases_reviewed_today,
     }
 
 
@@ -814,6 +820,60 @@ async def report_unexpected_exposure(
     }
 
 
+@app.post("/api/auditor/stop-shift")
+async def stop_shift(
+    auditor: StaffSession = Depends(get_current_auditor),
+    db: Session = Depends(get_db),
+):
+    """Auditor stops their shift early from the cooldown screen (AR-WB-12).
+
+    Sets exposure to the daily limit so no further cases are assigned,
+    then returns all active cases to READY_FOR_REVIEW for reassignment.
+    """
+    auditor_row = db.get(Auditor, auditor.staff_id)
+    if auditor_row is None:
+        raise HTTPException(status_code=404, detail="Auditor not found")
+
+    # Block future assignments by pinning exposure to the limit
+    limit = int(auditor_row.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT)
+    auditor_row.exposure_minutes = float(limit)
+
+    # Return all active cases to the queue
+    active_cases = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.status.in_(["AUDITOR_REVIEW", "READY_FOR_REVIEW"]),
+        )
+    ).all()
+
+    now = datetime.now(timezone.utc)
+    for case in active_cases:
+        before = {"status": case.status, "assigned_auditor_id": case.assigned_auditor_id}
+        case.status = "READY_FOR_REVIEW"
+        case.assigned_auditor_id = None
+        db.add(AuditLog(
+            case_id=case.case_id,
+            actor=auditor.staff_id,
+            action="SHIFT_STOPPED_CASE_RETURNED",
+            before_value=before,
+            after_value={"status": case.status, "assigned_auditor_id": None},
+        ))
+
+    if active_cases:
+        db.add(AuditLog(
+            case_id=active_cases[0].case_id,
+            actor=auditor.staff_id,
+            action="SHIFT_STOPPED",
+            before_value=None,
+            after_value={"cases_returned": len(active_cases), "stopped_at": now.isoformat()},
+        ))
+    else:
+        logger.info("Shift stopped by %s (no active cases)", auditor.staff_id)
+
+    db.commit()
+    return {"stopped": True, "cases_returned": len(active_cases)}
+
+
 @app.post("/api/auditor/wellbeing-support")
 async def request_wellbeing_support(
     kind: str = Body(embed=True),
@@ -840,6 +900,24 @@ async def request_wellbeing_support(
 # Manager endpoints (Sprint 3)
 # ---------------------------------------------------------------------------
 
+def _auditor_cooldown_payload(row: Auditor) -> dict | None:
+    if not row.cooldown_ends_at:
+        return None
+    ends_at = row.cooldown_ends_at
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+    if ends_at <= datetime.now(timezone.utc):
+        return None
+    requires_check_in = row.cooldown_trigger in ("S4", "SOS")
+    check_in_done = bool(row.cooldown_check_in_done)
+    return {
+        "ends_at": ends_at.isoformat(),
+        "trigger": row.cooldown_trigger,
+        "requires_check_in": requires_check_in,
+        "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
+    }
+
+
 def _exposure_state(minutes: float, limit: float) -> str:
     if limit <= 0:
         return "UNDER"
@@ -864,30 +942,17 @@ async def list_auditors(
             .group_by(Case.assigned_auditor_id)
         ).all()
     )
-    now = datetime.now(timezone.utc)
     result = []
     for a in auditors:
         exp = float(a.exposure_minutes or 0)
         limit = int(a.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT)
-        ends_at = a.cooldown_ends_at
-        if ends_at and ends_at.tzinfo is None:
-            ends_at = ends_at.replace(tzinfo=timezone.utc)
-        cooldown = None
-        if ends_at and ends_at > now:
-            requires_check_in = a.cooldown_trigger in ("S4", "SOS")
-            check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
-            cooldown = {
-                "ends_at": ends_at.isoformat(),
-                "trigger": a.cooldown_trigger,
-                "check_in_pending": check_in_pending,
-            }
         result.append({
             "auditor_id": a.auditor_id,
             "display_name": a.auditor_id,
             "exposure_minutes_today": round(exp, 1),
             "exposure_limit_minutes": limit,
             "exposure_state": _exposure_state(exp, limit),
-            "cooldown": cooldown,
+            "cooldown": _auditor_cooldown_payload(a),
             "cases_today": cases_today.get(a.auditor_id, 0),
         })
     return result
@@ -896,8 +961,32 @@ async def list_auditors(
 @app.get("/api/manager/sos-summary")
 async def get_sos_summary(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
-    return {"unresolved_count": 0, "most_recent": None}
+    # Unresolved = SOS triggered but cooldown_check_in_done is still 0
+    sos_auditors = db.scalars(
+        select(Auditor)
+        .where(
+            Auditor.cooldown_trigger == "SOS",
+            Auditor.cooldown_check_in_done == 0,
+            Auditor.cooldown_ends_at.is_not(None),
+        )
+        .order_by(Auditor.cooldown_ends_at.desc())
+    ).all()
+    if not sos_auditors:
+        return {"unresolved_count": 0, "most_recent": None}
+    most_recent = sos_auditors[0]
+    ends_at = most_recent.cooldown_ends_at
+    if ends_at and ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+    triggered_at = (ends_at - timedelta(minutes=30)).isoformat() if ends_at else None
+    return {
+        "unresolved_count": len(sos_auditors),
+        "most_recent": {
+            "auditor_name": most_recent.auditor_id,
+            "triggered_at": triggered_at,
+        },
+    }
 
 
 @app.get("/api/manager/auditors/{auditor_id}")
@@ -923,7 +1012,7 @@ async def get_auditor_detail(
         "exposure_minutes_today": round(exp, 1),
         "exposure_limit_minutes": limit,
         "exposure_state": _exposure_state(exp, limit),
-        "cooldown": None,
+        "cooldown": _auditor_cooldown_payload(row),
         "cases_today": len(recent),
         "pattern_flagged": False,
         "recent_cases": [
