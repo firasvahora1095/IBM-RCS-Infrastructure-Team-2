@@ -65,6 +65,4 @@ The simulation confirmed that the Auditor with the lower current case-ratio scor
 The observed behaviour matches the agreed Sprint 2 weighted-assignment requirement.
 
 
-## Evidence
 
-Terminal output from the local simulation run on 26 September 2026 can be retained as supporting evidence.
