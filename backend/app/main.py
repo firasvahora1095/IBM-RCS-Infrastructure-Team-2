@@ -3,7 +3,7 @@
 import hmac
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import (
     BackgroundTasks,
@@ -577,7 +577,27 @@ async def resolve_case(
     case.auditor_comment = comment
     case.final_outcome = payload.final_outcome.value
     case.status = "COMPLETE"
-    case.completed_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    case.completed_at = now
+
+    # S3/S4 automatic cooldown on case resolution (AR-WB-12)
+    tier = case.severity_tier
+    cooldown_minutes: int | None = None
+    if tier == "S3":
+        cooldown_minutes = 15
+    elif tier == "S4":
+        cooldown_minutes = 30
+
+    if cooldown_minutes is not None:
+        auditor_row = db.get(Auditor, auditor.staff_id)
+        if auditor_row is not None:
+            # Only extend if not already in a longer cooldown
+            new_ends_at = now + timedelta(minutes=cooldown_minutes)
+            if auditor_row.cooldown_ends_at is None or auditor_row.cooldown_ends_at < new_ends_at:
+                auditor_row.cooldown_ends_at = new_ends_at
+                auditor_row.cooldown_trigger = tier
+                auditor_row.cooldown_check_in_done = 0
+
     db.add(
         AuditLog(
             case_id=case.case_id,
@@ -615,6 +635,13 @@ async def manager_dashboard(
         in_cooldown = bool(ends_at and ends_at > now)
         requires_check_in = a.cooldown_trigger in ("S4", "SOS")
         check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
+        cooldown = None
+        if in_cooldown and ends_at:
+            cooldown = {
+                "ends_at": ends_at.isoformat(),
+                "trigger": a.cooldown_trigger,
+                "check_in_pending": check_in_pending,
+            }
         auditor_list.append({
             "auditor_id": a.auditor_id,
             "exposure_minutes_today": float(a.exposure_minutes or 0),
@@ -622,6 +649,7 @@ async def manager_dashboard(
             "active_case_count": int(a.active_case_count or 0),
             "in_cooldown": in_cooldown,
             "check_in_pending": check_in_pending,
+            "cooldown": cooldown,
         })
     pending_declined = db.scalar(
         select(func.count()).select_from(Case).where(
@@ -730,7 +758,6 @@ async def trigger_sos(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
-    from datetime import timedelta
     case = _get_owned_case(db, case_id, auditor.staff_id)
     before = {"status": case.status, "manager_flag": case.manager_flag}
     case.manager_flag = "SOS"
@@ -837,17 +864,30 @@ async def list_auditors(
             .group_by(Case.assigned_auditor_id)
         ).all()
     )
+    now = datetime.now(timezone.utc)
     result = []
     for a in auditors:
         exp = float(a.exposure_minutes or 0)
         limit = int(a.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT)
+        ends_at = a.cooldown_ends_at
+        if ends_at and ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        cooldown = None
+        if ends_at and ends_at > now:
+            requires_check_in = a.cooldown_trigger in ("S4", "SOS")
+            check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
+            cooldown = {
+                "ends_at": ends_at.isoformat(),
+                "trigger": a.cooldown_trigger,
+                "check_in_pending": check_in_pending,
+            }
         result.append({
             "auditor_id": a.auditor_id,
             "display_name": a.auditor_id,
             "exposure_minutes_today": round(exp, 1),
             "exposure_limit_minutes": limit,
             "exposure_state": _exposure_state(exp, limit),
-            "cooldown": None,
+            "cooldown": cooldown,
             "cases_today": cases_today.get(a.auditor_id, 0),
         })
     return result
