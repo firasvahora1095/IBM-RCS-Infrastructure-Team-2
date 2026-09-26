@@ -308,7 +308,7 @@ export function AuditorCaseDetailPage() {
   }
 
   const aiScore = caseDetail.effective_severity_score;
-  const aiFailed = Boolean(caseDetail.ai_failure);
+  const aiFailed = caseDetail.ai_failure === "vision";
   const aiAnalysisReady = aiFailed || (aiScore !== null && caseDetail.severity_tier !== null);
   const isAlreadyResolved = caseDetail.status === "COMPLETE" && step !== "confirmation";
 

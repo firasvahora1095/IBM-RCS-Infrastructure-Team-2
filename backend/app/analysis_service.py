@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import io
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.models import AuditLog, Case
 from app.video_analysis import VideoAnalysisRun, analyse_video
+
+log = logging.getLogger(__name__)
 
 
 class CaseAnalysisError(RuntimeError):
@@ -43,6 +47,8 @@ def process_case_analysis(
     case.narrative_summary = None
     case.incident_timeline = None
     case.flagged_entities = None
+    case.transcript = None
+    case.audio_intensity = None
     case.video_duration_seconds = None
     case.analysis_output_path = None
     db.commit()
@@ -56,6 +62,25 @@ def process_case_analysis(
     case.analysis_output_path = run.output_reference
     case.video_duration_seconds = run.video_duration_seconds
 
+    # Run STT — best-effort; a failure marks ai_failure="speech_to_text" but
+    # does not block the vision results from being saved.
+    try:
+        from app.storage import download_video_bytes
+        from app.speech_to_text import transcribe, parse_transcript_lines, extract_audio_intensity, extract_audio_wav
+        video_bytes, _media_type = download_video_bytes(case.video_storage_path)
+        wav_bytes = extract_audio_wav(video_bytes)
+        stt_result = transcribe(io.BytesIO(wav_bytes), "audio/wav")
+        stt_results = stt_result.get("results", [])
+        speaker_labels = stt_result.get("speaker_labels", [])
+        case.transcript = parse_transcript_lines(stt_results, speaker_labels) or None
+        case.audio_intensity = extract_audio_intensity(wav_bytes) or None
+        stt_failed = False
+    except Exception as exc:
+        log.warning("STT failed for case %s: %s", case.case_id, exc)
+        case.transcript = None
+        case.audio_intensity = None
+        stt_failed = True
+
     if run.status == "completed" and run.case_analysis is not None:
         result = run.case_analysis
         case.watson_severity_score = result["watson_severity_score"]
@@ -64,7 +89,7 @@ def process_case_analysis(
         case.narrative_summary = result["narrative_summary"]
         case.incident_timeline = result["incident_timeline"]
         case.flagged_entities = result["flagged_entities"]
-        case.ai_failure = None
+        case.ai_failure = "speech_to_text" if stt_failed else None
         action = "AI_ANALYSIS_COMPLETED"
         audit_detail = {
             "frames_completed": run.frames_completed,

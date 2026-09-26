@@ -144,6 +144,10 @@ export function getCaseVideoStreamUrl(caseId: string): string {
   return `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/video`;
 }
 
+export function getManagerCaseVideoStreamUrl(caseId: string): string {
+  return `${API_BASE_URL}/api/manager/cases/${encodeURIComponent(caseId)}/video`;
+}
+
 /** Full detail for one Auditor-owned case. */
 export async function getAuditorCaseDetail(
   caseId: string,

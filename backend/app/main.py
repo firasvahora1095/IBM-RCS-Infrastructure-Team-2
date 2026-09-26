@@ -56,6 +56,67 @@ install_access_log_redaction()
 logger = logging.getLogger("ibm_rcs.api")
 bearer_scheme = HTTPBearer(auto_error=False)
 
+def _run_db_migrations() -> None:
+    """Apply all incremental schema changes to the deployed database.
+
+    Every statement uses IF NOT EXISTS / safe casts so re-running is harmless.
+    """
+    from app.db import engine
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        # auditors — Sprint 2 columns
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
+        ))
+        # cases — AI pipeline output columns (Sprint 2/3)
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
+        ))
+
+
+try:
+    _run_db_migrations()
+except Exception as _migration_exc:
+    logging.getLogger("ibm_rcs.api").warning(
+        "DB migration skipped (non-PostgreSQL or already applied): %s", _migration_exc
+    )
+
 app = FastAPI(title="IBM RCS Backend", version="0.1.0")
 
 allowed_origins = [
@@ -395,6 +456,8 @@ async def get_auditor_case_detail(
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities,
+        "transcript": case.transcript,
+        "audio_intensity": case.audio_intensity,
         "video_duration_seconds": case.video_duration_seconds,
         "ai_failure": case.ai_failure,
     }
@@ -1154,7 +1217,49 @@ async def get_case_exceptional_access(
         "severity_tier": case.severity_tier,
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
+        "flagged_entities": case.flagged_entities or [],
+        "transcript": case.transcript,
+        "audio_intensity": case.audio_intensity,
+        "video_duration_seconds": case.video_duration_seconds,
+        "ai_failure": case.ai_failure,
     }
+
+
+@app.get("/api/manager/cases/{case_id}/video")
+async def stream_case_video_manager(
+    request: Request,
+    case_id: str,
+    token: str | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    raw_token = (credentials.credentials if credentials else None) or token
+    if not raw_token:
+        raise _not_authenticated()
+    session = session_store.get(raw_token)
+    if session is None or session.role != StaffRole.MANAGER.value:
+        raise _not_authenticated()
+    case = db.get(Case, _case_id_for_lookup(case_id))
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    if not case.video_storage_path:
+        raise HTTPException(status_code=404, detail="No video on file for this case")
+    range_header = request.headers.get("Range")
+    try:
+        body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
+            case.video_storage_path, byte_range=range_header
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
+
+    headers: dict[str, str] = {"Accept-Ranges": "bytes"}
+    if content_length is not None:
+        headers["Content-Length"] = str(content_length)
+    if content_range:
+        headers["Content-Range"] = content_range
+
+    status_code = 206 if is_partial else 200
+    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
 
 
 @app.post("/api/manager/cases/{case_id}/exceptional-access")

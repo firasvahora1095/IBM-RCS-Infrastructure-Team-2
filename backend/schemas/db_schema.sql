@@ -4,6 +4,13 @@ CREATE TABLE IF NOT EXISTS auditors (
     auditor_id VARCHAR(50) PRIMARY KEY,
     login_hash TEXT NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'auditor',
+    active_case_count INTEGER NOT NULL DEFAULT 0,
+    exposure_minutes FLOAT NOT NULL DEFAULT 0,
+    exposure_limit_minutes INTEGER NOT NULL DEFAULT 120,
+    last_assigned_at TIMESTAMPTZ,
+    cooldown_ends_at TIMESTAMPTZ,
+    cooldown_trigger VARCHAR(10),
+    cooldown_check_in_done INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     CONSTRAINT ck_auditors_role
@@ -26,6 +33,8 @@ CREATE TABLE IF NOT EXISTS cases (
     narrative_summary TEXT,
     incident_timeline JSONB,
     flagged_entities JSONB,
+    transcript JSONB,
+    audio_intensity JSONB,
     video_duration_seconds DOUBLE PRECISION,
     analysis_output_path TEXT,
     ai_failure VARCHAR(30),
@@ -34,6 +43,7 @@ CREATE TABLE IF NOT EXISTS cases (
     auditor_severity_score INTEGER,
     auditor_comment TEXT,
     final_outcome VARCHAR(50),
+    manager_flag VARCHAR(10),
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at TIMESTAMPTZ,
@@ -44,7 +54,9 @@ CREATE TABLE IF NOT EXISTS cases (
             'AI_PROCESSING',
             'READY_FOR_REVIEW',
             'AUDITOR_REVIEW',
-            'COMPLETE'
+            'COMPLETE',
+            'DECLINED',
+            'SOS_FLAGGED'
         )
     ),
     CONSTRAINT ck_cases_watson_severity_score CHECK (
@@ -67,8 +79,13 @@ CREATE TABLE IF NOT EXISTS cases (
         final_outcome IS NULL
         OR final_outcome IN (
             'NO_VIOLATION_FOUND',
-            'POLICY_VIOLATION_FOUND'
+            'POLICY_VIOLATION_FOUND',
+            'CLOSED_NO_REASSIGNMENT'
         )
+    ),
+    CONSTRAINT ck_cases_manager_flag CHECK (
+        manager_flag IS NULL
+        OR manager_flag IN ('DECLINED', 'SOS')
     ),
     CONSTRAINT ck_cases_ai_failure CHECK (
         ai_failure IS NULL
@@ -77,10 +94,23 @@ CREATE TABLE IF NOT EXISTS cases (
 );
 
 -- Keep existing databases compatible when this schema is explicitly reapplied.
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_minutes FLOAT NOT NULL DEFAULT 0;
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120;
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ;
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ;
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10);
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float;
+
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30);
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10);
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -88,6 +118,12 @@ BEGIN
     ) THEN
         ALTER TABLE cases ADD CONSTRAINT ck_cases_ai_failure
             CHECK (ai_failure IS NULL OR ai_failure IN ('vision', 'speech_to_text'));
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ck_cases_manager_flag'
+    ) THEN
+        ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag
+            CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS'));
     END IF;
 END
 $$;

@@ -185,6 +185,23 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
     return open(path, "rb"), media_type, total_size, False, None
 
 
+def download_video_bytes(storage_reference: str) -> tuple[bytes, str]:
+    """Download the full video as bytes for processing (e.g. STT).
+
+    Returns (raw_bytes, media_type).
+    """
+    if storage_reference.startswith("cos://"):
+        bucket_and_key = storage_reference.removeprefix("cos://")
+        bucket_name, object_key = bucket_and_key.split("/", 1)
+        response = create_cos_client().get_object(Bucket=bucket_name, Key=object_key)
+        return response["Body"].read(), response.get("ContentType", "video/mp4")
+
+    import mimetypes
+    path = Path(storage_reference)
+    media_type = mimetypes.guess_type(str(path))[0] or "video/mp4"
+    return path.read_bytes(), media_type
+
+
 def delete_stored_video(storage_reference: str) -> None:
     """Best-effort cleanup when database persistence fails after storage."""
     if storage_reference.startswith("cos://"):

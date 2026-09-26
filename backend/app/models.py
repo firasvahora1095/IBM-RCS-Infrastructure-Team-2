@@ -120,6 +120,8 @@ class Case(Base):
     narrative_summary = Column(Text, nullable=True)
     incident_timeline = Column(JSON_DOCUMENT, nullable=True)
     flagged_entities = Column(JSON_DOCUMENT, nullable=True)
+    transcript = Column(JSON_DOCUMENT, nullable=True)
+    audio_intensity = Column(JSON_DOCUMENT, nullable=True)
     video_duration_seconds = Column(Float, nullable=True)
     analysis_output_path = Column(Text, nullable=True)
     # A non-null value is an explicit reduced-AI-support state. The frontend
