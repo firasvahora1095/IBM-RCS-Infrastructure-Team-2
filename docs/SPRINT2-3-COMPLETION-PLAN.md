@@ -1,5 +1,5 @@
 # Sprint 2 + 3 Completion Plan — Status Update
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 
 Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 
@@ -7,7 +7,7 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 
 | Area | Status |
 |---|---|
-| Case upload → AI analysis → Auditor review → Complete | ✅ Working locally |
+| Case upload → AI analysis → Auditor review → Complete | ✅ Working locally + deployed on Code Engine |
 | Exposure tracking (active + replay seconds) | ✅ Done — DB column fixed to float, update query fixed, bar rounds to nearest minute |
 | Auditor decline → Manager declined queue → Reassign / Close | ✅ Done |
 | SOS → DB cooldown → 30-min timer → Manager follow-up → clear | ✅ Done — acknowledge now persisted to DB |
@@ -18,24 +18,24 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 | flagged_entities returned from manager case review API | ✅ Fixed — was returning hardcoded [], now returns case.flagged_entities |
 | flagged_entities aggregated from watsonx per-frame output | ✅ Done — AI pipeline stores entities in DB, API now returns them |
 | Narrative summary quality (watsonx reasoning used) | ✅ Done — _build_narrative_summary() reads per-frame reasoning from watsonx |
-| Transcript / audio intensity panel | ❌ Not done |
-| Watson Speech-to-Text integration | ❌ Not done |
+| Transcript / audio intensity panel | ✅ Done — AiEvidencePanels.tsx built and wired |
+| Watson Speech-to-Text integration | ✅ Done — speech_to_text.py integrated in analysis pipeline |
 | Real ground-truth validation results | ❌ Mock only |
-| Code Engine deployment | ❌ Local only |
+| Code Engine deployment | ✅ Done — backend + frontend live (Docker Hub → IBM Code Engine ca-tor) |
 | Email notification on SOS | ❌ Not done |
-| Session timeout / login lockout | ❌ Not done |
-| S3/S4 automatic cooldown at case resolution | ❌ SOS path only |
-| Watsonx Governance logging | ❌ Not tested |
+| Session timeout / login lockout | ⚠️ Login lockout implemented (rate_limit.py, 429 handled in frontend) — session timeout not done |
+| S3/S4 automatic cooldown at case resolution | ✅ Done — S3/S4 cooldown triggered at case resolution (main.py:584) |
+| Watsonx Governance logging | ⚠️ governance.py implemented — not verified on deployed environment |
 
 ---
 
 ## What's Left Before Monday Demo (Priority Order)
 
-1. **Code Engine deploy** — nothing works on a live URL without this
-2. **STT integration** — transcript + entities panel completely empty
-3. **S3/S4 cooldown at resolution** — currently only SOS triggers cooldown
+1. ~~**Code Engine deploy**~~ ✅ Done — backend + frontend live
+2. ~~**STT integration**~~ ✅ Done
+3. ~~**S3/S4 cooldown at resolution**~~ ✅ Done
 4. **Real validation results** — ground-truth comparison must run on deployed pipeline
-5. **E2E UAT on deployed URL** — required before demo
+5. **E2E UAT on deployed URL** — environment is up, full flow UAT still needed
 
 ### Deliberately deferred (not blocking demo)
 - Email notification on SOS
@@ -79,7 +79,8 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 ✅ Video onEnded stops exposure counter
 
 ### Jana — Login lockout threshold / AR-WB-12 review-block window
-⚠️ Role-based access enforced (auditor vs manager tokens) — login lockout (failed attempt counter) not implemented
+✅ Login lockout implemented — rate_limit.py tracks failed attempts, 429 returned after threshold; frontend handles lockout state
+❌ Session timeout not implemented
 
 ### Hyuna — SOS event logging API
 ✅ SOS trigger logs to audit_logs with SOS_TRIGGERED action
@@ -90,7 +91,7 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 
 ### Hyuna — E2E test of Sprint 2 flow
 ✅ Tested locally: upload → AI analysis → case detail → override → outcome → Complete
-⚠️ Not tested on a deployed environment (not yet deployed to Code Engine)
+⚠️ Deployed environment up — full E2E UAT on live URL still in progress
 
 ---
 
@@ -112,8 +113,8 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 ### Aiden — Role-based access hardening
 ✅ Auditor token cannot call Manager endpoints (403)
 ✅ Manager token cannot call Auditor case endpoints (403)
+✅ Login lockout after N failed attempts — rate_limit.py, 429 response
 ❌ Session timeout not implemented
-❌ Login lockout after N failed attempts not implemented
 
 ### Firas — Oversight Dashboard
 ✅ GET /api/manager/auditors returns per-auditor exposure/cooldown state
@@ -133,31 +134,36 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 ✅ Manager case review returns real flagged_entities (was hardcoded [])
 
 ### Firas — Transcript/audio-intensity + entities panels
-❌ Not built — no mock or real data. Transcript and entities panels missing from the UI
+✅ Built and wired — AiEvidencePanels.tsx handles transcript, audio intensity, and entities from real STT + AI pipeline
 
 ### Jana — Cooldown logic
 ✅ Cooldown durations stored in DB (cooldown_ends_at, cooldown_trigger, cooldown_check_in_done)
 ✅ SOS triggers 30-minute cooldown with requires_check_in=True
 ✅ Wellbeing API returns real cooldown from DB — CooldownPage timer works
 ✅ Manager follow-up clears the check-in requirement
-⚠️ S3/S4 severity-based cooldowns not automatically triggered at case resolution (only SOS path is wired)
+✅ S3/S4 cooldown triggered automatically at case resolution (main.py:584)
 
 ### Hyuna — Wire SOS alerts into Manager notification path
 ✅ SOS events create audit log entries visible in manager SOS inbox
 ❌ Email delivery to manager not implemented or tested
 
 ### Hyuna — Verify watsonx.governance logging
-❌ Not tested — new event types (override, cooldown, SOS) not confirmed to appear in governance
+⚠️ governance.py implemented — not yet verified on deployed environment
 
-### Firas — Deploy to Code Engine
-❌ Not deployed — everything runs locally only
+### Firas / Hyuna — Deploy to Code Engine
+✅ Backend deployed: https://rcs-backend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
+✅ Frontend deployed: https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
+✅ PostgreSQL bundled inside backend container (demo mode, resets on redeploy)
+✅ COS video storage wired — videos uploaded to IBM COS bucket
+✅ WatsonX AI analysis running (WATSONX_VISION_MODEL_ID configured in secrets)
+✅ Demo seed accounts: auditor-01~03 / demo-pass-01~03, manager-01 / demo-mgr-01
 
 ---
 
 ## Day 3 (Sunday) — STT, Validation, UAT, Final Deploy
 
 ### Aiden — Watson Speech-to-Text integration
-❌ Not done — no transcript, no audio intensity graph
+✅ Done — speech_to_text.py integrated; transcribe(), parse_transcript_lines(), extract_audio_intensity() wired into analysis_service.py
 
 ### Aiden — Ground-truth comparison results API
 ❌ GET /api/manager/validation exists but returns placeholder/mock data only
@@ -172,17 +178,17 @@ Legend: ✅ Done · ⚠️ Partial · ❌ Not done · ➡️ Deferred
 ❌ Not done
 
 ### Firas — Swap transcript/entities from mock to real STT
-❌ Not done (depends on STT integration above)
+✅ Done — AuditorCaseDetailPage passes caseDetail.transcript and audio_intensity from real API
 
 ### Firas — Build Validation View (mock → real)
-⚠️ ManagerValidationPage exists but displays placeholder data with an "illustrative" warning banner
-❌ Real validation results not wired
+✅ ManagerValidationPage built — wired to /api/manager/validation, shows illustrative banner when is_placeholder=True
+⚠️ Backend still returns hardcoded placeholder data (is_placeholder: True) — real ground-truth pipeline not run
 
 ### Firas — Fix bugs from UAT + final redeploy
 ❌ UAT not done yet; redeploy pending
 
 ### Hyuna — Full E2E UAT (deployed environment)
-❌ Not done — no deployed environment yet
+⚠️ Environment live — video upload → case created → auditor assigned confirmed working; AI analysis result on deployed URL still verifying
 
 ### Hyuna — Demo script + rehearsal
 ❌ Not done
