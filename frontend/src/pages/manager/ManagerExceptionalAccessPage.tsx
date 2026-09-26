@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
@@ -11,6 +11,7 @@ import { SeverityTag } from "../../components/severity/SeverityTag";
 import { IncidentTimeline } from "../../components/severity/IncidentTimeline";
 import { FlaggedEntities, TranscriptAndAudio } from "../../components/review/AiEvidencePanels";
 import { getCaseForExceptionalAccess, recordExceptionalAccess } from "../../services";
+import { getManagerCaseVideoStreamUrl } from "../../services/api/httpClient";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -48,6 +49,16 @@ export function ManagerExceptionalAccessPage() {
   );
   const [step, setStep] = useState<Step>("gate");
   const [viewer, setViewer] = useState<ViewerSettings>(PROTECTED_VIEWER_SETTINGS);
+  const [videoUrl, setVideoUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!data || !token) return;
+    const url = getManagerCaseVideoStreamUrl(caseId);
+    fetch(`${url}?token=${encodeURIComponent(token)}`)
+      .then((res) => res.blob())
+      .then((blob) => setVideoUrl(URL.createObjectURL(blob)))
+      .catch(() => {});
+  }, [data, token, caseId]);
   const [isProceeding, setIsProceeding] = useState(false);
   const [gateError, setGateError] = useState<string | null>(null);
 
@@ -150,12 +161,13 @@ export function ManagerExceptionalAccessPage() {
           <h1 className="cds--visually-hidden">Review Workspace (exceptional access)</h1>
           <ReviewWorkspace
             caseDetail={data}
+            videoUrl={videoUrl}
             settings={viewer}
             onSettingsChange={setViewer}
             pausedReason={sessionExpired ? "session" : null}
             onContinue={() => navigate(returnTo)}
             continueLabel={returnLabel}
-            onBack={data.ai_failure ? undefined : () => setStep("summary")}
+            onBack={data.ai_failure === "vision" ? undefined : () => setStep("summary")}
           />
         </>
       )}
