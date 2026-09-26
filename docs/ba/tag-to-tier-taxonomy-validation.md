@@ -1,4 +1,4 @@
-# T49 — Tag-to-Tier Taxonomy Validation
+#  Tag-to-Tier Taxonomy Validation
 
 ## Objective
 
