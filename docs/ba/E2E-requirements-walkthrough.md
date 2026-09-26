@@ -1,103 +1,112 @@
-# E2E Requirements Walkthrough
+# T32 — E2E Requirements Walkthrough
 
-**Upload → Processing / Being Reviewed → Ready for Review / Auditor review stage**
+ 
+**Task:** Walk upload → processing → Ready for Review against the requirements documents and log any mismatch early    
+**Environment:** Localhost, API mode, local PostgreSQL database  
+**Test case ID:** `2814SA0N025WOOPL`
 
-and check the observed behaviour against the Sprint 2 requirements.
+## Objective
 
-## Test setup
+Validate the end-to-end Sprint 2 path from the **Normal User upload flow** through to the **Auditor Ready for Review state**:
 
-- Branch: `main`
-- Frontend: local Vite application
-- Backend: local FastAPI/Uvicorn application
-- Database: local PostgreSQL setup
-- Frontend mode observed during walkthrough: **Demo data**
-- Test video format: MP4
-- Test case ID: `RCS-62QD-FJET`
+**Upload video → Submit report → Case created / assigned → AI analysis in progress → Ready for review**
 
-## Walkthrough evidence
+Each observed stage was checked against the requirements baseline and any mismatch was recorded.
 
-### 1. Public upload
+---
 
-Observed:
-- The public reporting page was accessible without login.
-- A video could be selected and submitted.
-- The interface showed accepted formats including MP4, MOV, WEBM and AVI.
-- The report was submitted anonymously.
-- A consent/privacy checkbox was shown before submission.
+## 1. User upload and submission
 
-Result: **Pass**
+### What was tested
 
-Relevant requirements checked:
-- `UR-VU-01` — public user can upload and submit a video.
-- `UR-VU-02` — no account is required.
-- `UR-VU-03` — the upload enters the review process without making a content decision at submission.
-- `UR-VU-04` — successful submission produces confirmation.
-- `UR-VU-05` — supported Sprint 2 formats are displayed.
+A video was selected and submitted through the public reporting interface.
 
-### 2. Confirmation and Case ID
+Observed behaviour:
 
-Observed:
-- A **Report received** confirmation was displayed.
-- A unique case ID was shown: `RCS-62QD-FJET`.
-- A **Copy case ID** option was available.
+- the public user could select and upload a video;
+- no user account was required;
+- the report could be submitted anonymously;
+- a consent/privacy acknowledgement was presented before submission;
+- the submission entered the review workflow rather than presenting a content decision to the user.
 
-Result: **Pass**
+### Requirements checked
 
-Relevant requirements checked:
-- `UR-ID-01` — a unique case ID is generated for a successful submission.
-- `UR-ID-02` — the case ID is displayed immediately after submission.
-- `UR-ID-04` — the user can copy the case ID.
+- `UR-VU-01` — public user can upload and submit a video for safety review.
+- `UR-VU-02` — report can be submitted without an account.
+- `UR-VU-03` — successfully uploaded content enters the case review process without a content-based decision at submission.
+- `UR-VU-04` — successful submission should produce confirmation, or an error if submission fails.
+- `UR-VU-05` — Sprint 2 baseline formats include MP4, MOV, WEBM and AVI.
 
-### 3. Case status lookup
+**Result:** PASS
 
-Observed:
-- The case ID could be entered on the case-status page.
-- The case was successfully retrieved.
-- The public-facing status showed:
-  - `Received`
-  - `Being Reviewed`
-  - `Complete` as the next/final stage
-- Internal workflow details were not exposed to the public user.
-- Case details showed the case ID, submission time and uploaded video filename.
+---
 
-Result: **Pass**
+## 2. Case creation and handoff into processing
 
-Relevant requirement check:
-- The Sprint 2 public status model uses simplified user-facing states rather than exposing internal workflow states.
+After the user submission, the case entered the staff-side workflow and appeared in the Auditor dashboard.
 
-### 4. Review-stage handoff
+Test case:
 
-Observed:
-- The current demo flow displayed the case as **Being Reviewed**.
-- This represents the user-facing equivalent of the internal review stage.
+`2814SA0N025WOOPL`
 
-Result: **Pass for the frontend/demo requirements walkthrough**
+Initial Auditor queue status:
 
-## Limitation
+**AI analysis in progress**
 
-The local walkthrough was completed while the frontend displayed the **Demo data** badge.
+The processing row was disabled and could not yet be opened for normal review.
 
-Therefore, this walkthrough validates:
-- the public upload experience;
-- confirmation and case-ID behaviour;
-- status lookup behaviour; and
-- the user-facing progression into the review stage.
+This matches the expected requirement behaviour that a case should enter processing before becoming available to the Auditor for review.
 
-It does **not independently prove that real watsonx processing occurred during this local run**.
+**Result:** PASS
 
-The real-AI pipeline should be evidenced separately using an integrated run where the frontend is connected to the live backend/AI path.
+---
 
-## Mismatch / observation log
+## 3. Processing → Ready for Review
 
-No blocking mismatch was identified in the user-facing demo flow.
+The same case ID, `2814SA0N025WOOPL`, was later observed in the Auditor dashboard with status:
 
-One limitation was recorded:
+**Ready for review**
 
-- The local frontend was operating in **Demo data** mode, so real AI execution could not be independently verified from this walkthrough.
+This confirms the expected transition:
+
+**AI analysis in progress → Ready for review**
+
+The case was then selectable from the Auditor queue.
+
+**Result:** PASS
+
+---
+
+## 4. Auditor review entry
+
+After the case reached **Ready for review**, it could be opened from the Auditor dashboard.
+
+The system displayed the review/content-warning gate before exposing the case content.
+
+This confirms that the case successfully reached the Auditor review stage after processing.
+
+**Result:** PASS
+
+---
+
+## Walkthrough summary
+
+| Stage | Expected behaviour | Observed behaviour | Result |
+|---|---|---|---|
+| User upload | User can upload and submit video | Video selected and submitted | PASS |
+| Submission | Report enters review flow without immediate content decision | Submission entered workflow | PASS |
+| Case processing | Case enters processing after submission/assignment | `AI analysis in progress` shown in Auditor queue | PASS |
+| Ready for Review | Case becomes available after processing | Same case changed to `Ready for review` | PASS |
+| Auditor entry | Review-ready case can be opened | Case opened and content-warning gate displayed | PASS |
+| AI output | Severity/timeline available after AI processing | AI analysis unavailable for this case | MISMATCH / FOLLOW-UP |
+
+---
 
 ## Overall result
 
-**PASS — Demo-mode requirements walkthrough**
+**PASS — E2E requirements walkthrough for Upload → Processing → Ready for Review**
 
-The observed local flow matched the intended Sprint 2 user-facing requirements from public upload through confirmation, case ID generation, status lookup and the Being Reviewed stage.
+Case `2814SA0N025WOOPL` was followed from the user submission flow into the Auditor queue, where it was first observed as **AI analysis in progress** and later as **Ready for review**.
+
+The required workflow transition was confirmed. One mismatch was logged: AI severity/timeline output was unavailable when the case was opened.
 
