@@ -81,7 +81,7 @@ export function ReviewWorkspace({
   videoUrl,
 }: ReviewWorkspaceProps) {
   const duration = caseDetail.video_duration_seconds ?? FALLBACK_DURATION_SECONDS;
-  const aiFailed = Boolean(caseDetail.ai_failure);
+  const aiFailed = caseDetail.ai_failure === "vision";
 
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);

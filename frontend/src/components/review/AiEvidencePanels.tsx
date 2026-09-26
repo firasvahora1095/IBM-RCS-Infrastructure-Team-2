@@ -117,6 +117,7 @@ export function AudioIntensityGraph({
   values: number[];
   durationSeconds?: number | null;
 }) {
+  const maxVal = Math.max(...values, 1e-9);
   const peakIndex = values.indexOf(Math.max(...values));
   // Text equivalent so the graph never relies on sight alone.
   const bucketSeconds = durationSeconds ? durationSeconds / values.length : null;
@@ -138,7 +139,7 @@ export function AudioIntensityGraph({
             style={{
               flex: "1 1 0",
               maxWidth: 32,
-              height: `${Math.max(4, Math.min(1, value) * 100)}%`,
+              height: `${Math.max(4, (value / maxVal) * 100)}%`,
               backgroundColor: "var(--cds-interactive)",
             }}
           />
