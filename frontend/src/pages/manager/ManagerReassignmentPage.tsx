@@ -146,7 +146,7 @@ export function ManagerReassignmentPage() {
                 <dl className="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-x-4 gap-y-2" style={{ fontSize: 14 }}>
                   <dt>{data.declining_auditor.name}</dt>
                   <dd style={mono}>
-                    {data.declining_auditor.exposure_minutes_today} / {data.declining_auditor.exposure_limit_minutes}{" "}
+                    {Math.round(data.declining_auditor.exposure_minutes_today)} / {data.declining_auditor.exposure_limit_minutes}{" "}
                     min today
                   </dd>
                 </dl>
