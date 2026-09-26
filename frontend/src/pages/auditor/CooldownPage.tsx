@@ -6,6 +6,7 @@ import { StaffPage } from "../../components/layout/StaffPage";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
 import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
+import { stopShift as stopShiftApi } from "../../services/api/httpClient";
 import type { CooldownState } from "../../services/types";
 
 /** AR-WB-12 standard lengths, used for the progress bar when the start time isn't provided. */
@@ -22,7 +23,7 @@ function formatCountdown(ms: number): string {
 
 function formatReviewed(minutes: number): string {
   const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const m = Math.floor(minutes % 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -45,7 +46,7 @@ function introFor(trigger: CooldownState["trigger"]): string {
  */
 export function CooldownPage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
   const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
 
@@ -65,7 +66,14 @@ export function CooldownPage() {
     if (timerDone) refresh();
   }, [timerDone, refresh]);
 
-  function stopShift() {
+  async function stopShift() {
+    if (token) {
+      try {
+        await stopShiftApi(token);
+      } catch {
+        // best-effort — still log out
+      }
+    }
     logout();
     navigate("/staff/login", { replace: true });
   }
