@@ -1,9 +1,5 @@
 # Validate Weighted-Assignment Behaviour Against Simulated Cases
 
-## Objective
-
-Run several simulated cases through the current backend assignment logic and confirm that the outcome matches the agreed Sprint 2 weighting behaviour.
-
 ## Test approach
 
 A 10-case simulation was run against the project's existing backend assignment logic using an isolated in-memory SQLite database.
