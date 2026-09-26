@@ -962,6 +962,52 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(r.json()["manager_flag"], "DECLINED")
         self.assertEqual(r.json()["decline"]["reason"], "PERSONAL_TRIGGER")
 
+    def test_exceptional_access_returns_full_ai_fields(self) -> None:
+        case_id = "EXCEPTACCESS00001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.watson_severity_score = 80
+            case.effective_severity_score = 80
+            case.severity_tier = "S3"
+            case.narrative_summary = "Test summary"
+            case.incident_timeline = [{"start": 1.0, "end": 2.0, "severity_tier": "S3", "tag": None}]
+            case.flagged_entities = [{"label": "weapon", "start": 1.0, "end": 2.0}]
+            case.transcript = [{"time": 0.5, "text": "Stop"}]
+            case.audio_intensity = [0.1, 0.5, 0.9]
+            case.video_duration_seconds = 30.0
+
+        manager_headers = self.auth_headers("manager-1")
+        r = self.client.get(f"/api/manager/cases/{case_id}/exceptional-access", headers=manager_headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        self.assertEqual(body["severity_tier"], "S3")
+        self.assertEqual(body["flagged_entities"], [{"label": "weapon", "start": 1.0, "end": 2.0}])
+        self.assertEqual(body["transcript"], [{"time": 0.5, "text": "Stop"}])
+        self.assertEqual(body["audio_intensity"], [0.1, 0.5, 0.9])
+        self.assertEqual(body["video_duration_seconds"], 30.0)
+
+    def test_exceptional_access_requires_manager_token(self) -> None:
+        case_id = "EXCEPTACCESS00002"
+        self.add_case(case_id, auditor_id="auditor-1")
+        auditor_headers = self.auth_headers("auditor-1")
+        r = self.client.get(f"/api/manager/cases/{case_id}/exceptional-access", headers=auditor_headers)
+        self.assertEqual(r.status_code, 403)
+
+    def test_manager_video_endpoint_requires_manager_token(self) -> None:
+        case_id = "MANAGERVIDEO00001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        auditor_headers = self.auth_headers("auditor-1")
+        r = self.client.get(f"/api/manager/cases/{case_id}/video", headers=auditor_headers)
+        self.assertEqual(r.status_code, 401)
+
+    def test_manager_video_endpoint_returns_404_when_no_video(self) -> None:
+        case_id = "MANAGERVIDEO00002"
+        self.add_case(case_id, auditor_id="auditor-1")
+        manager_headers = self.auth_headers("manager-1")
+        r = self.client.get(f"/api/manager/cases/{case_id}/video", headers=manager_headers)
+        self.assertEqual(r.status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()
