@@ -2,8 +2,9 @@ fastapi
 uvicorn[standard]
 ibm-cos-sdk
 av>=18.1.0
-ibm-watson
+ibm-watson>=9.0.0
 ibm-watson-openscale
+setuptools
 ibm-watsonx-ai==1.3.42
 python-dotenv
 jsonschema
