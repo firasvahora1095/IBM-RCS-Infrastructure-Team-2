@@ -1,4 +1,4 @@
-"""Sprint 2 weighted auditor selection used by watsonx Orchestrate.
+"""Weighted auditor selection used by watsonx Orchestrate.
 
 The backend owns the deterministic scoring rule. In a deployed environment,
 watsonx Orchestrate calls the protected selection endpoint and returns the
@@ -6,7 +6,7 @@ chosen Auditor to the case-creation workflow.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -35,13 +35,9 @@ class AuditorCandidate:
 def calculate_assignment_score(
     *,
     active_case_count: int,
-    exposure_minutes: int = 0,
+    exposure_minutes: float = 0,
 ) -> float:
-    """Return the approved weighted assignment score.
-
-    Exposure is deliberately passed as zero during Sprint 2 because exposure
-    tracking and cooldown eligibility belong to Sprint 3.
-    """
+    """Return the approved weighted assignment score (AR-AS-02)."""
     exposure_ratio = exposure_minutes / DAILY_EXPOSURE_REFERENCE_MINUTES
     case_ratio = active_case_count / CASE_COUNT_REFERENCE
     return (0.6 * exposure_ratio) + (0.4 * case_ratio)
@@ -73,11 +69,14 @@ def _latest_assignment_events(db: Session) -> dict[str, tuple[datetime, int]]:
 
 
 def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
-    """Build candidates from authoritative case and audit data.
+    """Build eligible candidates from authoritative case and audit data.
 
-    Active counts are derived rather than cached, which keeps this Week 1
-    implementation schema-compatible and avoids counters drifting out of sync.
+    Auditors in active cooldown or at their daily exposure limit are excluded
+    before scoring (AR-AS-02). Active counts are derived rather than cached to
+    avoid counters drifting out of sync.
     """
+    now = datetime.now(timezone.utc)
+
     auditors = db.scalars(
         select(Auditor)
         .where(Auditor.role == "auditor")
@@ -96,28 +95,43 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
     )
     latest_assignments = _latest_assignment_events(db)
 
-    return [
-        AuditorCandidate(
-            auditor_id=auditor.auditor_id,
-            active_case_count=int(active_counts.get(auditor.auditor_id, 0)),
-            exposure_minutes=0,
-            score=calculate_assignment_score(
-                active_case_count=int(active_counts.get(auditor.auditor_id, 0)),
-                exposure_minutes=0,
-            ),
-            last_assigned_at=(
-                latest_assignments[auditor.auditor_id][0]
-                if auditor.auditor_id in latest_assignments
-                else None
-            ),
-            last_assignment_sequence=(
-                latest_assignments[auditor.auditor_id][1]
-                if auditor.auditor_id in latest_assignments
-                else None
-            ),
+    candidates = []
+    for auditor in auditors:
+        # Exclude auditors in active cooldown
+        ends_at = auditor.cooldown_ends_at
+        if ends_at is not None:
+            # SQLite returns naive datetimes; normalise for comparison
+            if ends_at.tzinfo is None:
+                ends_at = ends_at.replace(tzinfo=timezone.utc)
+        if ends_at is not None and ends_at > now:
+            continue
+        # Exclude auditors at or over their daily exposure limit
+        if auditor.exposure_minutes >= (auditor.exposure_limit_minutes or DAILY_EXPOSURE_REFERENCE_MINUTES):
+            continue
+
+        active_count = int(active_counts.get(auditor.auditor_id, 0))
+        candidates.append(
+            AuditorCandidate(
+                auditor_id=auditor.auditor_id,
+                active_case_count=active_count,
+                exposure_minutes=auditor.exposure_minutes or 0,
+                score=calculate_assignment_score(
+                    active_case_count=active_count,
+                    exposure_minutes=auditor.exposure_minutes or 0,
+                ),
+                last_assigned_at=(
+                    latest_assignments[auditor.auditor_id][0]
+                    if auditor.auditor_id in latest_assignments
+                    else None
+                ),
+                last_assignment_sequence=(
+                    latest_assignments[auditor.auditor_id][1]
+                    if auditor.auditor_id in latest_assignments
+                    else None
+                ),
+            )
         )
-        for auditor in auditors
-    ]
+    return candidates
 
 
 def select_auditor(db: Session) -> AuditorCandidate:

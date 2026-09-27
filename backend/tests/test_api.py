@@ -1009,5 +1009,113 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(r.status_code, 404)
 
 
+    # --- Exposure / cooldown enforcement tests ---
+
+    def test_select_auditor_excludes_auditor_in_cooldown(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.cooldown_ends_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            auditor.cooldown_trigger = "S3"
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["auditor_id"], "auditor-2")
+
+    def test_select_auditor_excludes_auditor_at_exposure_limit(self) -> None:
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 120.0
+            auditor.exposure_limit_minutes = 120
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["auditor_id"], "auditor-2")
+
+    def test_select_auditor_returns_503_when_all_in_cooldown(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        with self.Session.begin() as db:
+            for auditor_id in ("auditor-1", "auditor-2"):
+                auditor = db.get(Auditor, auditor_id)
+                auditor.cooldown_ends_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertIn(r.status_code, (409, 503))
+
+    def _resolve_case(self, case_id: str, auditor_id: str = "auditor-1") -> httpx.Response:
+        headers = self.auth_headers(auditor_id)
+        return self.client.post(
+            f"/api/auditor/cases/{case_id}/resolve",
+            json={"final_outcome": "NO_VIOLATION_FOUND"},
+            headers=headers,
+        )
+
+    def test_complete_s3_case_sets_15_min_cooldown(self) -> None:
+        from datetime import datetime, timezone
+        case_id = "COOLDOWNTEST00001"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S3"
+            case.effective_severity_score = 70
+
+        before = datetime.now(timezone.utc)
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNotNone(auditor.cooldown_ends_at)
+            self.assertEqual(auditor.cooldown_trigger, "S3")
+            ends_at = auditor.cooldown_ends_at.replace(tzinfo=timezone.utc) if auditor.cooldown_ends_at.tzinfo is None else auditor.cooldown_ends_at
+            delta_minutes = (ends_at - before).total_seconds() / 60
+            self.assertAlmostEqual(delta_minutes, 15, delta=0.1)
+
+    def test_complete_s4_case_sets_30_min_cooldown(self) -> None:
+        from datetime import datetime, timezone
+        case_id = "COOLDOWNTEST00002"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S4"
+            case.effective_severity_score = 90
+
+        before = datetime.now(timezone.utc)
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNotNone(auditor.cooldown_ends_at)
+            self.assertEqual(auditor.cooldown_trigger, "S4")
+            ends_at = auditor.cooldown_ends_at.replace(tzinfo=timezone.utc) if auditor.cooldown_ends_at.tzinfo is None else auditor.cooldown_ends_at
+            delta_minutes = (ends_at - before).total_seconds() / 60
+            self.assertAlmostEqual(delta_minutes, 30, delta=0.1)
+
+    def test_complete_s1_case_does_not_set_cooldown(self) -> None:
+        case_id = "COOLDOWNTEST00003"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S1"
+            case.effective_severity_score = 20
+
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNone(auditor.cooldown_ends_at)
+
+
 if __name__ == "__main__":
     unittest.main()

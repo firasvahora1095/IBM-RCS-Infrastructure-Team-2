@@ -320,6 +320,14 @@ export async function requestWellbeingSupport(
   return parseJsonOrThrow<{ received: true }>(r);
 }
 
+export async function stopShift(token: string): Promise<{ stopped: boolean; cases_returned: number }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/stop-shift`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJsonOrThrow<{ stopped: boolean; cases_returned: number }>(r);
+}
+
 // ---------------------------------------------------------------------------
 // Manager
 // ---------------------------------------------------------------------------
