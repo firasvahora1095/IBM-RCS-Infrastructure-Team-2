@@ -428,13 +428,21 @@ async def list_auditor_cases(
     ]
 
 
-def _get_owned_case(db: Session, case_id: str, auditor_id: str) -> Case:
-    case = db.scalar(
-        select(Case).where(
-            Case.case_id == _case_id_for_lookup(case_id),
-            Case.assigned_auditor_id == auditor_id,
-        )
+def _get_owned_case(
+    db: Session,
+    case_id: str,
+    auditor_id: str,
+    *,
+    for_update: bool = False,
+) -> Case:
+    statement = select(Case).where(
+        Case.case_id == _case_id_for_lookup(case_id),
+        Case.assigned_auditor_id == auditor_id,
     )
+    if for_update:
+        statement = statement.with_for_update()
+
+    case = db.scalar(statement)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
@@ -552,11 +560,22 @@ async def resolve_case(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
-    case = _get_owned_case(db, case_id, auditor.staff_id)
+    # A row lock prevents two Code Engine instances from completing the same
+    # case concurrently and overwriting the first Auditor decision.
+    case = _get_owned_case(db, case_id, auditor.staff_id, for_update=True)
     if case.status not in {"READY_FOR_REVIEW", "AUDITOR_REVIEW"}:
         raise HTTPException(status_code=409, detail="Case is not ready for resolution")
+    if case.manager_flag in {"DECLINED", "SOS"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Flagged cases require Manager action",
+        )
 
-    comment = payload.auditor_comment.strip() if payload.auditor_comment else None
+    comment = (
+        payload.auditor_comment.strip() or None
+        if payload.auditor_comment is not None
+        else None
+    )
     is_override = (
         payload.auditor_severity_score is not None
         and payload.auditor_severity_score != case.effective_severity_score
@@ -567,7 +586,13 @@ async def resolve_case(
             detail="A comment is required when overriding the AI severity score",
         )
 
+    ai_assessment = {
+        "watson_severity_score": case.watson_severity_score,
+        "effective_severity_score": case.effective_severity_score,
+        "severity_tier": case.severity_tier,
+    }
     before = {
+        **ai_assessment,
         "status": case.status,
         "auditor_severity_score": case.auditor_severity_score,
         "auditor_comment": case.auditor_comment,
@@ -605,10 +630,12 @@ async def resolve_case(
             action="CASE_RESOLVED",
             before_value=before,
             after_value={
+                **ai_assessment,
                 "status": case.status,
                 "auditor_severity_score": case.auditor_severity_score,
                 "auditor_comment": case.auditor_comment,
                 "final_outcome": case.final_outcome,
+                "is_override": is_override,
             },
         )
     )
