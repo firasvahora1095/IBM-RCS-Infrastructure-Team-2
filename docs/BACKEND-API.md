@@ -23,6 +23,9 @@ output or with the explicit `ai_failure = "vision"` fallback state.
   after the existing IBM COS environment variables are configured.
 - Raw watsonx responses are internal artefacts stored in the case
   `analysis-output` path. Public and Auditor APIs do not expose provider JSON.
+- Structured AI assessment fields, Auditor decisions, final outcomes, and audit
+  history are stored in PostgreSQL. They are not duplicated into COS. COS is
+  used for the source video and analysis-output artefacts under the case prefix.
 - Uploads currently pass through the API before storage. Direct signed COS
   uploads are a planned storage-adapter change and are not part of this task.
 - `ORCHESTRATE_MODE=mock` is an explicit local-development stand-in. It runs
@@ -59,9 +62,7 @@ The Auditor case-detail response includes `video_duration_seconds` and
 `ai_failure`. A value of `"vision"` is an explicit reduced-AI-support state;
 the frontend must not present it as successful analysis.
 
-The frontend draft currently sends login and resolution values in query
-strings. Before integrating `feature/frontend`, update its `httpClient.ts` to
-send these JSON bodies instead:
+Login and resolution values are JSON request bodies:
 
 ```json
 {"staff_id": "auditor-1", "password": "..."}
@@ -74,6 +75,38 @@ send these JSON bodies instead:
   "auditor_comment": "Required when the score changes"
 }
 ```
+
+## Auditor resolution contract
+
+`POST /api/auditor/cases/{case_id}/resolve` is the standard-case completion
+endpoint. It implements BA requirements `AR-AI-07`, `AR-AI-08`, `AR-AI-09`,
+`AR-AI-12`, `AR-AI-14`, `MR-CR-06`, and the `RT-01` controlled values.
+
+- `final_outcome` is required and accepts only `NO_VIOLATION_FOUND` or
+  `POLICY_VIOLATION_FOUND` for an Auditor submission.
+- `auditor_severity_score`, when supplied, must be an integer from 0 through
+  100. A value different from the case's `effective_severity_score` is an
+  override.
+- An override requires a non-empty `auditor_comment`. Whitespace-only comments
+  are treated as absent and return HTTP 400.
+- Confirming the effective AI score does not require a comment. Optional
+  whitespace-only comment input is normalized to null rather than stored as an
+  empty string.
+- The endpoint never overwrites `watson_severity_score` or
+  `effective_severity_score`; the human value is stored separately in
+  `auditor_severity_score`.
+- Declined or SOS-flagged cases return HTTP 409 because BA requires Manager
+  action before those paths can complete. A case outside `READY_FOR_REVIEW` or
+  `AUDITOR_REVIEW` also returns HTTP 409.
+- The assigned authenticated Auditor is recorded as the actor in a
+  `CASE_RESOLVED` audit event. Its before/after values retain the raw Watson,
+  effective AI, and Auditor assessment context.
+- A successful standard resolution sets the case to `COMPLETE`, records
+  `completed_at`, and makes the selected outcome available to the public-safe
+  status endpoint without an additional Manager approval step.
+
+The row is locked for the duration of resolution so concurrent requests from
+separate Code Engine instances cannot overwrite the first completed decision.
 
 Provision a local staff account from `backend/` (the password is prompted and
 is never passed on the command line):

@@ -57,26 +57,45 @@ The Compose configuration:
 
 ### `auditors`
 
-Stores the minimum staff-account data needed by later authentication and case
-assignment work:
+Stores staff-account, assignment, exposure, and cooldown data:
 
 - `auditor_id` — primary key
 - `login_hash` — password hash; plaintext passwords must never be stored
 - `role` — constrained to `auditor` or `manager`
-- `created_at`
+- `active_case_count` — active case count used for assignment weighting
+- `exposure_minutes` — accumulated exposure time in minutes
+- `exposure_limit_minutes` — individual exposure limit; defaults to 120 minutes
+- `last_assigned_at` — nullable timestamp of the latest assignment
+- `cooldown_ends_at` — nullable timestamp when the cooldown ends
+- `cooldown_trigger` — nullable reason for the cooldown
+- `cooldown_check_in_done` — Manager check-in completion flag; defaults to 0
+- `created_at` — staff-account creation timestamp
 
 ### `cases`
 
-Stores each submitted case and the fields filled during later Sprint 2 stages:
+Stores each submitted case, AI analysis, and review decision:
 
-- non-sequential `case_id` primary key
-- internal workflow `status`
-- nullable `assigned_auditor_id` foreign key
-- video storage reference
-- nullable AI severity, tier, summary, and incident-timeline fields
-- source duration, internal analysis-output reference, and explicit AI-failure state
-- nullable Auditor-adjusted severity, comment, and final-outcome fields
-- creation and completion timestamps
+- `case_id` — non-sequential primary key
+- `status` — internal workflow state
+- `assigned_auditor_id` — nullable foreign key to `auditors.auditor_id`
+- `video_storage_path` — nullable source-video storage reference
+- `watson_severity_score` — nullable original Watson severity score
+- `effective_severity_score` — nullable AI severity score after severity rules
+- `severity_tier` — nullable severity tier derived from the effective AI score
+- `narrative_summary` — nullable AI-generated case summary
+- `incident_timeline` — nullable JSONB incident timeline
+- `flagged_entities` — nullable JSONB entity labels and time spans
+- `transcript` — nullable JSONB speech transcript
+- `audio_intensity` — nullable JSONB timestamped audio-intensity data
+- `video_duration_seconds` — nullable source-video duration in seconds
+- `analysis_output_path` — nullable internal analysis-output storage reference
+- `ai_failure` — nullable AI-processing failure state
+- `auditor_severity_score` — nullable Auditor-submitted severity score
+- `auditor_comment` — nullable Auditor comment; required for a severity override
+- `final_outcome` — nullable final case decision
+- `manager_flag` — nullable SOS or Decline flag requiring Manager action
+- `created_at` — case creation timestamp
+- `completed_at` — nullable case completion timestamp
 
 Allowed internal statuses are:
 
@@ -86,14 +105,22 @@ AI_PROCESSING
 READY_FOR_REVIEW
 AUDITOR_REVIEW
 COMPLETE
+DECLINED
+SOS_FLAGGED
 ```
 
-Allowed Sprint 2 final outcomes are:
+Allowed database final outcomes are:
 
 ```text
 NO_VIOLATION_FOUND
 POLICY_VIOLATION_FOUND
+CLOSED_NO_REASSIGNMENT
 ```
+
+The first two outcomes are the only `RT-01` values accepted from an Auditor by
+the standard resolution endpoint. `CLOSED_NO_REASSIGNMENT` is reserved for the
+Manager's declined-case closure path; it is deliberately not part of the
+Auditor request enum.
 
 AI and Auditor severity values are constrained to integers from 0 through 100.
 Severity tiers are constrained to `S1`, `S2`, `S3`, or `S4`.
@@ -102,17 +129,41 @@ known processing failure.
 
 ### `audit_logs`
 
-Provides timestamped change records for later workflow stages:
+Provides timestamped workflow change records:
 
-- generated `audit_log_id` primary key
-- `case_id` foreign key
-- `actor`
-- `action`
-- nullable JSONB `before_value` and `after_value`
-- `created_at`
+- `audit_log_id` — generated primary key
+- `case_id` — foreign key to `cases.case_id`
+- `actor` — staff ID or service responsible for the event
+- `action` — recorded workflow event type
+- `before_value` — nullable JSONB values before the change
+- `after_value` — nullable JSONB values after the change
+- `created_at` — audit-event creation timestamp
 
 Later AI/governance work can place decision and model metadata in the JSONB
 values while retaining the actor, action, case, and timestamp as queryable fields.
+
+For `CASE_RESOLVED`, the audit values include the raw Watson score, effective
+AI score, Auditor score/comment, final outcome, status, and whether the score
+was overridden. This implements the traceability required by BA `AR-AI-12`.
+
+## PostgreSQL and COS persistence boundary
+
+The current executable adapters—not older storage diagrams—define this split:
+
+- `cases.video_storage_path` stores a reference such as
+  `cos://<bucket>/cases/<case_id>/source.mp4`; the video bytes are in COS.
+- `cases.analysis_output_path` points to
+  `cos://<bucket>/cases/<case_id>/analysis-output`; frame-analysis and related
+  provider JSON artefacts are stored below that COS prefix.
+- AI fields needed by the UI and workflow are promoted into structured columns
+  on `cases`.
+- Auditor overrides, comments, final outcomes, status, completion time, and
+  workflow audit events remain in PostgreSQL. No additional COS object is
+  created when an Auditor resolves a case.
+
+Keeping the review decision in PostgreSQL satisfies BA `AR-AI-08` (AI and human
+inputs stored with the case) and `AR-AI-12` (timestamped, actor-attributed change
+history), while avoiding two competing copies of the final decision.
 
 ## Case ID generation
 
@@ -191,8 +242,10 @@ Warning: `docker compose down --volumes` permanently deletes the local database
 volume. Do not use it for an environment containing data that must be retained.
 
 Once the schema contains data that must be preserved, apply future changes with
-versioned database migrations rather than deleting the volume. Sprint 3 statuses
-or outcome values may require such a migration to expand the current constraints.
+versioned database migrations rather than deleting the volume. The current
+application also applies idempotent PostgreSQL additions for newer Sprint 2/3
+columns at startup, but a versioned migration remains the required approach for
+constraint changes in a persistent Code Engine database.
 
 ## Stopping the local database
 
