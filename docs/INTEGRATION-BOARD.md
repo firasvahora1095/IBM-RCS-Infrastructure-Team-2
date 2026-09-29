@@ -1,6 +1,6 @@
 # Integration Board — Sprint 2 & 3
 
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-30
 
 ---
 
@@ -12,7 +12,7 @@
 | Case record creation + auditor assignment | Firas | ✅ Done | Week 1 |
 | Mock AI result injection (internal endpoint) | Hyuna | ✅ Done | Week 1 — `POST /api/internal/cases/{id}/mock-ai-result` |
 | Auditor case queue + case detail (mock AI) | Hyuna | ✅ Done | Week 1 |
-| Auditor confirm / override + final outcome | Hyuna | ✅ Done | Week 1 |
+| Auditor confirm / override + final outcome | Hyuna | ✅ Done + Hardened | Week 1 |
 | Case → COMPLETE flow | Hyuna | ✅ Done | Week 1 |
 | Public status lookup | Firas | ✅ Done | Week 1 |
 | OpenCV frame extraction | Aiden | ✅ Done | Week 2 |
