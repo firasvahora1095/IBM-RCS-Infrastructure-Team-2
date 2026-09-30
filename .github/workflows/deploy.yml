@@ -39,7 +39,7 @@ jobs:
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor
           ibmcloud target -g 5699a8fd088d481fac03f8960307ed4a
           ibmcloud ce project select --name ce-6960005bxt
-          ibmcloud ce app update --name rcs-backend --rebuild
+          ibmcloud ce app update --name rcs-backend --image hyunabae/rcs-backend:latest
 
   deploy-frontend:
     name: Build & Deploy Frontend
@@ -75,4 +75,4 @@ jobs:
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor
           ibmcloud target -g 5699a8fd088d481fac03f8960307ed4a
           ibmcloud ce project select --name ce-6960005bxt
-          ibmcloud ce app update --name rcs-frontend --rebuild
+          ibmcloud ce app update --name rcs-frontend --image hyunabae/rcs-frontend:latest
