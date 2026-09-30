@@ -21,7 +21,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import text
 from app.models import Auditor, Case, AuditLog, Base
 from app.db import engine, SessionLocal
 from app.auth import hash_password
@@ -31,11 +30,6 @@ Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
 # ── Wipe existing demo data ──────────────────────────────────────────────────
-try:
-    db.execute(text("DELETE FROM frame_analyses"))
-    db.commit()
-except Exception:
-    db.rollback()
 db.query(AuditLog).delete()
 db.query(Case).delete()
 db.query(Auditor).delete()
