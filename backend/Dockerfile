@@ -26,10 +26,11 @@ COPY scripts ./scripts
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-ENV DATABASE_URL=postgresql+psycopg://rcs_app:rcs_demo_password@127.0.0.1:5432/rcs_infra
+ARG POSTGRES_PASSWORD=rcs_demo_password
+ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+ENV DATABASE_URL=postgresql+psycopg://rcs_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/rcs_infra
 ENV POSTGRES_DB=rcs_infra
 ENV POSTGRES_USER=rcs_app
-ENV POSTGRES_PASSWORD=rcs_demo_password
 ENV PGDATA=/var/lib/postgresql/data
 ENV CORS_ALLOWED_ORIGINS=http://localhost:5173,https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
 ENV ORCHESTRATE_MODE=mock

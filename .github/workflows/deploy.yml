@@ -24,6 +24,8 @@ jobs:
           context: ./backend
           push: true
           tags: hyunabae/rcs-backend:latest
+          build-args: |
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
 
       - name: Install IBM Cloud CLI
         run: |
