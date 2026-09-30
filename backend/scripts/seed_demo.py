@@ -33,8 +33,9 @@ db = SessionLocal()
 # ── Wipe existing demo data ──────────────────────────────────────────────────
 try:
     db.execute(text("DELETE FROM frame_analyses"))
+    db.commit()
 except Exception:
-    pass
+    db.rollback()
 db.query(AuditLog).delete()
 db.query(Case).delete()
 db.query(Auditor).delete()
