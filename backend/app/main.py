@@ -1412,6 +1412,22 @@ async def record_exceptional_access(
     return {"recorded": True}
 
 
+@app.post("/api/admin/reseed")
+async def reseed_db():
+    """Re-run the demo seed script. Wipes all data and re-inserts demo accounts and cases."""
+    import subprocess
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    result = subprocess.run(
+        ["python3", "-m", "scripts.seed_demo"],
+        capture_output=True,
+        text=True,
+        cwd=app_dir,
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr[-2000:])
+    return {"ok": True, "output": result.stdout[-2000:]}
+
+
 @app.get("/api/manager/validation")
 async def get_validation_summary(
     _: StaffSession = Depends(get_current_manager),
