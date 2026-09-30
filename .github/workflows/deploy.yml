@@ -36,7 +36,7 @@ jobs:
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
         run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor -g eid-6aa526696d8fc01dc89a44bc
           ibmcloud ce project select --name ce-6960005bxt
           ibmcloud ce app update --name rcs-backend --force-rebuild
 
@@ -71,6 +71,6 @@ jobs:
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
         run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r ca-tor -g eid-6aa526696d8fc01dc89a44bc
           ibmcloud ce project select --name ce-6960005bxt
           ibmcloud ce app update --name rcs-frontend --force-rebuild
