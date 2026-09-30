@@ -313,6 +313,7 @@ async def create_report(
         OSError,
         RuntimeError,
     ) as error:
+        logger.exception("Report creation failed: %s", error)
         db.rollback()
         if storage_reference is not None:
             try:
