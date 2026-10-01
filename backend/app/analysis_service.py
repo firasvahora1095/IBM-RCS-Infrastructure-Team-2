@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.models import AuditLog, Case
 from app.video_analysis import VideoAnalysisRun, analyse_video
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("ibm_rcs.api")
 
 
 class CaseAnalysisError(RuntimeError):
@@ -91,6 +91,8 @@ def process_case_analysis(
         case.flagged_entities = result["flagged_entities"]
         case.ai_failure = "speech_to_text" if stt_failed else None
         action = "AI_ANALYSIS_COMPLETED"
+        print(f"[ANALYSIS] case_id={case.case_id} AI analysis completed severity_tier={case.severity_tier} score={case.watson_severity_score}", flush=True)
+        log.info("analysis: case %s completed severity_tier=%s score=%s", case.case_id, case.severity_tier, case.watson_severity_score)
         audit_detail = {
             "frames_completed": run.frames_completed,
             "analysis_output_path": run.output_reference,
@@ -107,6 +109,8 @@ def process_case_analysis(
         case.flagged_entities = None
         case.ai_failure = "vision"
         action = "AI_ANALYSIS_FAILED"
+        print(f"[ANALYSIS] case_id={case.case_id} AI analysis FAILED stage={run.failure_stage} error={run.error_type}", flush=True)
+        log.error("analysis: case %s FAILED stage=%s error=%s", case.case_id, run.failure_stage, run.error_type)
         audit_detail = {
             "failure_stage": run.failure_stage,
             "failed_frame": run.failed_frame,

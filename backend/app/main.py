@@ -5,6 +5,8 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
+logging.basicConfig(level=logging.INFO)
+
 from fastapi import (
     BackgroundTasks,
     Body,
@@ -304,6 +306,8 @@ async def create_report(
             raise AssignmentOrchestrationError(
                 "Orchestrate selected an invalid Auditor account"
             )
+        print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
+        logger.info("case %s assigned to %s", case_id, decision.auditor_id)
         record_case_assignment(db, case, decision)
         db.commit()
         background_tasks.add_task(_run_analysis_in_background, case_id)

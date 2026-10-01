@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import tempfile
@@ -8,6 +9,8 @@ from uuid import uuid4
 import ibm_boto3
 from dotenv import load_dotenv
 from ibm_botocore.client import Config
+
+log = logging.getLogger("ibm_rcs.api")
 
 
 project_root = Path(__file__).resolve().parents[2]
@@ -102,17 +105,24 @@ def store_video(
     environment with the existing IBM Cloud Object Storage credentials.
     """
     backend = os.getenv("VIDEO_STORAGE_BACKEND", "local").lower()
+    print(f"[STORAGE] store_video: backend={backend} case_id={case_id}", flush=True)
     stream.seek(0)
 
     if backend == "cos":
         bucket_name = get_environment_variable("COS_BUCKET_NAME")
         object_key = f"cases/{case_id}/source{extension}"
-        create_cos_client().put_object(
-            Bucket=bucket_name,
-            Key=object_key,
-            Body=stream,
-            ContentType=media_type,
-        )
+        print(f"[STORAGE] uploading to COS bucket={bucket_name} key={object_key}", flush=True)
+        try:
+            create_cos_client().put_object(
+                Bucket=bucket_name,
+                Key=object_key,
+                Body=stream,
+                ContentType=media_type,
+            )
+            print(f"[STORAGE] COS upload success key={object_key}", flush=True)
+        except Exception as e:
+            print(f"[STORAGE] COS upload FAILED key={object_key} error={e}", flush=True)
+            raise
         return f"cos://{bucket_name}/{object_key}"
 
     if backend != "local":
