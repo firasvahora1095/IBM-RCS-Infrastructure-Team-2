@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+
+log = logging.getLogger("ibm_rcs.api")
 import tempfile
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -104,6 +107,8 @@ class CosAnalysisOutputStore:
     def write_json(self, filename: str, payload: Any) -> str:
         filename = _validate_filename(filename)
         object_key = f"{self.prefix}/{filename}"
+        print(f"[ANALYSIS_STORAGE] writing JSON to COS bucket={self.bucket} key={object_key}", flush=True)
+        log.info("analysis_storage: writing JSON to COS key=%s", object_key)
         try:
             self.client.put_object(
                 Bucket=self.bucket,
@@ -111,7 +116,11 @@ class CosAnalysisOutputStore:
                 Body=_json_bytes(payload),
                 ContentType="application/json",
             )
+            print(f"[ANALYSIS_STORAGE] JSON write success key={object_key}", flush=True)
+            log.info("analysis_storage: JSON write success key=%s", object_key)
         except Exception as error:
+            print(f"[ANALYSIS_STORAGE] JSON write FAILED key={object_key} error={error}", flush=True)
+            log.exception("analysis_storage: JSON write FAILED key=%s", object_key)
             raise AnalysisOutputStorageError(
                 f"Could not store analysis output {filename}"
             ) from error
