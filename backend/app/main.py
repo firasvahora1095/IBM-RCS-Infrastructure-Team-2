@@ -131,7 +131,14 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Internal-API-Key"],
+    # Range is what a <video> element sends to seek/stream - without it
+    # explicitly allowed, the browser's CORS preflight for the video-stream
+    # endpoint fails with "Disallowed CORS headers" and the request is never
+    # sent at all. Content-Range/Accept-Ranges aren't CORS-safelisted
+    # response headers either, so the video element can't read them back
+    # without exposing them explicitly.
+    allow_headers=["Authorization", "Content-Type", "X-Internal-API-Key", "Range"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 
 
