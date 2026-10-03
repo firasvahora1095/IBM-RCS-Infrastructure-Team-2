@@ -168,20 +168,23 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
         bucket_and_key = storage_reference.removeprefix("cos://")
         bucket_name, object_key = bucket_and_key.split("/", 1)
         kwargs: dict = {"Bucket": bucket_name, "Key": object_key}
-        if byte_range:
+        # A suffix range ("bytes=-65536", i.e. "the last 64KB") is what
+        # browsers send first when probing an MP4 whose moov atom sits at
+        # the end of the file. Forwarding that form to COS as-is doesn't
+        # come back as a clean error we can catch - the connection dies
+        # outright partway through the response, after headers are already
+        # on the wire, so a try/except around this call can't recover it.
+        # Never send that form to COS in the first place: a start-anchored
+        # range always works, so convert using the object's real size.
+        if byte_range and byte_range.strip().removeprefix("bytes=").startswith("-"):
+            suffix_len = int(byte_range.strip().removeprefix("bytes="))
+            head = create_cos_client().head_object(Bucket=bucket_name, Key=object_key)
+            total_size = head["ContentLength"]
+            start = max(0, total_size - abs(suffix_len))
+            kwargs["Range"] = f"bytes={start}-{total_size - 1}"
+        elif byte_range:
             kwargs["Range"] = byte_range
-        try:
-            response = create_cos_client().get_object(**kwargs)
-        except Exception:
-            # A suffix range ("bytes=-65536", i.e. "the last 64KB") is what
-            # browsers send first when probing an MP4 whose moov atom sits
-            # at the end of the file, but COS doesn't accept that form the
-            # way a start-anchored range is accepted. Fall back to the full
-            # object rather than breaking playback outright.
-            if byte_range:
-                response = create_cos_client().get_object(Bucket=bucket_name, Key=object_key)
-            else:
-                raise
+        response = create_cos_client().get_object(**kwargs)
         is_partial = response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 206
         return (
             response["Body"],
