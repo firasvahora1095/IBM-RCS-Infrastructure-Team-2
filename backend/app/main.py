@@ -20,6 +20,8 @@ from fastapi import (
     status,
 )
 from fastapi.responses import StreamingResponse
+from anyio import CancelScope
+from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select, update
@@ -50,13 +52,29 @@ from app.orchestrate import (
 )
 from app.rate_limit import status_lookup_limiter
 from app.request_logging import install_access_log_redaction, redact_case_ids
-from app.storage import delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
+from app.storage import VideoRangeError, delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
 
 
 install_access_log_redaction()
 logger = logging.getLogger("ibm_rcs.api")
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+class _VideoStreamingResponse(StreamingResponse):
+    """Release the storage connection even when the browser cancels a seek."""
+
+    def __init__(self, body, **kwargs):
+        self._video_body = body
+        super().__init__(body, **kwargs)
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # Cleanup must run even if the request's task was cancelled.
+            with CancelScope(shield=True):
+                await run_in_threadpool(self._video_body.close)
 
 def _run_db_migrations() -> None:
     """Apply all incremental schema changes to the deployed database.
@@ -466,7 +484,7 @@ async def get_auditor_case_detail(
 
 
 @app.get("/api/auditor/cases/{case_id}/video")
-async def stream_case_video(
+def stream_case_video(
     request: Request,
     case_id: str,
     token: str | None = None,
@@ -489,6 +507,9 @@ async def stream_case_video(
         body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
             case.video_storage_path, byte_range=range_header
         )
+    except VideoRangeError as exc:
+        headers = {"Content-Range": f"bytes */{exc.total_size}"} if exc.total_size is not None else {}
+        raise HTTPException(status_code=416, detail=str(exc), headers=headers) from exc
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
 
@@ -499,7 +520,9 @@ async def stream_case_video(
         headers["Content-Range"] = content_range
 
     status_code = 206 if is_partial else 200
-    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
+    return _VideoStreamingResponse(
+        body, status_code=status_code, media_type=media_type, headers=headers,
+    )
 
 
 @app.post("/api/internal/cases/{case_id}/mock-ai-result")
@@ -1275,7 +1298,7 @@ async def get_case_exceptional_access(
 
 
 @app.get("/api/manager/cases/{case_id}/video")
-async def stream_case_video_manager(
+def stream_case_video_manager(
     request: Request,
     case_id: str,
     token: str | None = None,
@@ -1298,6 +1321,9 @@ async def stream_case_video_manager(
         body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
             case.video_storage_path, byte_range=range_header
         )
+    except VideoRangeError as exc:
+        headers = {"Content-Range": f"bytes */{exc.total_size}"} if exc.total_size is not None else {}
+        raise HTTPException(status_code=416, detail=str(exc), headers=headers) from exc
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
 
@@ -1308,7 +1334,9 @@ async def stream_case_video_manager(
         headers["Content-Range"] = content_range
 
     status_code = 206 if is_partial else 200
-    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
+    return _VideoStreamingResponse(
+        body, status_code=status_code, media_type=media_type, headers=headers,
+    )
 
 
 @app.post("/api/manager/cases/{case_id}/exceptional-access")

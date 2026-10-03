@@ -12,7 +12,7 @@ interface IncidentTimelineProps {
 
 /** Width of one label, used to stop labels overlapping. */
 const LABEL_WIDTH_PX = 120;
-/** Vertical space per label row (time on one line, tag or tier on the next). */
+/** Minimum space per label row; grouped tags can grow the row naturally. */
 const LABEL_ROW_HEIGHT_PX = 48;
 const LABELS_TOP_PX = 44;
 /** Used before the first measurement, and in jsdom (which has no layout). */
@@ -26,7 +26,7 @@ const mono = "'IBM Plex Mono', monospace";
  * position along the track:
  * - a point detection (start === end) is a dot with a tick, labelled with
  *   its time and tag, e.g. "01:15 · weapon_present", as in Figma;
- * - a range is a segment coloured by severity tier.
+ * - entries with the same start and end share one time label and list all tags.
  *
  * The track spans the video's real duration when it's known. Otherwise it
  * spans the latest flagged moment plus 20% (minimum 10s), and the caption
@@ -56,15 +56,24 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
   const knownDuration = durationSeconds != null && durationSeconds >= latestEnd && durationSeconds > 0;
   const totalSpan = knownDuration ? durationSeconds : Math.max(10, latestEnd * 1.2);
 
-  const positioned = [...entries]
-    .sort((a, b) => a.start - b.start)
-    .map((entry) => {
-      const isPoint = entry.start === entry.end;
-      const leftPct = (entry.start / totalSpan) * 100;
-      const centerPx = (leftPct / 100) * widthPx;
-      const labelLeftPx = Math.min(Math.max(0, centerPx - LABEL_WIDTH_PX / 2), Math.max(0, widthPx - LABEL_WIDTH_PX));
-      return { entry, isPoint, leftPct, labelLeftPx };
-    });
+  // Match exact intervals, not rounded display times or just the start time.
+  const groups = new Map<string, IncidentTimelineEntry[]>();
+  for (const entry of [...entries].sort((a, b) => a.start - b.start)) {
+    const key = `${entry.start}:${entry.end}`;
+    const group = groups.get(key) ?? [];
+    group.push(entry);
+    groups.set(key, group);
+  }
+  const positioned = [...groups.values()].map((group) => {
+    // A shared marker shows the highest severity; each tag stays in the list.
+    const entry = group.reduce((highest, item) => (item.severity_tier > highest.severity_tier ? item : highest));
+
+    const isPoint = entry.start === entry.end;
+    const leftPct = (entry.start / totalSpan) * 100;
+    const centerPx = (leftPct / 100) * widthPx;
+    const labelLeftPx = Math.min(Math.max(0, centerPx - LABEL_WIDTH_PX / 2), Math.max(0, widthPx - LABEL_WIDTH_PX));
+    return { entry, group, isPoint, leftPct, labelLeftPx };
+  });
 
   // Greedy row assignment: rowEnds[r] is where the last label in row r ends.
   const rowEnds: number[] = [];
@@ -78,7 +87,6 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
     return { ...p, row };
   });
 
-  const height = LABELS_TOP_PX + rowEnds.length * LABEL_ROW_HEIGHT_PX;
   const axisLabelStyle = {
     position: "absolute",
     top: 16,
@@ -94,14 +102,25 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
       {/* Screen readers get the same information as an ordered list; the
           drawn track below is decorative for them. */}
       <ol className="cds--visually-hidden">
-        {positioned.map(({ entry }, i) => (
+        {positioned.map(({ entry, group }, i) => (
           <li key={i}>
-            {`${entry.start === entry.end ? `At ${formatTimestamp(entry.start)}` : `${formatTimestamp(entry.start)} to ${formatTimestamp(entry.end)}`}, ${entry.tag ? `${entry.tag}, ` : ""}${entry.severity_tier} ${getSeverityInfo(entry.severity_tier).label}`}
+            {`${entry.start === entry.end ? `At ${formatTimestamp(entry.start)}` : `${formatTimestamp(entry.start)} to ${formatTimestamp(entry.end)}`}, ${group.map((item) => `${item.tag ? `${item.tag}, ` : ""}${item.severity_tier} ${getSeverityInfo(item.severity_tier).label}`).join("; ")}`}
           </li>
         ))}
       </ol>
 
-      <div ref={containerRef} aria-hidden="true" style={{ position: "relative", height, width: "100%" }}>
+      <div
+        ref={containerRef}
+        aria-hidden="true"
+        style={{
+          position: "relative",
+          paddingTop: LABELS_TOP_PX,
+          width: "100%",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr)",
+          rowGap: 8,
+        }}
+      >
         <div
           style={{
             position: "absolute",
@@ -115,14 +134,13 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         <span style={{ ...axisLabelStyle, left: 0 }}>00:00</span>
         <span style={{ ...axisLabelStyle, right: 0 }}>{formatTimestamp(totalSpan)}</span>
 
-        {withRows.map(({ entry, isPoint, leftPct, labelLeftPx, row }, i) => {
+        {withRows.map(({ entry, group, isPoint, leftPct, labelLeftPx, row }, i) => {
           const info = getSeverityInfo(entry.severity_tier);
-          const labelTop = LABELS_TOP_PX + row * LABEL_ROW_HEIGHT_PX;
           return (
-            <div key={i}>
+            <div key={i} style={{ display: "contents" }}>
               <div
                 data-testid={isPoint ? "timeline-marker" : "timeline-segment"}
-                title={`${timeLabel(entry)} · ${entry.tag ?? info.label}`}
+                title={`${timeLabel(entry)} · ${group.map((item) => item.tag ?? getSeverityInfo(item.severity_tier).label).join(", ")}`}
                 style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
               >
                 <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
@@ -130,15 +148,26 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
               </div>
               <div
                 className="flex flex-col items-center gap-1"
-                style={{ position: "absolute", top: labelTop, left: labelLeftPx, width: LABEL_WIDTH_PX }}
+                style={{
+                  gridRow: row + 1,
+                  gridColumn: 1,
+                  marginLeft: labelLeftPx,
+                  width: LABEL_WIDTH_PX,
+                  minHeight: LABEL_ROW_HEIGHT_PX,
+                  overflowWrap: "anywhere",
+                }}
               >
                 <span style={{ fontFamily: mono, fontSize: 12, color: "var(--cds-text-primary)" }}>
                   {timeLabel(entry)}
                 </span>
-                {entry.tag ? (
-                  <span style={{ fontSize: 11, color: "var(--cds-text-secondary)" }}>{entry.tag}</span>
-                ) : (
-                  <SeverityTag tier={entry.severity_tier} size="sm" />
+                {group.map((item, tagIndex) =>
+                  item.tag ? (
+                    <span key={tagIndex} style={{ fontSize: 11, color: "var(--cds-text-secondary)" }}>
+                      {item.tag}
+                    </span>
+                  ) : (
+                    <SeverityTag key={tagIndex} tier={item.severity_tier} size="sm" />
+                  ),
                 )}
               </div>
             </div>
