@@ -17,6 +17,13 @@ const LABEL_ROW_HEIGHT_PX = 48;
 const LABELS_TOP_PX = 44;
 /** Used before the first measurement, and in jsdom (which has no layout). */
 const FALLBACK_WIDTH_PX = 1104;
+/**
+ * Even an instantaneous flagged moment must stay visible: AR-AI-04 gives
+ * every AI-flagged moment a marker, "however brief". A range this narrow in
+ * real pixels would otherwise round away to nothing next to a multi-minute
+ * span on the same track.
+ */
+const MIN_SEGMENT_WIDTH_PX = 6;
 
 const mono = "'IBM Plex Mono', monospace";
 
@@ -61,9 +68,13 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
     .map((entry) => {
       const isPoint = entry.start === entry.end;
       const leftPct = (entry.start / totalSpan) * 100;
-      const centerPx = (leftPct / 100) * widthPx;
+      const widthPct = isPoint
+        ? 0
+        : Math.max(((entry.end - entry.start) / totalSpan) * 100, (MIN_SEGMENT_WIDTH_PX / widthPx) * 100);
+      // Centre the label under its marker (or segment midpoint), clamped inside the track.
+      const centerPx = ((leftPct + widthPct / 2) / 100) * widthPx;
       const labelLeftPx = Math.min(Math.max(0, centerPx - LABEL_WIDTH_PX / 2), Math.max(0, widthPx - LABEL_WIDTH_PX));
-      return { entry, isPoint, leftPct, labelLeftPx };
+      return { entry, isPoint, leftPct, widthPct, labelLeftPx };
     });
 
   // Greedy row assignment: rowEnds[r] is where the last label in row r ends.
@@ -115,19 +126,36 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         <span style={{ ...axisLabelStyle, left: 0 }}>00:00</span>
         <span style={{ ...axisLabelStyle, right: 0 }}>{formatTimestamp(totalSpan)}</span>
 
-        {withRows.map(({ entry, isPoint, leftPct, labelLeftPx, row }, i) => {
+        {withRows.map(({ entry, isPoint, leftPct, widthPct, labelLeftPx, row }, i) => {
           const info = getSeverityInfo(entry.severity_tier);
           const labelTop = LABELS_TOP_PX + row * LABEL_ROW_HEIGHT_PX;
           return (
             <div key={i}>
-              <div
-                data-testid={isPoint ? "timeline-marker" : "timeline-segment"}
-                title={`${timeLabel(entry)} · ${entry.tag ?? info.label}`}
-                style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
-              >
-                <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
-                <div style={{ width: 1, height: 8, backgroundColor: "var(--cds-border-inverse)", margin: "0 auto" }} />
-              </div>
+              {isPoint ? (
+                <div
+                  data-testid="timeline-marker"
+                  title={`${timeLabel(entry)} · ${entry.tag ?? info.label}`}
+                  style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
+                >
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
+                  <div style={{ width: 1, height: 8, backgroundColor: "var(--cds-border-inverse)", margin: "0 auto" }} />
+                </div>
+              ) : (
+                <div
+                  data-testid="timeline-segment"
+                  title={`${timeLabel(entry)} · ${entry.severity_tier} ${info.label}`}
+                  style={{
+                    position: "absolute",
+                    top: 1,
+                    left: `${leftPct}%`,
+                    width: `${widthPct}%`,
+                    height: 8,
+                    backgroundColor: info.background,
+                    // A thin dark outline keeps the pale S1 fill visible against the track.
+                    boxShadow: "0 0 0 1px var(--cds-border-inverse)",
+                  }}
+                />
+              )}
               <div
                 className="flex flex-col items-center gap-1"
                 style={{ position: "absolute", top: labelTop, left: labelLeftPx, width: LABEL_WIDTH_PX }}
