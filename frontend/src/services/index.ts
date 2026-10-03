@@ -54,6 +54,7 @@ export const reportUnexpectedExposure = delegate("reportUnexpectedExposure");
 export const requestWellbeingSupport = delegate("requestWellbeingSupport");
 
 // Manager oversight
+export const getAuditHistory = delegate("getAuditHistory");
 export const getManagerDashboard = delegate("getManagerDashboard");
 export const getAuditorOverview = delegate("getAuditorOverview");
 export const getSosSummary = delegate("getSosSummary");

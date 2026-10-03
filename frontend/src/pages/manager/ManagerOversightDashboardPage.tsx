@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
+  Button,
   Layer,
   OverflowMenu,
   OverflowMenuItem,
@@ -33,7 +34,12 @@ export function ManagerOversightDashboardPage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Oversight Dashboard</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4" style={{ marginBottom: 24 }}>
+        <h1 style={pageTitle}>Oversight Dashboard</h1>
+        <Button kind="tertiary" onClick={() => navigate("/manager/audit-logs")}>
+          View audit history
+        </Button>
+      </div>
       <LoadState error={error} loading={!data && !error} what="the dashboard" />
       {data && (
         <Layer>

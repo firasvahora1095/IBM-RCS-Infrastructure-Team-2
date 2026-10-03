@@ -1,5 +1,6 @@
 import base64
 import os
+from datetime import datetime, timezone
 from io import BytesIO
 
 from ibm_watsonx_ai import Credentials
@@ -105,6 +106,9 @@ def analyse_image(image_file, content_type, prompt, client=None):
         },
     )
 
+    # Record receipt before parsing or storing the model result.
+    decision_timestamp = datetime.now(timezone.utc).isoformat()
+
     # extract response
 
     try:
@@ -121,4 +125,5 @@ def analyse_image(image_file, content_type, prompt, client=None):
         "model": model_id,
         "analysis": analysis,
         "raw_response": response,
+        "decision_timestamp": decision_timestamp,
     }

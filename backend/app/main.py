@@ -15,11 +15,15 @@ from fastapi import (
     File,
     Header,
     HTTPException,
+    Query,
     Request,
+    Response,
     UploadFile,
     status,
 )
 from fastapi.responses import StreamingResponse
+from anyio import CancelScope
+from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select, update
@@ -50,13 +54,29 @@ from app.orchestrate import (
 )
 from app.rate_limit import status_lookup_limiter
 from app.request_logging import install_access_log_redaction, redact_case_ids
-from app.storage import delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
+from app.storage import VideoRangeError, delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
 
 
 install_access_log_redaction()
 logger = logging.getLogger("ibm_rcs.api")
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+class _VideoStreamingResponse(StreamingResponse):
+    """Release the storage connection even when the browser cancels a seek."""
+
+    def __init__(self, body, **kwargs):
+        self._video_body = body
+        super().__init__(body, **kwargs)
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # Cleanup must run even if the request's task was cancelled.
+            with CancelScope(shield=True):
+                await run_in_threadpool(self._video_body.close)
 
 def _run_db_migrations() -> None:
     """Apply all incremental schema changes to the deployed database.
@@ -484,7 +504,7 @@ async def get_auditor_case_detail(
 
 
 @app.get("/api/auditor/cases/{case_id}/video")
-async def stream_case_video(
+def stream_case_video(
     request: Request,
     case_id: str,
     token: str | None = None,
@@ -507,6 +527,9 @@ async def stream_case_video(
         body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
             case.video_storage_path, byte_range=range_header
         )
+    except VideoRangeError as exc:
+        headers = {"Content-Range": f"bytes */{exc.total_size}"} if exc.total_size is not None else {}
+        raise HTTPException(status_code=416, detail=str(exc), headers=headers) from exc
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
 
@@ -517,7 +540,9 @@ async def stream_case_video(
         headers["Content-Range"] = content_range
 
     status_code = 206 if is_partial else 200
-    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
+    return _VideoStreamingResponse(
+        body, status_code=status_code, media_type=media_type, headers=headers,
+    )
 
 
 @app.post("/api/internal/cases/{case_id}/mock-ai-result")
@@ -968,6 +993,53 @@ def _exposure_state(minutes: float, limit: float) -> str:
     return "UNDER"
 
 
+@app.get("/api/manager/audit-logs")
+async def get_audit_history(
+    response: Response,
+    _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
+    case_id: str | None = Query(default=None, max_length=20),
+    action: str | None = Query(default=None, max_length=50),
+    before_id: int | None = Query(default=None, ge=1, le=9223372036854775807),
+    limit: int = Query(default=25, ge=1, le=100),
+):
+    """Read saved audit events through the backend's existing DB connection."""
+    query = select(AuditLog)
+    if case_id and case_id.strip():
+        query = query.where(AuditLog.case_id == case_id.strip())
+    if action and action.strip():
+        query = query.where(AuditLog.action == action.strip())
+    if before_id is not None:
+        query = query.where(AuditLog.audit_log_id < before_id)
+
+    # Stable ID cursors allow browsing older history while new events arrive.
+    rows = db.scalars(
+        query.order_by(AuditLog.audit_log_id.desc()).limit(limit + 1)
+    ).all()
+    entries = rows[:limit]
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "entries": [
+            {
+                "audit_log_id": row.audit_log_id,
+                "case_id": row.case_id,
+                "actor": row.actor,
+                "action": row.action,
+                "before_value": row.before_value,
+                "after_value": row.after_value,
+                "created_at": (
+                    row.created_at.replace(tzinfo=timezone.utc)
+                    if row.created_at.tzinfo is None else row.created_at
+                ).isoformat(),
+            }
+            for row in entries
+        ],
+        "next_before_id": (
+            entries[-1].audit_log_id if len(rows) > limit else None
+        ),
+    }
+
+
 @app.get("/api/manager/auditors")
 async def list_auditors(
     _: StaffSession = Depends(get_current_manager),
@@ -1394,7 +1466,7 @@ async def get_case_exceptional_access(
 
 
 @app.get("/api/manager/cases/{case_id}/video")
-async def stream_case_video_manager(
+def stream_case_video_manager(
     request: Request,
     case_id: str,
     token: str | None = None,
@@ -1417,6 +1489,9 @@ async def stream_case_video_manager(
         body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
             case.video_storage_path, byte_range=range_header
         )
+    except VideoRangeError as exc:
+        headers = {"Content-Range": f"bytes */{exc.total_size}"} if exc.total_size is not None else {}
+        raise HTTPException(status_code=416, detail=str(exc), headers=headers) from exc
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Video could not be retrieved") from exc
 
@@ -1427,7 +1502,9 @@ async def stream_case_video_manager(
         headers["Content-Range"] = content_range
 
     status_code = 206 if is_partial else 200
-    return StreamingResponse(body, status_code=status_code, media_type=media_type, headers=headers)
+    return _VideoStreamingResponse(
+        body, status_code=status_code, media_type=media_type, headers=headers,
+    )
 
 
 @app.post("/api/manager/cases/{case_id}/exceptional-access")

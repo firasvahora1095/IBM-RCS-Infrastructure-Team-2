@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,8 @@ def process_case_analysis(
     case.analysis_output_path = None
     db.commit()
 
+    analysis_run_id = str(uuid4())
+
     run = analyse_video(
         case.case_id,
         case.video_storage_path,
@@ -94,6 +97,7 @@ def process_case_analysis(
         print(f"[ANALYSIS] case_id={case.case_id} AI analysis completed severity_tier={case.severity_tier} score={case.watson_severity_score}", flush=True)
         log.info("analysis: case %s completed severity_tier=%s score=%s", case.case_id, case.severity_tier, case.watson_severity_score)
         audit_detail = {
+            "analysis_run_id": analysis_run_id,
             "frames_completed": run.frames_completed,
             "analysis_output_path": run.output_reference,
         }
@@ -112,6 +116,7 @@ def process_case_analysis(
         print(f"[ANALYSIS] case_id={case.case_id} AI analysis FAILED stage={run.failure_stage} error={run.error_type}", flush=True)
         log.error("analysis: case %s FAILED stage=%s error=%s", case.case_id, run.failure_stage, run.error_type)
         audit_detail = {
+            "analysis_run_id": analysis_run_id,
             "failure_stage": run.failure_stage,
             "failed_frame": run.failed_frame,
             "error_type": run.error_type,
@@ -132,6 +137,7 @@ def process_case_analysis(
                 "severity_tier": case.severity_tier,
                 "ai_failure": case.ai_failure,
                 **audit_detail,
+                **run.audit,
             },
         )
     )

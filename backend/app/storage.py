@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import shutil
 import tempfile
 from io import BytesIO
@@ -10,6 +11,7 @@ from uuid import uuid4
 import ibm_boto3
 from dotenv import load_dotenv
 from ibm_botocore.client import Config
+from ibm_botocore.exceptions import ClientError
 
 log = logging.getLogger("ibm_rcs.api")
 
@@ -158,12 +160,57 @@ def store_video(
     return str(destination)
 
 
-def stream_video_from_storage(storage_reference: str, byte_range: str | None = None):
-    """Yield raw video bytes from COS or local storage for proxy streaming.
+class VideoRangeError(ValueError):
+    def __init__(self, total_size: int | None = None):
+        super().__init__("Requested video range is not satisfiable")
+        self.total_size = total_size
 
-    byte_range: optional HTTP Range header value e.g. "bytes=0-1023"
-    Returns (body, media_type, content_length, is_partial, content_range)
+
+class _VideoChunks:
+    """Bound binary reads and close the source on completion or disconnect."""
+
+    def __init__(self, body: BinaryIO, length: int | None):
+        self.body = body
+        self.remaining = length
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.remaining == 0:
+            self.close()
+            raise StopIteration
+        size = 256 * 1024
+        if self.remaining is not None:
+            size = min(size, self.remaining)
+        try:
+            chunk = self.body.read(size)
+        except Exception:
+            self.close()
+            raise
+        if not chunk:
+            self.close()
+            raise StopIteration
+        if self.remaining is not None:
+            self.remaining -= len(chunk)
+        return chunk
+
+    def close(self):
+        self.body.close()
+
+
+def stream_video_from_storage(storage_reference: str, byte_range: str | None = None):
+    """Return bounded binary chunks and metadata for a full or single-range video.
+
+    Malformed/multipart ranges are ignored (a full 200 response). Valid but
+    unsatisfiable ranges raise VideoRangeError for the API to return HTTP 416.
     """
+    match = re.fullmatch(r"bytes=(\d*)-(\d*)", (byte_range or "").strip())
+    if not match or not any(match.groups()):
+        byte_range = None
+    else:
+        byte_range = match.group(0)
+
     if storage_reference.startswith("cos://"):
         bucket_and_key = storage_reference.removeprefix("cos://")
         bucket_name, object_key = bucket_and_key.split("/", 1)
@@ -184,36 +231,45 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
             kwargs["Range"] = f"bytes={start}-{total_size - 1}"
         elif byte_range:
             kwargs["Range"] = byte_range
-        response = create_cos_client().get_object(**kwargs)
+        try:
+            response = create_cos_client().get_object(**kwargs)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") == "InvalidRange":
+                raise VideoRangeError() from exc
+            raise
+        length = response.get("ContentLength")
         is_partial = response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 206
         return (
-            response["Body"],
+            _VideoChunks(response["Body"], length),
             response.get("ContentType", "video/mp4"),
-            response.get("ContentLength"),
+            length,
             is_partial,
             response.get("ContentRange"),
         )
     import mimetypes
     path = Path(storage_reference)
     media_type = mimetypes.guess_type(str(path))[0] or "video/mp4"
-    total_size = path.stat().st_size if path.exists() else None
-    if byte_range and total_size:
-        range_val = byte_range.strip().removeprefix("bytes=")
-        start_str, _, end_str = range_val.partition("-")
-        if not start_str:
-            # Suffix range: "bytes=-500" means the last 500 bytes.
-            start = max(0, total_size - int(end_str))
-            end = total_size - 1
-        else:
+    total_size = path.stat().st_size
+    start, end = 0, total_size - 1
+    if byte_range:
+        start_str, end_str = match.groups()
+        if start_str:
             start = int(start_str)
-            end = int(end_str) if end_str else total_size - 1
-        end = min(end, total_size - 1)
-        chunk_size = end - start + 1
-        with open(path, "rb") as f:
-            f.seek(start)
-            chunk = f.read(chunk_size)
-        return BytesIO(chunk), media_type, chunk_size, True, f"bytes {start}-{end}/{total_size}"
-    return open(path, "rb"), media_type, total_size, False, None
+            end = min(int(end_str), end) if end_str else end
+        else:
+            suffix_length = int(end_str)
+            if suffix_length == 0:
+                raise VideoRangeError(total_size)
+            start = max(0, total_size - suffix_length)
+        if start >= total_size or end < start:
+            raise VideoRangeError(total_size)
+    length = end - start + 1
+    body = open(path, "rb")
+    body.seek(start)
+    return (
+        _VideoChunks(body, length), media_type, length, bool(byte_range),
+        f"bytes {start}-{end}/{total_size}" if byte_range else None,
+    )
 
 
 def download_video_bytes(storage_reference: str) -> tuple[bytes, str]:

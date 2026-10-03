@@ -47,7 +47,7 @@ interface ReviewWorkspaceProps {
 
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+  const seconds = Math.floor(totalSeconds % 60);
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
@@ -56,9 +56,8 @@ function formatDuration(totalSeconds: number): string {
  * session-timed-out (36:235) states.
  *
  * Content safety:
- * - It never shows real footage. The video area is a synthetic test pattern;
- *   in mock mode a reviewer can preview a local file, which stays in the
- *   browser and is never uploaded.
+ * - Source footage is streamed when available. In mock mode a reviewer can
+ *   preview a local file, which stays in the browser and is never uploaded.
  * - Maximum blur by default, with a 0–100% slider, a grayscale toggle and
  *   independent mute (AR-PV-03 to 06).
  * - SOS is always in reach: the video column stays in view while the context
@@ -80,11 +79,13 @@ export function ReviewWorkspace({
   onSos,
   videoUrl,
 }: ReviewWorkspaceProps) {
-  const duration = caseDetail.video_duration_seconds ?? FALLBACK_DURATION_SECONDS;
+  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
+  const duration = mediaDuration ?? caseDetail.video_duration_seconds ?? FALLBACK_DURATION_SECONDS;
   const aiFailed = caseDetail.ai_failure === "vision";
 
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
+  const [buffering, setBuffering] = useState(false);
   const [totals, setTotals] = useState<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
@@ -134,10 +135,10 @@ export function ReviewWorkspace({
     };
   }, []);
 
-  // The playback clock. Anything that stops playback from outside (a session
-  // time-out) stops it here too, and it never resumes on its own afterwards.
+  // Only the synthetic preview needs a clock. Real video follows media events,
+  // so buffering cannot advance the scrubber or count as viewing exposure.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || activeVideoUrl) return;
     const id = window.setInterval(() => {
       if (!canPlayRef.current) {
         setPlaying(false);
@@ -158,7 +159,7 @@ export function ReviewWorkspace({
       setTotals((t) => ({ ...t, [key]: t[key] + 1 }));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [playing, duration]);
+  }, [playing, duration, activeVideoUrl]);
 
   // Report exposure periodically, and whatever is left when the workspace closes.
   useEffect(() => {
@@ -192,14 +193,20 @@ export function ReviewWorkspace({
     return () => observer.disconnect();
   }, []);
 
-  // Keep a previewed local file in step with the controls.
+  // Keep streamed footage and local previews in step with the controls.
   useEffect(() => {
     const video = videoRef.current;
+    // Clear playback intent on an external interruption so re-auth cannot resume footage.
+    // oxlint-disable-next-line react/set-state-in-effect
+    if (!canPlay) setPlaying(false);
     if (!video) return;
-    video.muted = settings.muted;
     if (isPlaying) void video.play().catch(() => setPlaying(false));
     else video.pause();
-  }, [isPlaying, settings.muted, localVideoUrl]);
+  }, [isPlaying, canPlay, activeVideoUrl]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = settings.muted;
+  }, [settings.muted, activeVideoUrl]);
 
   useEffect(() => {
     return () => {
@@ -212,6 +219,29 @@ export function ReviewWorkspace({
     positionRef.current = clamped;
     setPosition(clamped);
     if (videoRef.current) videoRef.current.currentTime = clamped;
+  }
+
+  function togglePlayback() {
+    if (!isPlaying) {
+      if (videoRef.current?.ended || positionRef.current >= duration) seek(0);
+      setBuffering(Boolean(videoRef.current && videoRef.current.readyState < 3));
+    }
+    setPlaying(!isPlaying);
+  }
+
+  function syncMediaPosition(video: HTMLVideoElement) {
+    const previous = positionRef.current;
+    const current = video.currentTime;
+    positionRef.current = current;
+    setPosition(current);
+    if (!playing || !canPlayRef.current || video.seeking || current <= previous) return;
+    // Split a replay that crosses the furthest point already watched.
+    const replay = Math.max(0, Math.min(current, maxReachedRef.current) - previous);
+    const active = current - previous - replay;
+    maxReachedRef.current = Math.max(maxReachedRef.current, current);
+    pendingRef.current.active_seconds += active;
+    pendingRef.current.replay_seconds += replay;
+    setTotals((t) => ({ active_seconds: t.active_seconds + active, replay_seconds: t.replay_seconds + replay }));
   }
 
   const overlayMessage =
@@ -240,8 +270,9 @@ export function ReviewWorkspace({
       )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} ({formatDuration(totals.active_seconds)} active,{" "}
-          {formatDuration(totals.replay_seconds)} replay) · {isPlaying ? "● Counting" : "○ Paused"}
+          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (
+          {formatDuration(totals.active_seconds)} active, {formatDuration(totals.replay_seconds)} replay) ·{" "}
+          {isPlaying ? (buffering ? "○ Buffering" : "● Counting") : "○ Paused"}
         </p>
       )}
 
@@ -269,8 +300,33 @@ export function ReviewWorkspace({
                   src={activeVideoUrl}
                   className="h-full w-full object-contain"
                   playsInline
-                  onLoadedMetadata={(e) => seek(Math.min(positionRef.current, e.currentTarget.duration))}
-                  onEnded={() => setPlaying(false)}
+                  preload="auto"
+                  onLoadedMetadata={(e) => {
+                    const video = e.currentTarget;
+                    if (Number.isFinite(video.duration) && video.duration > 0) {
+                      setMediaDuration(video.duration);
+                      video.currentTime = Math.min(positionRef.current, video.duration);
+                    }
+                  }}
+                  onTimeUpdate={(e) => syncMediaPosition(e.currentTarget)}
+                  onSeeking={(e) => {
+                    positionRef.current = e.currentTarget.currentTime;
+                    setPosition(positionRef.current);
+                    setBuffering(true);
+                  }}
+                  onSeeked={(e) => {
+                    positionRef.current = e.currentTarget.currentTime;
+                    setPosition(positionRef.current);
+                    setBuffering(e.currentTarget.readyState < 3);
+                  }}
+                  onWaiting={() => setBuffering(true)}
+                  onPlaying={() => setBuffering(false)}
+                  onCanPlay={() => setBuffering(false)}
+                  onEnded={(e) => {
+                    syncMediaPosition(e.currentTarget);
+                    setPlaying(false);
+                    setBuffering(false);
+                  }}
                 />
               ) : (
                 <SyntheticTestPattern position={position} />
@@ -368,7 +424,7 @@ export function ReviewWorkspace({
               kind="secondary"
               label={isPlaying ? "Pause" : "Play"}
               disabled={!canPlay}
-              onClick={() => setPlaying((p) => !p)}
+              onClick={togglePlayback}
             >
               {isPlaying ? <Pause /> : <Play />}
             </IconButton>
