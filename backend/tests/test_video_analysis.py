@@ -14,6 +14,7 @@ from app.analysis_storage import (
     create_analysis_output_store,
 )
 from app.models import AuditLog, Base, Case
+from app.severity import build_frame_analysis
 from app.video_analysis import (
     _build_case_analysis,
     analyse_video,
@@ -113,9 +114,11 @@ def test_real_frame_tags_scores_and_raw_responses_are_persisted(tmp_path: Path) 
     assert run.case_analysis["watson_severity_score"] == 73
     assert run.case_analysis["effective_severity_score"] == 73
     assert run.case_analysis["narrative_summary"] == (
-        "AI flagged an S3 visual indicator between 5s and 10s. "
-        "AI frame descriptions: At 10s: Two people appear to be involved "
-        "in a physical confrontation."
+        "S3 — Potential physical violence\n\n"
+        "Around 5–10 seconds, two people appear to be involved "
+        "in a physical confrontation.\n\n"
+        "Key evidence:\n• Potential physical violence around 5–10 seconds\n\n"
+        "Human review is required to confirm the context and final severity."
     )
     assert run.case_analysis["flagged_entities"] == [
         {"label": "person on the left", "start": 5.0, "end": 10.0},
@@ -209,10 +212,15 @@ def test_multiple_tags_produce_worst_tier_timeline_and_template_summary() -> Non
         {"start": 15.0, "end": 20.0, "severity_tier": "S4", "tag": "weapon_use"},
     ]
     assert result["narrative_summary"] == (
-        "AI flagged an S4 visual indicator between 15s and 20s. "
-        "AI frame descriptions: At 5s: Two people appear to be in contact. "
-        "At 15s: A person appears to hold an object resembling a weapon. "
-        "At 20s: The object is still visible near a person."
+        "S4 — Possible weapon use\n\n"
+        "Earlier in the video, two people appear to be in contact. "
+        "Around 15–20 seconds, a person appears to hold an object resembling a weapon. "
+        "Later in the video, the object is still visible near a person.\n\n"
+        "Key evidence:\n"
+        "• Possible weapon use around 15–20 seconds\n"
+        "• Potential physical violence around 5–10 seconds\n"
+        "• Possible group confrontation at approximately 5 seconds\n\n"
+        "Human review is required to confirm the context and final severity."
     )
     assert result["flagged_entities"] == [
         {"label": "Person on the left", "start": 5.0, "end": 10.0},
@@ -221,26 +229,30 @@ def test_multiple_tags_produce_worst_tier_timeline_and_template_summary() -> Non
     ]
 
 
-def test_tagless_high_score_uses_summary_without_inventing_incident() -> None:
+@pytest.mark.parametrize(("score", "tier"), [(10, "S1"), (50, "S2"), (75, "S3"), (86, "S4")])
+def test_tagless_score_uses_summary_without_inventing_incident(score: int, tier: str) -> None:
     frame = {
         "case_id": "CASE-NO-TAGS-001",
         "frame_num": "frame-00000",
         "timestamp": 2.5,
         "tags": [],
-        "watson_severity_score": 86,
-        "effective_severity_score": 86,
-        "severity_tier": "S4",
-        "reasoning": "Model prose is not the template.",
+        "watson_severity_score": score,
+        "effective_severity_score": score,
+        "severity_tier": tier,
+        "reasoning": "The visible context is unclear.",
         "entities": [],
     }
 
     result = _build_case_analysis("CASE-NO-TAGS-001", [frame], 5)
 
-    assert result["severity_tier"] == "S4"
+    assert result["severity_tier"] == tier
     assert result["incident_timeline"] == []
     assert result["narrative_summary"] == (
-        "AI assigned S4 severity at 2.5s without a listed visual tag. "
-        "AI frame descriptions: At 2.5s: Model prose is not the template."
+        f"{tier} — Context and severity require review\n\n"
+        "At approximately 3 seconds, the visible context is unclear.\n\n"
+        "Key evidence:\n"
+        "• No listed visual concerns were detected in the reviewed footage.\n\n"
+        "Human review is required to confirm the context and final severity."
     )
     assert result["flagged_entities"] == []
 
@@ -329,7 +341,14 @@ def test_malformed_model_content_keeps_raw_response_for_audit(tmp_path: Path) ->
     assert not (tmp_path / "malformed-output/frame-00000.analysis.json").exists()
 
 
-def test_completed_pipeline_updates_case_and_audit_record(tmp_path: Path) -> None:
+def test_completed_pipeline_updates_case_and_audit_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # This test covers vision output persistence. Keep the separate STT service
+    # isolated: the harmless synthetic video has no audio track.
+    monkeypatch.setattr("app.speech_to_text.extract_audio_wav", lambda data: b"test-audio")
+    monkeypatch.setattr("app.speech_to_text.transcribe", lambda audio, media: {"results": []})
+    monkeypatch.setattr("app.speech_to_text.extract_audio_intensity", lambda audio: [])
     video_path = tmp_path / "completed-case.avi"
     create_synthetic_video(video_path, 6)
     output_store = LocalAnalysisOutputStore(tmp_path / "completed-output")
@@ -377,9 +396,11 @@ def test_completed_pipeline_updates_case_and_audit_record(tmp_path: Path) -> Non
         assert stored.incident_timeline[0]["start"] == 0
         assert stored.incident_timeline[0]["end"] == 5
         assert stored.narrative_summary == (
-            "AI flagged an S3 visual indicator between 0s and 5s. "
-            "AI frame descriptions: At 5s: Two people appear to be involved "
-            "in a physical confrontation."
+            "S3 — Potential physical violence\n\n"
+            "Around 0–5 seconds, two people appear to be involved "
+            "in a physical confrontation.\n\n"
+            "Key evidence:\n• Potential physical violence around 0–5 seconds\n\n"
+            "Human review is required to confirm the context and final severity."
         )
         assert stored.flagged_entities == [
             {"label": "person on the left", "start": 0.0, "end": 5.0},
@@ -458,3 +479,116 @@ def test_cos_analysis_output_uses_case_analysis_path() -> None:
         "cases/CASE-COS-001/analysis-output/frame-00000.raw.json"
     )
     assert json.loads(client.requests[0]["Body"])["id"] == "response-1"
+
+
+
+def summary_frame(
+    timestamp: float, tags: list[str], reasoning: str, score: int = 70,
+) -> dict[str, Any]:
+    return build_frame_analysis(
+        model_output={
+            "tags": tags,
+            "watson_severity_score": score,
+            "reasoning": reasoning,
+            "entities": [],
+        },
+        case_id="CASE-SUMMARY",
+        frame_num=f"frame-{round(timestamp * 1000):05d}",
+        timestamp=timestamp,
+        model_id="test-vision-model",
+        prompt_version="2.0",
+    )
+
+
+def test_ba_example_keeps_chronology_uncertainty_and_precise_evidence() -> None:
+    frames = [
+        summary_frame(
+            0, ["weapon_present"],
+            "Three individuals are seen from behind, dressed in historical military uniforms. "
+            "They appear to be carrying rifles, but there is no visible evidence of weapon use or conflict.",
+            score=50,
+        ),
+        summary_frame(
+            40.04, ["weapon_use", "physical_violence", "multi_person_conflict"],
+            "Multiple individuals appear to be engaged in conflict.",
+        ),
+        summary_frame(
+            50.05, ["weapon_use", "physical_violence", "multi_person_conflict"],
+            "The image depicts multiple individuals in historical military attire engaged in a conflict. "
+            "Smoke and gunpowder are visible, indicating the use of firearms. "
+            "Some individuals appear to be falling or lying on the ground, "
+            "suggesting physical violence and potential visible injuries.",
+            score=80,
+        ),
+        summary_frame(
+            135.135, ["weapon_present", "multi_person_conflict"],
+            "Several individuals are seen in a misty environment, possibly engaged in conflict. "
+            "They appear to be holding long objects that could be weapons, but active use is not clearly visible. "
+            "The scene suggests a group confrontation.",
+            score=50,
+        ),
+    ]
+    originals = json.loads(json.dumps(frames))
+
+    result = _build_case_analysis("CASE-SUMMARY", frames, 10.01)
+    summary = result["narrative_summary"]
+    narrative = summary.split("\n\n")[1]
+
+    assert summary.startswith("S3 — Possible weapon use\n\n")
+    assert "Around 40–50 seconds" in narrative
+    assert narrative.index("Earlier in the video") < narrative.index("Around 40–50")
+    assert narrative.index("Around 40–50") < narrative.index("Later in the video")
+    assert "appear to be carrying rifles" in narrative
+    assert "falling or lying on the ground" in narrative
+    assert "could be weapons, but active use is not clearly visible" in narrative
+    assert 60 <= len(narrative.split()) <= 100
+    assert len(narrative.split(". ")) == 3
+    assert summary.count("• ") == 3
+    assert summary.endswith("Human review is required to confirm the context and final severity.")
+    for unwanted in ["40.04", "50.05", "135.135", "frame descriptions", "visual indicator",
+                     "reenactment", "props", "staged", "actors", "dead", "AI Confidence"]:
+        assert unwanted not in summary
+    assert frames == originals
+    weapon_incident = next(item for item in result["incident_timeline"] if item["tag"] == "weapon_use")
+    assert weapon_incident["start"] == 40.04
+    assert weapon_incident["end"] == 50.05
+
+
+def test_verbose_description_keeps_later_qualification_instead_of_certain_claim() -> None:
+    reasoning = (
+        "A person is carrying a rifle. "
+        + "The background contains several indistinct shapes and areas of shadow " * 10
+        + ". The object could be a tool rather than a weapon."
+    )
+    frame = summary_frame(50.05, ["weapon_present"], reasoning, score=50)
+
+    summary = _build_case_analysis("CASE-SUMMARY", [frame], 5)["narrative_summary"]
+
+    assert summary.startswith("S2 — Possible weapons")
+    assert "could be a tool rather than a weapon" in summary
+    assert "is carrying a rifle" not in summary
+    assert "..." not in summary
+    assert "at approximately 50 seconds" in summary
+
+
+@pytest.mark.parametrize("reasoning", [
+    "...",
+    "Several people " + "are partly hidden by unclear objects " * 70 + "may be involved in conflict.",
+])
+def test_unusable_prose_has_concise_cautious_fallback_and_bounded_evidence(reasoning: str) -> None:
+    frame = summary_frame(
+        40.04,
+        ["weapon_present", "weapon_use", "visible_injury", "physical_violence", "multi_person_conflict"],
+        reasoning,
+    )
+    result = _build_case_analysis("CASE-SUMMARY", [frame], 5)
+    summary = result["narrative_summary"]
+    narrative = summary.split("\n\n")[1]
+
+    assert result["severity_tier"] == "S3"
+    assert "suggests possible weapon use" in narrative
+    assert len(narrative.split()) < 40
+    assert summary.count("• ") == 3
+    assert "..." not in summary
+    assert "AI Confidence" not in summary
+    assert "High" not in summary
