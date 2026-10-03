@@ -6,7 +6,7 @@
 
 **AC (from the master plan):** "No P0/P1 visual issue remains open on the live build" and "Master documents updated to reflect this deliverable."
 
-**Status: P0 fixed and confirmed live (§2.1); one P1 still open (§2.2) — AC not fully met until that's resolved or explicitly deferred.**
+**Status: AC fully met. Both the P0 (§2.1) and the P1 (§2.2) are fixed and confirmed live on a fresh real-upload case (`NV7HOJOW7V6M4L50`) — video plays, incident timeline shows real proportional-width bars (10s and 15s ranges, visually distinct), narrative summary renders the new BA-approved multi-line format correctly.**
 
 ---
 
@@ -43,11 +43,15 @@ The two earlier backend changes (converting any suffix range before it reaches C
 
 **Owner:** closed. Fixed by this session, confirmed live.
 
-### 2.2 — P1 — Incident timeline collapses real multi-second ranges to dots — still open
+### 2.2 — P1 — Incident timeline collapses real multi-second ranges to dots — FIXED, confirmed live 03 Oct 2026
 
-### 2.2 — P1 — Incident timeline collapses real multi-second ranges to dots
+**What it was:** carried over from the previous session's code-diff review (`sprint2-ui-review-figma-log.md` §2/§4, commit `076e7fe`), confirmed against real pipeline output during this pass. The real-upload case's AI analysis genuinely flagged two multi-second ranges — `00:05–00:15` and `00:25–00:40` `multi_person_conflict` — and both rendered as an identical small dot at the start time, with no proportional-width bar showing the 10-second and 15-second durations.
 
-**What:** carried over from the previous session's code-diff review (`sprint2-ui-review-figma-log.md` §2/§4, commit `076e7fe`), now directly confirmed against real pipeline output. The real-upload case's AI analysis genuinely flagged two multi-second ranges — `00:05–00:15` and `00:25–00:40` `multi_person_conflict` — and both rendered as an identical small dot at the start time, with no proportional-width bar showing the 10-second and 15-second durations. Still needs Firas's decision (proportional-range fix vs. explicit "deliberate, keep" sign-off) — not re-logged as a new item, see the existing entry in the Figma review log.
+**Fix:** restored the original point-vs-range distinction in `IncidentTimeline.tsx` — a genuine regression from `076e7fe`, which deleted that logic without updating the component's own test file or doc comment, both of which still specified the original design the whole time. Ranges render as a proportional-width coloured segment again (with a floor so a brief range stays visible, per AR-AI-04); true instant detections stay a dot.
+
+**Verified:** all 9 of the component's own tests pass (one had been failing since `076e7fe`, untouched by anything else — confirms it was a pre-existing regression). Full frontend suite 218/218. Confirmed live on a fresh real-upload case (`NV7HOJOW7V6M4L50`): the 10s and 15s ranges now render as visibly different-width orange bars, not dots.
+
+**Owner:** closed. Fixed by this session, confirmed live.
 
 ---
 
@@ -85,5 +89,4 @@ The rest of the Auditor flow (severity & comment submission, decline, cooldown, 
 
 ## 7. Next steps
 
-1. **§2.2 (incident timeline dots-only)** is the one open item standing between this task and a clean AC. Needs either a proportional-range fix or an explicit "deliberate, keep" sign-off — see `sprint2-ui-review-figma-log.md` §2 (Auditor, "AI Analysis Summary — timeline") for the full detail and recommendation.
-2. Once §2.2 is resolved either way, a short follow-up pass on the not-yet-checked screens (§6) would close this out completely, but isn't a blocker to marking Task 101 done if §2.2 alone is resolved.
+Both P0 and P1 are closed. Task 101's AC is met. The only remaining item is optional, non-blocking: a short follow-up pass on the screens that weren't exercised to completion while §2.1 was still open (§6 — severity submission, decline, cooldown, SOS, and the remaining Manager screens), now that the Review Workspace actually works end to end.
