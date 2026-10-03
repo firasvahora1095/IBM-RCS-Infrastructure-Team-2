@@ -6,7 +6,7 @@
 
 **AC (from the master plan):** "No P0/P1 visual issue remains open on the live build" and "Master documents updated to reflect this deliverable."
 
-**Status: AC not yet met.** One real P0 and one P1 confirmed open on the live build (§2), both reproduced two ways — against the pre-seeded demo cases *and* against a case built from a real video uploaded through the public flow during this pass, which rules out "the demo data is the problem" as an explanation. Neither is frontend-fixable by UX alone — needs Firas.
+**Status: P0 fixed and confirmed live (§2.1); one P1 still open (§2.2) — AC not fully met until that's resolved or explicitly deferred.**
 
 ---
 
@@ -25,19 +25,25 @@ Normal User flow was exercised both anonymously (upload tab-switching, submit-wi
 
 ---
 
-## 2. P0 / P1 findings (open)
+## 2. P0 / P1 findings
 
-### 2.1 — P0 — Review Workspace shows no visual content at all
+### 2.1 — P0 — Review Workspace showed no visual content at all — FIXED, confirmed live 03 Oct 2026
 
-**What:** On all three cases tested — two pre-seeded demo cases *and* the real-video upload from this pass — the Review Workspace's video pane renders as a flat, featureless dark-grey rectangle, never the real footage and never the documented synthetic test pattern fallback (`sprint2-ui-review-figma-log.md` §5: "The Review Workspace shows a synthetic test pattern in mock mode; `api` mode now streams the real COS video into the same player"). Confirmed at both 20% and 0% blur (ruling out the blur filter as the cause) and at two zoom levels (no texture, no grid, no colour variation at any zoom).
+**What it was:** on every case tested — pre-seeded demo cases and two different real-video uploads — the Review Workspace's video pane rendered as a flat, featureless dark-grey rectangle. My first read of the evidence (no network request visible to `/api/auditor/cases/{id}/video`) pointed at the frontend. That was wrong, and cost two throwaway backend attempts before the real cause surfaced:
 
-**This is confirmed as a genuine frontend bug, not a data problem.** The obvious alternative explanation — that the pre-seeded demo cases never had real video uploaded to COS, so there's nothing to stream — was ruled out directly: `7KZLRA0YBTE70MPR` was built from an actual video I uploaded through the public form minutes earlier in this same session, so it unquestionably has real COS-stored footage (confirmed indirectly too — its AI analysis is a genuinely unique, frame-specific description of that exact video, e.g. spotting a "Bud Light logo" at 00:35, not generic boilerplate). It shows the identical blank pane.
+1. First guess: a COS suffix-range quirk (`bytes=-65536`, what a `<video>` element sends first to find an MP4's trailing moov atom). Fixed with a try/except retry — deployed, verified still broken live.
+2. Second guess, same track: the try/except couldn't catch the real failure mode, so converted the suffix range to a start-anchored one before it ever reached COS — deployed, **verified still broken live** with a fresh real upload.
+3. **Actual root cause:** a direct `curl` of the exact same URL succeeded fine, proving the backend streaming logic was never the problem — only the browser failed. Checked the CORS preflight directly (`curl -X OPTIONS -H "Access-Control-Request-Headers: range" <url>`) → `400 Bad Request: "Disallowed CORS headers"`. **`Range` was never in the backend's CORS `allow_headers`.** Frontend and backend sit on different subdomains in production, so any Range-bearing request — exactly what `<video>` sends on every seek and its first metadata probe — needs a CORS preflight, and that preflight had been rejecting it the whole time. The browser never even attempted the real request once preflight failed, which is why nothing ever showed up in the network log and why two rounds of backend logic fixes made no difference: the server was never being asked.
 
-**Evidence:** checked the full network request log for the Review Workspace, not just a `video` URL filter — **zero requests to `/api/auditor/cases/{id}/video` ever fire**, for any case. Two `data:` URI `GET`s do fire (almost certainly the `SyntheticTestPattern` component's own output), so the fallback path is being reached, but whatever it renders is visually blank. This narrows the bug to the frontend's `ReviewWorkspace.tsx`/`SyntheticTestPattern` — either the real-video branch (`activeVideoUrl`) never gets a truthy value even when a real stream exists, or the synthetic-pattern branch itself renders nothing.
+This also explains an earlier inconsistency that never added up: some manual Range-header `fetch()` probes "worked" during the original investigation while others didn't, with no code difference between them. A browser caches a successful preflight per (origin, method, header-set) for `Access-Control-Max-Age` (600s here) regardless of the header's *value* on later requests — an earlier lucky cached preflight made Range requests look fine for a while, then stopped, with nothing in the app having changed in between. That's what disguised a blanket CORS block as a narrow suffix-range quirk.
 
-**Impact:** the Auditor has nothing to visually inspect on the one screen whose entire purpose is visual content review, on any case — pre-seeded or real.
+**Fix:** added `Range` to `CORSMiddleware`'s `allow_headers` (`backend/app/main.py`), plus `Access-Control-Expose-Headers` for `Content-Range`/`Accept-Ranges`/`Content-Length`. Confirmed three ways: the preflight itself now returns `200` with `range` allowed; a browser `fetch()` with the exact Range header the video element needs now succeeds with a real `206`; and Aleeya confirmed the video visually plays in a real browser (my own automated browser tooling turned out unable to load *any* video, even an unrelated known-good public test clip — a limitation of that tool, not a signal about the app, discovered and ruled out before concluding this).
 
-**Owner / fix:** Firas — the network evidence above should point straight at the right component; this doesn't need backend/Aiden involvement, since the console shows no video request even attempted.
+The two earlier backend changes (converting any suffix range before it reaches COS) are left in place — not wrong, still good defensive practice, just not what was actually broken.
+
+**Owner:** closed. Fixed by this session, confirmed live.
+
+### 2.2 — P1 — Incident timeline collapses real multi-second ranges to dots — still open
 
 ### 2.2 — P1 — Incident timeline collapses real multi-second ranges to dots
 
@@ -73,12 +79,11 @@ Spot-checked against `sprint2-ui-review-figma-log.md` §2 and confirmed live:
 
 ## 6. Not yet checked (scope note, not a blocker)
 
-Given the §2.1 P0, the rest of the Auditor flow (severity & comment submission, decline, cooldown, SOS) and the remaining Manager screens (Auditor Detail, exceptional raw access, SOS alert follow-up) weren't exercised to completion this pass — submitting against shared live demo data mid-QA risked corrupting state other testers rely on, and a real review is incomplete without the video pane working regardless. Re-run once §2.1 is fixed.
+The rest of the Auditor flow (severity & comment submission, decline, cooldown, SOS) and the remaining Manager screens (Auditor Detail, exceptional raw access, SOS alert follow-up) weren't exercised to completion during the original pass, while §2.1 was still open — submitting against shared live demo data mid-QA risked corrupting state other testers rely on, and a real review was incomplete without the video pane working regardless. Worth a follow-up pass now that playback works, lower priority than closing §2.2.
 
 ---
 
 ## 7. Next steps
 
-1. Firas fixes the blank Review Workspace (§2.1) — confirmed frontend-side via network evidence, this is the AC blocker.
-2. Once fixed, re-run this pass end to end (including severity submission, decline, SOS, and the remaining Manager screens) against `7KZLRA0YBTE70MPR` (still sitting in `auditor-02`'s queue) and close out the Task 101 AC.
-3. The incident-timeline duration-bar question (§2.2) can be decided independently, any time.
+1. **§2.2 (incident timeline dots-only)** is the one open item standing between this task and a clean AC. Needs either a proportional-range fix or an explicit "deliberate, keep" sign-off — see `sprint2-ui-review-figma-log.md` §2 (Auditor, "AI Analysis Summary — timeline") for the full detail and recommendation.
+2. Once §2.2 is resolved either way, a short follow-up pass on the not-yet-checked screens (§6) would close this out completely, but isn't a blocker to marking Task 101 done if §2.2 alone is resolved.
