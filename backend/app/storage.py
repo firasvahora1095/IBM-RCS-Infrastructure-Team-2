@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
@@ -169,7 +170,18 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
         kwargs: dict = {"Bucket": bucket_name, "Key": object_key}
         if byte_range:
             kwargs["Range"] = byte_range
-        response = create_cos_client().get_object(**kwargs)
+        try:
+            response = create_cos_client().get_object(**kwargs)
+        except Exception:
+            # A suffix range ("bytes=-65536", i.e. "the last 64KB") is what
+            # browsers send first when probing an MP4 whose moov atom sits
+            # at the end of the file, but COS doesn't accept that form the
+            # way a start-anchored range is accepted. Fall back to the full
+            # object rather than breaking playback outright.
+            if byte_range:
+                response = create_cos_client().get_object(Bucket=bucket_name, Key=object_key)
+            else:
+                raise
         is_partial = response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 206
         return (
             response["Body"],
@@ -185,13 +197,19 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
     if byte_range and total_size:
         range_val = byte_range.strip().removeprefix("bytes=")
         start_str, _, end_str = range_val.partition("-")
-        start = int(start_str) if start_str else 0
-        end = int(end_str) if end_str else total_size - 1
+        if not start_str:
+            # Suffix range: "bytes=-500" means the last 500 bytes.
+            start = max(0, total_size - int(end_str))
+            end = total_size - 1
+        else:
+            start = int(start_str)
+            end = int(end_str) if end_str else total_size - 1
         end = min(end, total_size - 1)
         chunk_size = end - start + 1
-        f = open(path, "rb")
-        f.seek(start)
-        return f, media_type, chunk_size, True, f"bytes {start}-{end}/{total_size}"
+        with open(path, "rb") as f:
+            f.seek(start)
+            chunk = f.read(chunk_size)
+        return BytesIO(chunk), media_type, chunk_size, True, f"bytes {start}-{end}/{total_size}"
     return open(path, "rb"), media_type, total_size, False, None
 
 
