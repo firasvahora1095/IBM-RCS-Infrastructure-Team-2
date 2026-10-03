@@ -11,7 +11,7 @@ from pathlib import Path
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite://")
 
 import httpx
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -141,6 +141,8 @@ class ApiContractTests(unittest.TestCase):
         *,
         auditor_id: str | None = "auditor-1",
         status: str = "READY_FOR_REVIEW",
+        watson_severity_score: int | None = None,
+        effective_severity_score: int | None = None,
     ) -> None:
         with self.Session.begin() as db:
             db.add(
@@ -148,6 +150,8 @@ class ApiContractTests(unittest.TestCase):
                     case_id=case_id,
                     assigned_auditor_id=auditor_id,
                     status=status,
+                    watson_severity_score=watson_severity_score,
+                    effective_severity_score=effective_severity_score,
                 )
             )
 
@@ -623,7 +627,10 @@ class ApiContractTests(unittest.TestCase):
         inserted = self.client.post(
             f"/api/internal/cases/{case_id}/mock-ai-result",
             headers={"X-Internal-API-Key": INTERNAL_API_KEY},
-            json={},
+            json={
+                "watson_severity_score": 68,
+                "effective_severity_score": 72,
+            },
         )
         self.assertEqual(inserted.status_code, 200, inserted.text)
         self.assertEqual(inserted.json()["status"], "READY_FOR_REVIEW")
@@ -667,6 +674,14 @@ class ApiContractTests(unittest.TestCase):
             stored = db.get(Case, case_id)
             self.assertEqual(stored.status, "COMPLETE")
             self.assertIsNotNone(stored.completed_at)
+            self.assertEqual(stored.watson_severity_score, 68)
+            self.assertEqual(stored.effective_severity_score, 72)
+            self.assertEqual(stored.auditor_severity_score, 80)
+            self.assertEqual(
+                stored.auditor_comment,
+                "The sustained incident warrants a higher score.",
+            )
+            self.assertEqual(stored.final_outcome, "POLICY_VIOLATION_FOUND")
             actions = db.scalars(
                 select(AuditLog.action)
                 .where(AuditLog.case_id == case_id)
@@ -676,6 +691,155 @@ class ApiContractTests(unittest.TestCase):
                 actions,
                 ["MOCK_AI_RESULT_INSERTED", "CASE_RESOLVED"],
             )
+            resolution_log = db.scalars(
+                select(AuditLog).where(
+                    AuditLog.case_id == case_id,
+                    AuditLog.action == "CASE_RESOLVED",
+                )
+            ).one()
+            self.assertEqual(resolution_log.actor, "auditor-1")
+            self.assertEqual(resolution_log.before_value["watson_severity_score"], 68)
+            self.assertEqual(resolution_log.before_value["effective_severity_score"], 72)
+            self.assertIsNone(resolution_log.before_value["auditor_severity_score"])
+            self.assertEqual(resolution_log.after_value["watson_severity_score"], 68)
+            self.assertEqual(resolution_log.after_value["effective_severity_score"], 72)
+            self.assertEqual(resolution_log.after_value["auditor_severity_score"], 80)
+            self.assertTrue(resolution_log.after_value["is_override"])
+
+    def test_override_rejects_blank_comments_without_changing_the_case(self) -> None:
+        comment_cases = (
+            ("OVRCOMMENTNONE01", None),
+            ("OVRCOMMENTEMPTY1", ""),
+            ("OVRCOMMENTSPACE1", " \t\n "),
+        )
+        headers = self.auth_headers()
+
+        for case_id, comment in comment_cases:
+            with self.subTest(comment=repr(comment)):
+                self.add_case(
+                    case_id,
+                    watson_severity_score=68,
+                    effective_severity_score=72,
+                )
+                payload = {
+                    "final_outcome": "POLICY_VIOLATION_FOUND",
+                    "auditor_severity_score": 80,
+                }
+                if comment is not None:
+                    payload["auditor_comment"] = comment
+
+                response = self.client.post(
+                    f"/api/auditor/cases/{case_id}/resolve",
+                    headers=headers,
+                    json=payload,
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json(),
+                    {"detail": "A comment is required when overriding the AI severity score"},
+                )
+                with self.Session() as db:
+                    stored = db.get(Case, case_id)
+                    self.assertEqual(stored.status, "READY_FOR_REVIEW")
+                    self.assertEqual(stored.effective_severity_score, 72)
+                    self.assertIsNone(stored.auditor_severity_score)
+                    self.assertIsNone(stored.auditor_comment)
+                    self.assertIsNone(stored.final_outcome)
+                    self.assertEqual(
+                        db.scalar(
+                            select(func.count())
+                            .select_from(AuditLog)
+                            .where(AuditLog.case_id == case_id)
+                        ),
+                        0,
+                    )
+
+    def test_confirming_the_ai_score_does_not_require_a_comment(self) -> None:
+        case_id = "CONFIRMSCORE00001"
+        self.add_case(
+            case_id,
+            watson_severity_score=68,
+            effective_severity_score=72,
+        )
+
+        response = self.client.post(
+            f"/api/auditor/cases/{case_id}/resolve",
+            headers=self.auth_headers(),
+            json={
+                "final_outcome": "NO_VIOLATION_FOUND",
+                "auditor_severity_score": 72,
+                "auditor_comment": "   ",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        with self.Session() as db:
+            stored = db.get(Case, case_id)
+            self.assertEqual(stored.effective_severity_score, 72)
+            self.assertEqual(stored.auditor_severity_score, 72)
+            self.assertIsNone(stored.auditor_comment)
+            resolution_log = db.scalars(
+                select(AuditLog).where(
+                    AuditLog.case_id == case_id,
+                    AuditLog.action == "CASE_RESOLVED",
+                )
+            ).one()
+            self.assertFalse(resolution_log.after_value["is_override"])
+
+    def test_flagged_cases_cannot_use_the_standard_resolution_path(self) -> None:
+        flagged_cases = (
+            ("FLAGDECLINED0001", "DECLINED"),
+            ("FLAGSOS000000001", "SOS"),
+        )
+        headers = self.auth_headers()
+
+        for case_id, manager_flag in flagged_cases:
+            with self.subTest(manager_flag=manager_flag):
+                self.add_case(
+                    case_id,
+                    watson_severity_score=68,
+                    effective_severity_score=72,
+                )
+                with self.Session.begin() as db:
+                    db.get(Case, case_id).manager_flag = manager_flag
+
+                response = self.client.post(
+                    f"/api/auditor/cases/{case_id}/resolve",
+                    headers=headers,
+                    json={"final_outcome": "NO_VIOLATION_FOUND"},
+                )
+
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(
+                    response.json(),
+                    {"detail": "Flagged cases require Manager action"},
+                )
+                with self.Session() as db:
+                    stored = db.get(Case, case_id)
+                    self.assertEqual(stored.status, "READY_FOR_REVIEW")
+                    self.assertEqual(stored.manager_flag, manager_flag)
+                    self.assertIsNone(stored.final_outcome)
+
+    def test_resolution_rejects_an_unapproved_final_outcome(self) -> None:
+        case_id = "BADOUTCOME0000001"
+        self.add_case(
+            case_id,
+            watson_severity_score=68,
+            effective_severity_score=72,
+        )
+
+        response = self.client.post(
+            f"/api/auditor/cases/{case_id}/resolve",
+            headers=self.auth_headers(),
+            json={"final_outcome": "ESCALATED"},
+        )
+
+        self.assertEqual(response.status_code, 422)
+        with self.Session() as db:
+            stored = db.get(Case, case_id)
+            self.assertEqual(stored.status, "READY_FOR_REVIEW")
+            self.assertIsNone(stored.final_outcome)
 
     def test_another_auditor_cannot_resolve_the_case(self) -> None:
         case_id = "LOCKEDCASE000001"
@@ -1007,6 +1171,139 @@ class ApiContractTests(unittest.TestCase):
         manager_headers = self.auth_headers("manager-1")
         r = self.client.get(f"/api/manager/cases/{case_id}/video", headers=manager_headers)
         self.assertEqual(r.status_code, 404)
+
+    def test_cors_preflight_allows_range_header_for_video_streaming(self) -> None:
+        """A <video> element's Range-bearing request is cross-origin
+        (frontend and backend are on different subdomains in production) and
+        triggers a CORS preflight. Without "Range" explicitly allowed, the
+        browser rejects the preflight with "Disallowed CORS headers" and
+        never sends the real request at all - the video pane then stays
+        blank with no server-visible request and no JS-visible error."""
+        case_id = "CORSPREFLIGHT00001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        r = self.client.request(
+            "OPTIONS",
+            f"/api/auditor/cases/{case_id}/video",
+            headers={
+                # Matches the default CORS_ALLOWED_ORIGINS used when the env
+                # var isn't set (production sets it to the real frontend
+                # origin) - this only tests which headers are allowed, not
+                # which origins are.
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "range",
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        allowed = {h.strip().lower() for h in r.headers["access-control-allow-headers"].split(",")}
+        self.assertIn("range", allowed)
+
+    # --- Exposure / cooldown enforcement tests ---
+
+    def test_select_auditor_excludes_auditor_in_cooldown(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.cooldown_ends_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            auditor.cooldown_trigger = "S3"
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["auditor_id"], "auditor-2")
+
+    def test_select_auditor_excludes_auditor_at_exposure_limit(self) -> None:
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 120.0
+            auditor.exposure_limit_minutes = 120
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["auditor_id"], "auditor-2")
+
+    def test_select_auditor_returns_503_when_all_in_cooldown(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        with self.Session.begin() as db:
+            for auditor_id in ("auditor-1", "auditor-2"):
+                auditor = db.get(Auditor, auditor_id)
+                auditor.cooldown_ends_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertIn(r.status_code, (409, 503))
+
+    def _resolve_case(self, case_id: str, auditor_id: str = "auditor-1") -> httpx.Response:
+        headers = self.auth_headers(auditor_id)
+        return self.client.post(
+            f"/api/auditor/cases/{case_id}/resolve",
+            json={"final_outcome": "NO_VIOLATION_FOUND"},
+            headers=headers,
+        )
+
+    def test_complete_s3_case_sets_15_min_cooldown(self) -> None:
+        from datetime import datetime, timezone
+        case_id = "COOLDOWNTEST00001"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S3"
+            case.effective_severity_score = 70
+
+        before = datetime.now(timezone.utc)
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNotNone(auditor.cooldown_ends_at)
+            self.assertEqual(auditor.cooldown_trigger, "S3")
+            ends_at = auditor.cooldown_ends_at.replace(tzinfo=timezone.utc) if auditor.cooldown_ends_at.tzinfo is None else auditor.cooldown_ends_at
+            delta_minutes = (ends_at - before).total_seconds() / 60
+            self.assertAlmostEqual(delta_minutes, 15, delta=0.1)
+
+    def test_complete_s4_case_sets_30_min_cooldown(self) -> None:
+        from datetime import datetime, timezone
+        case_id = "COOLDOWNTEST00002"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S4"
+            case.effective_severity_score = 90
+
+        before = datetime.now(timezone.utc)
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNotNone(auditor.cooldown_ends_at)
+            self.assertEqual(auditor.cooldown_trigger, "S4")
+            ends_at = auditor.cooldown_ends_at.replace(tzinfo=timezone.utc) if auditor.cooldown_ends_at.tzinfo is None else auditor.cooldown_ends_at
+            delta_minutes = (ends_at - before).total_seconds() / 60
+            self.assertAlmostEqual(delta_minutes, 30, delta=0.1)
+
+    def test_complete_s1_case_does_not_set_cooldown(self) -> None:
+        case_id = "COOLDOWNTEST00003"
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S1"
+            case.effective_severity_score = 20
+
+        r = self._resolve_case(case_id)
+        self.assertEqual(r.status_code, 200, r.text)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertIsNone(auditor.cooldown_ends_at)
 
 
 if __name__ == "__main__":

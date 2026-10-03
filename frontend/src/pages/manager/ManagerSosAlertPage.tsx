@@ -71,7 +71,7 @@ export function ManagerSosAlertPage() {
             <dl className="flex flex-wrap gap-12">
               <Figure
                 label="Today's exposure"
-                value={`${data.exposure_minutes_today} / ${data.exposure_limit_minutes} min`}
+                value={`${Math.round(data.exposure_minutes_today)} / ${data.exposure_limit_minutes} min`}
               />
               <Figure label="Triggering case" value={data.case_id} />
               <Figure label="Raised by" value={SOS_TRIGGER_LABEL[data.trigger]} />

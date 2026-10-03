@@ -17,6 +17,13 @@ const LABEL_ROW_HEIGHT_PX = 48;
 const LABELS_TOP_PX = 44;
 /** Used before the first measurement, and in jsdom (which has no layout). */
 const FALLBACK_WIDTH_PX = 1104;
+/**
+ * Even an instantaneous flagged moment must stay visible: AR-AI-04 gives
+ * every AI-flagged moment a marker, "however brief". A range this narrow in
+ * real pixels would otherwise round away to nothing next to a multi-minute
+ * span on the same track.
+ */
+const MIN_SEGMENT_WIDTH_PX = 6;
 
 const mono = "'IBM Plex Mono', monospace";
 

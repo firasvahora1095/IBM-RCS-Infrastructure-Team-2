@@ -283,7 +283,7 @@ export function ReviewWorkspace({
             could never be scrolled into view and the page looked frozen. */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
           <div
-            className="relative w-full overflow-hidden"
+            className="relative w-full shrink-0 overflow-hidden"
             style={{ aspectRatio: "16 / 9", backgroundColor: "var(--cds-background-inverse)" }}
           >
             <div
@@ -351,7 +351,7 @@ export function ReviewWorkspace({
             {onSos && (
               <div className="absolute right-4 top-4">
                 <Button
-                  kind="secondary"
+                  kind="danger"
                   size="md"
                   onClick={onSos}
                   aria-label="SOS: pause this case and notify my manager"

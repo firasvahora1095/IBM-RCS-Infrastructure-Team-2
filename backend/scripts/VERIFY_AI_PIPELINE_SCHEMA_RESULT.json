@@ -1,0 +1,120 @@
+{
+  "tester": "Firas",
+  "task": "Cross-test Aiden's real AI pipeline",
+  "run_at": "2026-09-27T05:52:19.847118+00:00",
+  "case_id": "FIRAS-XTEST-20260927T055207",
+  "checks_passed": 7,
+  "checks_total": 7,
+  "all_passed": true,
+  "manifest_summary": {
+    "status": "completed",
+    "frames_attempted": 5,
+    "frames_completed": 5,
+    "video_duration_seconds": 135.335,
+    "elapsed_seconds": 12.109,
+    "failure_stage": null
+  },
+  "case_analysis": {
+    "case_id": "FIRAS-XTEST-20260927T055207",
+    "watson_severity_score": 70,
+    "effective_severity_score": 70,
+    "severity_tier": "S3",
+    "narrative_summary": "AI flagged an S3 visual indicator at 59.993s. AI frame descriptions: At 0s: Three individuals are seen from behind, dressed in historical military uniforms. They appear to be carrying rifles over their shoulders. The setting is an outdoor area with trees and a dirt path. At 59.993s: Several individuals are seen in historical military attire, actively firing muskets. Smoke from the muskets is visible, indicating recent or ongoing discharge. The scene appears to be a battle reenactment or historical depiction of a conflict. At 119.987s: The image shows two individuals on horseback in a dynamic and chaotic scene. One person appears to be wielding a sword, while the other is holding a shield. The action suggests a conflict or battle, with visible motion blur indicating movement and potential impact.",
+    "incident_timeline": [
+      {
+        "start": 0.0,
+        "end": 0.0,
+        "severity_tier": "S1",
+        "tag": "weapon_present"
+      },
+      {
+        "start": 59.993,
+        "end": 59.993,
+        "severity_tier": "S3",
+        "tag": "multi_person_conflict"
+      },
+      {
+        "start": 59.993,
+        "end": 119.987,
+        "severity_tier": "S3",
+        "tag": "weapon_present"
+      },
+      {
+        "start": 59.993,
+        "end": 59.993,
+        "severity_tier": "S3",
+        "tag": "weapon_use"
+      },
+      {
+        "start": 119.987,
+        "end": 119.987,
+        "severity_tier": "S3",
+        "tag": "multi_person_conflict"
+      },
+      {
+        "start": 119.987,
+        "end": 119.987,
+        "severity_tier": "S3",
+        "tag": "physical_violence"
+      }
+    ],
+    "flagged_entities": [
+      {
+        "label": "soldiers",
+        "start": 0.0,
+        "end": 59.993
+      },
+      {
+        "label": "rifles",
+        "start": 0.0,
+        "end": 0.0
+      },
+      {
+        "label": "trees",
+        "start": 0.0,
+        "end": 0.0
+      },
+      {
+        "label": "path",
+        "start": 0.0,
+        "end": 0.0
+      },
+      {
+        "label": "musket",
+        "start": 59.993,
+        "end": 59.993
+      },
+      {
+        "label": "smoke",
+        "start": 59.993,
+        "end": 59.993
+      },
+      {
+        "label": "uniforms",
+        "start": 59.993,
+        "end": 59.993
+      },
+      {
+        "label": "horses",
+        "start": 89.99,
+        "end": 119.987
+      },
+      {
+        "label": "sword",
+        "start": 89.99,
+        "end": 119.987
+      },
+      {
+        "label": "shield",
+        "start": 119.987,
+        "end": 119.987
+      },
+      {
+        "label": "people",
+        "start": 119.987,
+        "end": 119.987
+      }
+    ],
+    "highest_frame": "frame-00002"
+  }
+}

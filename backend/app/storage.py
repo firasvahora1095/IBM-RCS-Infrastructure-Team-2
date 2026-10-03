@@ -1,7 +1,9 @@
+import logging
 import os
 import re
 import shutil
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
@@ -10,6 +12,8 @@ import ibm_boto3
 from dotenv import load_dotenv
 from ibm_botocore.client import Config
 from ibm_botocore.exceptions import ClientError
+
+log = logging.getLogger("ibm_rcs.api")
 
 
 project_root = Path(__file__).resolve().parents[2]
@@ -104,17 +108,24 @@ def store_video(
     environment with the existing IBM Cloud Object Storage credentials.
     """
     backend = os.getenv("VIDEO_STORAGE_BACKEND", "local").lower()
+    print(f"[STORAGE] store_video: backend={backend} case_id={case_id}", flush=True)
     stream.seek(0)
 
     if backend == "cos":
         bucket_name = get_environment_variable("COS_BUCKET_NAME")
         object_key = f"cases/{case_id}/source{extension}"
-        create_cos_client().put_object(
-            Bucket=bucket_name,
-            Key=object_key,
-            Body=stream,
-            ContentType=media_type,
-        )
+        print(f"[STORAGE] uploading to COS bucket={bucket_name} key={object_key}", flush=True)
+        try:
+            create_cos_client().put_object(
+                Bucket=bucket_name,
+                Key=object_key,
+                Body=stream,
+                ContentType=media_type,
+            )
+            print(f"[STORAGE] COS upload success key={object_key}", flush=True)
+        except Exception as e:
+            print(f"[STORAGE] COS upload FAILED key={object_key} error={e}", flush=True)
+            raise
         return f"cos://{bucket_name}/{object_key}"
 
     if backend != "local":
@@ -204,7 +215,21 @@ def stream_video_from_storage(storage_reference: str, byte_range: str | None = N
         bucket_and_key = storage_reference.removeprefix("cos://")
         bucket_name, object_key = bucket_and_key.split("/", 1)
         kwargs: dict = {"Bucket": bucket_name, "Key": object_key}
-        if byte_range:
+        # A suffix range ("bytes=-65536", i.e. "the last 64KB") is what
+        # browsers send first when probing an MP4 whose moov atom sits at
+        # the end of the file. Forwarding that form to COS as-is doesn't
+        # come back as a clean error we can catch - the connection dies
+        # outright partway through the response, after headers are already
+        # on the wire, so a try/except around this call can't recover it.
+        # Never send that form to COS in the first place: a start-anchored
+        # range always works, so convert using the object's real size.
+        if byte_range and byte_range.strip().removeprefix("bytes=").startswith("-"):
+            suffix_len = int(byte_range.strip().removeprefix("bytes="))
+            head = create_cos_client().head_object(Bucket=bucket_name, Key=object_key)
+            total_size = head["ContentLength"]
+            start = max(0, total_size - abs(suffix_len))
+            kwargs["Range"] = f"bytes={start}-{total_size - 1}"
+        elif byte_range:
             kwargs["Range"] = byte_range
         try:
             response = create_cos_client().get_object(**kwargs)

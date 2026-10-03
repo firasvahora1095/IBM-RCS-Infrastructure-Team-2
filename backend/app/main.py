@@ -3,7 +3,9 @@
 import hmac
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+logging.basicConfig(level=logging.INFO)
 
 from fastapi import (
     BackgroundTasks,
@@ -149,7 +151,14 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Internal-API-Key"],
+    # Range is what a <video> element sends to seek/stream - without it
+    # explicitly allowed, the browser's CORS preflight for the video-stream
+    # endpoint fails with "Disallowed CORS headers" and the request is never
+    # sent at all. Content-Range/Accept-Ranges aren't CORS-safelisted
+    # response headers either, so the video element can't read them back
+    # without exposing them explicitly.
+    allow_headers=["Authorization", "Content-Type", "X-Internal-API-Key", "Range"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 
 
@@ -324,6 +333,8 @@ async def create_report(
             raise AssignmentOrchestrationError(
                 "Orchestrate selected an invalid Auditor account"
             )
+        print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
+        logger.info("case %s assigned to %s", case_id, decision.auditor_id)
         record_case_assignment(db, case, decision)
         db.commit()
         background_tasks.add_task(_run_analysis_in_background, case_id)
@@ -333,6 +344,7 @@ async def create_report(
         OSError,
         RuntimeError,
     ) as error:
+        logger.exception("Report creation failed: %s", error)
         db.rollback()
         if storage_reference is not None:
             try:
@@ -448,13 +460,21 @@ async def list_auditor_cases(
     ]
 
 
-def _get_owned_case(db: Session, case_id: str, auditor_id: str) -> Case:
-    case = db.scalar(
-        select(Case).where(
-            Case.case_id == _case_id_for_lookup(case_id),
-            Case.assigned_auditor_id == auditor_id,
-        )
+def _get_owned_case(
+    db: Session,
+    case_id: str,
+    auditor_id: str,
+    *,
+    for_update: bool = False,
+) -> Case:
+    statement = select(Case).where(
+        Case.case_id == _case_id_for_lookup(case_id),
+        Case.assigned_auditor_id == auditor_id,
     )
+    if for_update:
+        statement = statement.with_for_update()
+
+    case = db.scalar(statement)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
@@ -577,11 +597,22 @@ async def resolve_case(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
-    case = _get_owned_case(db, case_id, auditor.staff_id)
+    # A row lock prevents two Code Engine instances from completing the same
+    # case concurrently and overwriting the first Auditor decision.
+    case = _get_owned_case(db, case_id, auditor.staff_id, for_update=True)
     if case.status not in {"READY_FOR_REVIEW", "AUDITOR_REVIEW"}:
         raise HTTPException(status_code=409, detail="Case is not ready for resolution")
+    if case.manager_flag in {"DECLINED", "SOS"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Flagged cases require Manager action",
+        )
 
-    comment = payload.auditor_comment.strip() if payload.auditor_comment else None
+    comment = (
+        payload.auditor_comment.strip() or None
+        if payload.auditor_comment is not None
+        else None
+    )
     is_override = (
         payload.auditor_severity_score is not None
         and payload.auditor_severity_score != case.effective_severity_score
@@ -592,7 +623,13 @@ async def resolve_case(
             detail="A comment is required when overriding the AI severity score",
         )
 
+    ai_assessment = {
+        "watson_severity_score": case.watson_severity_score,
+        "effective_severity_score": case.effective_severity_score,
+        "severity_tier": case.severity_tier,
+    }
     before = {
+        **ai_assessment,
         "status": case.status,
         "auditor_severity_score": case.auditor_severity_score,
         "auditor_comment": case.auditor_comment,
@@ -602,7 +639,27 @@ async def resolve_case(
     case.auditor_comment = comment
     case.final_outcome = payload.final_outcome.value
     case.status = "COMPLETE"
-    case.completed_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    case.completed_at = now
+
+    # S3/S4 automatic cooldown on case resolution (AR-WB-12)
+    tier = case.severity_tier
+    cooldown_minutes: int | None = None
+    if tier == "S3":
+        cooldown_minutes = 15
+    elif tier == "S4":
+        cooldown_minutes = 30
+
+    if cooldown_minutes is not None:
+        auditor_row = db.get(Auditor, auditor.staff_id)
+        if auditor_row is not None:
+            # Only extend if not already in a longer cooldown
+            new_ends_at = now + timedelta(minutes=cooldown_minutes)
+            if auditor_row.cooldown_ends_at is None or auditor_row.cooldown_ends_at < new_ends_at:
+                auditor_row.cooldown_ends_at = new_ends_at
+                auditor_row.cooldown_trigger = tier
+                auditor_row.cooldown_check_in_done = 0
+
     db.add(
         AuditLog(
             case_id=case.case_id,
@@ -610,10 +667,12 @@ async def resolve_case(
             action="CASE_RESOLVED",
             before_value=before,
             after_value={
+                **ai_assessment,
                 "status": case.status,
                 "auditor_severity_score": case.auditor_severity_score,
                 "auditor_comment": case.auditor_comment,
                 "final_outcome": case.final_outcome,
+                "is_override": is_override,
             },
         )
     )
@@ -640,6 +699,13 @@ async def manager_dashboard(
         in_cooldown = bool(ends_at and ends_at > now)
         requires_check_in = a.cooldown_trigger in ("S4", "SOS")
         check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
+        cooldown = None
+        if in_cooldown and ends_at:
+            cooldown = {
+                "ends_at": ends_at.isoformat(),
+                "trigger": a.cooldown_trigger,
+                "check_in_pending": check_in_pending,
+            }
         auditor_list.append({
             "auditor_id": a.auditor_id,
             "exposure_minutes_today": float(a.exposure_minutes or 0),
@@ -647,6 +713,7 @@ async def manager_dashboard(
             "active_case_count": int(a.active_case_count or 0),
             "in_cooldown": in_cooldown,
             "check_in_pending": check_in_pending,
+            "cooldown": cooldown,
         })
     pending_declined = db.scalar(
         select(func.count()).select_from(Case).where(
@@ -688,11 +755,17 @@ async def get_my_wellbeing(
                 "requires_check_in": requires_check_in,
                 "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
             }
+    cases_reviewed_today = db.scalar(
+        select(func.count()).select_from(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.status == "COMPLETE",
+        )
+    ) or 0
     return {
         "exposure_minutes_today": exposure,
         "exposure_limit_minutes": limit,
         "cooldown": cooldown,
-        "cases_reviewed_today": 0,
+        "cases_reviewed_today": cases_reviewed_today,
     }
 
 
@@ -755,7 +828,6 @@ async def trigger_sos(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
-    from datetime import timedelta
     case = _get_owned_case(db, case_id, auditor.staff_id)
     before = {"status": case.status, "manager_flag": case.manager_flag}
     case.manager_flag = "SOS"
@@ -812,6 +884,60 @@ async def report_unexpected_exposure(
     }
 
 
+@app.post("/api/auditor/stop-shift")
+async def stop_shift(
+    auditor: StaffSession = Depends(get_current_auditor),
+    db: Session = Depends(get_db),
+):
+    """Auditor stops their shift early from the cooldown screen (AR-WB-12).
+
+    Sets exposure to the daily limit so no further cases are assigned,
+    then returns all active cases to READY_FOR_REVIEW for reassignment.
+    """
+    auditor_row = db.get(Auditor, auditor.staff_id)
+    if auditor_row is None:
+        raise HTTPException(status_code=404, detail="Auditor not found")
+
+    # Block future assignments by pinning exposure to the limit
+    limit = int(auditor_row.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT)
+    auditor_row.exposure_minutes = float(limit)
+
+    # Return all active cases to the queue
+    active_cases = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.status.in_(["AUDITOR_REVIEW", "READY_FOR_REVIEW"]),
+        )
+    ).all()
+
+    now = datetime.now(timezone.utc)
+    for case in active_cases:
+        before = {"status": case.status, "assigned_auditor_id": case.assigned_auditor_id}
+        case.status = "READY_FOR_REVIEW"
+        case.assigned_auditor_id = None
+        db.add(AuditLog(
+            case_id=case.case_id,
+            actor=auditor.staff_id,
+            action="SHIFT_STOPPED_CASE_RETURNED",
+            before_value=before,
+            after_value={"status": case.status, "assigned_auditor_id": None},
+        ))
+
+    if active_cases:
+        db.add(AuditLog(
+            case_id=active_cases[0].case_id,
+            actor=auditor.staff_id,
+            action="SHIFT_STOPPED",
+            before_value=None,
+            after_value={"cases_returned": len(active_cases), "stopped_at": now.isoformat()},
+        ))
+    else:
+        logger.info("Shift stopped by %s (no active cases)", auditor.staff_id)
+
+    db.commit()
+    return {"stopped": True, "cases_returned": len(active_cases)}
+
+
 @app.post("/api/auditor/wellbeing-support")
 async def request_wellbeing_support(
     kind: str = Body(embed=True),
@@ -837,6 +963,24 @@ async def request_wellbeing_support(
 # ---------------------------------------------------------------------------
 # Manager endpoints (Sprint 3)
 # ---------------------------------------------------------------------------
+
+def _auditor_cooldown_payload(row: Auditor) -> dict | None:
+    if not row.cooldown_ends_at:
+        return None
+    ends_at = row.cooldown_ends_at
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+    if ends_at <= datetime.now(timezone.utc):
+        return None
+    requires_check_in = row.cooldown_trigger in ("S4", "SOS")
+    check_in_done = bool(row.cooldown_check_in_done)
+    return {
+        "ends_at": ends_at.isoformat(),
+        "trigger": row.cooldown_trigger,
+        "requires_check_in": requires_check_in,
+        "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
+    }
+
 
 def _exposure_state(minutes: float, limit: float) -> str:
     if limit <= 0:
@@ -919,7 +1063,7 @@ async def list_auditors(
             "exposure_minutes_today": round(exp, 1),
             "exposure_limit_minutes": limit,
             "exposure_state": _exposure_state(exp, limit),
-            "cooldown": None,
+            "cooldown": _auditor_cooldown_payload(a),
             "cases_today": cases_today.get(a.auditor_id, 0),
         })
     return result
@@ -928,8 +1072,32 @@ async def list_auditors(
 @app.get("/api/manager/sos-summary")
 async def get_sos_summary(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
-    return {"unresolved_count": 0, "most_recent": None}
+    # Unresolved = SOS triggered but cooldown_check_in_done is still 0
+    sos_auditors = db.scalars(
+        select(Auditor)
+        .where(
+            Auditor.cooldown_trigger == "SOS",
+            Auditor.cooldown_check_in_done == 0,
+            Auditor.cooldown_ends_at.is_not(None),
+        )
+        .order_by(Auditor.cooldown_ends_at.desc())
+    ).all()
+    if not sos_auditors:
+        return {"unresolved_count": 0, "most_recent": None}
+    most_recent = sos_auditors[0]
+    ends_at = most_recent.cooldown_ends_at
+    if ends_at and ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+    triggered_at = (ends_at - timedelta(minutes=30)).isoformat() if ends_at else None
+    return {
+        "unresolved_count": len(sos_auditors),
+        "most_recent": {
+            "auditor_name": most_recent.auditor_id,
+            "triggered_at": triggered_at,
+        },
+    }
 
 
 @app.get("/api/manager/auditors/{auditor_id}")
@@ -955,7 +1123,7 @@ async def get_auditor_detail(
         "exposure_minutes_today": round(exp, 1),
         "exposure_limit_minutes": limit,
         "exposure_state": _exposure_state(exp, limit),
-        "cooldown": None,
+        "cooldown": _auditor_cooldown_payload(row),
         "cases_today": len(recent),
         "pattern_flagged": False,
         "recent_cases": [
@@ -1357,6 +1525,22 @@ async def record_exceptional_access(
     ))
     db.commit()
     return {"recorded": True}
+
+
+@app.post("/api/admin/reseed")
+async def reseed_db():
+    """Re-run the demo seed script. Wipes all data and re-inserts demo accounts and cases."""
+    import subprocess
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    result = subprocess.run(
+        ["python3", "-m", "scripts.seed_demo"],
+        capture_output=True,
+        text=True,
+        cwd=app_dir,
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr[-2000:])
+    return {"ok": True, "output": result.stdout[-2000:]}
 
 
 @app.get("/api/manager/validation")
