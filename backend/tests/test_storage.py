@@ -53,37 +53,45 @@ def test_local_storage_suffix_range_returns_the_tail(tmp_path: Path) -> None:
     assert content_range == "bytes 6-9/10"
 
 
-def test_cos_storage_suffix_range_falls_back_to_full_object(
+def test_cos_storage_suffix_range_is_converted_before_reaching_cos(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """COS rejects the suffix-range form some clients send; the proxy must
-    still serve the video instead of crashing the connection outright."""
+    """COS doesn't come back with a clean, catchable error for the suffix
+    form some clients send - the connection dies mid-response instead, after
+    headers are already on the wire, so a try/except around get_object()
+    can't recover it. The proxy must never send that form to COS at all."""
     calls: list[dict] = []
 
     class FakeCosClient:
+        def head_object(self, *, Bucket, Key):
+            assert Bucket == "evidence-bucket"
+            assert Key == "cases/CASE-1/source.mp4"
+            return {"ContentLength": 100_000}
+
         def get_object(self, **kwargs):
             calls.append(kwargs)
-            if kwargs.get("Range") == "bytes=-65536":
-                raise RuntimeError("COS rejected the suffix range")
+            assert kwargs.get("Range") != "bytes=-65536", "suffix range must never reach COS"
             return {
-                "Body": BytesIO(b"full-video-bytes"),
+                "Body": BytesIO(b"tail-bytes"),
                 "ContentType": "video/mp4",
-                "ContentLength": 16,
+                "ContentLength": 65536,
+                "ResponseMetadata": {"HTTPStatusCode": 206},
+                "ContentRange": "bytes 34464-99999/100000",
             }
 
     monkeypatch.setattr(storage, "create_cos_client", lambda: FakeCosClient())
 
-    body, media_type, content_length, is_partial, _content_range = stream_video_from_storage(
+    body, media_type, content_length, is_partial, content_range = stream_video_from_storage(
         "cos://evidence-bucket/cases/CASE-1/source.mp4", byte_range="bytes=-65536"
     )
 
-    assert body.read() == b"full-video-bytes"
+    assert body.read() == b"tail-bytes"
     assert media_type == "video/mp4"
-    assert content_length == 16
-    assert is_partial is False
-    assert len(calls) == 2
-    assert calls[0]["Range"] == "bytes=-65536"
-    assert "Range" not in calls[1]
+    assert content_length == 65536
+    assert is_partial is True
+    assert content_range == "bytes 34464-99999/100000"
+    assert len(calls) == 1
+    assert calls[0]["Range"] == "bytes=34464-99999"
 
 
 def test_cos_storage_normal_range_is_not_retried(
