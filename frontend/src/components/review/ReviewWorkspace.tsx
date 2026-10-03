@@ -372,7 +372,12 @@ export function ReviewWorkspace({
               value={position}
               hideTextInput
               formatLabel={(value: number) => formatTimestamp(value)}
-              onChange={({ value }) => seek(Number(value))}
+              onChange={({ value }) => {
+                const requested = Number(value);
+                // Carbon also emits onChange when its value prop follows playback.
+                // Compare the raw time before seek rounds it, or 0.25s seeks back to 0s.
+                if (requested !== positionRef.current) seek(requested);
+              }}
             />
             {timeline.length > 0 && (
               <div
