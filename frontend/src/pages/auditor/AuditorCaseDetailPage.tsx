@@ -491,7 +491,7 @@ export function AuditorCaseDetailPage() {
             <h2 id="narrative-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
               Narrative summary
             </h2>
-            <p style={secondaryText}>
+            <p style={{ ...secondaryText, whiteSpace: "pre-line" }}>
               {caseDetail.narrative_summary ?? "No narrative summary was returned for this case."}
             </p>
           </section>
