@@ -49,6 +49,19 @@ guilt, criminality, medical conclusions, or facts outside this frame. Use
 uncertainty-aware language where the image is ambiguous.
 """.strip()
 
+# Ordered by the concern to surface first within a frame. These describe
+# existing tags cautiously; they do not translate or change the severity tier.
+_SUMMARY_FINDINGS = {
+    "weapon_use": "Possible weapon use",
+    "visible_injury": "Possible visible injury",
+    "physical_violence": "Potential physical violence",
+    "multi_person_conflict": "Possible group confrontation",
+    "weapon_present": "Possible weapons",
+}
+_HUMAN_REVIEW_STATEMENT = (
+    "Human review is required to confirm the context and final severity."
+)
+
 _SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "frame-analysis.schema.json"
 _FRAME_SCHEMA = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
 _FRAME_VALIDATOR = Draft202012Validator(
@@ -191,8 +204,92 @@ def _build_incident_timeline(
     return sorted(completed, key=lambda item: (item["start"], item["tag"]))
 
 
-def _format_timestamp(timestamp: float) -> str:
-    return f"{timestamp:.3f}".rstrip("0").rstrip(".")
+def _format_summary_time(start: float, end: float) -> str:
+    """Round only the narrative's timestamps; retain precise timeline data."""
+
+    rounded_start = int(float(start) + 0.5)
+    rounded_end = int(float(end) + 0.5)
+    if rounded_start == rounded_end:
+        return f"at approximately {rounded_start} seconds"
+    return f"around {rounded_start}–{rounded_end} seconds"
+
+
+def _summary_observation(frame: dict[str, Any], word_limit: int) -> str:
+    """Keep short source observations intact, including their qualifications."""
+
+    reasoning = re.sub(r"\s+", " ", frame["reasoning"]).strip()
+    reasoning = re.sub(r"\bindividuals\b", "people", reasoning, flags=re.IGNORECASE)
+    reasoning = re.sub(
+        r"\b(?:the image depicts|this frame shows)\b",
+        "the footage shows",
+        reasoning,
+        flags=re.IGNORECASE,
+    )
+    reasoning = re.sub(
+        r"\bin this frame\b", "in the footage", reasoning, flags=re.IGNORECASE,
+    )
+    reasoning = re.sub(
+        r"\bvisual (?:harm )?indicator\b", "visual concern", reasoning,
+        flags=re.IGNORECASE,
+    )
+
+    clauses = [
+        clause.rstrip(".!?")
+        for clause in re.split(r"(?<=[.!?])\s+", reasoning)
+        if clause.rstrip(".!?").strip()
+    ]
+    if len(reasoning.split()) > word_limit:
+        # Prefer a complete, relevant sentence with the source's uncertainty.
+        # Never truncate a sentence before a qualification or negation.
+        uncertainty = re.compile(
+            r"\b(?:appears?|possible|possibly|could|may|might|unclear|"
+            r"not|no|suggests?|suggesting)\b",
+            flags=re.IGNORECASE,
+        )
+        relevant = re.compile(
+            r"\b(?:weapons?|firearms?|rifles?|guns?|knives|knife|objects?|"
+            r"violence|violent|conflict|confrontation|injur\w*|falling|ground)\b",
+            flags=re.IGNORECASE,
+        )
+        concise = [
+            clause for clause in clauses
+            if len(clause.split()) <= word_limit
+            and relevant.search(clause)
+            and (not uncertainty.search(reasoning) or uncertainty.search(clause))
+        ]
+        clauses = (
+            [max(concise, key=lambda clause: len(uncertainty.findall(clause)))]
+            if concise else []
+        )
+
+    if not clauses:
+        # A cautious description of existing tags is safer than a partial quote.
+        findings = [
+            label.lower()
+            for tag, label in _SUMMARY_FINDINGS.items()
+            if tag in frame["tags"]
+        ]
+        if not findings:
+            return "the context and the reason for the suggested severity need review"
+        concerns = (
+            ", ".join(findings[:-1]) + " and " + findings[-1]
+            if len(findings) > 1 else findings[0]
+        )
+        return f"the footage suggests {concerns}"
+
+    # Combine short observations into a single chronological sentence without
+    # deleting uncertainty or adding facts beyond the source description.
+    observations = []
+    for clause in clauses:
+        first_word = clause.split(maxsplit=1)[0]
+        if first_word.lower() in {
+            "a", "an", "the", "this", "there", "it", "they", "some", "several",
+            "multiple", "two", "three", "no", "people", "smoke", "active",
+            "however", "although", "but",
+        }:
+            clause = clause[0].lower() + clause[1:]
+        observations.append(clause)
+    return "; ".join(observations)
 
 
 def _build_narrative_summary(
@@ -201,36 +298,30 @@ def _build_narrative_summary(
     incident_timeline: list[dict[str, Any]],
     frame_results: list[dict[str, Any]],
 ) -> str:
-    """Combine a stable case-level lead with representative frame descriptions."""
+    """Refine the case template into concise, uncertainty-aware review wording."""
 
     timestamp = float(highest_frame["timestamp"])
+    primary_tag = next(
+        (tag for tag in _SUMMARY_FINDINGS if tag in highest_frame["tags"]),
+        None,
+    )
+    finding = _SUMMARY_FINDINGS.get(primary_tag, "Context and severity require review")
     matching_incident = next(
         (
             incident
             for incident in incident_timeline
-            if incident["severity_tier"] == severity_tier
+            if incident["tag"] == primary_tag
             and incident["start"] <= timestamp <= incident["end"]
         ),
         None,
     )
-    if matching_incident is None:
-        lead = (
-            f"AI assigned {severity_tier} severity at "
-            f"{_format_timestamp(timestamp)}s without a listed visual tag."
-        )
-    else:
-        start = _format_timestamp(matching_incident["start"])
-        end = _format_timestamp(matching_incident["end"])
-        if start == end:
-            lead = f"AI flagged an {severity_tier} visual indicator at {start}s."
-        else:
-            lead = (
-                f"AI flagged an {severity_tier} visual indicator "
-                f"between {start}s and {end}s."
-            )
+    when = _format_summary_time(
+        matching_incident["start"] if matching_incident else timestamp,
+        matching_incident["end"] if matching_incident else timestamp,
+    )
 
-    # Keep the highest-scoring frame plus early and late distinct descriptions
-    # from other flagged frames so a long case is not summarized by one moment.
+    # Retain the existing highest / early / late selection, with repeated
+    # descriptions omitted so the narrative is not a per-frame log.
     seen = {re.sub(r"\s+", " ", highest_frame["reasoning"]).strip().casefold()}
     candidates = []
     for frame in sorted(frame_results, key=lambda item: item["timestamp"]):
@@ -248,17 +339,62 @@ def _build_narrative_summary(
     if len(candidates) > 1:
         selected.append(candidates[-1])
 
+    # Reserve more of the word budget for the strongest evidence. Select the
+    # highest frame first so deduplication cannot drop its useful timestamp.
     observations = []
-    for frame in sorted(selected, key=lambda item: item["timestamp"]):
-        reasoning = re.sub(r"\s+", " ", frame["reasoning"]).strip()
-        if not reasoning:
+    seen_observations = set()
+    for frame in selected:
+        observation = _summary_observation(frame, 44 if frame is highest_frame else 22)
+        if observation.casefold() in seen_observations:
             continue
-        if len(reasoning) > 350:
-            reasoning = reasoning[:347].rstrip() + "..."
-        observations.append(
-            f"At {_format_timestamp(float(frame['timestamp']))}s: {reasoning}"
-        )
-    return lead if not observations else lead + " AI frame descriptions: " + " ".join(observations)
+        seen_observations.add(observation.casefold())
+        if frame is highest_frame:
+            introduction = when[0].upper() + when[1:]
+        elif frame["timestamp"] < timestamp:
+            introduction = "Earlier in the video"
+        else:
+            introduction = "Later in the video"
+        observations.append((frame["timestamp"], f"{introduction}, {observation}."))
+    narrative = " ".join(sentence for _, sentence in sorted(observations))
+
+    evidence = []
+    seen_tags = set()
+    for frame in sorted(
+        frame_results,
+        key=lambda item: (-item["effective_severity_score"], item["timestamp"]),
+    ):
+        for tag, label in _SUMMARY_FINDINGS.items():
+            if tag not in frame["tags"] or tag in seen_tags:
+                continue
+            seen_tags.add(tag)
+            incident = next(
+                (
+                    item
+                    for item in incident_timeline
+                    if item["tag"] == tag
+                    and item["start"] <= frame["timestamp"] <= item["end"]
+                ),
+                None,
+            )
+            location = _format_summary_time(
+                incident["start"] if incident else frame["timestamp"],
+                incident["end"] if incident else frame["timestamp"],
+            )
+            evidence.append(f"• {label} {location}")
+            if len(evidence) == 3:
+                break
+        if len(evidence) == 3:
+            break
+    if not evidence:
+        evidence.append("• No listed visual concerns were detected in the reviewed footage.")
+
+    key_evidence = "\n".join(evidence)
+    return (
+        f"{severity_tier} — {finding}\n\n"
+        f"{narrative}\n\n"
+        f"Key evidence:\n{key_evidence}\n\n"
+        f"{_HUMAN_REVIEW_STATEMENT}"
+    )
 
 
 def _aggregate_flagged_entities(

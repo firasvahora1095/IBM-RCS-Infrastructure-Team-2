@@ -86,7 +86,7 @@ export function ManagerSosAlertPage() {
             </dl>
             <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-01)", margin: 0 }} />
             <h2 style={{ fontSize: 14, fontWeight: 600 }}>AI narrative summary (text only — no raw footage shown)</h2>
-            <p style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p style={{ fontSize: 14, lineHeight: "20px", whiteSpace: "pre-line" }}>
               {data.narrative_summary ?? "No narrative summary is available for this case."}
             </p>
             {data.follow_up_notes && (

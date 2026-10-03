@@ -131,7 +131,9 @@ export function ManagerExceptionalAccessPage() {
             <h2 id="narrative-title" style={{ fontSize: 14, fontWeight: 600 }}>
               Narrative summary
             </h2>
-            <p style={secondaryText}>{data.narrative_summary ?? "No narrative summary was returned for this case."}</p>
+            <p style={{ ...secondaryText, whiteSpace: "pre-line" }}>
+              {data.narrative_summary ?? "No narrative summary was returned for this case."}
+            </p>
           </section>
           {data.incident_timeline && data.incident_timeline.length > 0 && (
             <section aria-labelledby="timeline-title" className="flex flex-col gap-2">

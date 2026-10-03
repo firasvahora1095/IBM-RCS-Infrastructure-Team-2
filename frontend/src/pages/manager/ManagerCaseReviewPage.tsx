@@ -39,7 +39,7 @@ export function ManagerCaseReviewPage() {
               {data.severity_tier && <SeverityTag tier={data.severity_tier} />}
               {aiScore !== null && <span style={{ ...mono, fontSize: 14 }}>CVI {aiScore}</span>}
             </div>
-            <p style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p style={{ fontSize: 14, lineHeight: "20px", whiteSpace: "pre-line" }}>
               {data.narrative_summary ?? "No narrative summary is available for this case."}
             </p>
             {data.flagged_entities.length > 0 && (

@@ -484,7 +484,7 @@ export function ReviewWorkspace({
             <Accordion className="rcs-evidence-rail">
               {caseDetail.narrative_summary && (
                 <AccordionItem title="AI Summary" open>
-                  <p style={secondaryText}>{caseDetail.narrative_summary}</p>
+                  <p style={{ ...secondaryText, whiteSpace: "pre-line" }}>{caseDetail.narrative_summary}</p>
                 </AccordionItem>
               )}
               {caseDetail.flagged_entities && caseDetail.flagged_entities.length > 0 && (
