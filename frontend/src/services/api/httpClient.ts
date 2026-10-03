@@ -1,4 +1,6 @@
 import type {
+  AuditLogHistory,
+  AuditLogQuery,
   AuditorCaseDetail,
   AuditorCaseListItem,
   AuditorDetail,
@@ -207,6 +209,27 @@ export async function resolveCase(
   );
 
   return parseJsonOrThrow<ResolveCaseResponse>(response);
+}
+
+/** Read existing database audit rows with manager authentication. */
+export async function getAuditHistory(
+  token: string,
+  query: AuditLogQuery = {},
+): Promise<AuditLogHistory> {
+  const params = new URLSearchParams();
+  if (query.case_id) params.set("case_id", query.case_id);
+  if (query.action) params.set("action", query.action);
+  if (query.before_id !== undefined) params.set("before_id", String(query.before_id));
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  const search = params.toString();
+  const response = await fetch(
+    `${API_BASE_URL}/api/manager/audit-logs${search ? `?${search}` : ""}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+  return parseJsonOrThrow<AuditLogHistory>(response);
 }
 
 /**

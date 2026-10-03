@@ -1,7 +1,7 @@
 # Database Provisioning and Core Schema
 
-This document covers the Sprint 2 database schema. It provisions a local
-PostgreSQL database and defines the three core tables used by the backend:
+This document describes local PostgreSQL provisioning and the three core
+tables used by the backend:
 
 - `auditors`
 - `cases`
@@ -102,7 +102,7 @@ known processing failure.
 
 ### `audit_logs`
 
-Provides timestamped change records for later workflow stages:
+Stores timestamped workflow events and case-analysis metadata:
 
 - generated `audit_log_id` primary key
 - `case_id` foreign key
@@ -111,8 +111,102 @@ Provides timestamped change records for later workflow stages:
 - nullable JSONB `before_value` and `after_value`
 - `created_at`
 
-Later AI/governance work can place decision and model metadata in the JSONB
-values while retaining the actor, action, case, and timestamp as queryable fields.
+Each handled case-analysis run creates one `AI_ANALYSIS_COMPLETED` or
+`AI_ANALYSIS_FAILED` event. Its `after_value` contains the run ID and model
+metadata alongside the existing workflow details.
+
+### Manager audit-history viewer
+
+The manager dashboard's **View audit history** button opens `/manager/audit-logs`.
+It reads the existing `audit_logs` table through the backend's database connection,
+so the database does not need to be reachable from the manager's browser.
+
+`GET /api/manager/audit-logs` requires the existing manager Bearer token and
+returns `entries` plus `next_before_id`. Each entry includes the stored ID, case,
+actor, action, timestamp, `before_value`, and `after_value`. The endpoint only
+reads records and sends `Cache-Control: no-store`.
+
+Optional query parameters are `case_id`, `action` (exact matches), `before_id`
+(for older entries), and `limit` (default 25, maximum 100). Entries are ordered
+by descending audit ID. The viewer provides filters, refresh, older-entry paging,
+and expandable JSON values, including `null` when no value was stored.
+
+Deploy both the updated backend and a rebuilt frontend. Build the frontend with
+`VITE_DATA_SOURCE=api` and `VITE_API_BASE_URL` set to the deployed backend's URL;
+these Vite variables are resolved at build time. The existing `DATABASE_URL`
+stays in the backend environment. Demo mode reports that audit history requires
+a backend connection instead of displaying synthetic database records.
+
+This viewer reads the values already saved in `audit_logs`. It does not backfill
+model metadata into workflow events. Production verification is complete only
+after querying the deployed backend and inspecting a known case's saved rows.
+
+### One audit event per case analysis run
+
+`process_case_analysis` saves one `AuditLog` event when a vision run completes or
+returns a handled failure. It uses the case's `case_id`, actor `watsonx-vision`,
+and the existing action `AI_ANALYSIS_COMPLETED` or `AI_ANALYSIS_FAILED`.
+`before_value` keeps the case's state before the run; `after_value` contains the
+resulting state and these metadata fields:
+
+| JSON field | Purpose |
+| --- | --- |
+| `analysis_run_id` | New UUID for each invocation, including reanalysis |
+| `model_id` | Model ID shared by the responses received in this run |
+| `model_version` | IBM-provided revision; JSON `null` if unavailable or varying |
+| `prompt_version` | Prompt version shared by the received responses |
+| `decision_timestamp` | Last model response received for the run, as an ISO 8601 UTC timestamp |
+| `frames_received` | Number of responses received, including ones that later failed validation |
+| `frames_completed` | Number of frames successfully validated and stored |
+
+The watsonx client captures each receipt timestamp immediately after the IBM
+call. The pipeline retains the last timestamp for the run, while individual
+frame JSON files retain their own timestamps. `created_at` separately records
+when the database inserts the completed/failed run's audit event.
+
+If a run fails after receiving some responses, its failure event retains the
+metadata gathered so far, together with the failure stage and failed frame.
+If no response was received, all four model metadata fields are `null` and
+`frames_received` is zero. A run that receives an invalid response can therefore
+have more received frames than completed frames.
+
+If model ID, revision, or prompt version differs within a run, the field that
+varies becomes `null` and `model_configurations` lists every distinct combination
+observed. Shared fields retain their value. This avoids attributing the whole
+case to just the final response's configuration.
+
+Reanalysis appends a new event with a new run ID; earlier run events remain
+available. The case result and its audit event are committed together after
+processing. An interrupted process or database commit failure before that final
+transaction completes cannot produce a completed/failed run event.
+
+The run's manifest also includes this audit summary. Standalone `analyse_video`
+calls return and store the summary; `process_case_analysis` persists it in the
+existing `audit_logs` table. No extra columns or table are required.
+
+In the manager history page, filter by case ID, then expand **View stored
+values** and inspect **After**. Filter by `AI_ANALYSIS_COMPLETED` or
+`AI_ANALYSIS_FAILED` to select an outcome.
+
+To inspect the same fields in `psql`, set a case-ID variable with
+`\set case_id YOUR_CASE_ID` and run:
+
+```sql
+SELECT audit_log_id, case_id, action,
+       after_value->>'analysis_run_id' AS analysis_run_id,
+       after_value->>'model_id' AS model_id,
+       after_value->>'model_version' AS model_version,
+       after_value->>'prompt_version' AS prompt_version,
+       after_value->>'decision_timestamp' AS decision_timestamp,
+       after_value->>'frames_received' AS frames_received,
+       after_value->>'frames_completed' AS frames_completed,
+       after_value->'model_configurations' AS model_configurations,
+       created_at
+FROM audit_logs
+WHERE case_id = :'case_id'
+  AND action IN ('AI_ANALYSIS_COMPLETED', 'AI_ANALYSIS_FAILED')
+ORDER BY audit_log_id;
+```
 
 ## Case ID generation
 
@@ -140,9 +234,9 @@ With PostgreSQL running, execute the smoke test from the `backend` directory:
 python -m scripts.DATABASE_TEST
 ```
 
-The test verifies that:
+The existing smoke test covers the original workflow tables:
 
-1. all three required tables exist;
+1. `auditors`, `cases`, and `audit_logs` exist;
 2. an Auditor can be inserted and read;
 3. an assigned case can be inserted, updated, and read;
 4. the placeholder AI and final-outcome fields accept valid values;
@@ -176,9 +270,13 @@ docker compose exec postgres psql \
   -f /docker-entrypoint-initdb.d/001-core-schema.sql
 ```
 
-This preserves existing rows and adds missing `video_duration_seconds`,
-`analysis_output_path`, and `ai_failure` columns plus the failure-value
-constraint.
+This preserves existing rows and adds the missing pipeline columns and
+constraints. Case-analysis audit events use the existing `audit_logs` table, so this
+logging update requires no new database schema migration.
+
+Previously processed cases are not backfilled automatically. New analysis runs
+begin including model metadata after the updated backend is deployed; reanalysing
+an existing case also creates a new event with this metadata.
 
 During disposable local development, a fresh database can be created with:
 

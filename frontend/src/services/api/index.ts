@@ -39,6 +39,7 @@ export const apiDataService: DataService = {
   requestWellbeingSupport: http.requestWellbeingSupport,
 
   // Manager (Sprint 3).
+  getAuditHistory: http.getAuditHistory,
   getAuditorOverview: http.getAuditorOverview,
   getSosSummary: http.getSosSummary,
   getAuditorDetail: http.getAuditorDetail,

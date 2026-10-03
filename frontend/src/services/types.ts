@@ -308,6 +308,29 @@ export interface ValidationSummary {
   validation_set_size: number;
 }
 
+/** A saved row returned by the manager audit-history endpoint. */
+export interface AuditLogEntry {
+  audit_log_id: number;
+  case_id: string;
+  actor: string;
+  action: string;
+  before_value: unknown;
+  after_value: unknown;
+  created_at: string;
+}
+
+export interface AuditLogHistory {
+  entries: AuditLogEntry[];
+  next_before_id: number | null;
+}
+
+export interface AuditLogQuery {
+  case_id?: string;
+  action?: string;
+  before_id?: number;
+  limit?: number;
+}
+
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
  * synthetic demo data) and `api` (the real backend, connected by Firas)
@@ -357,6 +380,7 @@ export interface DataService {
   requestWellbeingSupport(token: string, kind: WellbeingRequestKind, caseId?: string): Promise<{ received: true }>;
 
   // Manager (Sprint 3 screens)
+  getAuditHistory(token: string, query?: AuditLogQuery): Promise<AuditLogHistory>;
   getAuditorOverview(token: string): Promise<AuditorOverviewRow[]>;
   getSosSummary(token: string): Promise<SosSummary>;
   getAuditorDetail(auditorId: string, token: string): Promise<AuditorDetail>;

@@ -13,7 +13,9 @@ from fastapi import (
     File,
     Header,
     HTTPException,
+    Query,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -822,6 +824,53 @@ def _exposure_state(minutes: float, limit: float) -> str:
     if pct >= 0.75:
         return "APPROACHING"
     return "UNDER"
+
+
+@app.get("/api/manager/audit-logs")
+async def get_audit_history(
+    response: Response,
+    _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
+    case_id: str | None = Query(default=None, max_length=20),
+    action: str | None = Query(default=None, max_length=50),
+    before_id: int | None = Query(default=None, ge=1, le=9223372036854775807),
+    limit: int = Query(default=25, ge=1, le=100),
+):
+    """Read saved audit events through the backend's existing DB connection."""
+    query = select(AuditLog)
+    if case_id and case_id.strip():
+        query = query.where(AuditLog.case_id == case_id.strip())
+    if action and action.strip():
+        query = query.where(AuditLog.action == action.strip())
+    if before_id is not None:
+        query = query.where(AuditLog.audit_log_id < before_id)
+
+    # Stable ID cursors allow browsing older history while new events arrive.
+    rows = db.scalars(
+        query.order_by(AuditLog.audit_log_id.desc()).limit(limit + 1)
+    ).all()
+    entries = rows[:limit]
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "entries": [
+            {
+                "audit_log_id": row.audit_log_id,
+                "case_id": row.case_id,
+                "actor": row.actor,
+                "action": row.action,
+                "before_value": row.before_value,
+                "after_value": row.after_value,
+                "created_at": (
+                    row.created_at.replace(tzinfo=timezone.utc)
+                    if row.created_at.tzinfo is None else row.created_at
+                ).isoformat(),
+            }
+            for row in entries
+        ],
+        "next_before_id": (
+            entries[-1].audit_log_id if len(rows) > limit else None
+        ),
+    }
 
 
 @app.get("/api/manager/auditors")

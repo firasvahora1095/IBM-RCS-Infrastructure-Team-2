@@ -98,6 +98,7 @@ class VideoAnalysisRun:
     failed_frame: str | None = None
     error_type: str | None = None
     error_message: str | None = None
+    audit: dict[str, Any] = field(default_factory=dict)
 
     def manifest(self) -> dict[str, Any]:
         manifest = asdict(self)
@@ -110,6 +111,27 @@ class VideoAnalysisRun:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _build_run_audit(
+    configurations: list[dict[str, Any]],
+    frames_received: int,
+    decision_timestamp: str | None,
+) -> dict[str, Any]:
+    """Summarise received model metadata without hiding changes within a run."""
+    audit: dict[str, Any] = {
+        "frames_received": frames_received,
+        "decision_timestamp": decision_timestamp,
+    }
+    for key in ("model_id", "model_version", "prompt_version"):
+        values = [configuration[key] for configuration in configurations]
+        audit[key] = (
+            values[0] if values and all(value == values[0] for value in values)
+            else None
+        )
+    if len(configurations) > 1:
+        audit["model_configurations"] = configurations.copy()
+    return audit
 
 
 def parse_watsonx_frame_output(content: Any) -> dict[str, Any]:
@@ -472,6 +494,9 @@ def analyse_video(
     started_clock = time.monotonic()
     store: AnalysisOutputStore | None = output_store
     frame_results: list[dict[str, Any]] = []
+    model_configurations: list[dict[str, Any]] = []
+    frames_received = 0
+    last_decision_timestamp: str | None = None
     raw_files: list[str] = []
     analysis_files: list[str] = []
     attempted = 0
@@ -505,6 +530,32 @@ def analyse_video(
                 client=client,
             )
 
+            # The real client captures receipt immediately after the IBM call.
+            # Custom frame analysers may omit it, so capture their return time here.
+            decision_timestamp = response.get("decision_timestamp")
+            if decision_timestamp is None:
+                decision_timestamp = _utc_now()
+            raw_response = response["raw_response"]
+            audit = {
+                "model_id": response["model"],
+                "model_version": (
+                    raw_response.get("model_version")
+                    if isinstance(raw_response, dict) else None
+                ),
+                "prompt_version": PROMPT_VERSION,
+                "decision_timestamp": decision_timestamp,
+            }
+            # Keep run-level metadata even if validating or storing this
+            # response later fails. The database receives one event per run.
+            frames_received += 1
+            last_decision_timestamp = decision_timestamp
+            configuration = {
+                key: audit[key]
+                for key in ("model_id", "model_version", "prompt_version")
+            }
+            if configuration not in model_configurations:
+                model_configurations.append(configuration)
+
             stage = "raw_response_storage"
             raw_file = store.write_json(
                 f"{frame_id}.raw.json",
@@ -514,19 +565,15 @@ def analyse_video(
 
             stage = "response_validation"
             model_output = parse_watsonx_frame_output(response["analysis"])
-            raw_response = response["raw_response"]
             frame_analysis = build_frame_analysis(
                 model_output=model_output,
                 case_id=case_id,
                 frame_num=frame_id,
                 timestamp=frame.timestamp,
-                model_id=response["model"],
-                model_version=(
-                    raw_response.get("model_version")
-                    if isinstance(raw_response, dict)
-                    else None
-                ),
-                prompt_version=PROMPT_VERSION,
+                model_id=audit["model_id"],
+                model_version=audit["model_version"],
+                prompt_version=audit["prompt_version"],
+                decision_timestamp=audit["decision_timestamp"],
             )
             _validate_frame_analysis(frame_analysis)
 
@@ -566,6 +613,9 @@ def analyse_video(
             frames_attempted=attempted,
             frames_completed=len(frame_results),
             frame_results=frame_results,
+            audit=_build_run_audit(
+                model_configurations, frames_received, last_decision_timestamp,
+            ),
             raw_response_files=raw_files,
             normalized_analysis_files=analysis_files,
             case_analysis=case_analysis,
@@ -592,6 +642,9 @@ def analyse_video(
             frames_attempted=attempted,
             frames_completed=len(frame_results),
             frame_results=frame_results,
+            audit=_build_run_audit(
+                model_configurations, frames_received, last_decision_timestamp,
+            ),
             raw_response_files=raw_files,
             normalized_analysis_files=analysis_files,
             failure_stage=stage,

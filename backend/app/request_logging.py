@@ -12,8 +12,15 @@ CASE_PATH_PATTERN = re.compile(
 )
 
 
+CASE_QUERY_PATTERN = re.compile(
+    r"(?P<prefix>[?&]case_id=)[^&#\s]*",
+    flags=re.IGNORECASE,
+)
+
+
 def redact_case_ids(value: str) -> str:
-    return CASE_PATH_PATTERN.sub(r"\g<prefix>[REDACTED]", value)
+    value = CASE_PATH_PATTERN.sub(r"\g<prefix>[REDACTED]", value)
+    return CASE_QUERY_PATTERN.sub(r"\g<prefix>[REDACTED]", value)
 
 
 class CaseIdRedactionFilter(logging.Filter):

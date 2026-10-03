@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,8 @@ def process_case_analysis(
     case.analysis_output_path = None
     db.commit()
 
+    analysis_run_id = str(uuid4())
+
     run = analyse_video(
         case.case_id,
         case.video_storage_path,
@@ -92,6 +95,7 @@ def process_case_analysis(
         case.ai_failure = "speech_to_text" if stt_failed else None
         action = "AI_ANALYSIS_COMPLETED"
         audit_detail = {
+            "analysis_run_id": analysis_run_id,
             "frames_completed": run.frames_completed,
             "analysis_output_path": run.output_reference,
         }
@@ -108,6 +112,7 @@ def process_case_analysis(
         case.ai_failure = "vision"
         action = "AI_ANALYSIS_FAILED"
         audit_detail = {
+            "analysis_run_id": analysis_run_id,
             "failure_stage": run.failure_stage,
             "failed_frame": run.failed_frame,
             "error_type": run.error_type,
@@ -128,6 +133,7 @@ def process_case_analysis(
                 "severity_tier": case.severity_tier,
                 "ai_failure": case.ai_failure,
                 **audit_detail,
+                **run.audit,
             },
         )
     )

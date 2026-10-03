@@ -1083,6 +1083,12 @@ export const mockDataService: DataService = {
     });
   },
 
+  async getAuditHistory(token: string) {
+    await delay();
+    requireSession(readDb(), token, "manager");
+    throw new ApiError("Audit history is available when connected to the backend.", 501);
+  },
+
   async getValidationSummary(token: string): Promise<ValidationSummary> {
     await delay();
     return updateDb((db) => {

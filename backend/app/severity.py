@@ -29,6 +29,7 @@ def build_frame_analysis(
     model_id,
     prompt_version,
     model_version=None,
+    decision_timestamp=None,
 ):
     if isinstance(model_output, str):
         model_output = json.loads(model_output)
@@ -51,9 +52,11 @@ def build_frame_analysis(
             "model_id": model_id,
             "model_version": model_version,
             "prompt_version": prompt_version,
-            "decision_timestamp": datetime.now(
-                timezone.utc
-            ).isoformat(),
+            "decision_timestamp": (
+                decision_timestamp
+                if decision_timestamp is not None
+                else datetime.now(timezone.utc).isoformat()
+            ),
         },
     }
 
