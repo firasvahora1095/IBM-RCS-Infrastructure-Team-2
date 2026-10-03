@@ -1172,6 +1172,31 @@ class ApiContractTests(unittest.TestCase):
         r = self.client.get(f"/api/manager/cases/{case_id}/video", headers=manager_headers)
         self.assertEqual(r.status_code, 404)
 
+    def test_cors_preflight_allows_range_header_for_video_streaming(self) -> None:
+        """A <video> element's Range-bearing request is cross-origin
+        (frontend and backend are on different subdomains in production) and
+        triggers a CORS preflight. Without "Range" explicitly allowed, the
+        browser rejects the preflight with "Disallowed CORS headers" and
+        never sends the real request at all - the video pane then stays
+        blank with no server-visible request and no JS-visible error."""
+        case_id = "CORSPREFLIGHT00001"
+        self.add_case(case_id, auditor_id="auditor-1")
+        r = self.client.request(
+            "OPTIONS",
+            f"/api/auditor/cases/{case_id}/video",
+            headers={
+                # Matches the default CORS_ALLOWED_ORIGINS used when the env
+                # var isn't set (production sets it to the real frontend
+                # origin) - this only tests which headers are allowed, not
+                # which origins are.
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "range",
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        allowed = {h.strip().lower() for h in r.headers["access-control-allow-headers"].split(",")}
+        self.assertIn("range", allowed)
 
     # --- Exposure / cooldown enforcement tests ---
 
