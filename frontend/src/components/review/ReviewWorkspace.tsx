@@ -205,8 +205,11 @@ export function ReviewWorkspace({
   }, [isPlaying, canPlay, activeVideoUrl]);
 
   useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = settings.muted;
-  }, [settings.muted, activeVideoUrl]);
+    if (videoRef.current) {
+      videoRef.current.muted = settings.muted;
+      videoRef.current.volume = settings.muted ? 0 : (settings.volume ?? 0) / 100;
+    }
+  }, [settings.muted, settings.volume, activeVideoUrl]);
 
   useEffect(() => {
     return () => {
@@ -465,13 +468,30 @@ export function ReviewWorkspace({
               toggled={settings.grayscale}
               onToggle={(on) => onSettingsChange({ ...settings, grayscale: on })}
             />
-            <IconButton
-              kind="ghost"
-              label={settings.muted ? "Unmute" : "Mute"}
-              onClick={() => onSettingsChange({ ...settings, muted: !settings.muted })}
-            >
-              {settings.muted ? <VolumeMute /> : <VolumeUp />}
-            </IconButton>
+            <div className="flex items-center gap-2">
+              <IconButton
+                kind="ghost"
+                label={settings.muted ? "Unmute" : "Mute"}
+                onClick={() => onSettingsChange({ ...settings, muted: !settings.muted })}
+              >
+                {settings.muted ? <VolumeMute /> : <VolumeUp />}
+              </IconButton>
+              <div className="flex flex-col gap-1">
+                <span style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={settings.volume ?? 0}
+                  style={{ width: 100, accentColor: "var(--cds-interactive)" }}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    onSettingsChange({ ...settings, volume: value, muted: value === 0 });
+                  }}
+                />
+              </div>
+            </div>
           </div>
 
           {isMockData && (
