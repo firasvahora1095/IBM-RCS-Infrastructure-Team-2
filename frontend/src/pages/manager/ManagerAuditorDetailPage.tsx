@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification, NumberInput, Tag } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
@@ -27,6 +27,8 @@ const DEFAULT_LIMIT_MINUTES = 120;
  */
 export function ManagerAuditorDetailPage() {
   const { auditorId = "" } = useParams<{ auditorId: string }>();
+  const [searchParams] = useSearchParams();
+  const isExposureMode = searchParams.get("mode") === "exposure";
   const { token } = useAuth();
   const { data, error, reload } = useStaffQuery((t) => getAuditorDetail(auditorId, t), auditorId);
   const { handleSessionError, sessionModal } = useInPlaceSessionExpiry(
@@ -83,31 +85,56 @@ export function ManagerAuditorDetailPage() {
   return (
     <ManagerLayout showNav={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: data?.display_name ?? auditorId }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Dashboard", to: "/manager" },
+          { label: data?.display_name ?? auditorId, to: `/manager/auditors/${encodeURIComponent(auditorId)}` },
+          ...(isExposureMode ? [{ label: "Adjust Exposure Limit" }] : []),
+        ]}
+      />
       <LoadState error={error} loading={!data && !error} what="this Auditor" />
       {data && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 style={pageTitle}>{data.display_name}</h1>
-            {data.pattern_flagged && (
+            <h1 style={pageTitle}>
+              {isExposureMode ? "Adjust Exposure Limit" : data.display_name}
+            </h1>
+            {!isExposureMode && data.pattern_flagged && (
               <Tag type="gray" size="md" style={{ margin: 0 }}>
                 Pattern flagged — private
               </Tag>
             )}
           </div>
 
-          <Panel maxWidth={640}>
-            <dl className="flex flex-wrap gap-12">
-              <Figure
-                label="Today's exposure"
-                value={`${data.exposure_minutes_today} / ${data.exposure_limit_minutes} min`}
-              />
-              <Figure label="Case count today" value={data.cases_today} />
-              <Figure label="Cooldown status" value={data.cooldown ? cooldownSummary(data.cooldown) : "None active"} />
-            </dl>
-          </Panel>
+          {isExposureMode && (
+            <Panel maxWidth={640}>
+              <dl className="flex flex-wrap gap-12">
+                <Figure
+                  label="Current limit"
+                  value={`${data.exposure_limit_minutes} min`}
+                />
+                <Figure
+                  label="Today's exposure"
+                  value={`${data.exposure_minutes_today} min`}
+                />
+              </dl>
+            </Panel>
+          )}
 
-          <div id="exposure-limit">
+          {!isExposureMode && (
+            <Panel maxWidth={640}>
+              <dl className="flex flex-wrap gap-12">
+                <Figure
+                  label="Today's exposure"
+                  value={`${data.exposure_minutes_today} / ${data.exposure_limit_minutes} min`}
+                />
+                <Figure label="Case count today" value={data.cases_today} />
+                <Figure label="Cooldown status" value={data.cooldown ? cooldownSummary(data.cooldown) : "None active"} />
+              </dl>
+            </Panel>
+          )}
+
+          {isExposureMode && <div id="exposure-limit">
             <Panel title="Exposure limit" maxWidth={640}>
               {saveState === "saved" && (
                 <InlineNotification
@@ -156,8 +183,9 @@ export function ManagerAuditorDetailPage() {
                 Defaults to the 120-minute testing cap unless already individually adjusted.
               </p>
             </Panel>
-          </div>
+          </div>}
 
+          {!isExposureMode && <>
           <Panel title="Recent case activity — today" maxWidth={640}>
             {data.recent_cases.length === 0 ? (
               <p style={secondaryText}>No completed cases in the last 24 hours.</p>
@@ -220,6 +248,7 @@ export function ManagerAuditorDetailPage() {
               </ul>
             )}
           </Panel>
+          </>}
         </>
       )}
     </ManagerLayout>
