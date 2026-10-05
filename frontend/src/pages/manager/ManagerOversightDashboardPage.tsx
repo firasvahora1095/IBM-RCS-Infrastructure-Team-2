@@ -3,8 +3,6 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Button,
   Layer,
-  OverflowMenu,
-  OverflowMenuItem,
   Table,
   TableBody,
   TableCell,
@@ -84,18 +82,13 @@ export function ManagerOversightDashboardPage() {
                     </TableCell>
                     <TableCell>{row.cases_today}</TableCell>
                     <TableCell>
-                      <OverflowMenu
-                        flipped
-                        size="md"
-                        iconDescription={`Actions for ${row.display_name}`}
-                        aria-label={`Actions for ${row.display_name}`}
+                      <Button
+                        kind="tertiary"
+                        size="sm"
+                        onClick={() => navigate(`${detailUrl}?mode=exposure`)}
                       >
-                        <OverflowMenuItem itemText="View details" onClick={() => navigate(detailUrl)} />
-                        <OverflowMenuItem
-                          itemText="Adjust exposure limit"
-                          onClick={() => navigate(`${detailUrl}#exposure-limit`)}
-                        />
-                      </OverflowMenu>
+                        Adjust exposure limit
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
