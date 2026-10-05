@@ -83,7 +83,7 @@ export function ManagerOversightDashboardPage() {
                     <TableCell>{row.cases_today}</TableCell>
                     <TableCell>
                       <Button
-                        kind="ghost"
+                        kind="tertiary"
                         size="sm"
                         onClick={() => navigate(`${detailUrl}?mode=exposure`)}
                       >
