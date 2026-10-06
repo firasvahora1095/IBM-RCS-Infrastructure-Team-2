@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'test/**'
-      - 'feature/**'
-      - 'fix/**'
+      - test
     paths-ignore:
       - 'docs/**'
       - '**.md'
