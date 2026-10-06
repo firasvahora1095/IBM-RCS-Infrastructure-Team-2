@@ -330,3 +330,40 @@ a.rcs-stat-tile .rcs-stat-helper {
     padding: 0;
   }
 }
+
+// Optional cooldown block puzzle (components/wellbeing/BlockPuzzle.tsx):
+// two calm colours, no flashing; the board is the focus target.
+.rcs-puzzle-board {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  inline-size: min(100%, 15rem);
+  padding: 1px;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 2px;
+  }
+}
+.rcs-puzzle-cell {
+  aspect-ratio: 1;
+  background-color: var(--cds-background);
+  &.is-settled {
+    background-color: var(--cds-border-strong-01);
+  }
+  &.is-active {
+    background-color: var(--cds-support-info);
+  }
+}
+.rcs-puzzle-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-layer-01);
+}
