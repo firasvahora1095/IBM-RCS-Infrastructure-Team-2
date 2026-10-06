@@ -77,6 +77,7 @@ export function UploadPage() {
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const [description, setDescription] = useState("");
+  const [sourceLink, setSourceLink] = useState("");
   const [reportingChoice, setReportingChoice] = useState<ReportingChoice>("anonymous");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -157,11 +158,14 @@ export function UploadPage() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
+      // Optional source details (B2B spec S2) are only sent when given; they
+      // never block a report.
+      const source = sourceLink.trim() ? { url: sourceLink.trim() } : undefined;
       const result =
         evidenceType === "video"
-          ? await createReport(videoFile!)
+          ? await (source ? createReport(videoFile!, source) : createReport(videoFile!))
           : evidenceType === "screenshot"
-            ? await createScreenshotReport(imageFile!)
+            ? await (source ? createScreenshotReport(imageFile!, source) : createScreenshotReport(imageFile!))
             : await createLinkReport(link.trim());
       saveCaseId(result.case_id);
       // Also pass the ID through navigation state, so the confirmation page
@@ -206,7 +210,11 @@ export function UploadPage() {
 
   return (
     <PublicPage cardWidth={720}>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        {/* B2B context (spec S2): the report reaches RCS from CommunityHub, without a sales surface. */}
+        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>
+          Reporting content from CommunityHub · Reviewed by RCS
+        </p>
         <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Report content for review</h1>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           You don&apos;t need an account. Tell us what happened and we&apos;ll take it from here.
@@ -245,7 +253,7 @@ export function UploadPage() {
           )}
           <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
             Accepted formats: MP4, MOV, WEBM, AVI. Typical length: about 10–15 minutes for Sprint 2 testing (this is a
-            target, not a hard maximum). Max file size: 500MB (placeholder, pending Dev pipeline validation).
+            target, not a hard maximum). Max file size: 500MB.
           </p>
         </div>
       )}
@@ -280,7 +288,7 @@ export function UploadPage() {
             </p>
           )}
           <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-            Accepted formats: PNG, JPG. Max size: 10MB (placeholder) — to be confirmed with Dev.
+            Accepted formats: PNG, JPG. Max size: 10MB.
           </p>
         </div>
       )}
@@ -293,6 +301,18 @@ export function UploadPage() {
           title={evidenceError}
           role="alert"
           style={{ maxWidth: "100%" }}
+        />
+      )}
+
+      {evidenceType !== "link" && (
+        <TextInput
+          id="source-link"
+          labelText="Link or ID of the post on CommunityHub (optional)"
+          helperText="Helps CommunityHub find the original post. You can leave this blank."
+          placeholder="e.g. https://communityhub.example/post/4721"
+          autoComplete="off"
+          value={sourceLink}
+          onChange={(e) => setSourceLink(e.target.value)}
         />
       )}
 
