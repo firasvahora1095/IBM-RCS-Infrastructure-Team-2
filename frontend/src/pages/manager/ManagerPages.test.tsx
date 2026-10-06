@@ -33,6 +33,8 @@ const HEADINGS: Record<string, string> = {
   "/manager/cases": "Consolidated Case Oversight",
   "/manager/sos": "SOS Inbox",
   "/manager/reassignment": "Declined / Reassignment Queue",
+  "/manager/deliveries": "Deliveries",
+  "/manager/reports": "Client reports",
   "/manager/validation": "Validation View",
 };
 
