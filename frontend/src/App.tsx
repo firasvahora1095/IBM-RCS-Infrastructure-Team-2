@@ -20,6 +20,11 @@ import { ManagerCaseReviewPage } from "./pages/manager/ManagerCaseReviewPage";
 import { ManagerReassignmentPage } from "./pages/manager/ManagerReassignmentPage";
 import { ManagerExceptionalAccessPage } from "./pages/manager/ManagerExceptionalAccessPage";
 import { ManagerValidationPage } from "./pages/manager/ManagerValidationPage";
+import { ManagerDeliveriesPage } from "./pages/manager/ManagerDeliveriesPage";
+import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetailPage";
+import { ManagerCustomerPage } from "./pages/manager/ManagerCustomerPage";
+import { ManagerReportsPage } from "./pages/manager/ManagerReportsPage";
+import { ManagerReportDetailPage } from "./pages/manager/ManagerReportDetailPage";
 
 /**
  * Public pages share the IBM Content Safety Reporting header through this
@@ -186,6 +191,46 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="manager">
             <ManagerValidationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/deliveries"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerDeliveriesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/deliveries/:deliveryId"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerDeliveryDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/customers/communityhub"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerCustomerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/reports"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/reports/:reportId"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerReportDetailPage />
           </ProtectedRoute>
         }
       />

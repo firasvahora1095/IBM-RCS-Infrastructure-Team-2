@@ -34,6 +34,7 @@ export const ACCESS_DISCLOSURE = "Access to this page is logged.";
 
 /** Plain-language definitions behind each report figure ("How is this calculated?"). */
 export const METRIC_DEFINITIONS = {
+  cases: "Reports received in the period, cases with a final human decision in the period, and cases still open on its last day.",
   received: "Reports submitted to RCS for this customer during the period.",
   completed: "Cases with a final human decision recorded during the period.",
   open: "Cases received on or before the last day of the period that weren't complete by then.",
