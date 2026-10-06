@@ -162,6 +162,31 @@ app.add_middleware(
 )
 
 
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    schema.setdefault("components", {}).setdefault("securitySchemes", {})["InternalApiKey"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-API-Key",
+    }
+    internal_paths = [
+        "/api/internal/auditors/available",
+        "/api/internal/auditors/{auditor_id}/exposure",
+        "/api/internal/auditors/{auditor_id}/cases",
+    ]
+    for path in internal_paths:
+        for method in schema.get("paths", {}).get(path, {}).values():
+            if isinstance(method, dict):
+                method["security"] = [{"InternalApiKey": []}]
+    app.openapi_schema = schema
+    return schema
+
+app.openapi = _custom_openapi  # type: ignore[method-assign]
+
+
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     response = await call_next(request)
