@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-dom";
 import {
   InlineNotification,
   ContentSwitcher,
@@ -77,7 +77,14 @@ export function UploadPage() {
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const [description, setDescription] = useState("");
-  const [sourceLink, setSourceLink] = useState("");
+  // Arriving from a platform's report button (B2B flow stage 3): the post
+  // link travels with the report, so the reporter doesn't have to copy it.
+  const [searchParams] = useSearchParams();
+  const fromPlatform = searchParams.get("from") === "communityhub";
+  const [sourceLink, setSourceLink] = useState(() => {
+    const source = searchParams.get("source") ?? "";
+    return /^https?:\/\//.test(source) ? source : "";
+  });
   const [reportingChoice, setReportingChoice] = useState<ReportingChoice>("anonymous");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -220,6 +227,17 @@ export function UploadPage() {
           You don&apos;t need an account. Tell us what happened and we&apos;ll take it from here.
         </p>
       </div>
+
+      {fromPlatform && sourceLink && (
+        <InlineNotification
+          kind="info"
+          lowContrast
+          hideCloseButton
+          title="Reporting a CommunityHub post."
+          subtitle="We've attached the post's link for you. Upload the video below to continue."
+          style={{ maxWidth: "100%" }}
+        />
+      )}
 
       {/* UR-NFR-02 — the trust/privacy banner comes before any form field. */}
       <TrustBanner />

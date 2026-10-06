@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
+import { ScrollToTop } from "./components/shell/ScrollToTop";
 import { UploadPage } from "./pages/normal-user/UploadPage";
 import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
@@ -26,6 +27,10 @@ import { ManagerCustomerPage } from "./pages/manager/ManagerCustomerPage";
 import { ManagerReportsPage } from "./pages/manager/ManagerReportsPage";
 import { ManagerReportDetailPage } from "./pages/manager/ManagerReportDetailPage";
 import { ClientRoute } from "./components/shell/ClientRoute";
+import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
+import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
+import { CommunityHubPage } from "./pages/marketing/CommunityHubPage";
+import { FlowHubPage } from "./pages/marketing/FlowHubPage";
 import { ClientLoginPage } from "./pages/client/ClientLoginPage";
 import { ClientReportsPage } from "./pages/client/ClientReportsPage";
 import { ClientReportViewPage } from "./pages/client/ClientReportViewPage";
@@ -77,6 +82,12 @@ export function AppRoutes() {
         <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
         <Route path="/status" element={<StatusLookupPage />} />
       </Route>
+      {/* B2B front (flow stages 1–3): the RCS product page, organisation set-up,
+          and a simulated CommunityHub page with the report button. /flow is the demo guide. */}
+      <Route path="/rcs" element={<RcsLandingPage />} />
+      <Route path="/rcs/get-started" element={<OrganisationOnboardingPage />} />
+      <Route path="/communityhub" element={<CommunityHubPage />} />
+      <Route path="/flow" element={<FlowHubPage />} />
       <Route path="/staff/login" element={<StaffLoginPage />} />
       <Route
         path="/auditor"
@@ -268,6 +279,7 @@ export function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AppRoutes />
     </BrowserRouter>
   );
