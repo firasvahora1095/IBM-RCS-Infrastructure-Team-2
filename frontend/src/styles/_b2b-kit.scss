@@ -1,0 +1,332 @@
+// ---------------------------------------------------------------------------
+// B2B end-to-end flow kit (components/ui, docs/ux/b2b-end-to-end-flow-spec.md §4)
+// Carbon type styles, spacing values and motion tokens only; no hex colours.
+// ---------------------------------------------------------------------------
+@use "@carbon/react/scss/type";
+@use "@carbon/react/scss/motion";
+@use "@carbon/react/scss/breakpoint";
+
+// Carbon Grid used inside StaffPage/PublicPage, which already provide the page
+// gutter: drop the grid's own outer margin so columns line up with the header.
+// Columns carry half a gutter on each side, so the grid is pulled out by that
+// half-gutter (1px when condensed) to align column content with the header.
+.rcs-grid.cds--css-grid {
+  padding-inline: 0;
+  margin-inline: calc(var(--cds-grid-gutter, 2rem) / -2);
+  inline-size: auto;
+  max-inline-size: none;
+}
+
+// Type matches the existing Manager screens (components/manager/managerStyles.ts):
+// 28/36 semibold page titles, 16/22 semibold panel titles, 14/20 secondary text.
+.rcs-eyebrow {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-page-title {
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+.rcs-page-subtitle {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--cds-text-secondary);
+  max-inline-size: 72ch;
+}
+.rcs-section-title {
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+.rcs-subheading {
+  @include type.type-style("heading-compact-01");
+  color: var(--cds-text-primary);
+}
+.rcs-helper {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-primary);
+}
+.rcs-mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+// Section card: the existing Manager Panel look (white, 1px subtle border).
+.rcs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  min-inline-size: 0;
+}
+
+// Stat tile: a Panel-style figure. Neutral by default; an item needing action
+// gets the same 3px error accent the SOS Inbox uses on unacknowledged rows.
+.rcs-stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  text-decoration: none;
+  color: var(--cds-text-primary);
+  transition: background-color motion.$duration-fast-02 motion.motion(standard, productive);
+}
+a.rcs-stat-tile:hover {
+  background-color: var(--cds-layer-hover-01);
+}
+a.rcs-stat-tile:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
+.rcs-stat-tile.rcs-tone-error {
+  box-shadow: inset 3px 0 0 var(--cds-support-error);
+}
+.rcs-stat-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--cds-text-secondary);
+}
+.rcs-stat-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  color: var(--cds-text-primary);
+}
+.rcs-stat-helper {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--cds-text-secondary);
+}
+a.rcs-stat-tile .rcs-stat-helper {
+  color: var(--cds-link-primary);
+}
+
+// Key/value list
+.rcs-kv {
+  display: flex;
+  flex-direction: column;
+}
+.rcs-kv-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 2fr) 3fr;
+  gap: 1rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  dt {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+    padding-block-start: 2px;
+  }
+  dd {
+    @include type.type-style("body-01");
+    color: var(--cds-text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+// Timeline
+.rcs-timeline {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.rcs-timeline-item {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding-block-end: 1.25rem;
+  &:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    inset-block: 1.25rem 0;
+    inset-inline-start: 0.75rem;
+    inline-size: 1px;
+    background-color: var(--cds-border-subtle-01);
+  }
+}
+.rcs-timeline-dot {
+  flex-shrink: 0;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  margin-block-start: 0.375rem;
+  margin-inline: 0.4375rem;
+  border-radius: 50%;
+  background-color: var(--cds-border-strong-01);
+}
+.rcs-timeline-success .rcs-timeline-dot {
+  background-color: var(--cds-support-success);
+}
+.rcs-timeline-error .rcs-timeline-dot {
+  background-color: var(--cds-support-error);
+}
+.rcs-timeline-info .rcs-timeline-dot {
+  background-color: var(--cds-support-info);
+}
+.rcs-timeline-title {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-primary);
+}
+
+// Empty / denied state
+.rcs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+
+// Charts
+.rcs-barlist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.rcs-barlist-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) 1fr minmax(3.5rem, auto);
+  align-items: center;
+  gap: 1rem;
+}
+.rcs-barlist-label {
+  @include type.type-style("body-compact-01");
+}
+.rcs-barlist-track {
+  display: block;
+  block-size: 0.75rem;
+  background-color: var(--cds-layer-accent-01);
+}
+.rcs-barlist-fill {
+  display: block;
+  block-size: 100%;
+  transition: inline-size motion.$duration-moderate-02 motion.motion(entrance, expressive);
+}
+.rcs-barlist-value {
+  @include type.type-style("body-compact-01");
+  font-family: "IBM Plex Mono", monospace;
+  text-align: end;
+}
+.rcs-segbar {
+  display: flex;
+  gap: 2px;
+  inline-size: 100%;
+  overflow: hidden;
+}
+.rcs-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    @include type.type-style("body-compact-01");
+  }
+}
+.rcs-legend-swatch {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  flex-shrink: 0;
+}
+.rcs-legend-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+}
+
+// Dark expressive band (Flow Hub hero, client sign-in)
+.rcs-hero {
+  background-color: var(--cds-background);
+  color: var(--cds-text-primary);
+}
+.rcs-hero-title {
+  @include type.type-style("fluid-display-01", true);
+  max-inline-size: 18ch;
+}
+.rcs-hero-lede {
+  @include type.type-style("fluid-paragraph-01", true);
+  color: var(--cds-text-secondary);
+  max-inline-size: 52ch;
+}
+
+// Entrance motion, only for people who haven't asked for less motion.
+@keyframes rcs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rcs-rise {
+  animation: rcs-rise motion.$duration-moderate-02 motion.motion(entrance, expressive) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rcs-rise,
+  .rcs-pulse {
+    animation: none !important;
+  }
+  .rcs-stat-tile,
+  .rcs-stat-arrow,
+  .rcs-barlist-fill {
+    transition: none !important;
+  }
+}
+
+// Report document sheet (Manager preview, client view) and its print stylesheet.
+.rcs-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(md) {
+    padding: 1.25rem;
+  }
+}
+.rcs-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  break-inside: avoid;
+}
+
+@media print {
+  .cds--header,
+  .rcs-no-print,
+  nav {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .rcs-sheet {
+    border: none;
+    padding: 0;
+  }
+}
