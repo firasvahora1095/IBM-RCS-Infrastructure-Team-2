@@ -5,10 +5,9 @@ import {
   Grid,
   Column,
   Layer,
+  ContentSwitcher,
   Pagination,
-  Tab,
-  TabList,
-  Tabs,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -121,18 +120,22 @@ export function ManagerDeliveriesPage() {
             </Column>
           </Grid>
 
-          <Tabs
-            selectedIndex={tabIndex}
-            onChange={({ selectedIndex }) => {
-              setPage(1);
-              setParams(selectedIndex === 0 ? { status: "needs-attention" } : { status: "all" }, { replace: true });
-            }}
-          >
-            <TabList aria-label="Delivery views" contained={false}>
-              <Tab>{`Needs attention (${counts.attention})`}</Tab>
-              <Tab>{`All deliveries (${data.length})`}</Tab>
-            </TabList>
-          </Tabs>
+          {/* A view filter over one table, so a ContentSwitcher (as on the
+              upload page), not Tabs, which would need a panel per tab. */}
+          <div style={{ maxInlineSize: 480 }}>
+            <ContentSwitcher
+              selectedIndex={tabIndex}
+              size="md"
+              aria-label="Delivery views"
+              onChange={({ index }) => {
+                setPage(1);
+                setParams(index === 0 ? { status: "needs-attention" } : { status: "all" }, { replace: true });
+              }}
+            >
+              <Switch name="needs-attention" text={`Needs attention (${counts.attention})`} />
+              <Switch name="all" text={`All deliveries (${data.length})`} />
+            </ContentSwitcher>
+          </div>
 
           {rows.length === 0 ? (
             <EmptyState
