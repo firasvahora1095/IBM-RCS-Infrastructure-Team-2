@@ -28,6 +28,7 @@ import type {
   FinalOutcome,
   ManagerDashboardResponse,
   PublicStatusResponse,
+  ReportSource,
   ResolveCaseResponse,
   SeverityTier,
   StaffLoginResponse,
@@ -35,6 +36,7 @@ import type {
   WellbeingRequestKind,
 } from "../types";
 import { readDb, updateDb, type MockCase, type MockDb, type MockSosEvent, type MockStaff } from "./store";
+import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -283,6 +285,13 @@ function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: s
   };
 }
 
+/** Keeps optional Reporter source details (B2B spec S2). Blank details are not stored. */
+function rememberSource(db: MockDb, caseId: string, source?: ReportSource): void {
+  const url = source?.url?.trim() || null;
+  const detail = source?.detail?.trim() || null;
+  if (url || detail) db.caseSources[caseId] = { url, detail };
+}
+
 /** Takes a case off an Auditor's queue and hands it to the Manager (AR-AI-09, AR-DF-02). */
 function routeToManager(db: MockDb, c: MockCase, flag: "DECLINED" | "SOS"): void {
   const auditor = db.staff.find((s) => s.staff_id === c.assigned_auditor);
@@ -422,7 +431,7 @@ function consumeDemoFailure(): boolean {
 }
 
 export const mockDataService: DataService = {
-  async createReport(videoFile: File): Promise<CreateReportResponse> {
+  async createReport(videoFile: File, source?: ReportSource): Promise<CreateReportResponse> {
     await delay();
     const dot = videoFile.name.lastIndexOf(".");
     const extension = dot >= 0 ? videoFile.name.slice(dot).toLowerCase() : "";
@@ -432,10 +441,14 @@ export const mockDataService: DataService = {
     if (videoFile.size === 0) {
       throw new ApiError("File is too small to be a valid video", 400);
     }
-    return updateDb((db) => openCase(db, "Video", videoFile.name));
+    return updateDb((db) => {
+      const created = openCase(db, "Video", videoFile.name);
+      rememberSource(db, created.case_id, source);
+      return created;
+    });
   },
 
-  async createLinkReport(url: string): Promise<CreateReportResponse> {
+  async createLinkReport(url: string, source?: ReportSource): Promise<CreateReportResponse> {
     await delay();
     let parsed: URL | null = null;
     try {
@@ -449,10 +462,14 @@ export const mockDataService: DataService = {
         400,
       );
     }
-    return updateDb((db) => openCase(db, "Link", parsed.href));
+    return updateDb((db) => {
+      const created = openCase(db, "Link", parsed.href);
+      rememberSource(db, created.case_id, source);
+      return created;
+    });
   },
 
-  async createScreenshotReport(image: File): Promise<CreateReportResponse> {
+  async createScreenshotReport(image: File, source?: ReportSource): Promise<CreateReportResponse> {
     await delay();
     if (!/\.(png|jpe?g)$/i.test(image.name)) {
       throw new ApiError("That image format isn't supported. Try PNG or JPG instead.", 400);
@@ -460,7 +477,11 @@ export const mockDataService: DataService = {
     if (image.size > SCREENSHOT_MAX_BYTES) {
       throw new ApiError("That image is larger than 10MB. Try a smaller screenshot.", 400);
     }
-    return updateDb((db) => openCase(db, "Screenshot", image.name));
+    return updateDb((db) => {
+      const created = openCase(db, "Screenshot", image.name);
+      rememberSource(db, created.case_id, source);
+      return created;
+    });
   },
 
   async addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }> {
@@ -487,6 +508,7 @@ export const mockDataService: DataService = {
     await delay();
     return updateDb((db) => {
       advanceSimulatedAi(db);
+      advanceDeliveries(db);
       const now = Date.now();
       const lookup = db.statusLookup;
       if (lookup.lockedUntil && now < lookup.lockedUntil) {
@@ -512,6 +534,7 @@ export const mockDataService: DataService = {
         content_type: found.content_type,
         duration_seconds: found.duration_seconds,
         file_name: found.file_name,
+        public_delivery_confirmed: found.status === "COMPLETE" ? publicDeliveryConfirmed(db, found.case_id) : null,
       };
     });
   },
@@ -725,6 +748,8 @@ export const mockDataService: DataService = {
       const finalTier =
         auditorSeverityScore !== undefined ? scoreToTier(auditorSeverityScore) : (c.severity_tier ?? null);
       audit(db, session.staffId, "CASE_RESOLVED", caseId, finalTier ? `tier:${finalTier}` : null);
+      // Standard case: the result goes to the customer automatically, with no Manager approval (extras §4.1).
+      createDeliveryForCase(db, c);
       return {
         case_id: c.case_id,
         status: mapStatusToPublicLabel("COMPLETE"),
@@ -1088,6 +1113,25 @@ export const mockDataService: DataService = {
     requireSession(readDb(), token, "manager");
     throw new ApiError("Audit history is available when connected to the backend.", 501);
   },
+
+  async releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const c = findOwnCase(db, caseId, session.staffId);
+      c.decline = {
+        reason: "NEAR_EXPOSURE_LIMIT",
+        other_text: null,
+        declined_by: session.staffId,
+        declined_at: new Date().toISOString(),
+      };
+      routeToManager(db, c, "DECLINED");
+      audit(db, session.staffId, "RETURNED_AT_DAILY_LIMIT", caseId);
+      return { returned: true as const };
+    });
+  },
+
+  ...b2bMockOps,
 
   async getValidationSummary(token: string): Promise<ValidationSummary> {
     await delay();

@@ -31,6 +31,17 @@ export type CaseOutcome = FinalOutcome | "CLOSED_NO_REASSIGNMENT";
 
 export type StaffRole = "auditor" | "manager";
 
+/**
+ * Optional "where did you see it?" details a Reporter may add (B2B spec S2).
+ * Never required: a missing source must not block a report or its handoff.
+ */
+export interface ReportSource {
+  /** Link to the post, or its ID on the customer platform. */
+  url?: string;
+  /** Username, group, approximate date or anything else that helps locate it. */
+  detail?: string;
+}
+
 /** Response from POST /api/reports (creating a case from an uploaded video). */
 export interface CreateReportResponse {
   case_id: string;
@@ -49,6 +60,13 @@ export interface PublicStatusResponse {
   content_type?: "Video" | "Link" | "Screenshot" | null;
   duration_seconds?: number | null;
   file_name?: string | null;
+  /**
+   * Optional — UI needs (B2B spec S4): true only once the case result has
+   * been delivered to the customer platform. It is the single delivery fact
+   * allowed across the public boundary, so the Reporter is told "CommunityHub
+   * has been notified" only when that is true. Delivery errors never cross it.
+   */
+  public_delivery_confirmed?: boolean | null;
 }
 
 /** Response from POST /api/staff/login. */
@@ -331,17 +349,183 @@ export interface AuditLogQuery {
   limit?: number;
 }
 
+// ---- B2B: customer integration, case result handoff, client reports ----
+// docs/ux/b2b-end-to-end-flow-spec.md §6. None of these exist in the backend
+// yet; the `api` data source rejects them with NotImplementedError.
+
+/**
+ * Delivery of one completed case's result to the customer platform. Kept
+ * separate from the moderation status: a failed delivery never reopens a
+ * completed case (Sprint 3 extras §5).
+ */
+export type DeliveryStatus = "PENDING" | "RETRYING" | "SUCCESS" | "NEEDS_ATTENTION";
+
+export interface DeliveryAttempt {
+  attempt: number;
+  at: string; // ISO 8601
+  result: "SUCCESS" | "FAILED";
+  /** Plain-language failure reason, e.g. "CommunityHub's endpoint didn't respond (timeout)". */
+  reason: string | null;
+  /** True for an attempt a Manager started with "Retry delivery". */
+  manual: boolean;
+}
+
+/** One case result handoff (Figma-free, B2B spec S8). The payload fields are the agreed minimum. */
+export interface Delivery {
+  delivery_id: string; // stable idempotency identity, reused on every retry
+  case_id: string;
+  organisation_id: string;
+  outcome: FinalOutcome;
+  final_severity: SeverityTier;
+  completed_at: string;
+  /** Always COMPLETE: only completed cases are ever handed off. */
+  moderation_status: "COMPLETE";
+  delivery_status: DeliveryStatus;
+  attempts: DeliveryAttempt[];
+  failure_reason: string | null;
+  /** When the next automatic attempt is due; null when none is scheduled. */
+  next_attempt_at: string | null;
+  escalated_at: string | null;
+  /** Optional Reporter-supplied source link; never required for handoff. */
+  source_url: string | null;
+  /** False for older cases no longer in the live case queue. */
+  case_available: boolean;
+}
+
+export interface DeliveryHealth {
+  success: number;
+  pending: number;
+  retrying: number;
+  needs_attention: number;
+}
+
+/** The customer organisation and where RCS sends its results (B2B spec S1). */
+export interface CustomerIntegration {
+  organisation_id: string;
+  name: string;
+  description: string;
+  status: "READY" | "ERROR";
+  destination_masked: string;
+  method: string;
+  auth_method: string;
+  retry_policy: string;
+  idempotency: string;
+  last_tested_at: string | null;
+  last_delivery_at: string | null;
+  health: DeliveryHealth;
+}
+
+export interface IntegrationTestResult {
+  ok: boolean;
+  latency_ms: number;
+  tested_at: string;
+  message: string;
+}
+
+/** Aggregate figures in a client service report, all calculated from completed case records. */
+export interface ReportMetrics {
+  cases_received: number;
+  cases_completed: number;
+  open_at_end: number;
+  violation_count: number;
+  no_violation_count: number;
+  /** By final Auditor severity. */
+  severity_breakdown: Record<SeverityTier, number>;
+  /** Null when there aren't enough reliable timestamps to state it. */
+  median_report_to_decision_minutes: number | null;
+  override_count: number;
+  /** 0–1, over completed cases with both an AI and a final severity. */
+  override_rate: number;
+  declined_reassigned: number;
+  delivery: DeliveryHealth;
+}
+
+export type ReportStatus = "DRAFT" | "RELEASED";
+
+/** A Manager-reviewed aggregate service report (B2B spec S9). */
+export interface ServiceReport {
+  report_id: string;
+  organisation_id: string;
+  organisation_name: string;
+  period_start: string; // ISO date, inclusive
+  period_end: string; // ISO date, inclusive
+  status: ReportStatus;
+  version: number;
+  generated_at: string;
+  released_at: string | null;
+  /** Staff display name; the client surface only ever sees "RCS". */
+  released_by: string | null;
+  manager_note: string | null;
+  metrics: ReportMetrics;
+}
+
+/** One client report access (Sprint 3 extras §8.3). */
+export interface ReportAccessEntry {
+  report_id: string;
+  user_id: string;
+  organisation_id: string;
+  action: "VIEW" | "DOWNLOAD";
+  access_result: "SUCCESS" | "DENIED" | "ERROR";
+  reason: string | null;
+  at: string;
+}
+
+/**
+ * One logged watsonx.ai call in the simplified governance log (Naresh's
+ * fallback: our own call log and evaluation instead of watsonx.governance).
+ */
+export interface GovernanceLogRow {
+  entry_id: string;
+  case_id: string;
+  at: string;
+  model_id: string;
+  model_version: string;
+  prompt_version: string;
+  success: boolean;
+  /** 0–1, higher is better (less leakage). */
+  prompt_leakage: number;
+  /** 0–1, higher is better. */
+  source_attribution: number;
+  /** 0–1, the combined evaluation score. */
+  accumulated_score: number;
+  tokens_in: number;
+  tokens_out: number;
+  reasoning: string | null;
+}
+
+/** Combined Validation & Audit-Log screen data (B2B spec S10). */
+export interface GovernanceSummary {
+  is_placeholder: boolean;
+  rows: GovernanceLogRow[];
+  averages: { prompt_leakage: number; source_attribution: number; accumulated_score: number };
+  total_calls: number;
+  failed_calls: number;
+  /** AI tier → final Auditor tier, aggregate only; never per Auditor. */
+  override_patterns: { from: SeverityTier; to: SeverityTier; count: number }[];
+  compared_cases: number;
+}
+
+/** Response from the client sign-in (COMMUNITYHUB_CLIENT role, B2B spec S11). */
+export interface ClientLoginResponse {
+  token: string;
+  user_id: string;
+  display_name: string;
+  organisation_id: string;
+  organisation_name: string;
+}
+
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
  * synthetic demo data) and `api` (the real backend, connected by Firas)
  * implement this interface, so pages never know which one they're using.
  */
 export interface DataService {
-  createReport(videoFile: File): Promise<CreateReportResponse>;
+  /** `source` is optional context (B2B spec S2); it never blocks submission or handoff. */
+  createReport(videoFile: File, source?: ReportSource): Promise<CreateReportResponse>;
   /** Screen 1b: report a public video link instead of uploading (UR-NTH-01). */
-  createLinkReport(url: string): Promise<CreateReportResponse>;
+  createLinkReport(url: string, source?: ReportSource): Promise<CreateReportResponse>;
   /** Screen 1c: report with a screenshot image (UR-NTH-02). */
-  createScreenshotReport(image: File): Promise<CreateReportResponse>;
+  createScreenshotReport(image: File, source?: ReportSource): Promise<CreateReportResponse>;
   /** Figma 80:31: add context (and optionally a file) to an existing case (UR-NTH-05). */
   addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }>;
   getStatus(caseId: string): Promise<PublicStatusResponse>;
@@ -411,6 +595,38 @@ export interface DataService {
   getCaseForExceptionalAccess(caseId: string, token: string): Promise<AuditorCaseDetail>;
   recordExceptionalAccess(caseId: string, token: string): Promise<{ recorded: true }>;
   getValidationSummary(token: string): Promise<ValidationSummary>;
+
+  /**
+   * Sprint 3 rule (extras §2): the Auditor hit the daily cap during review.
+   * Playback has stopped; the case returns to the Manager for reassignment
+   * (decline reason "Near my exposure limit") with entered progress kept.
+   */
+  releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }>;
+
+  // B2B — Manager (customer integration, deliveries, reports, governance)
+  getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration>;
+  testIntegration(organisationId: string, token: string): Promise<IntegrationTestResult>;
+  listDeliveries(token: string): Promise<Delivery[]>;
+  getDelivery(deliveryId: string, token: string): Promise<Delivery>;
+  /** A manual attempt that reuses the same delivery ID, so the customer never processes it twice. */
+  retryDelivery(deliveryId: string, token: string): Promise<Delivery>;
+  escalateDelivery(deliveryId: string, token: string, note: string): Promise<{ escalated: true }>;
+  listReports(token: string): Promise<ServiceReport[]>;
+  /** Builds a draft from completed case records for the period (dates inclusive, ISO yyyy-mm-dd). */
+  generateReport(token: string, organisationId: string, periodStart: string, periodEnd: string): Promise<ServiceReport>;
+  getReport(reportId: string, token: string): Promise<ServiceReport>;
+  updateReportNote(reportId: string, token: string, note: string): Promise<ServiceReport>;
+  /** The Manager approves client communication, never individual cases. */
+  releaseReport(reportId: string, token: string): Promise<ServiceReport>;
+  listReportAccess(reportId: string, token: string): Promise<ReportAccessEntry[]>;
+  getGovernanceSummary(token: string): Promise<GovernanceSummary>;
+
+  // B2B — CommunityHub authorised user (released, own-organisation reports only)
+  clientLogin(userId: string, password: string): Promise<ClientLoginResponse>;
+  clientListReports(token: string): Promise<ServiceReport[]>;
+  /** Logs a VIEW; a report that isn't released or isn't theirs is denied (logged) as "not found". */
+  clientGetReport(reportId: string, token: string): Promise<ServiceReport>;
+  clientRecordDownload(reportId: string, token: string): Promise<{ recorded: true }>;
 }
 
 /**

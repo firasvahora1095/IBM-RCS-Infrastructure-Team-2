@@ -58,4 +58,25 @@ export const apiDataService: DataService = {
   getCaseForExceptionalAccess: http.getCaseForExceptionalAccess,
   recordExceptionalAccess: http.recordExceptionalAccess,
   getValidationSummary: http.getValidationSummary,
+
+  // B2B end-to-end flow (docs/ux/b2b-end-to-end-flow-spec.md). Frontend-only
+  // for now: every operation shows the "not connected" notice in api mode.
+  releaseCaseAtLimit: () => notConnected("releaseCaseAtLimit"),
+  getCustomerIntegration: () => notConnected("getCustomerIntegration"),
+  testIntegration: () => notConnected("testIntegration"),
+  listDeliveries: () => notConnected("listDeliveries"),
+  getDelivery: () => notConnected("getDelivery"),
+  retryDelivery: () => notConnected("retryDelivery"),
+  escalateDelivery: () => notConnected("escalateDelivery"),
+  listReports: () => notConnected("listReports"),
+  generateReport: () => notConnected("generateReport"),
+  getReport: () => notConnected("getReport"),
+  updateReportNote: () => notConnected("updateReportNote"),
+  releaseReport: () => notConnected("releaseReport"),
+  listReportAccess: () => notConnected("listReportAccess"),
+  getGovernanceSummary: () => notConnected("getGovernanceSummary"),
+  clientLogin: () => notConnected("clientLogin"),
+  clientListReports: () => notConnected("clientListReports"),
+  clientGetReport: () => notConnected("clientGetReport"),
+  clientRecordDownload: () => notConnected("clientRecordDownload"),
 };
