@@ -25,6 +25,10 @@ import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetail
 import { ManagerCustomerPage } from "./pages/manager/ManagerCustomerPage";
 import { ManagerReportsPage } from "./pages/manager/ManagerReportsPage";
 import { ManagerReportDetailPage } from "./pages/manager/ManagerReportDetailPage";
+import { ClientRoute } from "./components/shell/ClientRoute";
+import { ClientLoginPage } from "./pages/client/ClientLoginPage";
+import { ClientReportsPage } from "./pages/client/ClientReportsPage";
+import { ClientReportViewPage } from "./pages/client/ClientReportViewPage";
 
 /**
  * Public pages share the IBM Content Safety Reporting header through this
@@ -234,6 +238,25 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* CommunityHub authorised users: a separate surface and session (B2B spec S11–S12). */}
+      <Route path="/client/login" element={<ClientLoginPage />} />
+      <Route
+        path="/client/reports"
+        element={
+          <ClientRoute>
+            <ClientReportsPage />
+          </ClientRoute>
+        }
+      />
+      <Route
+        path="/client/reports/:reportId"
+        element={
+          <ClientRoute>
+            <ClientReportViewPage />
+          </ClientRoute>
+        }
+      />
+      <Route path="/client" element={<Navigate to="/client/reports" replace />} />
       {/* An unknown URL (e.g. a mistyped link) lands on the public start
             page instead of rendering a blank screen. */}
       <Route path="*" element={<Navigate to="/" replace />} />
