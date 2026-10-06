@@ -12,7 +12,7 @@ const tabBase = {
 
 /**
  * The Manager TopNav (Figma component "TopNav=Manager", node 94:132): all
- * five sections, each a real route (Task 103).
+ * the Manager sections, each a real route (Task 103).
  *
  * Real links (NavLink) rather than buttons, because these navigate between
  * pages; NavLink also sets aria-current="page" on the active section.
