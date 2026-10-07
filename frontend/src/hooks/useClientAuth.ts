@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { clientLogin } from "../services";
+import type { ClientRole } from "../services/types";
 
 /**
  * Session for the CommunityHub authorised user (role COMMUNITYHUB_CLIENT,
@@ -21,6 +22,8 @@ export interface ClientSession {
   displayName: string;
   organisationId: string;
   organisationName: string;
+  /** What this account may see; older sessions without one only had reports. */
+  role: ClientRole;
 }
 
 export function readClientSession(): ClientSession | null {
@@ -29,7 +32,7 @@ export function readClientSession(): ClientSession | null {
   if (!token || !raw) return null;
   try {
     const profile = JSON.parse(raw) as Omit<ClientSession, "token">;
-    return { token, ...profile };
+    return { token, ...profile, role: profile.role ?? "REPORTS" };
   } catch {
     return null;
   }
@@ -51,6 +54,7 @@ export function useClientAuth() {
       displayName: result.display_name,
       organisationId: result.organisation_id,
       organisationName: result.organisation_name,
+      role: result.role ?? "REPORTS",
     };
     sessionStorage.setItem(TOKEN_KEY, result.token);
     sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
@@ -66,4 +70,19 @@ export function useClientAuth() {
   }, []);
 
   return { session, isLoggedIn: session !== null, token: session?.token ?? null, login, logout };
+}
+
+/** Least privilege: which client sections each role can open. */
+export const CLIENT_SECTIONS = {
+  reports: ["REPORTS", "ADMIN"],
+  cases: ["TRUST_SAFETY", "ADMIN"],
+} as const satisfies Record<string, readonly ClientRole[]>;
+
+export function canSee(role: ClientRole | undefined, section: keyof typeof CLIENT_SECTIONS): boolean {
+  return role !== undefined && (CLIENT_SECTIONS[section] as readonly ClientRole[]).includes(role);
+}
+
+/** Where a client lands after sign-in: the first section their role includes. */
+export function clientHome(role: ClientRole | undefined): string {
+  return canSee(role, "reports") ? "/client/reports" : canSee(role, "cases") ? "/client/cases" : "/client/messages";
 }

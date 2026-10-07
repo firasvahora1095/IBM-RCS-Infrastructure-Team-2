@@ -1,4 +1,4 @@
-import type { ClientMessage, FinalOutcome, GovernanceLogRow, ReportAccessEntry, ServiceReport, SeverityTier } from "../types";
+import type { ClientMessage, DeliveredOutcome, FinalOutcome, GovernanceLogRow, ReportAccessEntry, ServiceReport, SeverityTier } from "../types";
 import { computeMetrics } from "./reportMetrics";
 import type { MockCase, MockClientUser, MockDelivery, MockHistoricalCase, MockOrganisation } from "./store";
 
@@ -127,8 +127,8 @@ function historicalCases(now: number, random: () => number): MockHistoricalCase[
 
 function successfulDelivery(
   caseId: string,
-  outcome: FinalOutcome,
-  tier: SeverityTier,
+  outcome: DeliveredOutcome,
+  tier: SeverityTier | null,
   completedAt: string,
   random: () => number,
 ): MockDelivery {
@@ -232,11 +232,22 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
   const lastIndex = deliveries.length - 1;
   if (lastIndex >= 0) deliveries[lastIndex] = failedDelivery(deliveries[lastIndex], DELIVERY_UNAVAILABLE_REASON);
 
-  // Live completed cases with an Auditor outcome were handed off too.
+  // Older results CommunityHub's moderators have already acted on.
+  const actioned = deliveries.filter((d) => d.delivery_status === "SUCCESS").slice(-8);
+  actioned.forEach((d, i) => {
+    d.platform_action = {
+      action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
+      note: i === 0 ? "Mock: removed and the account warned." : null,
+      at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
+      by: "ch-mod-04",
+    };
+  });
+
+  // Live completed cases were handed off too, including any a Manager closed
+  // without a decision, so CommunityHub is never left waiting on a post.
   for (const c of liveCases) {
-    if (c.status !== "COMPLETE" || !c.completed_at) continue;
-    if (c.final_outcome !== "POLICY_VIOLATION_FOUND" && c.final_outcome !== "NO_VIOLATION_FOUND") continue;
-    const tier = c.severity_tier ?? "S1";
+    if (c.status !== "COMPLETE" || !c.completed_at || !c.final_outcome) continue;
+    const tier = c.final_outcome === "CLOSED_NO_REASSIGNMENT" ? null : (c.severity_tier ?? "S1");
     let delivery = successfulDelivery(c.case_id, c.final_outcome, tier, c.completed_at, () => 1);
     if (c.case_id === "AR-2026-00404") delivery = failedDelivery(delivery, DELIVERY_TIMEOUT_REASON);
     if (c.case_id === "AR-2026-00409") {
@@ -332,7 +343,28 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       random,
     ),
     clients: [
-      { user_id: "ch-user-17", password: demoPassword, display_name: "Taylor Brooks", organisation_id: COMMUNITYHUB_ID },
+      // Least privilege: each CommunityHub account sees only what its job needs.
+      {
+        user_id: "ch-user-17",
+        password: demoPassword,
+        display_name: "Taylor Brooks",
+        organisation_id: COMMUNITYHUB_ID,
+        role: "REPORTS",
+      },
+      {
+        user_id: "ch-mod-04",
+        password: demoPassword,
+        display_name: "Jordan Kim",
+        organisation_id: COMMUNITYHUB_ID,
+        role: "TRUST_SAFETY",
+      },
+      {
+        user_id: "ch-admin-01",
+        password: demoPassword,
+        display_name: "Sam Rivera",
+        organisation_id: COMMUNITYHUB_ID,
+        role: "ADMIN",
+      },
     ],
     clientMessages: [
       {

@@ -1178,6 +1178,8 @@ export const mockDataService: DataService = {
         updated_at: now,
       });
       audit(db, session.staffId, "CASE_CLOSED_BY_MANAGER", caseId, note.trim());
+      // CommunityHub still hears about the post: "closed without a decision".
+      createDeliveryForCase(db, c);
       return { status: mapStatusToPublicLabel("COMPLETE") };
     });
   },

@@ -1,6 +1,6 @@
 import { Button, Header, HeaderGlobalBar, HeaderMenuItem, HeaderName, HeaderNavigation, Tag, Theme } from "@carbon/react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import { useClientAuth } from "../../hooks/useClientAuth";
+import { canSee, clientHome, useClientAuth } from "../../hooks/useClientAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
 
 /**
@@ -21,15 +21,22 @@ export function ClientHeader() {
 
   return (
     <Theme theme="g100">
-      <Header aria-label="RCS — Client reports">
-        <HeaderName href="/client/reports" prefix="" aria-label="RCS — Client reports">
-          RCS<span className="hidden sm:inline"> — Client reports</span>
+      <Header aria-label="RCS — Client portal">
+        <HeaderName as={RouterLink} to={clientHome(session?.role)} prefix="" aria-label="RCS — Client portal">
+          RCS<span className="hidden sm:inline"> — Client portal</span>
         </HeaderName>
         {session && (
           <HeaderNavigation aria-label="Client sections">
-            <HeaderMenuItem as={RouterLink} to="/client/reports" isActive={pathname.startsWith("/client/reports")}>
-              Reports
-            </HeaderMenuItem>
+            {canSee(session.role, "reports") && (
+              <HeaderMenuItem as={RouterLink} to="/client/reports" isActive={pathname.startsWith("/client/reports")}>
+                Reports
+              </HeaderMenuItem>
+            )}
+            {canSee(session.role, "cases") && (
+              <HeaderMenuItem as={RouterLink} to="/client/cases" isActive={pathname.startsWith("/client/cases")}>
+                Case results
+              </HeaderMenuItem>
+            )}
             <HeaderMenuItem as={RouterLink} to="/client/messages" isActive={pathname.startsWith("/client/messages")}>
               Messages
             </HeaderMenuItem>

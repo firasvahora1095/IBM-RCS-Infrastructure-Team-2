@@ -389,13 +389,29 @@ export interface DeliveryAttempt {
   manual: boolean;
 }
 
+/** What CommunityHub's own moderators did with a result (they decide the action; RCS decides the outcome). */
+export interface PlatformAction {
+  action: "REMOVED" | "KEPT";
+  note: string | null;
+  at: string;
+  /** The CommunityHub user who acted. */
+  by: string;
+}
+
+/**
+ * The outcome sent to the customer: an Auditor decision, or "closed without
+ * a decision" when a Manager closes the case, so the post never waits forever.
+ */
+export type DeliveredOutcome = FinalOutcome | "CLOSED_NO_REASSIGNMENT";
+
 /** One case result handoff (Figma-free, B2B spec S8). The payload fields are the agreed minimum. */
 export interface Delivery {
   delivery_id: string; // stable idempotency identity, reused on every retry
   case_id: string;
   organisation_id: string;
-  outcome: FinalOutcome;
-  final_severity: SeverityTier;
+  outcome: DeliveredOutcome;
+  /** Null when the case was closed without a decision. */
+  final_severity: SeverityTier | null;
   completed_at: string;
   /** Always COMPLETE: only completed cases are ever handed off. */
   moderation_status: "COMPLETE";
@@ -409,7 +425,30 @@ export interface Delivery {
   source_url: string | null;
   /** False for older cases no longer in the live case queue. */
   case_available: boolean;
+  /** Optional — what CommunityHub did with the result, once their moderator acts. */
+  platform_action?: PlatformAction | null;
 }
+
+/**
+ * A delivered case result as a CommunityHub Trust & Safety user sees it:
+ * the agreed facts only. Never a narrative, footage, transcript, Auditor
+ * identity, wellbeing data or delivery errors.
+ */
+export interface CaseResult {
+  delivery_id: string;
+  case_id: string;
+  post_url: string | null;
+  outcome: DeliveredOutcome;
+  final_severity: SeverityTier | null;
+  completed_at: string;
+  delivered_at: string | null;
+  /** Delivery problems stay RCS's to fix; the client only sees whether it has arrived. */
+  status: "DELIVERED" | "ON_ITS_WAY";
+  platform_action: PlatformAction | null;
+}
+
+/** What a CommunityHub account may see (least privilege). */
+export type ClientRole = "REPORTS" | "TRUST_SAFETY" | "ADMIN";
 
 export interface DeliveryHealth {
   success: number;
@@ -531,6 +570,15 @@ export interface ClientLoginResponse {
   display_name: string;
   organisation_id: string;
   organisation_name: string;
+  /** Optional for older backends, which only had the reports role. */
+  role?: ClientRole;
+}
+
+/** One CommunityHub account and what it can see, for the Manager's customer page. */
+export interface ClientAccount {
+  user_id: string;
+  display_name: string;
+  role: ClientRole;
 }
 
 /** "Contact RCS": what a CommunityHub user can ask about. */
@@ -688,6 +736,18 @@ export interface DataService {
   /** Logs a VIEW; a report that isn't released or isn't theirs is denied (logged) as "not found". */
   clientGetReport(reportId: string, token: string): Promise<ServiceReport>;
   clientRecordDownload(reportId: string, token: string): Promise<{ recorded: true }>;
+
+  // Per-case results (Trust & Safety and Admin client roles only)
+  clientListCaseResults(token: string): Promise<CaseResult[]>;
+  /** CommunityHub's moderator acted on a delivered result. A second action replaces the first. */
+  clientRecordPlatformAction(
+    deliveryId: string,
+    token: string,
+    action: PlatformAction["action"],
+    note?: string,
+  ): Promise<CaseResult>;
+  /** Who at the customer can see what (Manager view). */
+  listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]>;
 
   // "Contact RCS": the client asks, a Manager answers (own organisation only).
   clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage>;

@@ -28,12 +28,13 @@ import {
   DELIVERY_SPLIT_SENTENCE,
   IDEMPOTENCY_NOTE,
   PAYLOAD_OUTCOME_LABEL,
+  PLATFORM_ACTION_LABEL,
 } from "../../design-tokens/deliveryLabels";
 import { formatShortDateTime } from "../../utils/formatPeriod";
 
 /** The structured payload CommunityHub receives (Sprint 3 extras §4.2). Facts only, no narrative. */
 function payloadFor(d: Delivery): string {
-  const payload: Record<string, string> = {
+  const payload: Record<string, string | null> = {
     delivery_id: d.delivery_id,
     case_id: d.case_id,
     outcome: d.outcome,
@@ -244,7 +245,18 @@ export function ManagerDeliveryDetailPage() {
                     ),
                   },
                   { label: "Outcome", value: PAYLOAD_OUTCOME_LABEL[data.outcome] },
-                  { label: "Final severity", value: <SeverityTag tier={data.final_severity} size="sm" /> },
+                  {
+                    label: "Final severity",
+                    value: data.final_severity ? <SeverityTag tier={data.final_severity} size="sm" /> : "None (closed without a decision)",
+                  },
+                  {
+                    label: "CommunityHub action",
+                    value: data.platform_action
+                      ? `${PLATFORM_ACTION_LABEL[data.platform_action.action]}, ${formatShortDateTime(data.platform_action.at)}${data.platform_action.note ? ` — "${data.platform_action.note}"` : ""}`
+                      : data.delivery_status === "SUCCESS"
+                        ? "Waiting for CommunityHub's moderators"
+                        : "Not delivered yet",
+                  },
                   { label: "Completed", value: formatShortDateTime(data.completed_at) },
                   { label: "Source link", value: data.source_url ?? "Not provided (optional)" },
                 ]}

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Button, InlineNotification, PasswordInput, TextInput } from "@carbon/react";
-import { useClientAuth } from "../../hooks/useClientAuth";
+import { clientHome, useClientAuth } from "../../hooks/useClientAuth";
 import { ApiError } from "../../services/types";
 import { isMockData } from "../../services";
 import { DEMO_PASSWORD } from "../../services/mock/seed";
@@ -15,16 +15,16 @@ import { DEMO_PASSWORD } from "../../services/mock/seed";
  * for the organisation.
  */
 export function ClientLoginPage() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoggedIn } = useClientAuth();
+  const { login, isLoggedIn, session } = useClientAuth();
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const state = location.state as { from?: string; expired?: boolean } | null;
-  const target = state?.from?.startsWith("/client/") ? state.from : "/client/reports";
+  // Each role lands on the first section it can see.
+  const target = state?.from?.startsWith("/client/") ? state.from : clientHome(session?.role);
 
   if (isLoggedIn) return <Navigate to={target} replace />;
 
@@ -33,8 +33,8 @@ export function ClientLoginPage() {
     setIsSubmitting(true);
     setError(null);
     try {
+      // Signing in re-renders with the session, and the redirect above uses its role.
       await login(userId.trim(), password);
-      navigate(target, { replace: true });
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
@@ -76,7 +76,7 @@ export function ClientLoginPage() {
             lowContrast
             hideCloseButton
             title="Demo sign-in:"
-            subtitle={`ch-user-17 — password ${DEMO_PASSWORD}`}
+            subtitle={`ch-user-17 (reports), ch-mod-04 (Trust & Safety), ch-admin-01 (admin) — password ${DEMO_PASSWORD}`}
             style={{ maxWidth: "100%" }}
           />
         )}

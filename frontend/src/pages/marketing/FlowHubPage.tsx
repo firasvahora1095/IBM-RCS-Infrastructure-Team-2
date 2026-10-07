@@ -67,6 +67,14 @@ const STAGES: Stage[] = [
     signIn: isMockData ? "manager-1" : "manager-01",
   },
   {
+    n: "07b",
+    title: "CommunityHub acts on the result",
+    body: "The result lands in CommunityHub's moderation queue; their Trust & Safety team removes or keeps the post, and RCS is told.",
+    persona: "CommunityHub Trust & Safety",
+    to: "/communityhub/moderation",
+    signIn: "ch-mod-04",
+  },
+  {
     n: "08",
     title: "Manager oversight",
     body: "SOS, reassignment, failed handoffs and reviewer exposure at a glance.",
