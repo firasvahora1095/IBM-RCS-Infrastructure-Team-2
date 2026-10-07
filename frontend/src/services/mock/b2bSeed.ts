@@ -232,17 +232,6 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
   const lastIndex = deliveries.length - 1;
   if (lastIndex >= 0) deliveries[lastIndex] = failedDelivery(deliveries[lastIndex], DELIVERY_UNAVAILABLE_REASON);
 
-  // Older results CommunityHub's moderators have already acted on.
-  const actioned = deliveries.filter((d) => d.delivery_status === "SUCCESS").slice(-8);
-  actioned.forEach((d, i) => {
-    d.platform_action = {
-      action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
-      note: i === 0 ? "Mock: removed and the account warned." : null,
-      at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
-      by: "ch-mod-04",
-    };
-  });
-
   // Live completed cases were handed off too, including any a Manager closed
   // without a decision, so CommunityHub is never left waiting on a post.
   for (const c of liveCases) {
@@ -264,6 +253,23 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
     }
     deliveries.push(delivery);
   }
+
+  // Reports came from CommunityHub posts, so each result carries its post link.
+  deliveries.forEach((d, i) => {
+    d.source_url ??= `https://communityhub.example/post/${3100 + i}`;
+  });
+  // CommunityHub's moderators have dealt with everything except the newest few results.
+  const delivered = deliveries
+    .filter((d) => d.delivery_status === "SUCCESS")
+    .sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at));
+  delivered.slice(0, -4).forEach((d, i) => {
+    d.platform_action = {
+      action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
+      note: i % 9 === 0 && d.outcome === "POLICY_VIOLATION_FOUND" ? "Mock: removed and the account warned." : null,
+      at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
+      by: "ch-mod-04",
+    };
+  });
 
   const metricsSource = { history: caseHistory, cases: liveCases, deliveries };
   const released = monthPeriod(now, -2);

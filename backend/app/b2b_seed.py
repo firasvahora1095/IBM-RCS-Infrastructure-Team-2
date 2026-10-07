@@ -239,10 +239,15 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         deliveries.append(_delivered(
             case.case_id, case.final_outcome, final_tier_of(case) or "S1", case.completed_at, False,
         ))
-    # Older results CommunityHub's moderators have already acted on.
-    for i, d in enumerate([d for d in deliveries if d.delivery_status == "SUCCESS"][-12:-4]):
-        d.platform_action = "REMOVED" if d.outcome == "POLICY_VIOLATION_FOUND" else "KEPT"
-        d.platform_action_note = "Mock: removed and the account warned." if i == 0 else None
+    # Reports came from CommunityHub posts, so each result carries its post link.
+    for i, d in enumerate(deliveries):
+        d.source_url = d.source_url or f"https://communityhub.example/post/{3100 + i}"
+    # CommunityHub's moderators have dealt with everything except the newest few results.
+    delivered = sorted((d for d in deliveries if d.delivery_status == "SUCCESS"), key=lambda d: d.completed_at)
+    for i, d in enumerate(delivered[:-4]):
+        violation = d.outcome == "POLICY_VIOLATION_FOUND"
+        d.platform_action = "REMOVED" if violation else "KEPT"
+        d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
         d.platform_action_at = d.completed_at + timedelta(minutes=25)
         d.platform_action_by = "ch-mod-04"
     db.add_all(deliveries)

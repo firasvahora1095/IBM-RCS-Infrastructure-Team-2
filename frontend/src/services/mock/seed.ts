@@ -2,7 +2,7 @@ import type { MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
 import { createB2bSeed } from "./b2bSeed";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 10;
+export const MOCK_DB_VERSION = 11;
 
 /**
  * Synthetic demo data for the mock data source.
