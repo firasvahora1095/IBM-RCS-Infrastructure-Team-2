@@ -56,7 +56,7 @@ const STAGES: Stage[] = [
     body: "Content warning, blur, exposure limits, support and SOS. The reviewer decides.",
     persona: "Auditor",
     to: "/auditor",
-    signIn: "auditor-1",
+    signIn: isMockData ? "auditor-1" : "auditor-01",
   },
   {
     n: "07",
@@ -64,7 +64,7 @@ const STAGES: Stage[] = [
     body: "Sent automatically on completion; the Manager only handles failures.",
     persona: "Manager",
     to: "/manager/deliveries",
-    signIn: "manager-1",
+    signIn: isMockData ? "manager-1" : "manager-01",
   },
   {
     n: "08",
@@ -72,7 +72,7 @@ const STAGES: Stage[] = [
     body: "SOS, reassignment, failed handoffs and reviewer exposure at a glance.",
     persona: "Manager",
     to: "/manager",
-    signIn: "manager-1",
+    signIn: isMockData ? "manager-1" : "manager-01",
   },
   {
     n: "09",
@@ -80,7 +80,7 @@ const STAGES: Stage[] = [
     body: "Generate a period report from case records, review it, release it.",
     persona: "Manager",
     to: "/manager/reports",
-    signIn: "manager-1",
+    signIn: isMockData ? "manager-1" : "manager-01",
   },
   {
     n: "10",
