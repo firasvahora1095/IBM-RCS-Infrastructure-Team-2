@@ -11,6 +11,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
 import { cooldownSummary } from "../../design-tokens/managerLabels";
+import { StatusTag } from "../../components/ui/StatusTag";
 
 const DEFAULT_LIMIT_MINUTES = 120;
 
@@ -230,14 +231,10 @@ export function ManagerAuditorDetailPage() {
                         Asked to talk to you{r.case_id ? ` about case ${r.case_id}` : ""} — reach out when you can.
                       </span>
                     ) : r.status === "APPROVED" ? (
-                      <Tag type="gray" size="md" style={{ margin: 0 }}>
-                        Break approved
-                      </Tag>
+                      <StatusTag tone="success">Break approved</StatusTag>
                     ) : (
                       <>
-                        <Tag type="gray" size="md" style={{ margin: 0 }}>
-                          Break requested
-                        </Tag>
+                        <StatusTag tone="warning">Break requested</StatusTag>
                         <Button size="md" disabled={approvingId === r.id} onClick={() => approve(r.id)}>
                           {approvingId === r.id ? "Approving…" : "Approve"}
                         </Button>
