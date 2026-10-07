@@ -669,7 +669,7 @@ Known limits to state honestly in the handoff: period uses UTC dates; cases carr
 
 ## Part 9. Decisions needed from the user (yes/no)
 
-**All accepted as recommended by the user on 7 Oct 2026.**
+**All accepted as recommended by the user on 7 Oct 2026. D2 was later reversed by the product owner:** break **and** talk requests are both shown, as one "Support requests" Needs Attention row ("1 break · 1 talk") and quiet tags under the Auditor's name, so the Manager can see clearly when someone asked for a break or to talk.
 
 1. **D1:** omit the "Completion blocked by invalid data" row until a completion-validation field exists? *(recommended: yes, omit and document)*
 2. **D2:** dashboard counts break requests only; routine talk requests stay in the Auditor's View Details log, which removes the "Support requests waiting" tile and "Wants to talk" tag added in PR #58? *(recommended: yes)*
