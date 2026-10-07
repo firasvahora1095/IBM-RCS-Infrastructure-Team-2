@@ -13,6 +13,7 @@ from fastapi import (
     Depends,
     FastAPI,
     File,
+    Form,
     Header,
     HTTPException,
     Query,
@@ -40,13 +41,15 @@ from app.api_schemas import (
     SosFollowUpRequest,
     StaffRole,
 )
+from app.b2b import create_delivery_for_case, public_delivery_confirmed
+from app.b2b import router as b2b_router
 from app.auth import DUMMY_PASSWORD_HASH, StaffSession, session_store, verify_password
 from app.assignment import NoEligibleAuditorError, select_auditor
 from app.case_ids import generate_case_id
 from app.case_status import public_status
 from app.case_workflow import record_case_assignment
 from app.db import get_db
-from app.models import AuditLog, Auditor, Case
+from app.models import AuditLog, Auditor, Case, CaseSource
 from app.orchestrate import (
     AssignmentOrchestrationError,
     AssignmentOrchestrator,
@@ -160,6 +163,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Internal-API-Key", "Range"],
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
+app.include_router(b2b_router)
 
 
 @app.middleware("http")
@@ -285,6 +289,10 @@ def _run_analysis_in_background(case_id: str) -> None:
 async def create_report(
     background_tasks: BackgroundTasks,
     video: UploadFile = File(...),
+    # Optional "where did you see it?" details. Never required: a missing
+    # source must not block a report or its handoff to the customer.
+    source_url: str | None = Form(default=None, max_length=2000),
+    source_detail: str | None = Form(default=None, max_length=1000),
     db: Session = Depends(get_db),
     orchestrator: AssignmentOrchestrator = Depends(get_assignment_orchestrator),
 ):
@@ -315,6 +323,12 @@ async def create_report(
         # Flush the parent row before adding its audit record. Without an ORM
         # relationship SQLAlchemy cannot infer the insert order from IDs alone.
         db.flush()
+        if (source_url and source_url.strip()) or (source_detail and source_detail.strip()):
+            db.add(CaseSource(
+                case_id=case_id,
+                source_url=(source_url or "").strip() or None,
+                source_detail=(source_detail or "").strip() or None,
+            ))
         db.add(
             AuditLog(
                 case_id=case_id,
@@ -429,11 +443,16 @@ async def get_status(
             )
         raise HTTPException(status_code=404, detail="Case not found")
 
+    delivered = case.status == "COMPLETE" and public_delivery_confirmed(db, case.case_id)
+    db.commit()
     return {
         "case_id": case.case_id,
         "status": public_status(case.status),
         "final_outcome": case.final_outcome if case.status == "COMPLETE" else None,
         "submitted_at": case.created_at,
+        # The only delivery fact allowed across the public boundary: the
+        # Reporter hears "CommunityHub has been notified" only once it is true.
+        "public_delivery_confirmed": delivered,
     }
 
 
@@ -676,6 +695,9 @@ async def resolve_case(
             },
         )
     )
+    # Hand the result to the customer automatically. The Manager never
+    # approves it, and the Auditor never sees its delivery status.
+    create_delivery_for_case(db, case, now)
     db.commit()
     return {
         "case_id": case.case_id,
@@ -803,6 +825,39 @@ async def decline_case(
     ))
     db.commit()
     return {"declined": True}
+
+
+@app.post("/api/auditor/cases/{case_id}/release-at-limit")
+async def release_case_at_limit(
+    case_id: str,
+    auditor: StaffSession = Depends(get_current_auditor),
+    db: Session = Depends(get_db),
+):
+    """The Auditor reached the daily exposure cap mid-review.
+
+    Playback has stopped on the client. The case goes back to the Manager for
+    reassignment as a "near my exposure limit" decline; entered progress is
+    kept on the case.
+    """
+    case = _get_owned_case(db, case_id, auditor.staff_id)
+    if case.status == "COMPLETE":
+        raise HTTPException(status_code=409, detail="Cannot return a completed case")
+    before = {"status": case.status, "manager_flag": case.manager_flag}
+    case.manager_flag = "DECLINED"
+    db.add(AuditLog(
+        case_id=case.case_id,
+        actor=auditor.staff_id,
+        action="CASE_DECLINED",
+        before_value=before,
+        after_value={
+            "manager_flag": "DECLINED",
+            "reason": "NEAR_EXPOSURE_LIMIT",
+            "other_text": None,
+            "returned_at_daily_limit": True,
+        },
+    ))
+    db.commit()
+    return {"returned": True}
 
 
 @app.post("/api/auditor/cases/{case_id}/exposure")

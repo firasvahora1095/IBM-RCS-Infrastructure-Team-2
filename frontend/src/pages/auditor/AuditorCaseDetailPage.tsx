@@ -28,6 +28,7 @@ import {
   getAuditorCaseDetail,
   getMyWellbeing,
   recordExposure,
+  releaseCaseAtLimit,
   reportUnexpectedExposure,
   resolveCase,
   triggerSos,
@@ -46,7 +47,7 @@ import { getSeverityInfo, scoreToTier } from "../../design-tokens/severity";
 import { OUTCOME_OPTIONS, mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { notifyWellbeingChanged } from "../../hooks/useMyWellbeing";
+import { notifyWellbeingChanged, useMyWellbeing } from "../../hooks/useMyWellbeing";
 import {
   loadDraftResolution,
   saveDraftResolution,
@@ -54,7 +55,7 @@ import {
   type DraftStep,
 } from "../../hooks/useDraftResolution";
 
-type Step = "gate" | DraftStep | "check-in" | "confirmation" | "declined" | "sos";
+type Step = "gate" | DraftStep | "check-in" | "confirmation" | "declined" | "sos" | "daily-cap";
 
 /** What paused the case: the Auditor's SOS, or AI/STT failing after review began (AR-AI-11). */
 type PauseCause = "sos" | "ai-failure";
@@ -146,6 +147,23 @@ export function AuditorCaseDetailPage() {
     }
     return false;
   }, []);
+
+  /**
+   * Sprint 3 rule (extras §2): reaching the daily cap during raw review stops
+   * playback straight away (the workspace unmounts), keeps the entered review
+   * progress (draft) and returns the case to the Manager for reassignment.
+   * The Auditor isn't encouraged to exceed the cap to finish the case.
+   */
+  const { wellbeing } = useMyWellbeing();
+  const reachedDailyCap =
+    wellbeing !== null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
+  useEffect(() => {
+    if (!reachedDailyCap || step !== "workspace" || !token) return;
+    setStep("daily-cap");
+    releaseCaseAtLimit(caseId, token).catch((err: unknown) => {
+      handleSessionError(err);
+    });
+  }, [reachedDailyCap, step, token, caseId, handleSessionError]);
 
   useEffect(() => {
     if (!caseId || !tokenRef.current) return;
@@ -545,15 +563,39 @@ export function AuditorCaseDetailPage() {
       {step === "check-in" && (
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
-          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Wellbeing check-in</h1>
+          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Request support</h1>
           <p style={secondaryText}>
-            Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case.
+            Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
+            you need to stop right now, go back and use SOS.
           </p>
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
           <div>
             <Button kind="tertiary" onClick={() => setStep("workspace")}>
               ← Return to Review Workspace
             </Button>
+          </div>
+        </StaffPage>
+      )}
+
+      {step === "daily-cap" && (
+        <StaffPage maxWidth={720}>
+          <CaseBreadcrumb caseId={caseDetail.case_id} />
+          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>You&apos;ve reached today&apos;s limit</h1>
+          <p style={secondaryText}>
+            We&apos;ve stopped playback and saved your progress. This case will go back to your manager to be
+            reassigned. You won&apos;t be given more harmful-content cases today.
+          </p>
+          <InlineNotification
+            kind="info"
+            lowContrast
+            hideCloseButton
+            title="Your daily total resets at 9:00 AM."
+            subtitle="Cooldowns don't reset it. Your manager can see that you've reached it."
+            style={{ maxWidth: "100%" }}
+          />
+          <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
+          <div>
+            <Button onClick={() => navigate("/auditor")}>Return to queue</Button>
           </div>
         </StaffPage>
       )}

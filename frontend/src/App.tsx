@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
+import { ScrollToTop } from "./components/shell/ScrollToTop";
 import { UploadPage } from "./pages/normal-user/UploadPage";
 import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
@@ -20,6 +21,19 @@ import { ManagerCaseReviewPage } from "./pages/manager/ManagerCaseReviewPage";
 import { ManagerReassignmentPage } from "./pages/manager/ManagerReassignmentPage";
 import { ManagerExceptionalAccessPage } from "./pages/manager/ManagerExceptionalAccessPage";
 import { ManagerValidationPage } from "./pages/manager/ManagerValidationPage";
+import { ManagerDeliveriesPage } from "./pages/manager/ManagerDeliveriesPage";
+import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetailPage";
+import { ManagerCustomerPage } from "./pages/manager/ManagerCustomerPage";
+import { ManagerReportsPage } from "./pages/manager/ManagerReportsPage";
+import { ManagerReportDetailPage } from "./pages/manager/ManagerReportDetailPage";
+import { ClientRoute } from "./components/shell/ClientRoute";
+import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
+import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
+import { CommunityHubPage } from "./pages/marketing/CommunityHubPage";
+import { FlowHubPage } from "./pages/marketing/FlowHubPage";
+import { ClientLoginPage } from "./pages/client/ClientLoginPage";
+import { ClientReportsPage } from "./pages/client/ClientReportsPage";
+import { ClientReportViewPage } from "./pages/client/ClientReportViewPage";
 
 /**
  * Public pages share the IBM Content Safety Reporting header through this
@@ -68,6 +82,12 @@ export function AppRoutes() {
         <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
         <Route path="/status" element={<StatusLookupPage />} />
       </Route>
+      {/* B2B front (flow stages 1–3): the RCS product page, organisation set-up,
+          and a simulated CommunityHub page with the report button. /flow is the demo guide. */}
+      <Route path="/rcs" element={<RcsLandingPage />} />
+      <Route path="/rcs/get-started" element={<OrganisationOnboardingPage />} />
+      <Route path="/communityhub" element={<CommunityHubPage />} />
+      <Route path="/flow" element={<FlowHubPage />} />
       <Route path="/staff/login" element={<StaffLoginPage />} />
       <Route
         path="/auditor"
@@ -189,6 +209,65 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/manager/deliveries"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerDeliveriesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/deliveries/:deliveryId"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerDeliveryDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/customers/communityhub"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerCustomerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/reports"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/reports/:reportId"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerReportDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* CommunityHub authorised users: a separate surface and session (B2B spec S11–S12). */}
+      <Route path="/client/login" element={<ClientLoginPage />} />
+      <Route
+        path="/client/reports"
+        element={
+          <ClientRoute>
+            <ClientReportsPage />
+          </ClientRoute>
+        }
+      />
+      <Route
+        path="/client/reports/:reportId"
+        element={
+          <ClientRoute>
+            <ClientReportViewPage />
+          </ClientRoute>
+        }
+      />
+      <Route path="/client" element={<Navigate to="/client/reports" replace />} />
       {/* An unknown URL (e.g. a mistyped link) lands on the public start
             page instead of rendering a blank screen. */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -200,6 +279,7 @@ export function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AppRoutes />
     </BrowserRouter>
   );

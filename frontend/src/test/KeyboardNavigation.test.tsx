@@ -277,10 +277,18 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((l) => l.textContent);
-    expect(names).toEqual(["Dashboard", "Case Oversight", "SOS Inbox", "Reassignment Queue", "Validation"]);
+    expect(names).toEqual([
+      "Dashboard",
+      "Case Oversight",
+      "SOS Inbox",
+      "Reassignment Queue",
+      "Deliveries",
+      "Reports",
+      "Validation",
+    ]);
     const order: string[] = [];
     await tabTo(user, within(nav).getByRole("link", { name: "Dashboard" }));
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < names.length; i++) {
       order.push(document.activeElement?.textContent ?? "");
       await user.tab();
     }

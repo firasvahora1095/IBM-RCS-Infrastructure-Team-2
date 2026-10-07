@@ -74,3 +74,25 @@ export const closeWithoutReassignment = delegate("closeWithoutReassignment");
 export const getCaseForExceptionalAccess = delegate("getCaseForExceptionalAccess");
 export const recordExceptionalAccess = delegate("recordExceptionalAccess");
 export const getValidationSummary = delegate("getValidationSummary");
+export const releaseCaseAtLimit = delegate("releaseCaseAtLimit");
+
+// B2B — Manager: customer integration, case result handoff, reports, governance
+export const getCustomerIntegration = delegate("getCustomerIntegration");
+export const testIntegration = delegate("testIntegration");
+export const listDeliveries = delegate("listDeliveries");
+export const getDelivery = delegate("getDelivery");
+export const retryDelivery = delegate("retryDelivery");
+export const escalateDelivery = delegate("escalateDelivery");
+export const listReports = delegate("listReports");
+export const generateReport = delegate("generateReport");
+export const getReport = delegate("getReport");
+export const updateReportNote = delegate("updateReportNote");
+export const releaseReport = delegate("releaseReport");
+export const listReportAccess = delegate("listReportAccess");
+export const getGovernanceSummary = delegate("getGovernanceSummary");
+
+// B2B — CommunityHub authorised user
+export const clientLogin = delegate("clientLogin");
+export const clientListReports = delegate("clientListReports");
+export const clientGetReport = delegate("clientGetReport");
+export const clientRecordDownload = delegate("clientRecordDownload");

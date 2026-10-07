@@ -1,5 +1,11 @@
 import type {
   CaseOutcome,
+  DeliveryAttempt,
+  DeliveryStatus,
+  FinalOutcome,
+  GovernanceLogRow,
+  ReportAccessEntry,
+  ServiceReport,
   CooldownState,
   DeclineReason,
   SosFollowUpOutcome,
@@ -106,6 +112,56 @@ export interface MockAuditEntry {
   detail: string | null;
 }
 
+/** The customer organisation every case in this prototype belongs to (B2B spec S1). */
+export interface MockOrganisation {
+  organisation_id: string;
+  name: string;
+  description: string;
+  status: "READY" | "ERROR";
+  destination_masked: string;
+  last_tested_at: string | null;
+}
+
+/**
+ * An older, already-completed case kept only as the minimal record reports
+ * and deliveries need. Not in the live case queue, so it never clutters the
+ * Manager or Auditor screens.
+ */
+export interface MockHistoricalCase {
+  case_id: string;
+  created_at: string;
+  completed_at: string;
+  ai_tier: SeverityTier;
+  final_tier: SeverityTier;
+  outcome: FinalOutcome;
+  declined_reassigned: boolean;
+}
+
+export interface MockDelivery {
+  delivery_id: string;
+  case_id: string;
+  organisation_id: string;
+  outcome: FinalOutcome;
+  final_severity: SeverityTier;
+  completed_at: string;
+  delivery_status: DeliveryStatus;
+  attempts: DeliveryAttempt[];
+  failure_reason: string | null;
+  next_attempt_at: string | null;
+  escalated_at: string | null;
+  escalation_note: string | null;
+  source_url: string | null;
+  /** Mock only: the automatic attempts for this delivery fail (endpoint "down"). */
+  simulate_failure: boolean;
+}
+
+export interface MockClientUser {
+  user_id: string;
+  password: string;
+  display_name: string;
+  organisation_id: string;
+}
+
 export interface MockDb {
   version: number;
   cases: MockCase[];
@@ -124,7 +180,20 @@ export interface MockDb {
   wellbeingRequests: MockWellbeingRequest[];
   auditLog: MockAuditEntry[];
   /** Edge states forced from the demo scenario menu (mock mode only). */
-  demo: { failNextSubmission: boolean; nextReassignTargetUnavailable: boolean };
+  demo: { failNextSubmission: boolean; nextReassignTargetUnavailable: boolean; failNextDelivery: boolean };
+
+  // ---- B2B (docs/ux/b2b-end-to-end-flow-spec.md §6) ----
+  organisation: MockOrganisation;
+  caseHistory: MockHistoricalCase[];
+  deliveries: MockDelivery[];
+  reports: ServiceReport[];
+  reportAccess: ReportAccessEntry[];
+  governanceLog: GovernanceLogRow[];
+  clients: MockClientUser[];
+  /** token → client session. Separate from staff sessions: a client token never opens a staff page. */
+  clientSessions: Record<string, { userId: string; organisationId: string }>;
+  /** Optional Reporter-supplied source details, keyed by case ID (never required). */
+  caseSources: Record<string, { url: string | null; detail: string | null }>;
 }
 
 const STORAGE_KEY = "rcs_mock_db";
