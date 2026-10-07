@@ -61,6 +61,7 @@ export const apiDataService: DataService = {
 
   // B2B end-to-end flow (docs/ux/b2b-end-to-end-flow-spec.md, backend/app/b2b.py).
   releaseCaseAtLimit: http.releaseCaseAtLimit,
+  releaseAllCasesAtLimit: http.releaseAllCasesAtLimit,
   getCustomerIntegration: http.getCustomerIntegration,
   testIntegration: http.testIntegration,
   listDeliveries: http.listDeliveries,

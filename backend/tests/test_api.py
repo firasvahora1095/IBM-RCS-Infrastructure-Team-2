@@ -1215,10 +1215,12 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(r.json()["auditor_id"], "auditor-2")
 
     def test_select_auditor_excludes_auditor_at_exposure_limit(self) -> None:
+        from datetime import datetime, timezone
         with self.Session.begin() as db:
             auditor = db.get(Auditor, "auditor-1")
             auditor.exposure_minutes = 120.0
             auditor.exposure_limit_minutes = 120
+            auditor.exposure_last_reset_at = datetime.now(timezone.utc)
 
         r = self.client.post(
             "/api/internal/assignments/select-auditor",
@@ -1304,6 +1306,140 @@ class ApiContractTests(unittest.TestCase):
         with self.Session() as db:
             auditor = db.get(Auditor, "auditor-1")
             self.assertIsNone(auditor.cooldown_ends_at)
+
+
+    # ── Daily exposure reset tests ─────────────────────────────────────────────
+
+    def test_daily_reset_clears_exposure_when_last_reset_before_today_workday_start(self) -> None:
+        """Auditor whose last reset was yesterday gets exposure wiped on next access."""
+        from datetime import datetime, timedelta, timezone
+        from app.assignment import maybe_reset_daily_exposure
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 90.0
+            # Set last reset to >24h ago so it's definitely before today's 9AM AEST
+            auditor.exposure_last_reset_at = datetime.now(timezone.utc) - timedelta(hours=25)
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            was_reset = maybe_reset_daily_exposure(db, auditor)
+
+        self.assertTrue(was_reset)
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertEqual(auditor.exposure_minutes, 0.0)
+
+    def test_daily_reset_does_not_clear_exposure_when_already_reset_today(self) -> None:
+        """Auditor already reset today (last reset after today's 9AM AEST) keeps their exposure_minutes."""
+        from datetime import datetime, timezone
+        from app.assignment import maybe_reset_daily_exposure, _today_workday_start
+
+        now = datetime.now(timezone.utc)
+        today_start = _today_workday_start(now)
+        # Set last reset to just after today's workday start
+        after_reset = today_start + __import__('datetime').timedelta(minutes=30)
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 60.0
+            auditor.exposure_last_reset_at = after_reset
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            was_reset = maybe_reset_daily_exposure(db, auditor)
+
+        self.assertFalse(was_reset)
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertEqual(auditor.exposure_minutes, 60.0)
+
+    def test_daily_reset_clears_exposure_when_last_reset_is_none(self) -> None:
+        """Auditor with no previous reset (brand new) gets reset on first access."""
+        from app.assignment import maybe_reset_daily_exposure
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 45.0
+            auditor.exposure_last_reset_at = None
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            was_reset = maybe_reset_daily_exposure(db, auditor)
+
+        self.assertTrue(was_reset)
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertEqual(auditor.exposure_minutes, 0.0)
+            self.assertIsNotNone(auditor.exposure_last_reset_at)
+
+    def test_daily_reset_updates_exposure_last_reset_at_timestamp(self) -> None:
+        """After a reset, exposure_last_reset_at is updated to ~now."""
+        from datetime import datetime, timedelta, timezone
+        from app.assignment import maybe_reset_daily_exposure
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_last_reset_at = datetime.now(timezone.utc) - timedelta(hours=25)
+
+        before = datetime.now(timezone.utc)
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            maybe_reset_daily_exposure(db, auditor)
+        after = datetime.now(timezone.utc)
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            ts = auditor.exposure_last_reset_at
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            self.assertGreaterEqual(ts, before)
+            self.assertLessEqual(ts, after)
+
+    def test_select_auditor_resets_exposure_if_stale_and_includes_auditor(self) -> None:
+        """Auditor at limit but with stale reset gets reset and becomes eligible again."""
+        from datetime import datetime, timedelta, timezone
+
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.exposure_minutes = 120.0
+            auditor.exposure_limit_minutes = 120
+            # Stale reset — over 25h ago, so today's workday has not been reset yet
+            auditor.exposure_last_reset_at = datetime.now(timezone.utc) - timedelta(hours=25)
+
+        r = self.client.post(
+            "/api/internal/assignments/select-auditor",
+            headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        # After the reset, auditor-1 has 0 minutes and is eligible again
+        # (auditor-1 is preferred when tied because it's never-assigned or least-recent)
+        self.assertIn(r.json()["auditor_id"], ("auditor-1", "auditor-2"))
+
+        with self.Session() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            self.assertEqual(auditor.exposure_minutes, 0.0)
+
+    def test_release_all_at_limit_routes_ready_cases_to_manager(self) -> None:
+        """POST /api/auditor/release-all-at-limit moves all READY_FOR_REVIEW cases to manager queue."""
+        case_ids = ["CAPTEST000001", "CAPTEST000002"]
+        for cid in case_ids:
+            self.add_case(cid, auditor_id="auditor-1", status="READY_FOR_REVIEW")
+
+        headers = self.auth_headers("auditor-1")
+        r = self.client.post("/api/auditor/release-all-at-limit", headers=headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertEqual(data["returned"], 2)
+
+        with self.Session() as db:
+            for cid in case_ids:
+                case = db.get(Case, cid)
+                self.assertEqual(case.status, "READY_FOR_REVIEW")
+                self.assertEqual(case.manager_flag, "CAP_REACHED")
+                # assigned_auditor_id is retained so manager knows who returned the case;
+                # it is cleared when the manager reassigns to a different auditor
+                self.assertEqual(case.assigned_auditor_id, "auditor-1")
 
 
 if __name__ == "__main__":

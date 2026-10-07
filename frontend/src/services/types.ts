@@ -178,7 +178,7 @@ export interface CooldownState {
 }
 
 /** AR-DF-03 structured decline reasons, in the adopted order. None is ever pre-selected. */
-export type DeclineReason = "MORE_SEVERE_THAN_AI" | "NEAR_EXPOSURE_LIMIT" | "PERSONAL_TRIGGER" | "OTHER";
+export type DeclineReason = "MORE_SEVERE_THAN_AI" | "NEAR_EXPOSURE_LIMIT" | "PERSONAL_TRIGGER" | "OTHER" | "EXPOSURE_CAP_REACHED";
 
 /**
  * Exposure measured in the Review Workspace since the last report. Only active
@@ -235,7 +235,7 @@ export interface ManagerCaseRow {
   auditor_name: string | null;
   severity_tier: SeverityTier | null;
   status: InternalCaseStatus;
-  manager_flag: "DECLINED" | "SOS" | null;
+  manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */
   sos_alert_id: string | null;
 }
@@ -288,7 +288,7 @@ export interface DeclinedCaseRow {
 export interface ManagerCaseReview {
   case_id: string;
   status: InternalCaseStatus;
-  manager_flag: "DECLINED" | "SOS" | null;
+  manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   severity_tier: SeverityTier | null;
   effective_severity_score: number | null;
   narrative_summary: string | null;
@@ -601,6 +601,7 @@ export interface DataService {
    * (decline reason "Near my exposure limit") with entered progress kept.
    */
   releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }>;
+  releaseAllCasesAtLimit(token: string): Promise<{ returned: number }>;
 
   // B2B — Manager (customer integration, deliveries, reports, governance)
   getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration>;

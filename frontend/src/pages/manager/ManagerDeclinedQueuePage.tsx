@@ -21,9 +21,9 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Declined / Reassignment Queue</h1>
-      <LoadState error={error} loading={!data && !error} what="declined cases" />
-      {data && data.length === 0 && <p style={secondaryText}>No declined cases are waiting for a decision.</p>}
+      <h1 style={pageTitle}>Reassignment Queue</h1>
+      <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
+      {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (
         <Layer>
           <Table aria-label="Declined cases awaiting a decision">

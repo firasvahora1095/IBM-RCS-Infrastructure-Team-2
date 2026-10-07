@@ -75,6 +75,7 @@ export const getCaseForExceptionalAccess = delegate("getCaseForExceptionalAccess
 export const recordExceptionalAccess = delegate("recordExceptionalAccess");
 export const getValidationSummary = delegate("getValidationSummary");
 export const releaseCaseAtLimit = delegate("releaseCaseAtLimit");
+export const releaseAllCasesAtLimit = delegate("releaseAllCasesAtLimit");
 
 // B2B — Manager: customer integration, case result handoff, reports, governance
 export const getCustomerIntegration = delegate("getCustomerIntegration");

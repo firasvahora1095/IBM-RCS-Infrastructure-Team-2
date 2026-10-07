@@ -45,7 +45,7 @@ export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label:
  * no internal state for that yet (flagged for the BA), so it is derived from
  * the case's flag rather than invented as a new status value.
  */
-export function managerStatusLabel(status: InternalCaseStatus, managerFlag: "DECLINED" | "SOS" | null): string {
+export function managerStatusLabel(status: InternalCaseStatus, managerFlag: "DECLINED" | "SOS" | "CAP_REACHED" | null): string {
   if (managerFlag && status !== "COMPLETE") return "Manager Review";
   return mapStatusToStaffLabel(status);
 }

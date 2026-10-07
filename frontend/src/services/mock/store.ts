@@ -61,7 +61,7 @@ export interface MockCase {
    * (AR-AI-09). RT-02 has no internal state for this yet, so it is modelled as
    * a flag alongside the status — flagged for the BA.
    */
-  manager_flag: "DECLINED" | "SOS" | null;
+  manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   decline: { reason: DeclineReason; other_text: string | null; declined_by: string; declined_at: string } | null;
 }
 
