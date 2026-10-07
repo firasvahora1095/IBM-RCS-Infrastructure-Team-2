@@ -533,6 +533,38 @@ export interface ClientLoginResponse {
   organisation_name: string;
 }
 
+/** "Contact RCS": what a CommunityHub user can ask about. */
+export type ClientMessageTopic = "REPORT_QUESTION" | "DELIVERY_ISSUE" | "ACCOUNT_ACCESS" | "OTHER";
+
+/** SENT until a Manager opens it (SEEN), then ANSWERED once RCS replies. */
+export type ClientMessageStatus = "SENT" | "SEEN" | "ANSWERED";
+
+/** One message from a CommunityHub user to RCS, and RCS's reply. */
+export interface ClientMessage {
+  message_id: string;
+  organisation_id: string;
+  organisation_name: string;
+  user_id: string;
+  display_name: string;
+  topic: ClientMessageTopic;
+  /** The released report the question is about, if any. */
+  report_id: string | null;
+  subject: string;
+  body: string;
+  created_at: string;
+  status: ClientMessageStatus;
+  seen_at: string | null;
+  /** `by` is the Manager's name for staff, and always "RCS" for the client. */
+  reply: { body: string; at: string; by: string } | null;
+}
+
+export interface ClientMessageInput {
+  topic: ClientMessageTopic;
+  report_id?: string | null;
+  subject: string;
+  body: string;
+}
+
 /**
  * Every data operation the UI performs. Both data sources — `mock` (default,
  * synthetic demo data) and `api` (the real backend, connected by Firas)
@@ -655,6 +687,15 @@ export interface DataService {
   /** Logs a VIEW; a report that isn't released or isn't theirs is denied (logged) as "not found". */
   clientGetReport(reportId: string, token: string): Promise<ServiceReport>;
   clientRecordDownload(reportId: string, token: string): Promise<{ recorded: true }>;
+
+  // "Contact RCS": the client asks, a Manager answers (own organisation only).
+  clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage>;
+  clientListMessages(token: string): Promise<ClientMessage[]>;
+  clientGetMessage(messageId: string, token: string): Promise<ClientMessage>;
+  listClientMessages(token: string): Promise<ClientMessage[]>;
+  /** Opening a message marks it SEEN, so the client knows RCS has it. */
+  getClientMessage(messageId: string, token: string): Promise<ClientMessage>;
+  replyClientMessage(messageId: string, token: string, body: string): Promise<ClientMessage>;
 }
 
 /**

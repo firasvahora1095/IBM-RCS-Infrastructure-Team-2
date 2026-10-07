@@ -12,7 +12,7 @@ function renderAt(path: string) {
 }
 
 describe("ManagerTopNav (Task 103)", () => {
-  it("links all seven sections (five Figma + Deliveries and Reports) to real routes", () => {
+  it("links all eight sections (five Figma + Deliveries, Reports and Client messages) to real routes", () => {
     renderAt("/manager");
     const expected: [string, string][] = [
       ["Dashboard", "/manager"],
@@ -21,12 +21,13 @@ describe("ManagerTopNav (Task 103)", () => {
       ["Reassignment Queue", "/manager/reassignment"],
       ["Deliveries", "/manager/deliveries"],
       ["Reports", "/manager/reports"],
+      ["Client messages", "/manager/messages"],
       ["Validation", "/manager/validation"],
     ];
     for (const [label, href] of expected) {
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
-    expect(screen.getAllByRole("link")).toHaveLength(7);
+    expect(screen.getAllByRole("link")).toHaveLength(8);
     expect(screen.queryByText(/Sprint 3/)).not.toBeInTheDocument();
   });
 

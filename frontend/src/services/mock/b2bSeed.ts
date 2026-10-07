@@ -1,4 +1,4 @@
-import type { FinalOutcome, GovernanceLogRow, ReportAccessEntry, ServiceReport, SeverityTier } from "../types";
+import type { ClientMessage, FinalOutcome, GovernanceLogRow, ReportAccessEntry, ServiceReport, SeverityTier } from "../types";
 import { computeMetrics } from "./reportMetrics";
 import type { MockCase, MockClientUser, MockDelivery, MockHistoricalCase, MockOrganisation } from "./store";
 
@@ -218,6 +218,7 @@ export interface B2bSeed {
   reportAccess: ReportAccessEntry[];
   governanceLog: GovernanceLogRow[];
   clients: MockClientUser[];
+  clientMessages: ClientMessage[];
 }
 
 export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: string): B2bSeed {
@@ -332,6 +333,42 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
     ),
     clients: [
       { user_id: "ch-user-17", password: demoPassword, display_name: "Taylor Brooks", organisation_id: COMMUNITYHUB_ID },
+    ],
+    clientMessages: [
+      {
+        message_id: "MSG-1002",
+        organisation_id: COMMUNITYHUB_ID,
+        organisation_name: COMMUNITYHUB_NAME,
+        user_id: "ch-user-17",
+        display_name: "Taylor Brooks",
+        topic: "DELIVERY_ISSUE",
+        report_id: null,
+        subject: "One result hasn't reached us",
+        body: "Mock: our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+        created_at: new Date(now - 40 * 60_000).toISOString(),
+        status: "SENT",
+        seen_at: null,
+        reply: null,
+      },
+      {
+        message_id: "MSG-1001",
+        organisation_id: COMMUNITYHUB_ID,
+        organisation_name: COMMUNITYHUB_NAME,
+        user_id: "ch-user-17",
+        display_name: "Taylor Brooks",
+        topic: "REPORT_QUESTION",
+        report_id: reports[1].report_id,
+        subject: "What counts as an override?",
+        body: "Mock: the report lists an override rate. Does that mean RCS changed a decision after review?",
+        created_at: new Date(Date.parse(releasedAt) + 30 * 60 * 60_000).toISOString(),
+        status: "ANSWERED",
+        seen_at: new Date(Date.parse(releasedAt) + 31 * 60 * 60_000).toISOString(),
+        reply: {
+          body: "Mock: no. An override is when the reviewer's final severity differs from the AI's first estimate. The reviewer's decision is always final; it's never changed afterwards.",
+          at: new Date(Date.parse(releasedAt) + 32 * 60 * 60_000).toISOString(),
+          by: "Alex Morgan",
+        },
+      },
     ],
   };
 }

@@ -7,6 +7,8 @@ import type {
   AuditorOverviewRow,
   AuditorWellbeing,
   ClientLoginResponse,
+  ClientMessage,
+  ClientMessageInput,
   CooldownState,
   CreateReportResponse,
   CustomerIntegration,
@@ -719,4 +721,48 @@ export async function clientRecordDownload(reportId: string, token: string): Pro
     headers: bearer(token),
   });
   return parseJsonOrThrow<{ recorded: true }>(r);
+}
+
+// ---- Contact RCS ----
+
+export async function clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function clientListMessages(token: string): Promise<ClientMessage[]> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientMessage[]>(r);
+}
+
+export async function clientGetMessage(messageId: string, token: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages/${encodeURIComponent(messageId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function listClientMessages(token: string): Promise<ClientMessage[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientMessage[]>(r);
+}
+
+export async function getClientMessage(messageId: string, token: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages/${encodeURIComponent(messageId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function replyClientMessage(messageId: string, token: string, body: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages/${encodeURIComponent(messageId)}/reply`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ body }),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
 }

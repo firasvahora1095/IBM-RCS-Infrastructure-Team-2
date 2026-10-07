@@ -285,6 +285,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
       "Reassignment Queue",
       "Deliveries",
       "Reports",
+      "Client messages",
       "Validation",
     ]);
     const order: string[] = [];

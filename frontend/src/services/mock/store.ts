@@ -12,6 +12,7 @@ import type {
   SosTrigger,
   WellbeingRequestKind,
   WellbeingRequestStatus,
+  ClientMessage,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -195,6 +196,7 @@ export interface MockDb {
   governanceLog: GovernanceLogRow[];
   clients: MockClientUser[];
   /** token → client session. Separate from staff sessions: a client token never opens a staff page. */
+  clientMessages: ClientMessage[];
   clientSessions: Record<string, { userId: string; organisationId: string }>;
   /** Optional Reporter-supplied source details, keyed by case ID (never required). */
   caseSources: Record<string, { url: string | null; detail: string | null }>;

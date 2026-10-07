@@ -80,4 +80,10 @@ export const apiDataService: DataService = {
   clientListReports: http.clientListReports,
   clientGetReport: http.clientGetReport,
   clientRecordDownload: http.clientRecordDownload,
+  clientSendMessage: http.clientSendMessage,
+  clientListMessages: http.clientListMessages,
+  clientGetMessage: http.clientGetMessage,
+  listClientMessages: http.listClientMessages,
+  getClientMessage: http.getClientMessage,
+  replyClientMessage: http.replyClientMessage,
 };

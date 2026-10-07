@@ -65,6 +65,9 @@ describe("B2B screens — automated accessibility", () => {
     ["Delivery detail", "/manager/deliveries/DEL-AR-2026-00404", "DEL-AR-2026-00404"],
     ["CommunityHub customer", "/manager/customers/communityhub", "CommunityHub"],
     ["Client reports", "/manager/reports", "Client reports"],
+    ["Client messages", "/manager/messages", "Client messages"],
+    ["Client message", "/manager/messages/MSG-1002", "Taylor Brooks"],
+    ["Auditor detail", "/manager/auditors/auditor-4", "Reese Patel"],
   ])("Manager %s has no detectable violations", async (_name, path, heading) => {
     await signInManager();
     const { container } = renderAt(path);
@@ -100,5 +103,22 @@ describe("B2B screens — automated accessibility", () => {
     const denied = renderAt("/client/reports/RPT-DOES-NOT-EXIST");
     await screen.findByText("You don't have access to this report.");
     expect(await axe(denied.container)).toHaveNoViolations();
+  });
+
+  it("client messages, new message and a thread have no detectable violations", async () => {
+    await signInClient();
+    const list = renderAt("/client/messages");
+    await screen.findByRole("table", { name: "Your messages" });
+    expect(await axe(list.container)).toHaveNoViolations();
+    list.unmount();
+
+    const form = renderAt("/client/messages/new");
+    await screen.findByRole("heading", { level: 1, name: "Contact RCS" });
+    expect(await axe(form.container)).toHaveNoViolations();
+    form.unmount();
+
+    const thread = renderAt("/client/messages/MSG-1001");
+    await screen.findByRole("heading", { name: /Reply from RCS/ });
+    expect(await axe(thread.container)).toHaveNoViolations();
   });
 });
