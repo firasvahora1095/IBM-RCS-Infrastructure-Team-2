@@ -117,6 +117,14 @@ class B2bContractTests(unittest.TestCase):
                     login_hash=self.password_hash,
                     display_name="Taylor Brooks",
                     organisation_id=COMMUNITYHUB_ID,
+                    role="REPORTS",
+                ),
+                ClientUser(
+                    user_id="ch-mod-04",
+                    login_hash=self.password_hash,
+                    display_name="Jordan Kim",
+                    organisation_id=COMMUNITYHUB_ID,
+                    role="TRUST_SAFETY",
                 ),
             ])
 
@@ -130,8 +138,8 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return {"Authorization": f"Bearer {response.json()['token']}"}
 
-    def client_headers(self) -> dict[str, str]:
-        response = self.client.post("/api/client/login", json={"user_id": "ch-user-17", "password": PASSWORD})
+    def client_headers(self, user_id: str = "ch-user-17") -> dict[str, str]:
+        response = self.client.post("/api/client/login", json={"user_id": user_id, "password": PASSWORD})
         self.assertEqual(response.status_code, 200, response.text)
         return {"Authorization": f"Bearer {response.json()['token']}"}
 
@@ -262,7 +270,7 @@ class B2bContractTests(unittest.TestCase):
         detail = self.client.get("/api/manager/deliveries/DEL-RCS-AAAA-0004", headers=manager).json()
         self.assertIsNotNone(detail["escalated_at"])
 
-    def test_closed_without_reassignment_is_not_handed_off(self) -> None:
+    def test_closed_without_reassignment_still_tells_the_customer(self) -> None:
         self.add_case("RCS-AAAA-0005", manager_flag="DECLINED", status="DECLINED")
         response = self.client.post(
             "/api/manager/cases/RCS-AAAA-0005/close",
@@ -271,7 +279,9 @@ class B2bContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200, response.text)
         with self.Session() as db:
-            self.assertEqual(db.scalars(select(Delivery)).all(), [])
+            delivery = db.scalars(select(Delivery)).one()
+        self.assertEqual(delivery.outcome, "CLOSED_NO_REASSIGNMENT")
+        self.assertIsNone(delivery.final_severity)
 
     def test_reporter_source_link_travels_with_the_result(self) -> None:
         response = self.client.post(
@@ -588,6 +598,75 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(row["cases_today"], 1)
         self.assertEqual([c["case_id"] for c in detail["recent_cases"]], ["RCS-TODAY-0001"])
         self.assertEqual(detail["recent_cases"][0]["final_outcome"], "POLICY_VIOLATION_FOUND")
+
+    # ---- Per-case results ----
+
+    def deliver(self, case_id: str) -> str:
+        """Resolve a case and let its first delivery attempt succeed."""
+        self.add_case(case_id)
+        self.resolve(case_id)
+        self.make_due(f"DEL-{case_id}")
+        self.client.get("/api/manager/deliveries", headers=self.staff_headers("manager-1"))
+        return f"DEL-{case_id}"
+
+    def test_client_roles_reach_only_their_own_sections(self) -> None:
+        login = self.client.post("/api/client/login", json={"user_id": "ch-mod-04", "password": PASSWORD}).json()
+        self.assertEqual(login["role"], "TRUST_SAFETY")
+        reports_user = self.client_headers("ch-user-17")
+        moderator = self.client_headers("ch-mod-04")
+        self.assertEqual(self.client.get("/api/client/case-results", headers=reports_user).status_code, 403)
+        self.assertEqual(self.client.get("/api/client/reports", headers=moderator).status_code, 403)
+        self.assertEqual(self.client.get("/api/client/case-results", headers=moderator).status_code, 200)
+        self.assertEqual(self.client.get("/api/client/messages", headers=moderator).status_code, 200)
+
+    def test_case_results_share_agreed_facts_only(self) -> None:
+        self.deliver("RCS-CRES-0001")
+        results = self.client.get("/api/client/case-results", headers=self.client_headers("ch-mod-04")).json()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(
+            set(results[0]),
+            {"delivery_id", "case_id", "post_url", "outcome", "final_severity", "completed_at", "delivered_at", "status", "platform_action"},
+        )
+        self.assertEqual(results[0]["status"], "DELIVERED")
+
+    def test_moderator_action_is_recorded_and_shown_to_the_manager(self) -> None:
+        delivery_id = self.deliver("RCS-CRES-0002")
+        moderator = self.client_headers("ch-mod-04")
+        acted = self.client.post(
+            f"/api/client/case-results/{delivery_id}/action",
+            json={"action": "REMOVED", "note": "Removed."},
+            headers=moderator,
+        )
+        self.assertEqual(acted.status_code, 200, acted.text)
+        self.assertEqual(acted.json()["platform_action"]["by"], "ch-mod-04")
+        detail = self.client.get(f"/api/manager/deliveries/{delivery_id}", headers=self.staff_headers("manager-1")).json()
+        self.assertEqual(detail["platform_action"]["action"], "REMOVED")
+
+    def test_moderator_actions_are_refused_when_they_should_be(self) -> None:
+        self.add_case("RCS-CRES-0003")
+        self.resolve("RCS-CRES-0003")  # still PENDING: not at CommunityHub yet
+        moderator = self.client_headers("ch-mod-04")
+        pending = self.client.post(
+            "/api/client/case-results/DEL-RCS-CRES-0003/action", json={"action": "KEPT"}, headers=moderator,
+        )
+        self.assertEqual(pending.status_code, 409)
+        reports_user = self.client.post(
+            "/api/client/case-results/DEL-RCS-CRES-0003/action", json={"action": "KEPT"},
+            headers=self.client_headers("ch-user-17"),
+        )
+        self.assertEqual(reports_user.status_code, 403)
+        with self.Session.begin() as db:
+            db.get(Delivery, "DEL-RCS-CRES-0003").organisation_id = "OTHERORG"
+        other = self.client.post(
+            "/api/client/case-results/DEL-RCS-CRES-0003/action", json={"action": "KEPT"}, headers=moderator,
+        )
+        self.assertEqual(other.status_code, 404)
+
+    def test_manager_sees_who_at_the_customer_can_see_what(self) -> None:
+        accounts = self.client.get(
+            "/api/manager/customers/COMMUNITYHUB/accounts", headers=self.staff_headers("manager-1"),
+        ).json()
+        self.assertEqual({a["user_id"]: a["role"] for a in accounts}, {"ch-mod-04": "TRUST_SAFETY", "ch-user-17": "REPORTS"})
 
 
 if __name__ == "__main__":

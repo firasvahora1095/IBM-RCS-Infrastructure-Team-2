@@ -1568,6 +1568,8 @@ async def close_without_reassignment(
         before_value=before,
         after_value={"status": "COMPLETE", "note": note},
     ))
+    # The customer still hears about the post: "closed without a decision".
+    create_delivery_for_case(db, case, case.completed_at)
     db.commit()
     return {"status": "COMPLETE"}
 
