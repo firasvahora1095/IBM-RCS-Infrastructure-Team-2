@@ -51,7 +51,7 @@ describe("B2B screens — automated accessibility", () => {
   it.each([
     ["RCS landing page", "/rcs", "Content moderation that protects the people who do it."],
     ["Organisation set-up", "/rcs/get-started", "Set up your organisation"],
-    ["Simulated CommunityHub feed", "/communityhub", "Your feed"],
+    ["Simulated CommunityHub feed", "/communityhub", "Home"],
     ["Flow guide", "/flow", "From a report on CommunityHub to a released service report"],
     ["Client sign-in", "/client/login", "Sign in"],
   ])("%s has no detectable violations", async (_name, path, heading) => {
