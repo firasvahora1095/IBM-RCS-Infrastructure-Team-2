@@ -24,6 +24,8 @@ Works on both data sources. `VITE_DATA_SOURCE=mock` runs the whole flow in the b
 | 09 | Generate, review and release a service report | `/manager/reports`, `/manager/reports/:id` | Manager |
 | 10 | CommunityHub user signs in, views and downloads the released report; denied state | `/client/login`, `/client/reports`, `/client/reports/:id` | CommunityHub client |
 | — | Demo flow guide linking all ten stages | `/flow` | Presenter |
+| 11 | Contact RCS: message, status, reply | `/client/messages`, `/client/messages/new`, `/client/messages/:id` | CommunityHub client |
+| 11a | Client messages inbox and reply | `/manager/messages`, `/manager/messages/:id` | Manager |
 
 Demo accounts:
 
@@ -115,3 +117,16 @@ New tables only (`backend/app/models.py`); existing tables are untouched. `Base.
 **How delivery works.** Resolving a case queues a delivery (first attempt after 4 s). Due attempts run whenever deliveries or the case status are read, so no background worker is needed: three automatic attempts 6 s apart, then `NEEDS_ATTENTION` for the Manager. CommunityHub is simulated, so attempts run against a simulated endpoint; replacing `_endpoint_available` / the attempt step with a real signed HTTPS call is the only change needed for a real customer.
 
 **Deployment.** Pushing to `test` deploys `rcs-frontend-test` / `rcs-backend-test`; pushing to `main` deploys the live apps. The test frontend origin is in `CORS_ALLOWED_ORIGINS` (`backend/Dockerfile`). Data resets whenever the backend container restarts, as before.
+
+## 8. Support requests and Contact RCS (backend)
+
+| Endpoint | Who | Purpose |
+|---|---|---|
+| `POST /api/auditor/wellbeing-support` (+ `reason`, returns `request_id`) | Auditor | Stores a support request |
+| `POST /api/auditor/wellbeing-requests/{id}/withdraw` | Auditor | Withdraws an open request |
+| `POST /api/manager/auditors/{a}/break-requests/{id}/approve`, `POST /api/manager/wellbeing-requests/{id}/follow-up` | Manager | Acts on a request (refused once withdrawn) |
+| `GET /api/manager/auditors`, `/{id}` | Manager | "Cases today" = cases completed today; detail adds outcomes, support requests, SOS history, last active, real limit |
+| `POST/GET /api/client/messages`, `GET …/{id}` | CommunityHub client | Own organisation only; replies signed "RCS" |
+| `GET /api/manager/messages`, `GET …/{id}` (marks Seen), `POST …/{id}/reply` | Manager | Inbox and reply |
+
+New tables: `wellbeing_requests`, `client_messages`. Code: `backend/app/support.py`, `backend/app/b2b.py`.
