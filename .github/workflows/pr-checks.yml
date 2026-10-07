@@ -1,0 +1,67 @@
+name: PR checks
+
+# Runs on every pull request into main, so a branch that doesn't build or
+# pass its tests shows a red X before it's merged, instead of failing the
+# live deploy afterwards. It never deploys anything and needs no secrets.
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend build, lint and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # same as frontend/Dockerfile
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # The same command the deploy runs (tsc -b && vite build).
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      # One file at a time: the keyboard walkthroughs time out when run in parallel.
+      - name: Tests
+        run: npx vitest run --fileParallelism=false
+
+  backend:
+    name: Backend API tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11" # the Debian Python in backend/Dockerfile
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # The API contract suites run against an in-memory SQLite database.
+      # The storage and video-analysis suites need cloud storage and media
+      # tooling that CI doesn't have, so they aren't run here.
+      - name: API contract tests
+        env:
+          DATABASE_URL: sqlite+pysqlite://
+        run: python -m pytest tests/test_api.py tests/test_b2b.py -q
