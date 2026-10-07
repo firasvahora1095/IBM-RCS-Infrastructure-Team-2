@@ -346,13 +346,22 @@ export async function requestWellbeingSupport(
   token: string,
   kind: WellbeingRequestKind,
   caseId?: string,
-): Promise<{ received: true }> {
+  reason?: string,
+): Promise<{ received: true; request_id?: string }> {
   const r = await fetch(`${API_BASE_URL}/api/auditor/wellbeing-support`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, case_id: caseId ?? null }),
+    body: JSON.stringify({ kind, case_id: caseId ?? null, reason: reason?.trim() || null }),
   });
-  return parseJsonOrThrow<{ received: true }>(r);
+  return parseJsonOrThrow<{ received: true; request_id?: string }>(r);
+}
+
+export async function withdrawWellbeingRequest(token: string, requestId: string): Promise<{ withdrawn: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/wellbeing-requests/${encodeURIComponent(requestId)}/withdraw`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ withdrawn: true }>(r);
 }
 
 export async function stopShift(token: string): Promise<{ stopped: boolean; cases_returned: number }> {
@@ -414,6 +423,14 @@ export async function approveBreakRequest(
     { method: "POST", headers: { Authorization: `Bearer ${token}` } },
   );
   return parseJsonOrThrow<{ approved: true }>(r);
+}
+
+export async function markWellbeingFollowedUp(requestId: string, token: string): Promise<{ followed_up: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/wellbeing-requests/${encodeURIComponent(requestId)}/follow-up`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ followed_up: true }>(r);
 }
 
 export async function getCaseOversight(token: string): Promise<ManagerCaseRow[]> {

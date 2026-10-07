@@ -37,6 +37,7 @@ export const apiDataService: DataService = {
   triggerSos: http.triggerSos,
   reportUnexpectedExposure: http.reportUnexpectedExposure,
   requestWellbeingSupport: http.requestWellbeingSupport,
+  withdrawWellbeingRequest: http.withdrawWellbeingRequest,
 
   // Manager (Sprint 3).
   getAuditHistory: http.getAuditHistory,
@@ -45,6 +46,7 @@ export const apiDataService: DataService = {
   getAuditorDetail: http.getAuditorDetail,
   setExposureLimit: http.setExposureLimit,
   approveBreakRequest: http.approveBreakRequest,
+  markWellbeingFollowedUp: http.markWellbeingFollowedUp,
   getCaseOversight: http.getCaseOversight,
   listSosAlerts: http.listSosAlerts,
   getSosAlert: http.getSosAlert,

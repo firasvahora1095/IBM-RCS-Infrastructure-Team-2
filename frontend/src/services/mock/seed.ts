@@ -392,6 +392,42 @@ export function createSeedDb(now: number): MockDb {
     },
   ];
 
+  // Every Auditor's "cases today" is a count of real completed records, so
+  // the dashboard, the Auditor detail page and the Auditor's own queue agree.
+  const sinceMidnight = Math.max(0, Math.floor((now - new Date(new Date(now).setHours(0, 0, 0, 0)).getTime()) / 60_000));
+  let nextTodayId = 340;
+  const todayTiers = ["S1", "S2", "S1", "S3", "S2", "S1"] as const;
+  for (const member of staff.filter((s) => s.role === "auditor")) {
+    const have = cases.filter(
+      (c) =>
+        c.status === "COMPLETE" &&
+        c.assigned_auditor === member.staff_id &&
+        c.completed_at &&
+        Date.parse(c.completed_at) >= now - sinceMidnight * 60_000,
+    ).length;
+    for (let i = have; i < member.cases_reviewed_today; i += 1) {
+      const tier = todayTiers[i % todayTiers.length];
+      const score = { S1: 22, S2: 48, S3: 72 }[tier];
+      const minutes = Math.max(1, Math.min(25 + i * 45, sinceMidnight - 1));
+      cases.push(
+        baseCase(now, {
+          case_id: `AR-2026-00${nextTodayId++}`,
+          status: "COMPLETE",
+          assigned_auditor: member.staff_id,
+          watson_severity_score: score,
+          effective_severity_score: score,
+          severity_tier: tier,
+          narrative_summary: "Mock: completed standard case.",
+          final_outcome: tier === "S3" ? "POLICY_VIOLATION_FOUND" : "NO_VIOLATION_FOUND",
+          assigned_at: minutesAgo(now, minutes + 20),
+          created_at: minutesAgo(now, minutes + 40),
+          updated_at: minutesAgo(now, minutes),
+          completed_at: minutesAgo(now, minutes),
+        }),
+      );
+    }
+  }
+
   return {
     version: MOCK_DB_VERSION,
     cases,
@@ -410,6 +446,8 @@ export function createSeedDb(now: number): MockDb {
         kind: "TALK_TO_MANAGER",
         created_at: minutesAgo(now, 150),
         resolved_at: null,
+        status: "OPEN",
+        reason: "Mock: a few of today's cases have stayed with me. I'd like a quick chat.",
       },
       {
         id: "WB-demo0002",
@@ -418,6 +456,38 @@ export function createSeedDb(now: number): MockDb {
         kind: "BREAK_REQUEST",
         created_at: minutesAgo(now, 45),
         resolved_at: null,
+        status: "OPEN",
+        reason: null,
+      },
+      {
+        id: "WB-demo0003",
+        auditor_id: "auditor-2",
+        case_id: null,
+        kind: "BREAK_REQUEST",
+        created_at: minutesAgo(now, 95),
+        resolved_at: minutesAgo(now, 88),
+        status: "APPROVED",
+        reason: "Mock: back-to-back S3 cases this morning.",
+      },
+      {
+        id: "WB-demo0004",
+        auditor_id: "auditor-3",
+        case_id: null,
+        kind: "TALK_TO_MANAGER",
+        created_at: minutesAgo(now, 200),
+        resolved_at: minutesAgo(now, 170),
+        status: "FOLLOWED_UP",
+        reason: null,
+      },
+      {
+        id: "WB-demo0005",
+        auditor_id: "auditor-5",
+        case_id: null,
+        kind: "BREAK_REQUEST",
+        created_at: minutesAgo(now, 130),
+        resolved_at: minutesAgo(now, 126),
+        status: "WITHDRAWN",
+        reason: null,
       },
     ],
     auditLog: [],

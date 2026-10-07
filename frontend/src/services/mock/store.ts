@@ -11,6 +11,7 @@ import type {
   SosFollowUpOutcome,
   SosTrigger,
   WellbeingRequestKind,
+  WellbeingRequestStatus,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -100,7 +101,10 @@ export interface MockWellbeingRequest {
   case_id: string | null;
   kind: WellbeingRequestKind;
   created_at: string;
+  /** When the status last changed (approved, followed up or withdrawn). */
   resolved_at: string | null;
+  status: WellbeingRequestStatus;
+  reason: string | null;
 }
 
 /** AR-AI-12 audit history entry. Never edited or removed once written. */

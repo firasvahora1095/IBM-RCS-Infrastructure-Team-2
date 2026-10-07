@@ -162,6 +162,8 @@ export interface AuditorWellbeing {
   cooldown: CooldownState | null;
   /** Optional — UI needs: cases completed today (Cooldown screen, Figma 31:117). */
   cases_reviewed_today?: number;
+  /** Optional — the Auditor's own support requests today, newest first, so a request survives a reload and can be withdrawn. */
+  requests?: WellbeingRequestRecord[];
 }
 
 export interface CooldownState {
@@ -213,20 +215,38 @@ export interface SosSummary {
   most_recent: { auditor_name: string; triggered_at: string } | null;
 }
 
+/**
+ * OPEN until the Manager acts: a break is APPROVED, a talk request is
+ * FOLLOWED_UP. The Auditor can withdraw an OPEN request at any time.
+ */
+export type WellbeingRequestStatus = "OPEN" | "APPROVED" | "FOLLOWED_UP" | "WITHDRAWN";
+
 export interface WellbeingRequestRecord {
   id: string;
   kind: WellbeingRequestKind;
   case_id: string | null;
   created_at: string;
-  status: "OPEN" | "APPROVED";
+  status: WellbeingRequestStatus;
+  /** What the Auditor chose to say, if anything. Optional by design: asking for help never needs a reason. */
+  reason?: string | null;
 }
 
 /** Auditor Detail (Figma 86:94): summary, limit, recent activity and check-ins (MR-OV-04, MR-SOS-07). */
 export interface AuditorDetail extends AuditorOverviewRow {
   /** A private wellbeing pattern marker visible only to the Manager. */
   pattern_flagged: boolean;
-  recent_cases: { case_id: string; severity_tier: SeverityTier | null; completed_at: string }[];
+  /** Today's completed cases, newest first: the same records `cases_today` counts. */
+  recent_cases: {
+    case_id: string;
+    severity_tier: SeverityTier | null;
+    completed_at: string;
+    final_outcome?: CaseOutcome | null;
+  }[];
   wellbeing_requests: WellbeingRequestRecord[];
+  /** Optional — SOS raised in the last 7 days, newest first. */
+  sos_history?: { id: string; triggered_at: string; status: SosAlert["status"] }[];
+  /** Optional — when the Auditor last completed or was assigned a case. */
+  last_active_at?: string | null;
 }
 
 /** One row of Consolidated Case Oversight (Figma 86:198, MR-OV-06, MR-CR-06). */
@@ -559,8 +579,15 @@ export interface DataService {
     token: string,
     reason: UnexpectedExposureReason,
   ): Promise<{ cooldown: CooldownState }>;
-  /** AR-WB-16: "Talk to my manager" or a break request, optionally about one case. */
-  requestWellbeingSupport(token: string, kind: WellbeingRequestKind, caseId?: string): Promise<{ received: true }>;
+  /** AR-WB-16: "Talk to my manager" or a break request, optionally about one case, with an optional reason. */
+  requestWellbeingSupport(
+    token: string,
+    kind: WellbeingRequestKind,
+    caseId?: string,
+    reason?: string,
+  ): Promise<{ received: true; request_id?: string }>;
+  /** The Auditor changed their mind: an OPEN request is withdrawn, and the Manager sees that. */
+  withdrawWellbeingRequest(token: string, requestId: string): Promise<{ withdrawn: true }>;
 
   // Manager (Sprint 3 screens)
   getAuditHistory(token: string, query?: AuditLogQuery): Promise<AuditLogHistory>;
@@ -571,6 +598,8 @@ export interface DataService {
   setExposureLimit(auditorId: string, token: string, minutes: number): Promise<{ exposure_limit_minutes: number }>;
   /** MR-SOS-07 */
   approveBreakRequest(requestId: string, token: string): Promise<{ approved: true }>;
+  /** The Manager has talked to the Auditor about a "Talk to my manager" request. */
+  markWellbeingFollowedUp(requestId: string, token: string): Promise<{ followed_up: true }>;
   getCaseOversight(token: string): Promise<ManagerCaseRow[]>;
   listSosAlerts(token: string): Promise<SosAlert[]>;
   getSosAlert(alertId: string, token: string): Promise<SosAlertDetail>;
