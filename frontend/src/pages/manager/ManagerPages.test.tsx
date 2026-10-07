@@ -137,7 +137,9 @@ describe("Manager screens", () => {
   });
 
   it("saves an exposure limit, and keeps the entered value with a retry when saving fails (MR-OV-04)", async () => {
-    renderAt("/manager/auditors/auditor-4");
+    // Since a85e69f the limit is adjusted on its own view, as the dashboard's
+    // "Adjust exposure limit" button opens it.
+    renderAt("/manager/auditors/auditor-4?mode=exposure");
     const input = await screen.findByLabelText("Daily limit (minutes)");
     updateDb((db) => {
       db.demo.failNextSubmission = true;
