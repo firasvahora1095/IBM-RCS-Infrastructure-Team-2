@@ -161,7 +161,7 @@ function WorkspacePreview() {
         </Button>
         <span style={{ flex: 1 }} />
         <Button size="sm" kind="ghost">
-          Request support
+          Wellbeing check-in
         </Button>
         <Button size="sm" kind="danger">
           SOS

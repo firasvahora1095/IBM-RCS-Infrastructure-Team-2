@@ -1431,6 +1431,16 @@ async def get_case_oversight(
     ]
 
 
+def _sos_status(after: dict) -> str:
+    """The statuses the Manager screens use: UNACKNOWLEDGED, IN_PROGRESS (acknowledged,
+    follow-up not logged yet) and RESOLVED (follow-up logged)."""
+    if after.get("resolved"):
+        return "RESOLVED"
+    if after.get("acknowledged"):
+        return "IN_PROGRESS"
+    return "UNACKNOWLEDGED"
+
+
 @app.get("/api/manager/sos-alerts")
 async def list_sos_alerts(
     _: StaffSession = Depends(get_current_manager),
@@ -1449,7 +1459,7 @@ async def list_sos_alerts(
     result = []
     for log in logs:
         after = log.after_value or {}
-        status = "ACKNOWLEDGED" if after.get("acknowledged") else "UNACKNOWLEDGED"
+        status = _sos_status(after)
         result.append({
             "id": str(log.audit_log_id),
             "auditor_id": log.actor,
@@ -1484,14 +1494,14 @@ async def get_sos_alert(
         "auditor_name": log.actor,
         "case_id": log.case_id,
         "triggered_at": after.get("triggered_at", log.created_at.isoformat()),
-        "status": "UNACKNOWLEDGED",
+        "status": _sos_status(after),
         "trigger": "AUDITOR_SOS",
         "exposure_minutes_today": float(auditor.exposure_minutes or 0) if auditor else 0,
         "exposure_limit_minutes": int(auditor.exposure_limit_minutes or 120) if auditor else 120,
         "severity_tier": case.severity_tier if case else None,
         "effective_severity_score": case.effective_severity_score if case else None,
         "narrative_summary": case.narrative_summary if case else None,
-        "follow_up_notes": None,
+        "follow_up_notes": after.get("follow_up_notes"),
     }
 
 
@@ -1519,15 +1529,33 @@ async def acknowledge_sos_alert(
 async def log_sos_follow_up(
     alert_id: str,
     payload: SosFollowUpRequest,
-    _: StaffSession = Depends(get_current_manager),
+    manager: StaffSession = Depends(get_current_manager),
     db: Session = Depends(get_db),
 ):
-    log = db.get(AuditLog, int(alert_id))
-    if log and log.action == "SOS_TRIGGERED":
-        auditor_row = db.get(Auditor, log.actor)
-        if auditor_row:
-            auditor_row.cooldown_check_in_done = 1
-            db.commit()
+    try:
+        log_id = int(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="SOS alert not found")
+    log = db.get(AuditLog, log_id)
+    if log is None or log.action != "SOS_TRIGGERED":
+        raise HTTPException(status_code=404, detail="SOS alert not found")
+    after = log.after_value or {}
+    # Logging the follow-up resolves the alert (it leaves the inbox and the
+    # banner) and records the check-in the Auditor's cooldown was waiting for.
+    log.after_value = {
+        **after,
+        "acknowledged": True,
+        "acknowledged_by": after.get("acknowledged_by") or manager.staff_id,
+        "resolved": True,
+        "resolved_by": manager.staff_id,
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "follow_up_notes": payload.notes.strip() or None,
+        "follow_up_outcome": payload.outcome.value,
+    }
+    auditor_row = db.get(Auditor, log.actor)
+    if auditor_row:
+        auditor_row.cooldown_check_in_done = 1
+    db.commit()
     return {"resolved": True}
 
 

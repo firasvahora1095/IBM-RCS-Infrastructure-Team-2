@@ -62,7 +62,7 @@ export function ManagerSosInboxPage() {
                         </Button>
                       ) : (
                         <RouterLink to={detailUrl} className="cds--link">
-                          {SOS_STATUS_LABEL[alert.status]}
+                          {SOS_STATUS_LABEL[alert.status] ?? "Open alert"}
                         </RouterLink>
                       )}
                     </TableCell>

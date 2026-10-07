@@ -40,7 +40,7 @@ const kindTitle = (kind: WellbeingRequestKind) => OPTIONS.find((o) => o.kind ===
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 /**
- * Request support (AR-WB-16, Figma 31:188): the calm, private path, distinct
+ * Wellbeing check-in (AR-WB-16, Figma 31:188): the calm, private path, distinct
  * from SOS. The Auditor picks what would help, sees what happens next, can add
  * a reason if they want to, and can withdraw a request they no longer need.
  * The Manager sees it on that Auditor's record (MR-SOS-07), never in the SOS
