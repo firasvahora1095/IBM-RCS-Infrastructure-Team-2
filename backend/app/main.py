@@ -48,6 +48,7 @@ from app.support import (
     auditor_exists,
     completed_today,
     create_request,
+    open_request_counts,
     requests_for,
     resolve_request,
     sos_history,
@@ -1306,6 +1307,9 @@ async def list_auditors(
             "exposure_state": _exposure_state(exp, limit),
             "cooldown": _auditor_cooldown_payload(a),
             "cases_today": len(completed_today(db, a.auditor_id)),
+            # Same rule as the SOS summary: an SOS stays open until the Manager's check-in.
+            "open_sos": a.cooldown_trigger == "SOS" and not a.cooldown_check_in_done and a.cooldown_ends_at is not None,
+            "open_requests": open_request_counts(db, a.auditor_id),
         })
     return result
 

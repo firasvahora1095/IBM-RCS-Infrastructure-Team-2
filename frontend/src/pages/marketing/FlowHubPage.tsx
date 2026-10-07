@@ -158,37 +158,50 @@ export function FlowHubPage() {
           </Grid>
         </section>
 
-        {isMockData && (
-          <section style={{ paddingBlockEnd: "4rem" }} aria-labelledby="demo-accounts">
-            <Grid>
-              <Column sm={4} md={8} lg={10}>
-                <div className="rcs-section">
-                  <h2 id="demo-accounts" className="rcs-section-title">
-                    Demo accounts
-                  </h2>
-                  <p className="rcs-helper">Mock data only. Every account uses the password {DEMO_PASSWORD}.</p>
-                  <dl className="rcs-kv">
-                    {[
-                      ["Auditor", "auditor-1 (also auditor-2 to auditor-5)", "/staff/login"],
-                      ["Manager", "manager-1", "/staff/login"],
-                      ["CommunityHub client", "ch-user-17", "/client/login"],
-                    ].map(([role, ids, to]) => (
-                      <div key={role} className="rcs-kv-row">
-                        <dt>{role}</dt>
-                        <dd>
-                          <span className="rcs-mono">{ids}</span> ·{" "}
-                          <RouterLink className="cds--link" to={to}>
-                            Sign in
-                          </RouterLink>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              </Column>
-            </Grid>
-          </section>
-        )}
+        {/* Demo accounts for walkthroughs: synthetic data only, on the local demo and the deployed demo. */}
+        <section style={{ paddingBlockEnd: "4rem" }} aria-labelledby="demo-accounts">
+          <Grid>
+            <Column sm={4} md={8} lg={10}>
+              <div className="rcs-section">
+                <h2 id="demo-accounts" className="rcs-section-title">
+                  Demo accounts
+                </h2>
+                <p className="rcs-helper">
+                  Synthetic demo data. Every account uses the password <span className="rcs-mono">{DEMO_PASSWORD}</span>.
+                </p>
+                <dl className="rcs-kv">
+                  {[
+                    {
+                      role: "Auditor",
+                      ids: isMockData ? "auditor-1 (also auditor-2 to auditor-5)" : "auditor-01 (also auditor-02 to auditor-04)",
+                      scope: "Reviews cases",
+                      to: "/staff/login",
+                    },
+                    { role: "Manager", ids: isMockData ? "manager-1" : "manager-01", scope: "Oversight, deliveries, reports", to: "/staff/login" },
+                    { role: "CommunityHub · Reports", ids: "ch-user-17", scope: "Monthly service reports and messages", to: "/client/login" },
+                    {
+                      role: "CommunityHub · Trust & Safety",
+                      ids: "ch-mod-04",
+                      scope: "Case results and CommunityHub's moderation queue",
+                      to: "/communityhub/moderation",
+                    },
+                    { role: "CommunityHub · Admin", ids: "ch-admin-01", scope: "Everything a CommunityHub user can see", to: "/client/login" },
+                  ].map(({ role, ids, scope, to }) => (
+                    <div key={role} className="rcs-kv-row">
+                      <dt>{role}</dt>
+                      <dd>
+                        <span className="rcs-mono">{ids}</span> · {scope} ·{" "}
+                        <RouterLink className="cds--link" to={to}>
+                          Sign in
+                        </RouterLink>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </Column>
+          </Grid>
+        </section>
       </main>
     </>
   );
