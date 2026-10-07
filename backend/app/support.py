@@ -101,6 +101,17 @@ def requests_for(db: Session, auditor_id: str, since: datetime | None = None) ->
     return [request_payload(r) for r in rows]
 
 
+def open_request_counts(db: Session, auditor_id: str) -> dict:
+    """Support requests still waiting for the Manager, for the dashboard row."""
+    rows = db.scalars(
+        select(WellbeingRequest).where(WellbeingRequest.auditor_id == auditor_id, WellbeingRequest.status == "OPEN")
+    ).all()
+    return {
+        "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
+        "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
+    }
+
+
 def sos_history(db: Session, auditor_id: str, now: datetime | None = None) -> list[dict]:
     """SOS raised in the last 7 days, newest first."""
     since = (now or datetime.now(timezone.utc)) - timedelta(days=7)

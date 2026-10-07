@@ -207,6 +207,10 @@ export interface AuditorOverviewRow {
   exposure_state: ExposureState;
   cooldown: CooldownState | null;
   cases_today: number;
+  /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
+  open_sos?: boolean;
+  /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
+  open_requests?: { break_requests: number; talk_requests: number };
 }
 
 /** Unresolved SOS alerts, for the persistent banner and header badge (MR-SOS-03). */

@@ -69,10 +69,12 @@ jobs:
             echo "tag=latest" >> $GITHUB_OUTPUT
             echo "app=rcs-frontend" >> $GITHUB_OUTPUT
             echo "api_url=${{ secrets.VITE_API_BASE_URL }}" >> $GITHUB_OUTPUT
+            echo "demo_accounts=false" >> $GITHUB_OUTPUT
           else
             echo "tag=test" >> $GITHUB_OUTPUT
             echo "app=rcs-frontend-test" >> $GITHUB_OUTPUT
             echo "api_url=${{ secrets.VITE_API_BASE_URL_TEST }}" >> $GITHUB_OUTPUT
+            echo "demo_accounts=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Log in to Docker Hub
@@ -90,6 +92,7 @@ jobs:
           build-args: |
             VITE_API_BASE_URL=${{ steps.target.outputs.api_url }}
             VITE_DATA_SOURCE=api
+            VITE_SHOW_DEMO_ACCOUNTS=${{ steps.target.outputs.demo_accounts }}
 
       - name: Install IBM Cloud CLI
         run: |
