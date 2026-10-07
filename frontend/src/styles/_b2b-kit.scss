@@ -253,6 +253,200 @@ a.rcs-stat-tile .rcs-stat-helper {
   font-weight: 600;
 }
 
+// ---------------------------------------------------------------------------
+// Manager Intelligence Dashboard (docs/ux/manager-intelligence-dashboard-plan.md)
+// ---------------------------------------------------------------------------
+
+// Needs Attention rows: the SOS Inbox row pattern. Urgent rows get the 3px
+// accent in their tone, an icon and a written status, never colour alone.
+.rcs-attention {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-attention-row {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto 3rem 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 3rem;
+  padding: 0.5rem 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  color: var(--cds-text-primary);
+  text-decoration: none;
+  transition: background-color motion.$duration-fast-02 motion.motion(standard, productive);
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  &[data-urgent="error"] {
+    box-shadow: inset 3px 0 0 var(--cds-support-error);
+  }
+  &[data-urgent="warning"] {
+    box-shadow: inset 3px 0 0 var(--cds-support-warning);
+  }
+  &:not([data-urgent]) {
+    color: var(--cds-text-secondary);
+  }
+  @include breakpoint.breakpoint-down(md) {
+    grid-template-columns: 1rem minmax(0, 1fr) 2.5rem 1rem;
+    .rcs-attention-status {
+      display: none;
+    }
+  }
+}
+.rcs-attention-icon {
+  fill: var(--cds-icon-secondary);
+}
+.rcs-attention-row[data-urgent="error"] .rcs-attention-icon {
+  fill: var(--cds-support-error);
+}
+.rcs-attention-row[data-urgent="warning"] .rcs-attention-icon {
+  fill: var(--cds-support-caution-major, var(--cds-support-warning));
+}
+.rcs-attention-label {
+  @include type.type-style("body-compact-01");
+}
+.rcs-attention-count {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  text-align: end;
+}
+.rcs-attention-chevron {
+  fill: var(--cds-icon-secondary);
+}
+
+// Inline figures inside a widget (median time, oldest unresolved, override rate).
+.rcs-figure-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+  margin: 0;
+}
+
+// AI-to-final severity matrix. Agreement is neutral; change is a blue tint
+// whose strength follows the share (capped at 40%, so dark text stays AA).
+.rcs-matrix {
+  border-collapse: separate;
+  border-spacing: 2px;
+  inline-size: 100%;
+  max-inline-size: 26rem;
+  caption {
+    caption-side: bottom;
+    text-align: start;
+    padding-block-start: 0.5rem;
+  }
+  th {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+    font-weight: 400;
+    padding: 0.25rem 0.5rem;
+  }
+  thead th {
+    text-align: center;
+  }
+  tbody th {
+    text-align: start;
+  }
+}
+.rcs-matrix-cell {
+  block-size: 2.5rem;
+  min-inline-size: 3rem;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-primary);
+}
+.rcs-matrix-agree {
+  background-color: var(--cds-layer-accent-01);
+}
+.rcs-matrix-change {
+  background-color: color-mix(in srgb, var(--cds-support-info) calc(var(--rcs-share, 0) * 40%), var(--cds-layer-01));
+}
+
+// A ghost "View evidence" button sits flush with the text above it.
+.rcs-evidence-button.cds--btn--ghost {
+  margin-inline-start: calc(-1 * var(--cds-spacing-05, 1rem));
+}
+// Matches the ghost "View evidence" button's height, so all four KPI tiles line up.
+.rcs-kpi-jump {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2rem;
+}
+.rcs-widget-grid.cds--css-grid {
+  row-gap: 1rem;
+}
+.rcs-widget-grid .rcs-section {
+  block-size: 100%;
+}
+.rcs-failed-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding-block: 0.625rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+    @include type.type-style("body-compact-01");
+  }
+}
+.rcs-failed-list li {
+  box-shadow: inset 3px 0 0 var(--cds-support-error);
+  padding-inline-start: 0.75rem;
+}
+
+.rcs-matrix-corner {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+  padding-inline-end: 0.5rem;
+}
+// Delivery health: figures beside the exception list on wide screens.
+.rcs-delivery-layout {
+  display: grid;
+  gap: 1.5rem 3rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.rcs-evidence-fields {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  li {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+  }
+}
+
+// Dashboard controls row: Carbon dropdowns sized like the Case Oversight filter.
+.rcs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+.rcs-controls .cds--dropdown__wrapper {
+  inline-size: 15rem;
+  max-inline-size: 100%;
+}
+
 // Dark expressive band (Flow Hub hero, client sign-in)
 .rcs-hero {
   background-color: var(--cds-background);
