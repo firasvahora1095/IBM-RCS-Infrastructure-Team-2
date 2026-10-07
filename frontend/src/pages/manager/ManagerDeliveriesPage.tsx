@@ -190,7 +190,7 @@ export function ManagerDeliveriesPage() {
                           </TableCell>
                           <TableCell>{PAYLOAD_OUTCOME_LABEL[d.outcome]}</TableCell>
                           <TableCell>
-                            <SeverityTag tier={d.final_severity} size="sm" />
+                            {d.final_severity ? <SeverityTag tier={d.final_severity} size="sm" /> : "—"}
                           </TableCell>
                           <TableCell>
                             <StatusTag kind="moderation" value="COMPLETE" />

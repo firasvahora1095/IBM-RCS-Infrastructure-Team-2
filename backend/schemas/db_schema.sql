@@ -116,6 +116,16 @@ ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(15);
 ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15);
 
+-- Per-case results for the customer: client roles, results closed without a
+-- decision, and the customer's own action. These tables are created by the
+-- seed; on an existing database the new columns are added here.
+ALTER TABLE IF EXISTS client_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'REPORTS';
+ALTER TABLE IF EXISTS deliveries ALTER COLUMN final_severity DROP NOT NULL;
+ALTER TABLE IF EXISTS deliveries ADD COLUMN IF NOT EXISTS platform_action VARCHAR(10);
+ALTER TABLE IF EXISTS deliveries ADD COLUMN IF NOT EXISTS platform_action_note TEXT;
+ALTER TABLE IF EXISTS deliveries ADD COLUMN IF NOT EXISTS platform_action_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS deliveries ADD COLUMN IF NOT EXISTS platform_action_by VARCHAR(50);
+
 DO $$
 BEGIN
     IF NOT EXISTS (

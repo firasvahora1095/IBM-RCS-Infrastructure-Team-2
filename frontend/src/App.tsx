@@ -31,6 +31,9 @@ import { ManagerClientMessagePage } from "./pages/manager/ManagerClientMessagePa
 import { ClientMessagesPage } from "./pages/client/ClientMessagesPage";
 import { ClientNewMessagePage } from "./pages/client/ClientNewMessagePage";
 import { ClientMessagePage } from "./pages/client/ClientMessagePage";
+import { ClientCaseResultsPage } from "./pages/client/ClientCaseResultsPage";
+import { CommunityHubModerationPage } from "./pages/marketing/CommunityHubModerationPage";
+import { ClientHomeRedirect } from "./components/shell/ClientHomeRedirect";
 import { ClientRoute } from "./components/shell/ClientRoute";
 import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
 import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
@@ -92,6 +95,8 @@ export function AppRoutes() {
       <Route path="/rcs" element={<RcsLandingPage />} />
       <Route path="/rcs/get-started" element={<OrganisationOnboardingPage />} />
       <Route path="/communityhub" element={<CommunityHubPage />} />
+      {/* CommunityHub's own moderation tool (simulated look, real case-results data). */}
+      <Route path="/communityhub/moderation" element={<CommunityHubModerationPage />} />
       <Route path="/flow" element={<FlowHubPage />} />
       <Route path="/staff/login" element={<StaffLoginPage />} />
       <Route
@@ -275,7 +280,7 @@ export function AppRoutes() {
       <Route
         path="/client/reports"
         element={
-          <ClientRoute>
+          <ClientRoute section="reports">
             <ClientReportsPage />
           </ClientRoute>
         }
@@ -283,7 +288,7 @@ export function AppRoutes() {
       <Route
         path="/client/reports/:reportId"
         element={
-          <ClientRoute>
+          <ClientRoute section="reports">
             <ClientReportViewPage />
           </ClientRoute>
         }
@@ -312,7 +317,15 @@ export function AppRoutes() {
           </ClientRoute>
         }
       />
-      <Route path="/client" element={<Navigate to="/client/reports" replace />} />
+      <Route
+        path="/client/cases"
+        element={
+          <ClientRoute section="cases">
+            <ClientCaseResultsPage />
+          </ClientRoute>
+        }
+      />
+      <Route path="/client" element={<ClientHomeRedirect />} />
       {/* An unknown URL (e.g. a mistyped link) lands on the public start
             page instead of rendering a blank screen. */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -247,7 +247,8 @@ class Delivery(Base):
     case_id = Column(String(20), nullable=False)
     organisation_id = Column(String(50), nullable=False)
     outcome = Column(String(50), nullable=False)
-    final_severity = Column(String(2), nullable=False)
+    # Null when a Manager closed the case without a decision.
+    final_severity = Column(String(2), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=False)
     delivery_status = Column(String(20), nullable=False, server_default="PENDING")
     attempts = Column(JSON_DOCUMENT, nullable=False, default=list)
@@ -256,6 +257,11 @@ class Delivery(Base):
     escalated_at = Column(DateTime(timezone=True), nullable=True)
     escalation_note = Column(Text, nullable=True)
     source_url = Column(Text, nullable=True)
+    # What the customer's moderators did with the result (they decide the action).
+    platform_action = Column(String(10), nullable=True)
+    platform_action_note = Column(Text, nullable=True)
+    platform_action_at = Column(DateTime(timezone=True), nullable=True)
+    platform_action_by = Column(String(50), nullable=True)
     # Demo only: the simulated customer endpoint times out for this delivery.
     simulate_failure = Column(Integer, nullable=False, server_default="0")
 
@@ -306,6 +312,8 @@ class ClientUser(Base):
     login_hash = Column(Text, nullable=False)
     display_name = Column(String(100), nullable=False)
     organisation_id = Column(String(50), nullable=False)
+    # Least privilege: REPORTS (service reports), TRUST_SAFETY (case results) or ADMIN (both).
+    role = Column(String(20), nullable=False, server_default="REPORTS")
 
 
 class GovernanceLogEntry(Base):

@@ -28,8 +28,8 @@ async function signInManager() {
   sessionStorage.setItem("rcs_staff_id", "manager-1");
 }
 
-async function signInClient() {
-  const login = await mockDataService.clientLogin("ch-user-17", DEMO_PASSWORD);
+async function signInClient(userId = "ch-user-17") {
+  const login = await mockDataService.clientLogin(userId, DEMO_PASSWORD);
   sessionStorage.setItem("rcs_client_token", login.token);
   sessionStorage.setItem(
     "rcs_client_profile",
@@ -38,6 +38,7 @@ async function signInClient() {
       displayName: login.display_name,
       organisationId: login.organisation_id,
       organisationName: login.organisation_name,
+      role: login.role,
     }),
   );
 }
@@ -120,5 +121,29 @@ describe("B2B screens — automated accessibility", () => {
     const thread = renderAt("/client/messages/MSG-1001");
     await screen.findByRole("heading", { name: /Reply from RCS/ });
     expect(await axe(thread.container)).toHaveNoViolations();
+  });
+
+  it("case results, CommunityHub's moderation queue and the role gates have no detectable violations", async () => {
+    const gate = renderAt("/communityhub/moderation");
+    await screen.findByRole("heading", { level: 1, name: "Moderation" });
+    expect(await axe(gate.container)).toHaveNoViolations();
+    gate.unmount();
+
+    await signInClient("ch-mod-04");
+    const cases = renderAt("/client/cases");
+    await screen.findByRole("table", { name: "Case results" });
+    expect(await axe(cases.container)).toHaveNoViolations();
+    cases.unmount();
+
+    const queue = renderAt("/communityhub/moderation");
+    await screen.findByRole("heading", { level: 1, name: "Moderation queue" });
+    await screen.findAllByRole("button", { name: "Remove post" });
+    expect(await axe(queue.container)).toHaveNoViolations();
+    queue.unmount();
+
+    // A Trust & Safety account can't open service reports, and is told why.
+    const denied = renderAt("/client/reports");
+    await screen.findByText("Your account doesn't include service reports.");
+    expect(await axe(denied.container)).toHaveNoViolations();
   });
 });

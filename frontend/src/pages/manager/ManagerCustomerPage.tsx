@@ -7,12 +7,12 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { KeyValueList, Section } from "../../components/ui/Blocks";
 import { SegmentedBar } from "../../components/ui/Charts";
 import { StatusTag } from "../../components/ui/StatusTag";
-import { getCustomerIntegration, listReports, testIntegration } from "../../services";
+import { getCustomerIntegration, listClientAccounts, listReports, testIntegration } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE, type IntegrationTestResult } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
+import { CLIENT_ROLE_LABEL, CLIENT_ROLE_SCOPE, RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
 import { formatPeriod, formatShortDateTime } from "../../utils/formatPeriod";
 
 const SAMPLE_PAYLOAD = `{
@@ -34,6 +34,7 @@ export function ManagerCustomerPage() {
   const handleSessionExpiry = useSessionExpiryHandler();
   const { data, error, reload } = useStaffQuery((t) => getCustomerIntegration("COMMUNITYHUB", t));
   const reports = useStaffQuery(listReports);
+  const accounts = useStaffQuery((t) => listClientAccounts("COMMUNITYHUB", t));
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<IntegrationTestResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -137,6 +138,30 @@ export function ManagerCustomerPage() {
           </Column>
 
           <Column sm={4} md={8} lg={6} className="flex flex-col gap-6">
+            <Section
+              title="Client accounts"
+              description="Who at CommunityHub can see what. Each account sees only what its role needs."
+            >
+              {accounts.data ? (
+                <ul className="flex flex-col gap-3">
+                  {accounts.data.map((a) => (
+                    <li key={a.user_id} className="flex flex-col gap-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{a.display_name}</span>
+                        <StatusTag tone="neutral" size="sm">
+                          {CLIENT_ROLE_LABEL[a.role]}
+                        </StatusTag>
+                      </span>
+                      <span className="rcs-helper">
+                        <span className="rcs-mono">{a.user_id}</span> · {CLIENT_ROLE_SCOPE[a.role]}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
+              )}
+            </Section>
             <Section title="Who decides what">
               <p className="rcs-body">{RESPONSIBILITY_BOUNDARY}</p>
             </Section>

@@ -1,8 +1,8 @@
 import { useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import { InlineNotification, Modal, RadioButton, RadioButtonGroup } from "@carbon/react";
+import { CommunityHubHeader } from "../../components/communityhub/CommunityHubHeader";
 import {
-  Add,
   ArrowDown,
   ArrowUp,
   Bicycle,
@@ -11,10 +11,8 @@ import {
   Fire,
   Flag,
   Home,
-  Notification,
   PlayFilledAlt,
   Restaurant,
-  Search,
   Share,
   Soccer,
   Sprout,
@@ -112,6 +110,9 @@ const POSTS: Post[] = [
   },
 ];
 
+/** Post titles by ID, for CommunityHub's moderation queue. */
+export const POST_TITLES: Record<string, string> = Object.fromEntries(POSTS.map((p) => [p.id, p.title]));
+
 const TRENDING = [
   { topic: "Riverside street festival", community: "Riverside Neighbourhood", posts: "1.2k posts" },
   { topic: "Sunday League finals", community: "Sunday League", posts: "864 posts" },
@@ -193,34 +194,7 @@ export function CommunityHubPage() {
 
   return (
     <div className="ch-shell">
-      <header className="ch-header">
-        <div className="ch-header-inner">
-          <a className="ch-brand" href="/communityhub" aria-label="CommunityHub home">
-            <span className="ch-logo" aria-hidden="true">
-              ch
-            </span>
-            <span className="ch-wordmark">CommunityHub</span>
-          </a>
-          <label className="ch-search">
-            <Search size={16} aria-hidden="true" />
-            <span className="cds--visually-hidden">Search CommunityHub</span>
-            <input type="search" placeholder="Search CommunityHub" />
-          </label>
-          <div className="ch-header-actions">
-            <span className="ch-sim-pill">Simulated platform</span>
-            <button type="button" className="ch-icon-button" aria-label="Notifications">
-              <Notification size={20} aria-hidden="true" />
-            </button>
-            <button type="button" className="ch-button ch-button--primary">
-              <Add size={16} aria-hidden="true" />
-              Create post
-            </button>
-            <span className="ch-avatar ch-tone-1" aria-label="Your profile" role="img" style={{ inlineSize: 32, blockSize: 32 }}>
-              JD
-            </span>
-          </div>
-        </div>
-      </header>
+      <CommunityHubHeader />
 
       <div className="ch-layout">
         <aside className="ch-side" aria-label="CommunityHub navigation">
