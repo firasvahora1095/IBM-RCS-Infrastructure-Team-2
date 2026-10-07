@@ -32,7 +32,7 @@ ENV DATABASE_URL=postgresql+psycopg://rcs_app:${POSTGRES_PASSWORD}@127.0.0.1:543
 ENV POSTGRES_DB=rcs_infra
 ENV POSTGRES_USER=rcs_app
 ENV PGDATA=/var/lib/postgresql/data
-ENV CORS_ALLOWED_ORIGINS=http://localhost:5173,https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
+ENV CORS_ALLOWED_ORIGINS=http://localhost:5173,https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud,https://rcs-frontend-test.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
 ENV ORCHESTRATE_MODE=mock
 ENV VIDEO_STORAGE_BACKEND=local
 
