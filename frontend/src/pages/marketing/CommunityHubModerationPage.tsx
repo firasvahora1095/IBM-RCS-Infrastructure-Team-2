@@ -10,6 +10,7 @@ import { isMockData } from "../../services";
 import { DEMO_PASSWORD } from "../../services/mock/seed";
 import { PAYLOAD_OUTCOME_LABEL, PLATFORM_ACTION_LABEL } from "../../design-tokens/deliveryLabels";
 import { POST_TITLES } from "./CommunityHubPage";
+import { safeHttpUrl } from "../../utils/safeUrl";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
@@ -231,10 +232,13 @@ function ModerationQueue({ moderator, onSignOut }: { moderator: string; onSignOu
                   {title}
                 </h2>
                 <p className="ch-muted">
-                  {r.post_url ? (
-                    <a href={r.post_url} target="_blank" rel="noreferrer" className="ch-link">
+                  {safeHttpUrl(r.post_url) ? (
+                    <a href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer" className="ch-link">
                       {r.post_url}
                     </a>
+                  ) : r.post_url ? (
+                    // Not an http(s) link: shown as text, never made clickable.
+                    <span style={{ overflowWrap: "anywhere" }}>{r.post_url}</span>
                   ) : (
                     "The reporter didn't attach a post link."
                   )}{" "}

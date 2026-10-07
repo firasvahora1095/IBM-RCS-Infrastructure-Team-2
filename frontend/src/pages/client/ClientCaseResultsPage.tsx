@@ -25,6 +25,7 @@ import { useClientQuery } from "../../hooks/useClientQuery";
 import { PAYLOAD_OUTCOME_LABEL, PLATFORM_ACTION_LABEL } from "../../design-tokens/deliveryLabels";
 import { ACCESS_DISCLOSURE } from "../../design-tokens/reportLabels";
 import { formatShortDateTime } from "../../utils/formatPeriod";
+import { safeHttpUrl } from "../../utils/safeUrl";
 
 const FILTERS: { key: "ALL" | DeliveredOutcome; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -132,10 +133,13 @@ export function ClientCaseResultsPage() {
                     <TableRow key={r.delivery_id}>
                       <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{r.case_id}</TableCell>
                       <TableCell>
-                        {r.post_url ? (
-                          <a className="cds--link" href={r.post_url} target="_blank" rel="noreferrer">
+                        {safeHttpUrl(r.post_url) ? (
+                          <a className="cds--link" href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer">
                             {postLabel(r.post_url)}
                           </a>
+                        ) : r.post_url ? (
+                          // Not an http(s) link: shown as text, never made clickable.
+                          <span style={{ overflowWrap: "anywhere" }}>{r.post_url}</span>
                         ) : (
                           <span className="rcs-helper">Not attached</span>
                         )}

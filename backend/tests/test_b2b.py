@@ -668,6 +668,18 @@ class B2bContractTests(unittest.TestCase):
         ).json()
         self.assertEqual({a["user_id"]: a["role"] for a in accounts}, {"ch-mod-04": "TRUST_SAFETY", "ch-user-17": "REPORTS"})
 
+    def test_a_non_http_post_link_is_never_stored_as_a_link(self) -> None:
+        response = self.client.post(
+            "/api/reports",
+            files={"video": ("clip.mp4", b"\x00\x00\x00\x10ftypisom\x00\x00\x00\x00", "application/octet-stream")},
+            data={"source_url": "javascript:alert(1)"},
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        with self.Session() as db:
+            source = db.get(CaseSource, response.json()["case_id"])
+        self.assertIsNone(source.source_url)
+        self.assertEqual(source.source_detail, "javascript:alert(1)")
+
 
 if __name__ == "__main__":
     unittest.main()
