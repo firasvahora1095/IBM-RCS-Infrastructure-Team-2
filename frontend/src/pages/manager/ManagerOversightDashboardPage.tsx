@@ -22,6 +22,7 @@ import { useSosSummary } from "../../hooks/useSosSummary";
 import { StatTile } from "../../components/ui/StatTile";
 import { Section } from "../../components/ui/Blocks";
 import { cooldownSummary } from "../../design-tokens/managerLabels";
+import { ChevronRight } from "@carbon/icons-react";
 
 /**
  * Oversight Dashboard (Manager Figma 78:69): every Auditor under this
@@ -52,13 +53,31 @@ export function ManagerOversightDashboardPage() {
   const inFlight =
     deliveries.data?.filter((d) => d.delivery_status === "PENDING" || d.delivery_status === "RETRYING").length ?? 0;
 
+  // The one primary action is always the most urgent open item, in this order.
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const nextAction =
+    openSos > 0
+      ? { label: `Follow up ${plural(openSos, "SOS alert", "SOS alerts")}`, to: "/manager/sos" }
+      : awaiting > 0
+        ? { label: `Decide ${plural(awaiting, "declined case", "declined cases")}`, to: "/manager/reassignment" }
+        : failed > 0
+          ? { label: `Fix ${plural(failed, "failed delivery", "failed deliveries")}`, to: "/manager/deliveries" }
+          : null;
+
   return (
     <ManagerLayout>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 style={pageTitle}>Oversight Dashboard</h1>
-        <Button kind="tertiary" onClick={() => navigate("/manager/audit-logs")}>
-          View audit history
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {nextAction && (
+            <Button kind="ghost" onClick={() => navigate("/manager/audit-logs")}>
+              View audit history
+            </Button>
+          )}
+          <Button onClick={() => navigate(nextAction?.to ?? "/manager/audit-logs")}>
+            {nextAction?.label ?? "View audit history"}
+          </Button>
+        </div>
       </div>
       <section aria-label="Needs your attention">
         <Grid className="rcs-grid" condensed>
@@ -102,6 +121,11 @@ export function ManagerOversightDashboardPage() {
       </section>
       <LoadState error={error} loading={!data && !error} what="the dashboard" />
       {data && (
+        <p className="rcs-helper" style={{ fontSize: 14 }}>
+          Select an auditor to see their day, their support requests and to adjust their exposure limit.
+        </p>
+      )}
+      {data && (
         <Layer>
           <Table aria-label="Auditors under your oversight">
             <TableHead>
@@ -112,7 +136,7 @@ export function ManagerOversightDashboardPage() {
                 <TableHeader>Cooldown</TableHeader>
                 <TableHeader>Cases today</TableHeader>
                 <TableHeader>
-                  <span className="cds--visually-hidden">Actions</span>
+                  <span className="cds--visually-hidden">Open</span>
                 </TableHeader>
               </TableRow>
             </TableHead>
@@ -120,9 +144,15 @@ export function ManagerOversightDashboardPage() {
               {data.map((row) => {
                 const detailUrl = `/manager/auditors/${encodeURIComponent(row.auditor_id)}`;
                 return (
-                  <TableRow key={row.auditor_id}>
+                  <TableRow
+                    key={row.auditor_id}
+                    // The whole row opens the Auditor for mouse users; the name is
+                    // the real link for keyboard and screen-reader users.
+                    onClick={() => navigate(detailUrl)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <TableCell>
-                      <RouterLink to={detailUrl} className="cds--link">
+                      <RouterLink to={detailUrl} className="cds--link" onClick={(e) => e.stopPropagation()}>
                         {row.display_name}
                       </RouterLink>
                     </TableCell>
@@ -143,14 +173,8 @@ export function ManagerOversightDashboardPage() {
                       {cooldownSummary(row.cooldown, now)}
                     </TableCell>
                     <TableCell>{row.cases_today}</TableCell>
-                    <TableCell>
-                      <Button
-                        kind="tertiary"
-                        size="sm"
-                        onClick={() => navigate(`${detailUrl}?mode=exposure`)}
-                      >
-                        Adjust exposure limit
-                      </Button>
+                    <TableCell style={{ textAlign: "right", color: "var(--cds-icon-secondary)" }}>
+                      <ChevronRight aria-hidden="true" />
                     </TableCell>
                   </TableRow>
                 );

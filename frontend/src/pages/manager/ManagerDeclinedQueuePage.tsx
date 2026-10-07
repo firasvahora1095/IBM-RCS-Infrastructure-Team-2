@@ -1,5 +1,5 @@
-import { Link as RouterLink } from "react-router-dom";
-import { Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
@@ -17,6 +17,7 @@ import { formatDayTime } from "../../utils/formatRelativeTime";
  * (AR-DF-03 / MR-CR-04 no-scrutiny principle).
  */
 export function ManagerDeclinedQueuePage() {
+  const navigate = useNavigate();
   const { data, error } = useStaffQuery(listDeclinedCases);
 
   return (
@@ -34,6 +35,9 @@ export function ManagerDeclinedQueuePage() {
                 <TableHeader>S-tier</TableHeader>
                 <TableHeader>Decline reason</TableHeader>
                 <TableHeader>Time declined</TableHeader>
+                <TableHeader>
+                  <span className="cds--visually-hidden">Action</span>
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -52,6 +56,16 @@ export function ManagerDeclinedQueuePage() {
                   <TableCell>{row.severity_tier ? <SeverityTag tier={row.severity_tier} size="sm" /> : "—"}</TableCell>
                   <TableCell>{declineReasonLabel(row.reason)}</TableCell>
                   <TableCell style={{ color: "var(--cds-text-secondary)" }}>{formatDayTime(row.declined_at)}</TableCell>
+                  <TableCell>
+                    <Button
+                      kind="tertiary"
+                      size="sm"
+                      aria-label={`Reassign case ${row.case_id}`}
+                      onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                    >
+                      Reassign
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

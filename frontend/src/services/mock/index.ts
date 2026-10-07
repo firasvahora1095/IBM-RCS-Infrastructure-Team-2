@@ -35,6 +35,8 @@ import type {
   StatusUpdateContact,
   WellbeingRequestKind,
   WellbeingRequestRecord,
+  AuditLogHistory,
+  AuditLogQuery,
 } from "../types";
 import {
   readDb,
@@ -1165,7 +1167,7 @@ export const mockDataService: DataService = {
         completed_at: now,
         updated_at: now,
       });
-      audit(db, session.staffId, "CLOSED_NO_REASSIGNMENT", caseId, note.trim());
+      audit(db, session.staffId, "CASE_CLOSED_BY_MANAGER", caseId, note.trim());
       return { status: mapStatusToPublicLabel("COMPLETE") };
     });
   },
@@ -1183,15 +1185,34 @@ export const mockDataService: DataService = {
     return updateDb((db) => {
       const session = requireSession(db, token, "manager");
       findCase(db, caseId);
-      audit(db, session.staffId, "EXCEPTIONAL_RAW_ACCESS", caseId);
+      audit(db, session.staffId, "EXCEPTIONAL_ACCESS_RECORDED", caseId);
       return { recorded: true as const };
     });
   },
 
-  async getAuditHistory(token: string) {
+  async getAuditHistory(token: string, query?: AuditLogQuery): Promise<AuditLogHistory> {
     await delay();
-    requireSession(readDb(), token, "manager");
-    throw new ApiError("Audit history is available when connected to the backend.", 501);
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const limit = Math.min(Math.max(query?.limit ?? 25, 1), 100);
+      const caseId = query?.case_id?.trim().toUpperCase();
+      const all = db.auditLog
+        .map((e, i) => ({
+          audit_log_id: i + 1,
+          case_id: e.case_id ?? "",
+          actor: e.actor,
+          action: e.action,
+          before_value: null,
+          after_value: e.detail === null ? null : { detail: e.detail },
+          created_at: e.at,
+        }))
+        .filter((e) => !caseId || e.case_id.toUpperCase() === caseId)
+        .filter((e) => !query?.action || e.action === query.action)
+        .filter((e) => query?.before_id === undefined || e.audit_log_id < query.before_id)
+        .reverse();
+      const entries = all.slice(0, limit);
+      return { entries, next_before_id: all.length > limit ? entries[entries.length - 1].audit_log_id : null };
+    });
   },
 
   async releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }> {

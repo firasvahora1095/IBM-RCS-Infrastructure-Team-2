@@ -162,7 +162,7 @@ describe("Manager screens", () => {
   it("approves a break request from the Auditor record (MR-SOS-07)", async () => {
     renderAt("/manager/auditors/auditor-4");
     expect(await screen.findByText("Pattern flagged — private")).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve break" }));
     expect(await screen.findByText("Break approved")).toBeInTheDocument();
   });
 
@@ -176,7 +176,7 @@ describe("Manager screens", () => {
     expect(await screen.findByRole("slider", { name: "Blur intensity" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^SOS/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/active review/)).not.toBeInTheDocument();
-    expect(readDb().auditLog.some((e) => e.action === "EXCEPTIONAL_RAW_ACCESS")).toBe(true);
+    expect(readDb().auditLog.some((e) => e.action === "EXCEPTIONAL_ACCESS_RECORDED")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Return to reassignment decision" }));
     expect(await screen.findByRole("heading", { name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
