@@ -152,7 +152,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     ["SOS Inbox", "/manager/sos", "SOS Inbox"],
     ["SOS Alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
     ["SOS Follow-up", "/manager/sos/SOS-demo0003/follow-up", "Log follow-up — Reese Patel"],
-    ["Reassignment Queue", "/manager/reassignment", "Declined / Reassignment Queue"],
+    ["Reassignment Queue", "/manager/reassignment", "Reassignment Queue"],
     ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
     ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
     ["Validation View", "/manager/validation", "Validation View"],

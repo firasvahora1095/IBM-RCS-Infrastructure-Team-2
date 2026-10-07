@@ -182,8 +182,8 @@ describe("mock B2B data source", () => {
     it("returns the case to the Manager as a limit decline", async () => {
       await mock.releaseCaseAtLimit("AR-2026-00417", await auditorToken());
       const c = readDb().cases.find((x) => x.case_id === "AR-2026-00417")!;
-      expect(c.manager_flag).toBe("DECLINED");
-      expect(c.decline?.reason).toBe("NEAR_EXPOSURE_LIMIT");
+      expect(c.manager_flag).toBe("CAP_REACHED");
+      expect(c.decline?.reason).toBe("EXPOSURE_CAP_REACHED");
       expect(c.assigned_auditor).toBeNull();
     });
   });

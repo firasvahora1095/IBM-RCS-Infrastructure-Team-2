@@ -1247,7 +1247,7 @@ export const mockDataService: DataService = {
     return updateDb((db) => {
       const session = requireSession(db, token, "auditor");
       const pending = db.cases.filter(
-        (c) => c.assigned_auditor_id === session.staffId &&
+        (c) => c.assigned_auditor === session.staffId &&
           (c.status === "READY_FOR_REVIEW" || c.status === "AUDITOR_REVIEW") &&
           !c.manager_flag,
       );
