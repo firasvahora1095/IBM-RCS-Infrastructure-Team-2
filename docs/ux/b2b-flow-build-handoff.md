@@ -29,7 +29,7 @@ Demo accounts:
 
 | | Auditor | Manager | CommunityHub client | Password |
 |---|---|---|---|---|
-| Mock (local) | `auditor-1` to `auditor-5` | `manager-1` | `ch-user-17` | `testpassword123` |
+| Mock (local) | `auditor-1` to `auditor-5` | `manager-1` | `ch-user-17` | `test123` |
 | Deployed (test and live) | `auditor-01` to `auditor-04` | `manager-01` | `ch-user-17` | `test123` |
 
 ## 2. Ten-minute demo

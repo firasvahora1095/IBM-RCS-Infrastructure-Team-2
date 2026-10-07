@@ -41,10 +41,10 @@ describe("StaffLoginPage", () => {
   it("logs an auditor in and redirects to the auditor view", async () => {
     vi.spyOn(services, "staffLogin").mockResolvedValueOnce({ token: "abc123", role: "auditor" });
     renderPage();
-    submit("auditor-1", "testpassword123");
+    submit("auditor-1", "test123");
 
     expect(await screen.findByText("Auditor view")).toBeInTheDocument();
-    expect(services.staffLogin).toHaveBeenCalledWith("auditor-1", "testpassword123");
+    expect(services.staffLogin).toHaveBeenCalledWith("auditor-1", "test123");
   });
 
   it("redirects a manager to the manager view", async () => {

@@ -89,7 +89,7 @@ describe("api client", () => {
       ),
     );
 
-    await staffLogin("auditor-1", "testpassword123");
+    await staffLogin("auditor-1", "test123");
 
     const [url, init] = vi.mocked(fetch).mock.calls[0];
 
@@ -107,7 +107,7 @@ describe("api client", () => {
 
     expect(JSON.parse(String(init?.body))).toEqual({
       staff_id: "auditor-1",
-      password: "testpassword123",
+      password: "test123",
     });
   });
 

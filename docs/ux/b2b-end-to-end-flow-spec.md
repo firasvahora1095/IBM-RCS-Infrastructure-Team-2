@@ -404,7 +404,7 @@ Each figure has a small "How is this calculated?" `Toggletip` with a one-sentenc
 
 **A11y.** Labels visible, errors linked, autofocus on email.
 
-**Data.** `clientLogin` (mock account `ch-user-17` / `testpassword123`, organisation `COMMUNITYHUB`, role `COMMUNITYHUB_CLIENT`).
+**Data.** `clientLogin` (mock account `ch-user-17` / `test123`, organisation `COMMUNITYHUB`, role `COMMUNITYHUB_CLIENT`).
 
 ---
 
@@ -503,7 +503,7 @@ Avoid: "willingly", "no penalty", clinical claims about the puzzle, "Tetris", "S
 8. `/client/login` as `ch-user-17` — open the released report, download PDF; try another org's report to show denied.
 9. `/status` — show the Complete outcome now says CommunityHub was notified.
 
-Accounts (mock): `auditor-1`, `manager-1`, `ch-user-17`, password `testpassword123`. Deployed API build uses its own seeded accounts.
+Accounts (mock): `auditor-1`, `manager-1`, `ch-user-17`, password `test123`. Deployed API build uses its own seeded accounts.
 
 ---
 
