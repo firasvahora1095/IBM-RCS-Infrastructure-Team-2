@@ -361,8 +361,82 @@ def _records(db: Session) -> list[dict]:
     return history + live
 
 
-def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
-    """Aggregate figures for one period, calculated only from stored records."""
+# What each report figure counts, frozen into the report with its evidence
+# (Sprint 3 extras S6.2, S6.5). Same wording as the report sheet's definitions.
+REPORT_EVIDENCE = {
+    "cases_received": (
+        "Reports received",
+        "Reports submitted to RCS for this customer during the period.",
+        ["cases.created_at", "case_history.created_at", "organisation_id"],
+    ),
+    "cases_completed": (
+        "Cases completed",
+        "Cases with a final human decision recorded during the period.",
+        ["cases.status", "cases.completed_at", "case_history.completed_at", "organisation_id"],
+    ),
+    "open_at_end": (
+        "Open at end of period",
+        "Cases received on or before the last day of the period that weren't complete by then.",
+        ["cases.created_at", "cases.completed_at", "cases.status"],
+    ),
+    "outcomes": (
+        "Moderation outcomes",
+        "The Auditor's final outcome for each case completed in the period.",
+        ["cases.final_outcome", "case_history.outcome", "cases.completed_at"],
+    ),
+    "severity": (
+        "Final severity",
+        "The final severity after human review: the Auditor's rating where they changed it, "
+        "otherwise the AI rating they confirmed.",
+        ["cases.auditor_severity_score", "cases.severity_tier", "case_history.final_tier"],
+    ),
+    "overrides": (
+        "Severity changed after human review",
+        "Completed cases where the final human severity differs from the AI's initial severity, "
+        "out of decided cases that have both.",
+        ["cases.severity_tier", "cases.auditor_severity_score", "case_history.ai_tier", "case_history.final_tier"],
+    ),
+    "workflow": (
+        "Declined and reassigned",
+        "Completed cases that were declined by one reviewer and decided by another.",
+        ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
+    ),
+    "delivery": (
+        "Delivery to CommunityHub",
+        "Results sent to CommunityHub for cases completed in the period, by delivery status.",
+        ["deliveries.delivery_status", "deliveries.completed_at", "deliveries.organisation_id"],
+    ),
+}
+
+
+def evidence_entry(
+    title: str,
+    definition: str,
+    source_fields: list[str],
+    ids: list[str],
+    now: datetime,
+    *,
+    eligible: int | None = None,
+    included: int | None = None,
+) -> dict:
+    """How a figure was calculated: the definition, the fields read and the records counted."""
+    ordered = sorted(ids)
+    return {
+        "title": title,
+        "definition": definition,
+        "source_fields": source_fields,
+        "records_included": len(ordered) if included is None else included,
+        "records_eligible": eligible,
+        "calculated_at": iso(now),
+        "case_ids": ordered[:EVIDENCE_CASE_ID_CAP],
+        "case_ids_truncated": len(ordered) > EVIDENCE_CASE_ID_CAP,
+    }
+
+
+def compute_metrics(db: Session, period_start: str, period_end: str, now: datetime | None = None) -> dict:
+    """Aggregate figures for one period, calculated only from stored records, with the
+    evidence behind each one so a report snapshot keeps how it was calculated."""
+    now = now or datetime.now(timezone.utc)
     start, end = period_bounds(period_start, period_end)
     records = _records(db)
 
@@ -376,7 +450,15 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
         if r["final_tier"] in severity:
             severity[r["final_tier"]] += 1
     comparable = [r for r in decided if r["ai_tier"] and r["final_tier"]]
-    overrides = sum(1 for r in comparable if r["ai_tier"] != r["final_tier"])
+    overridden = [r for r in comparable if r["ai_tier"] != r["final_tier"]]
+    overrides = len(overridden)
+    received = [r for r in records if in_period(r["created"])]
+    open_at_end = [
+        r
+        for r in records
+        if r["created"] is not None and r["created"] <= end and (r["completed"] is None or r["completed"] > end)
+    ]
+    declined = [r for r in completed if r["declined"]]
     minutes = [
         (r["completed"] - r["created"]).total_seconds() / 60
         for r in completed
@@ -385,16 +467,15 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
     deliveries = [
         d for d in db.scalars(select(Delivery)).all() if in_period(utc(d.completed_at))
     ]
+    def evidence(key: str, rows: list, **counts) -> dict:
+        title, definition, fields = REPORT_EVIDENCE[key]
+        ids = [r["case_id"] if isinstance(r, dict) else r.case_id for r in rows]
+        return evidence_entry(title, definition, fields, ids, now, **counts)
+
     return {
-        "cases_received": sum(1 for r in records if in_period(r["created"])),
+        "cases_received": len(received),
         "cases_completed": len(completed),
-        "open_at_end": sum(
-            1
-            for r in records
-            if r["created"] is not None
-            and r["created"] <= end
-            and (r["completed"] is None or r["completed"] > end)
-        ),
+        "open_at_end": len(open_at_end),
         "violation_count": sum(1 for r in decided if r["outcome"] == "POLICY_VIOLATION_FOUND"),
         "no_violation_count": sum(1 for r in decided if r["outcome"] == "NO_VIOLATION_FOUND"),
         "severity_breakdown": severity,
@@ -403,8 +484,18 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
         ),
         "override_count": overrides,
         "override_rate": overrides / len(comparable) if comparable else 0,
-        "declined_reassigned": sum(1 for r in completed if r["declined"]),
+        "declined_reassigned": len(declined),
         "delivery": delivery_health(deliveries),
+        "evidence": {
+            "cases_received": evidence("cases_received", received),
+            "cases_completed": evidence("cases_completed", completed),
+            "open_at_end": evidence("open_at_end", open_at_end),
+            "outcomes": evidence("outcomes", decided),
+            "severity": evidence("severity", [r for r in decided if r["final_tier"] in TIERS]),
+            "overrides": evidence("overrides", overridden, eligible=len(comparable)),
+            "workflow": evidence("workflow", declined),
+            "delivery": evidence("delivery", deliveries),
+        },
     }
 
 
@@ -508,17 +599,9 @@ def provenance() -> str:
 
 
 def _evidence(key: str, ids: list[str], now: datetime, *, eligible: int | None = None, included: int | None = None) -> dict:
-    ordered = sorted(ids)
-    return {
-        "title": TITLES[key],
-        "definition": DEFINITIONS[key],
-        "source_fields": SOURCE_FIELDS[key],
-        "records_included": len(ordered) if included is None else included,
-        "records_eligible": eligible,
-        "calculated_at": iso(now),
-        "case_ids": ordered[:EVIDENCE_CASE_ID_CAP],
-        "case_ids_truncated": len(ordered) > EVIDENCE_CASE_ID_CAP,
-    }
+    return evidence_entry(
+        TITLES[key], DEFINITIONS[key], SOURCE_FIELDS[key], ids, now, eligible=eligible, included=included
+    )
 
 
 def _open_bucket(record: dict) -> str:
@@ -708,8 +791,20 @@ def _report_payload(db: Session, report: ServiceReport, *, for_client: bool = Fa
         # A client never sees staff names.
         "released_by": "RCS" if for_client else report.released_by,
         "manager_note": report.manager_note,
-        "metrics": report.metrics,
+        "metrics": _client_safe_metrics(report.metrics) if for_client else report.metrics,
     }
+
+
+def _client_safe_metrics(metrics: dict) -> dict:
+    """A client sees how each figure was calculated and how many records it covers, but
+    never the contributing case IDs (decision D6). The stored snapshot is untouched."""
+    safe = dict(metrics)
+    if isinstance(metrics.get("evidence"), dict):
+        safe["evidence"] = {
+            key: {**entry, "case_ids": [], "case_ids_truncated": False}
+            for key, entry in metrics["evidence"].items()
+        }
+    return safe
 
 
 def _find_report(db: Session, report_id: str) -> ServiceReport:
@@ -941,7 +1036,7 @@ async def generate_report(
     org = _find_organisation(db, payload.organisation_id)
     now = datetime.now(timezone.utc)
     advance_deliveries(db, now)
-    metrics = compute_metrics(db, start, end)
+    metrics = compute_metrics(db, start, end, now)
     same_period = db.scalars(
         select(ServiceReport).where(
             ServiceReport.organisation_id == org.organisation_id,
