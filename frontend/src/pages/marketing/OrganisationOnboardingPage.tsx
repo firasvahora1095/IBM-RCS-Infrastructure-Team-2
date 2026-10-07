@@ -14,6 +14,7 @@ import {
 } from "@carbon/react";
 import { MarketingHeader } from "../../components/shell/MarketingHeader";
 import { KeyValueList } from "../../components/ui/Blocks";
+import { SMALL_SCREEN, useMediaQuery } from "../../hooks/useMediaQuery";
 
 const STEPS = ["Organisation", "Results delivery", "Report button", "Review"] as const;
 
@@ -35,6 +36,7 @@ const SNIPPET = `<a href="${REPORT_LINK}?post={POST_URL}"
  * button their users will press. No pricing, billing or contracts.
  */
 export function OrganisationOnboardingPage() {
+  const smallScreen = useMediaQuery(SMALL_SCREEN);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
@@ -72,7 +74,9 @@ export function OrganisationOnboardingPage() {
   return (
     <>
       <MarketingHeader />
-      <main style={{ paddingTop: 48 + 48, paddingBottom: 64, backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}>
+      <main
+        style={{ paddingTop: 48 + 48, paddingBottom: 64, backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
+      >
         <Grid>
           <Column sm={4} md={8} lg={{ span: 10, offset: 3 }} className="flex flex-col gap-6">
             {done ? (
@@ -82,8 +86,8 @@ export function OrganisationOnboardingPage() {
                   {orgName} is set up on RCS
                 </h1>
                 <p className="rcs-body" style={{ color: "var(--cds-text-secondary)" }}>
-                  Reports from your report button now come to RCS. Each completed case is sent to your results
-                  endpoint, and your team will be able to sign in to view service reports.
+                  Reports from your report button now come to RCS. Each completed case is sent to your results endpoint,
+                  and your team will be able to sign in to view service reports.
                 </p>
                 <KeyValueList
                   mono={["Reporting link", "Results endpoint"]}
@@ -118,7 +122,13 @@ export function OrganisationOnboardingPage() {
                   </p>
                 </div>
 
-                <ProgressIndicator currentIndex={step} spaceEqually aria-label="Setup steps">
+                {/* Carbon's guidance: a vertical progress indicator on small screens. */}
+                <ProgressIndicator
+                  currentIndex={step}
+                  spaceEqually={!smallScreen}
+                  vertical={smallScreen}
+                  aria-label="Setup steps"
+                >
                   {STEPS.map((label) => (
                     <ProgressStep key={label} label={label} />
                   ))}
@@ -216,7 +226,10 @@ export function OrganisationOnboardingPage() {
                         Put this on each post. It opens RCS with the post link attached, so your users don&apos;t have
                         to copy it.
                       </p>
-                      <KeyValueList mono={["Your reporting link"]} items={[{ label: "Your reporting link", value: REPORT_LINK }]} />
+                      <KeyValueList
+                        mono={["Your reporting link"]}
+                        items={[{ label: "Your reporting link", value: REPORT_LINK }]}
+                      />
                       <CodeSnippet type="multi" feedback="Copied" aria-label="Report button snippet" wrapText>
                         {SNIPPET}
                       </CodeSnippet>
