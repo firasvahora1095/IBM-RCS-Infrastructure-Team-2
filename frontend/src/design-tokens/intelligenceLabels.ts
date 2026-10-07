@@ -1,4 +1,4 @@
-import type { AttentionKind, AuditorOverviewRow, OpenBucket } from "../services/types";
+import type { AttentionKind, AuditorOverviewRow, InternalCaseStatus, OpenBucket } from "../services/types";
 import type { StatusTone } from "./statusTones";
 
 /**
@@ -42,10 +42,11 @@ export function availabilityOf(row: AuditorOverviewRow, now: number): Availabili
   return "AVAILABLE";
 }
 
-/** Sort order for "who needs protecting first": higher comes first. */
+/** Who needs protecting first: an open SOS, a support request waiting, then exposure against their own limit. */
 export function protectionNeed(row: AuditorOverviewRow): number {
   const ratio = row.exposure_limit_minutes ? row.exposure_minutes_today / row.exposure_limit_minutes : 0;
-  return (row.open_sos ? 10 : 0) + (row.open_requests?.break_requests ? 5 : 0) + ratio;
+  const asked = (row.open_requests?.break_requests ?? 0) + (row.open_requests?.talk_requests ?? 0) > 0;
+  return (row.open_sos ? 10 : 0) + (asked ? 5 : 0) + ratio;
 }
 
 export interface AttentionWording {
@@ -106,18 +107,32 @@ export const OPEN_BUCKET_ORDER: readonly OpenBucket[] = [
   "MANAGER_ACTION",
 ];
 
-/** Carbon tokens per stage: a calm sequence, with the Manager stage the only warm colour. */
+/**
+ * Carbon tokens per stage: gray for waiting, then Blue 20 → 60 → 80 as a case
+ * moves through review, so the order reads at a glance. The Manager stage is
+ * the only warm colour and is also striped, so it never relies on colour alone.
+ */
 export const OPEN_BUCKET_COLOR: Record<OpenBucket, string> = {
   SUBMITTED: "var(--cds-border-strong-01)",
-  AI_PROCESSING: "var(--cds-support-info)",
+  AI_PROCESSING: "var(--cds-tag-background-blue)",
   READY_FOR_REVIEW: "var(--cds-interactive)",
-  AUDITOR_REVIEW: "var(--cds-link-primary-hover)",
+  AUDITOR_REVIEW: "var(--cds-button-primary-active)",
   MANAGER_ACTION: "var(--cds-support-warning)",
 };
 
 /** Where each stage opens in Case Oversight. */
 export function caseOversightLink(bucket: OpenBucket): string {
-  return bucket === "MANAGER_ACTION" ? "/manager/cases?flag=manager" : `/manager/cases?status=${bucket}`;
+  return `/manager/cases?stage=${bucket}`;
+}
+
+/** The stage an open case is in; a case waiting for a Manager decision counts only there. */
+export function openBucketOf(status: InternalCaseStatus, managerFlag: string | null): OpenBucket | null {
+  if (status === "COMPLETE") return null;
+  return managerFlag ? "MANAGER_ACTION" : status;
+}
+
+export function isOpenBucket(value: string | null): value is OpenBucket {
+  return value !== null && (OPEN_BUCKET_ORDER as readonly string[]).includes(value);
 }
 
 export const COMPARISON_NOTE =

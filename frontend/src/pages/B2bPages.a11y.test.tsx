@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { axe } from "jest-axe";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -75,6 +75,20 @@ describe("B2B screens — automated accessibility", () => {
     await screen.findByRole("heading", { level: 1, name: heading });
     await waitFor(() => expect(screen.queryByText(/^Couldn.t load/)).not.toBeInTheDocument());
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("Manager Intelligence Dashboard, loaded, and its evidence dialog have no detectable violations", async () => {
+    await signInManager();
+    const { container } = renderAt("/manager");
+    await screen.findByRole("table", { name: "Auditor protection and availability" });
+    await screen.findByRole("list", { name: "Items that need you" });
+    await screen.findByRole("table", { name: /AI severity \(rows\)/ });
+    expect(await axe(container)).toHaveNoViolations();
+
+    const strip = screen.getByRole("region", { name: "Operations at a glance" });
+    fireEvent.click(within(strip).getAllByRole("button", { name: "View evidence" })[0]);
+    await screen.findByRole("table", { name: "Contributing cases" });
+    expect(await axe(document.body)).toHaveNoViolations();
   });
 
   it("Manager report preview has no detectable violations", async () => {

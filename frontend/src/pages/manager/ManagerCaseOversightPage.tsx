@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import {
+  DismissibleTag,
   Dropdown,
   Layer,
   Search,
@@ -20,6 +21,7 @@ import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 import { StatusTag } from "../../components/ui/StatusTag";
+import { isOpenBucket, OPEN_BUCKET_LABEL, openBucketOf } from "../../design-tokens/intelligenceLabels";
 
 const ALL_STATUSES = "All statuses";
 
@@ -32,7 +34,11 @@ const ALL_STATUSES = "All statuses";
  */
 export function ManagerCaseOversightPage() {
   const { data, error } = useStaffQuery(getCaseOversight);
-  const [query, setQuery] = useState("");
+  // The dashboard opens this list on a stage (?stage=) or a case (?search=).
+  const [params, setParams] = useSearchParams();
+  const rawStage = params.get("stage");
+  const stage = isOpenBucket(rawStage) ? rawStage : null;
+  const [query, setQuery] = useState(() => params.get("search") ?? "");
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
 
   const statuses = useMemo(
@@ -45,7 +51,8 @@ export function ManagerCaseOversightPage() {
     const matchesQuery = !q || c.case_id.toLowerCase().includes(q) || (c.auditor_name ?? "").toLowerCase().includes(q);
     const matchesStatus =
       statusFilter === ALL_STATUSES || managerStatusLabel(c.status, c.manager_flag) === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesStage = !stage || openBucketOf(c.status, c.manager_flag) === stage;
+    return matchesQuery && matchesStatus && matchesStage;
   });
 
   return (
@@ -75,6 +82,20 @@ export function ManagerCaseOversightPage() {
           />
         </div>
       </div>
+      {stage && (
+        <div>
+          <DismissibleTag
+            type="blue"
+            text={`Stage: ${OPEN_BUCKET_LABEL[stage]}`}
+            dismissTooltipLabel="Show all stages"
+            onClose={() => {
+              const next = new URLSearchParams(params);
+              next.delete("stage");
+              setParams(next, { replace: true });
+            }}
+          />
+        </div>
+      )}
       <LoadState error={error} loading={!data && !error} what="cases" />
       {data && (
         <Layer>
