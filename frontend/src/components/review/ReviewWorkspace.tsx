@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Accordion, AccordionItem, Button, IconButton, InlineNotification, Link, Slider, Toggle } from "@carbon/react";
+import { Accordion, AccordionItem, Button, IconButton, InlineNotification, Slider, Toggle, Tooltip } from "@carbon/react";
 import { Pause, Play, VolumeMute, VolumeUp } from "@carbon/icons-react";
 import type { AuditorCaseDetail, ExposureSample, SeverityTier } from "../../services/types";
 import { isMockData } from "../../services";
@@ -285,6 +285,48 @@ export function ReviewWorkspace({
             pinned column was taller than the window, so its blur controls and Continue button
             could never be scrolled into view and the page looked frozen. */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+          {/* Viewing safety: always above the footage, so it never needs a scroll (AR-PV-03 to 05). */}
+          <div className="rcs-player-toolbar" role="group" aria-label="Viewing safety">
+            <div className="rcs-inline-control rcs-player-blur">
+              <Slider
+                id="blur-intensity"
+                labelText="Blur intensity"
+                min={0}
+                max={100}
+                step={5}
+                value={blurStart}
+                hideTextInput
+                formatLabel={(value: number) => `${value}%`}
+                onChange={({ value }) => {
+                  const raw: unknown = value;
+                  const blur = typeof raw === "number" ? raw : Number.NaN;
+                  if (Number.isFinite(blur) && blur >= 0 && blur <= 100) {
+                    onSettingsChange({ ...settings, blur: Math.round(blur) });
+                  }
+                }}
+              />
+              <span className="rcs-player-readout" aria-hidden="true">
+                {settings.blur}%
+              </span>
+            </div>
+            <div className="rcs-inline-control">
+              <Toggle
+                id="grayscale-toggle"
+                size="sm"
+                labelText="Grayscale"
+                labelA="Off"
+                labelB="On"
+                toggled={settings.grayscale}
+                onToggle={(on) => onSettingsChange({ ...settings, grayscale: on })}
+              />
+            </div>
+          </div>
+          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)", marginTop: -8 }}>
+            {aiFailed || !caseDetail.severity_tier
+              ? "No AI blur suggestion: severity is unknown for this case."
+              : `AI-suggested blur: ${SUGGESTED_BLUR[caseDetail.severity_tier]}%. You decide what's comfortable.`}
+          </p>
+
           <div
             className="relative w-full shrink-0 overflow-hidden"
             style={{ aspectRatio: "16 / 9", backgroundColor: "var(--cds-background-inverse)" }}
@@ -365,137 +407,99 @@ export function ReviewWorkspace({
             )}
           </div>
 
-          <div ref={scrubberRef} className="rcs-full-width-slider flex flex-col gap-1">
-            <Slider
-              id="playback-position"
-              labelText="Playback position"
-              min={0}
-              max={duration}
-              step={1}
-              value={position}
-              hideTextInput
-              formatLabel={(value: number) => formatTimestamp(value)}
-              onChange={({ value }) => {
-                const requested = Number(value);
-                // Carbon also emits onChange when its value prop follows playback.
-                // Compare the raw time before seek rounds it, or 0.25s seeks back to 0s.
-                if (requested !== positionRef.current) seek(requested);
-              }}
-            />
-            {timeline.length > 0 && (
-              <div
-                className="relative"
-                style={{ height: 16, marginLeft: trackBox?.left ?? 0, width: trackBox?.width ?? "100%" }}
-                role="group"
-                aria-label="Flagged moments"
-              >
-                {timeline.map((entry, i) => {
-                  const info = getSeverityInfo(entry.severity_tier);
-                  const label = `Jump to ${formatTimestamp(entry.start)}, ${entry.tag ?? "flagged"}, ${entry.severity_tier} ${info.label}`;
-                  const sameStart = timeline.filter((e) => e.start === entry.start);
-                  const indexInGroup = sameStart.indexOf(entry);
-                  const groupOffset = (indexInGroup - (sameStart.length - 1) / 2) * 5;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      aria-label={label}
-                      title={label}
-                      onClick={() => seek(entry.start)}
-                      className="absolute top-0 flex cursor-pointer justify-center"
-                      style={{
-                        left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)`,
-                        width: 16,
-                        height: 16,
-                        background: "none",
-                        border: 0,
-                        padding: 0,
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "block",
-                          width: 4,
-                          height: 14,
-                          backgroundColor: info.background,
-                        }}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-end gap-6">
+          {/* Standard player bar: play, timeline, time, then sound, all on one line under the footage. */}
+          <div className="rcs-player-bar">
             <IconButton
-              kind="secondary"
+              kind="ghost"
+              size="md"
               label={isPlaying ? "Pause" : "Play"}
               disabled={!canPlay}
               onClick={togglePlayback}
             >
               {isPlaying ? <Pause /> : <Play />}
             </IconButton>
-            <div className="min-w-0 flex-1 basis-[300px]">
+            <div ref={scrubberRef} className="rcs-player-scrubber rcs-bare-slider">
               <Slider
-                id="blur-intensity"
-                labelText="Blur intensity"
+                id="playback-position"
+                labelText="Playback position"
+                min={0}
+                max={duration}
+                step={1}
+                value={position}
+                hideTextInput
+                formatLabel={(value: number) => formatTimestamp(value)}
+                onChange={({ value }) => {
+                  const requested = Number(value);
+                  // Carbon also emits onChange when its value prop follows playback.
+                  // Compare the raw time before seek rounds it, or 0.25s seeks back to 0s.
+                  if (requested !== positionRef.current) seek(requested);
+                }}
+              />
+              {timeline.length > 0 && (
+                <div
+                  className="relative"
+                  style={{ height: 14, marginLeft: trackBox?.left ?? 0, width: trackBox?.width ?? "100%" }}
+                  role="group"
+                  aria-label="Flagged moments"
+                >
+                  {timeline.map((entry, i) => {
+                    const info = getSeverityInfo(entry.severity_tier);
+                    const range =
+                      entry.end > entry.start
+                        ? `${formatTimestamp(entry.start)}–${formatTimestamp(entry.end)}`
+                        : formatTimestamp(entry.start);
+                    const sameStart = timeline.filter((e) => e.start === entry.start);
+                    const indexInGroup = sameStart.indexOf(entry);
+                    const groupOffset = (indexInGroup - (sameStart.length - 1) / 2) * 5;
+                    return (
+                      <Tooltip
+                        key={i}
+                        align="top"
+                        label={`${range} · ${entry.tag ?? "Flagged"} · ${entry.severity_tier} ${info.label}`}
+                        className="rcs-tick"
+                        style={{ left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)` }}
+                      >
+                        <button
+                          type="button"
+                          aria-label={`Jump to ${range}, ${entry.tag ?? "flagged"}, ${entry.severity_tier} ${info.label}`}
+                          onClick={() => seek(entry.start)}
+                          className="rcs-tick-button"
+                        >
+                          <span style={{ display: "block", width: 4, height: 12, backgroundColor: info.background }} />
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <span className="rcs-player-time" aria-hidden="true">
+              {formatTimestamp(position)} / {formatTimestamp(duration)}
+            </span>
+            <IconButton
+              kind="ghost"
+              size="md"
+              label={settings.muted ? "Unmute" : "Mute"}
+              onClick={() => onSettingsChange({ ...settings, muted: !settings.muted })}
+            >
+              {settings.muted ? <VolumeMute /> : <VolumeUp />}
+            </IconButton>
+            <div className="rcs-player-volume rcs-bare-slider">
+              <Slider
+                id="review-volume"
+                labelText="Volume"
                 min={0}
                 max={100}
                 step={5}
-                value={blurStart}
+                value={settings.volume ?? 0}
+                hideTextInput
                 formatLabel={(value: number) => `${value}%`}
                 onChange={({ value }) => {
-                  const raw: unknown = value;
-                  const blur = typeof raw === "number" ? raw : Number.NaN;
-                  if (Number.isFinite(blur) && blur >= 0 && blur <= 100) {
-                    onSettingsChange({ ...settings, blur: Math.round(blur) });
-                  }
+                  const volume = Number(value);
+                  if (!Number.isFinite(volume) || volume === (settings.volume ?? 0)) return;
+                  onSettingsChange({ ...settings, volume, muted: volume === 0 });
                 }}
               />
-              <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-                {aiFailed || !caseDetail.severity_tier
-                  ? "No AI suggestion — severity is unknown for this case."
-                  : `AI-suggested reference: ${SUGGESTED_BLUR[caseDetail.severity_tier]}%. You decide what's comfortable.`}
-              </p>
-            </div>
-            <Toggle
-              id="grayscale-toggle"
-              size="sm"
-              labelText="Grayscale"
-              labelA="Off"
-              labelB="On"
-              toggled={settings.grayscale}
-              onToggle={(on) => onSettingsChange({ ...settings, grayscale: on })}
-            />
-            <div className="flex items-center gap-2">
-              <IconButton
-                kind="ghost"
-                label={settings.muted ? "Unmute" : "Mute"}
-                onClick={() => onSettingsChange({ ...settings, muted: !settings.muted })}
-              >
-                {settings.muted ? <VolumeMute /> : <VolumeUp />}
-              </IconButton>
-              <div className="flex flex-col gap-1">
-                {/* A real <label> so screen readers name the slider (WCAG 4.1.2). */}
-                <label htmlFor="review-volume" style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  Volume
-                </label>
-                <input
-                  id="review-volume"
-                  aria-valuetext={`${settings.volume ?? 0}%${settings.muted ? ", muted" : ""}`}
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={settings.volume ?? 0}
-                  style={{ width: 100, accentColor: "var(--cds-interactive)" }}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    onSettingsChange({ ...settings, volume: value, muted: value === 0 });
-                  }}
-                />
-              </div>
             </div>
           </div>
 
@@ -525,19 +529,6 @@ export function ReviewWorkspace({
             </div>
           )}
 
-          {onTalkToManager && (
-            <p>
-              <Link
-                href="#check-in"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onTalkToManager();
-                }}
-              >
-                Need support? Request a check-in (not urgent)
-              </Link>
-            </p>
-          )}
 
           <div className="flex flex-col items-start gap-4">
             <Button onClick={onContinue}>{continueLabel}</Button>
@@ -551,6 +542,29 @@ export function ReviewWorkspace({
 
         {/* Context rail */}
         <div className="flex flex-col gap-4">
+          {onSos && (
+            // Sprint 3 extras §9: two different paths, said plainly, before anything else in the rail.
+            <section className="rcs-support-guide" aria-label="Getting help">
+              <div>
+                <p className="rcs-support-guide-title">Request support: not urgent</p>
+                <p className="rcs-helper">
+                  Talk to your manager or ask for a break. Your case stays open and nothing is paused.
+                </p>
+                {onTalkToManager && (
+                  <Button kind="tertiary" size="sm" onClick={onTalkToManager} style={{ marginTop: 8 }}>
+                    Request support
+                  </Button>
+                )}
+              </div>
+              <div>
+                <p className="rcs-support-guide-title">SOS: stop now</p>
+                <p className="rcs-helper">
+                  Use the red SOS button on the video. The content is hidden at once, your manager is alerted and a
+                  cooldown starts.
+                </p>
+              </div>
+            </section>
+          )}
           <div className="flex flex-col gap-2 p-4" style={{ backgroundColor: "var(--cds-layer-01)" }}>
             {aiFailed || !caseDetail.severity_tier ? (
               <p style={secondaryText}>Severity unknown — AI analysis unavailable for this case</p>
@@ -591,13 +605,6 @@ export function ReviewWorkspace({
             </Accordion>
           )}
 
-          {onSos && (
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-              {/* Sprint 3 extras §9: two different paths, said plainly. */}
-              Request support when you need help or a check-in. Use SOS to stop this now and alert your manager. SOS is
-              available at every scroll position in this workspace.
-            </p>
-          )}
         </div>
       </div>
     </div>
