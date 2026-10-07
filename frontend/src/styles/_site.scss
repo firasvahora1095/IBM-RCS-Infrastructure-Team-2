@@ -948,3 +948,15 @@
 .ch-flag-neutral {
   background-color: #4d5551;
 }
+
+// Numbered how-to steps in CommunityHub dialogs.
+.ch-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  list-style: decimal;
+}
