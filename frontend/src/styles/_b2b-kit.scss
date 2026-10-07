@@ -377,7 +377,8 @@ html {
   }
 }
 .rcs-site {
-  --rcs-site-offset: 7rem;
+  // Adds to html scroll-padding-top (header), so this covers only the 48px section bar.
+  --rcs-site-offset: 3rem;
 }
 .rcs-site [id] {
   scroll-margin-top: var(--rcs-site-offset);
