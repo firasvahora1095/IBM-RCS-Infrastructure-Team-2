@@ -477,8 +477,13 @@ export function ReviewWorkspace({
                 {settings.muted ? <VolumeMute /> : <VolumeUp />}
               </IconButton>
               <div className="flex flex-col gap-1">
-                <span style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>Volume</span>
+                {/* A real <label> so screen readers name the slider (WCAG 4.1.2). */}
+                <label htmlFor="review-volume" style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                  Volume
+                </label>
                 <input
+                  id="review-volume"
+                  aria-valuetext={`${settings.volume ?? 0}%${settings.muted ? ", muted" : ""}`}
                   type="range"
                   min={0}
                   max={100}
