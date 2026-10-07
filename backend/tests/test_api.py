@@ -967,7 +967,9 @@ class ApiContractTests(unittest.TestCase):
             json={"kind": "TALK_TO_MANAGER"},
         )
         self.assertEqual(r.status_code, 200, r.text)
-        self.assertEqual(r.json(), {"received": True})
+        self.assertTrue(r.json()["received"])
+        # The stored request's ID, so the Auditor can withdraw it later.
+        self.assertTrue(r.json()["request_id"].startswith("WB-"))
 
         # Must not have created an AuditLog row (case_id would be NULL → FK error)
         with self.Session() as db:

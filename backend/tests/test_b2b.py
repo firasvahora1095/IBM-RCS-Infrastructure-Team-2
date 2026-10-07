@@ -492,6 +492,103 @@ class B2bContractTests(unittest.TestCase):
         ).json()
         self.assertEqual([r["report_id"] for r in reports], [summary["released_report"]])
 
+    # ---- Contact RCS ----
+
+    def test_client_message_goes_sent_seen_answered_and_is_signed_rcs(self) -> None:
+        self.add_report("RPT-CH-2026-08", status="RELEASED")
+        client = self.client_headers()
+        sent = self.client.post(
+            "/api/client/messages",
+            json={"topic": "REPORT_QUESTION", "report_id": "RPT-CH-2026-08", "subject": "Overrides", "body": "What are they?"},
+            headers=client,
+        )
+        self.assertEqual(sent.status_code, 200, sent.text)
+        message_id = sent.json()["message_id"]
+        self.assertEqual(sent.json()["status"], "SENT")
+
+        manager = self.staff_headers("manager-1")
+        inbox = self.client.get("/api/manager/messages", headers=manager).json()
+        self.assertEqual(inbox[0]["message_id"], message_id)
+        self.assertEqual(self.client.get(f"/api/manager/messages/{message_id}", headers=manager).json()["status"], "SEEN")
+        self.assertEqual(self.client.get(f"/api/client/messages/{message_id}", headers=client).json()["status"], "SEEN")
+
+        reply = self.client.post(
+            f"/api/manager/messages/{message_id}/reply", json={"body": "They're severity changes."}, headers=manager,
+        ).json()
+        self.assertEqual(reply["reply"]["by"], "manager-1")
+        seen_by_client = self.client.get(f"/api/client/messages/{message_id}", headers=client).json()
+        self.assertEqual(seen_by_client["status"], "ANSWERED")
+        self.assertEqual(seen_by_client["reply"]["by"], "RCS")
+
+    def test_client_messages_are_validated_and_scoped_to_the_organisation(self) -> None:
+        self.add_report("RPT-CH-2026-09", status="DRAFT")
+        client = self.client_headers()
+        for body in (
+            {"topic": "OTHER", "subject": "Hi", "body": "   "},
+            {"topic": "NOPE", "subject": "Hi", "body": "Hello"},
+            {"topic": "REPORT_QUESTION", "report_id": "RPT-CH-2026-09", "subject": "Q", "body": "Q"},
+        ):
+            with self.subTest(body=body):
+                self.assertEqual(self.client.post("/api/client/messages", json=body, headers=client).status_code, 400)
+        with self.Session.begin() as db:
+            from app.models import ClientMessage
+            db.add(ClientMessage(
+                message_id="MSG-OTHER", organisation_id="OTHERORG", user_id="someone", topic="OTHER",
+                subject="Theirs", body="Theirs", status="SENT", created_at=datetime.now(timezone.utc),
+            ))
+        self.assertEqual(self.client.get("/api/client/messages/MSG-OTHER", headers=client).status_code, 404)
+        self.assertEqual(self.client.get("/api/client/messages", headers=client).json(), [])
+        self.assertEqual(self.client.get("/api/manager/messages", headers=client).status_code, 401)
+
+    # ---- Support requests ----
+
+    def test_support_request_keeps_its_reason_and_can_be_withdrawn(self) -> None:
+        auditor = self.staff_headers("auditor-1")
+        created = self.client.post(
+            "/api/auditor/wellbeing-support", json={"kind": "BREAK_REQUEST", "reason": "Long morning."}, headers=auditor,
+        ).json()
+        request_id = created["request_id"]
+        mine = self.client.get("/api/auditor/wellbeing", headers=auditor).json()["requests"]
+        self.assertEqual(mine[0]["id"], request_id)
+        self.assertEqual(mine[0]["reason"], "Long morning.")
+
+        withdrawn = self.client.post(f"/api/auditor/wellbeing-requests/{request_id}/withdraw", headers=auditor)
+        self.assertEqual(withdrawn.json(), {"withdrawn": True})
+        manager = self.staff_headers("manager-1")
+        approve = self.client.post(
+            f"/api/manager/auditors/auditor-1/break-requests/{request_id}/approve", headers=manager,
+        )
+        self.assertEqual(approve.status_code, 409)
+        detail = self.client.get("/api/manager/auditors/auditor-1", headers=manager).json()
+        self.assertEqual(detail["wellbeing_requests"][0]["status"], "WITHDRAWN")
+
+    def test_manager_follows_up_a_talk_request(self) -> None:
+        auditor = self.staff_headers("auditor-1")
+        request_id = self.client.post(
+            "/api/auditor/wellbeing-support", json={"kind": "TALK_TO_MANAGER"}, headers=auditor,
+        ).json()["request_id"]
+        manager = self.staff_headers("manager-1")
+        self.assertEqual(
+            self.client.post(f"/api/manager/wellbeing-requests/{request_id}/follow-up", headers=manager).json(),
+            {"followed_up": True},
+        )
+        detail = self.client.get("/api/manager/auditors/auditor-1", headers=manager).json()
+        self.assertEqual(detail["wellbeing_requests"][0]["status"], "FOLLOWED_UP")
+
+    def test_cases_today_match_the_listed_cases(self) -> None:
+        self.add_case("RCS-TODAY-0001")
+        self.resolve("RCS-TODAY-0001")
+        self.add_case(
+            "RCS-OLD-00001", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+            completed_at=datetime.now(timezone.utc) - timedelta(days=3),
+        )
+        manager = self.staff_headers("manager-1")
+        row = next(r for r in self.client.get("/api/manager/auditors", headers=manager).json() if r["auditor_id"] == "auditor-1")
+        detail = self.client.get("/api/manager/auditors/auditor-1", headers=manager).json()
+        self.assertEqual(row["cases_today"], 1)
+        self.assertEqual([c["case_id"] for c in detail["recent_cases"]], ["RCS-TODAY-0001"])
+        self.assertEqual(detail["recent_cases"][0]["final_outcome"], "POLICY_VIOLATION_FOUND")
+
 
 if __name__ == "__main__":
     unittest.main()

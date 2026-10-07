@@ -30,12 +30,14 @@ from app.models import (
     Case,
     CaseHistory,
     CaseSource,
+    ClientMessage,
     ClientUser,
     Delivery,
     GovernanceLogEntry,
     Organisation,
     ReportAccess,
     ServiceReport,
+    WellbeingRequest,
 )
 
 ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -168,7 +170,18 @@ def _governance_log(now: datetime, case_ids: list[str], rng: random.Random) -> l
 
 
 def wipe_b2b(db: Session) -> None:
-    for model in (ReportAccess, ServiceReport, Delivery, GovernanceLogEntry, CaseHistory, CaseSource, ClientUser, Organisation):
+    for model in (
+        ClientMessage,
+        WellbeingRequest,
+        ReportAccess,
+        ServiceReport,
+        Delivery,
+        GovernanceLogEntry,
+        CaseHistory,
+        CaseSource,
+        ClientUser,
+        Organisation,
+    ):
         db.query(model).delete()
     db.commit()
 
@@ -270,6 +283,63 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         for action, minutes in (("VIEW", 0), ("DOWNLOAD", 4))
     ])
     db.add_all(_governance_log(now, [h.case_id for h in history], rng))
+    db.add_all([
+        ClientMessage(
+            message_id="MSG-1001",
+            organisation_id=COMMUNITYHUB_ID,
+            user_id=CLIENT_USER_ID,
+            topic="REPORT_QUESTION",
+            report_id=released.report_id,
+            subject="What counts as an override?",
+            body="Mock: the report lists an override rate. Does that mean RCS changed a decision after review?",
+            status="ANSWERED",
+            created_at=released_at + timedelta(hours=30),
+            seen_at=released_at + timedelta(hours=31),
+            reply_body=(
+                "Mock: no. An override is when the reviewer's final severity differs from the AI's first "
+                "estimate. The reviewer's decision is always final; it's never changed afterwards."
+            ),
+            reply_at=released_at + timedelta(hours=32),
+            reply_by="manager-01",
+        ),
+        ClientMessage(
+            message_id="MSG-1002",
+            organisation_id=COMMUNITYHUB_ID,
+            user_id=CLIENT_USER_ID,
+            topic="DELIVERY_ISSUE",
+            subject="One result hasn't reached us",
+            body="Mock: our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+            status="SENT",
+            created_at=now - timedelta(minutes=40),
+        ),
+    ])
+    # Support requests the Manager can see on Auditor records (distinct from SOS).
+    db.add_all([
+        WellbeingRequest(
+            request_id="WB-demo0001",
+            auditor_id="auditor-03",
+            kind="TALK_TO_MANAGER",
+            reason="Mock: a few of today's cases have stayed with me. I'd like a quick chat.",
+            status="OPEN",
+            created_at=now - timedelta(minutes=150),
+        ),
+        WellbeingRequest(
+            request_id="WB-demo0002",
+            auditor_id="auditor-03",
+            kind="BREAK_REQUEST",
+            status="OPEN",
+            created_at=now - timedelta(minutes=45),
+        ),
+        WellbeingRequest(
+            request_id="WB-demo0003",
+            auditor_id="auditor-02",
+            kind="BREAK_REQUEST",
+            reason="Mock: back-to-back S3 cases this morning.",
+            status="APPROVED",
+            created_at=now - timedelta(minutes=95),
+            resolved_at=now - timedelta(minutes=88),
+        ),
+    ])
     db.commit()
     return {
         "history": len(history),
