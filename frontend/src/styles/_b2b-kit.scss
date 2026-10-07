@@ -367,3 +367,18 @@ a.rcs-stat-tile .rcs-stat-helper {
   color: var(--cds-text-primary);
   background-color: var(--cds-layer-01);
 }
+
+// Anchors land below the fixed 48px header (and the product site's sticky
+// 48px section bar), so a heading is never cut off when its link is used.
+html {
+  scroll-padding-top: 4rem;
+  @media (prefers-reduced-motion: no-preference) {
+    scroll-behavior: smooth;
+  }
+}
+.rcs-site {
+  --rcs-site-offset: 7rem;
+}
+.rcs-site [id] {
+  scroll-margin-top: var(--rcs-site-offset);
+}

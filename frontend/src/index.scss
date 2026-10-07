@@ -19,6 +19,7 @@
 // pages. The Theme component still overrides them per zone.
 @use "@carbon/react/scss/theme";
 @use "./styles/b2b-kit";
+@use "./styles/site";
 
 :root {
   @include theme.theme();

@@ -1,0 +1,364 @@
+// ---------------------------------------------------------------------------
+// Product site (RCS /rcs, organisation set-up) and the simulated customer
+// platform (/communityhub). IBM Carbon tokens, type styles and motion only.
+// ---------------------------------------------------------------------------
+@use "@carbon/react/scss/type";
+@use "@carbon/react/scss/motion";
+@use "@carbon/react/scss/breakpoint";
+
+// Sticky section bar under the fixed header (as on ibm.com product pages).
+.rcs-subnav {
+  position: sticky;
+  z-index: 7000;
+  inset-block-start: 3rem;
+  background-color: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-subnav-inner {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  max-inline-size: 99rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  block-size: 3rem;
+  overflow-x: auto;
+  @include breakpoint.breakpoint(md) {
+    padding-inline: 2rem;
+  }
+}
+.rcs-subnav-name {
+  @include type.type-style("heading-compact-01");
+  white-space: nowrap;
+}
+.rcs-subnav-links {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  a {
+    @include type.type-style("body-compact-01");
+    display: inline-block;
+    padding-block: 0.875rem 0.75rem;
+    color: var(--cds-text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    border-block-end: 2px solid transparent;
+    &:hover {
+      color: var(--cds-text-primary);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cds-focus);
+      outline-offset: -2px;
+    }
+    &[aria-current="true"] {
+      color: var(--cds-text-primary);
+      border-block-end-color: var(--cds-border-interactive);
+    }
+  }
+}
+
+.rcs-site-section {
+  padding-block: 5rem;
+  @include breakpoint.breakpoint-down(md) {
+    padding-block: 3rem;
+  }
+}
+.rcs-site-h2 {
+  @include type.type-style("fluid-heading-05", true);
+  color: var(--cds-text-primary);
+}
+.rcs-site-lede {
+  @include type.type-style("body-02");
+  color: var(--cds-text-secondary);
+  max-inline-size: 40rem;
+}
+.rcs-site-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.25rem;
+    color: var(--cds-text-primary);
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-start: 0.55rem;
+      inline-size: 0.5rem;
+      block-size: 1px;
+      background-color: var(--cds-border-interactive);
+    }
+  }
+}
+
+// "Built on" strip
+.rcs-builton {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 2.5rem;
+  dt {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+  }
+  dd {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+}
+
+// How-it-works rail: numbered nodes joined by a line.
+.rcs-rail {
+  display: grid;
+  gap: 2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+}
+.rcs-rail-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block-start: 2.5rem;
+  @include breakpoint.breakpoint(lg) {
+    padding-inline-end: 2rem;
+  }
+  &::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0.75rem;
+    inset-inline: 0;
+    block-size: 1px;
+    background-color: var(--cds-border-subtle-01);
+  }
+}
+.rcs-rail-node {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-on-color);
+  background-color: var(--cds-interactive);
+}
+.rcs-rail-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+
+// Product preview "screens": real Carbon parts, shown as a picture.
+.rcs-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.rcs-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block-end: 0.75rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-preview-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1rem 1fr auto;
+    align-items: start;
+    gap: 0.75rem;
+    padding-block-end: 1.25rem;
+    &:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      inset-block: 1rem 0;
+      inset-inline-start: 0.4375rem;
+      inline-size: 1px;
+      background-color: var(--cds-border-subtle-01);
+    }
+  }
+}
+.rcs-preview-dot {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin-block-start: 0.1875rem;
+  border-radius: 50%;
+  border: 2px solid var(--cds-interactive);
+  background-color: var(--cds-interactive);
+  &.is-current {
+    background-color: var(--cds-layer-01);
+  }
+}
+
+// Stats band
+.rcs-stat-band {
+  display: grid;
+  gap: 2rem;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-block-start: 1rem;
+    border-block-start: 1px solid var(--cds-border-subtle-01);
+  }
+  dt {
+    @include type.type-style("fluid-display-01", true);
+    color: var(--cds-text-primary);
+  }
+  dd {
+    @include type.type-style("body-01");
+    color: var(--cds-text-secondary);
+  }
+}
+
+// Footer
+.rcs-site-footer {
+  padding-block: 3rem 2rem;
+  background-color: var(--cds-background);
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  h2 {
+    @include type.type-style("heading-compact-01");
+    margin-block-end: 1rem;
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Simulated customer platform (CommunityHub)
+// ---------------------------------------------------------------------------
+.ch-shell {
+  min-block-size: 100vh;
+  padding-block: 4.5rem 4rem;
+  background-color: var(--cds-layer-01);
+}
+.ch-layout {
+  display: grid;
+  gap: 1.5rem;
+  max-inline-size: 76rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 14rem minmax(0, 1fr) 18rem;
+    padding-inline: 2rem;
+  }
+}
+.ch-side {
+  display: none;
+  @include breakpoint.breakpoint(lg) {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    inset-block-start: 4.5rem;
+    align-self: start;
+  }
+}
+.ch-card {
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.ch-post {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+}
+.ch-votes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding-block: 1rem;
+  background-color: var(--cds-layer-01);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.ch-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cds-text-on-color);
+  background-color: var(--cds-background-inverse);
+}
+.ch-media {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 15rem;
+  background-color: var(--cds-background-inverse);
+  color: var(--cds-text-inverse);
+}
+.ch-media-time {
+  position: absolute;
+  inset-block-end: 0.75rem;
+  inset-inline-end: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  background-color: var(--cds-background-inverse);
+  border: 1px solid var(--cds-border-inverse);
+}
+.ch-nav-link {
+  @include type.type-style("body-compact-01");
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--cds-text-primary);
+  text-decoration: none;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+  }
+  &[aria-current="page"] {
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--cds-border-interactive);
+  }
+}
