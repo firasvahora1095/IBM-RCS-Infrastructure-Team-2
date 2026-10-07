@@ -326,3 +326,58 @@ class GovernanceLogEntry(Base):
     tokens_in = Column(Integer, nullable=False)
     tokens_out = Column(Integer, nullable=False)
     reasoning = Column(Text, nullable=True)
+
+
+class WellbeingRequest(Base):
+    """An Auditor's private request for support (talk to my manager, or a break).
+
+    Distinct from SOS. OPEN until the Manager acts (APPROVED for a break,
+    FOLLOWED_UP for a talk request), or until the Auditor WITHDRAWS it.
+    """
+
+    __tablename__ = "wellbeing_requests"
+    __table_args__ = (
+        CheckConstraint("kind IN ('TALK_TO_MANAGER', 'BREAK_REQUEST')", name="ck_wellbeing_requests_kind"),
+        CheckConstraint(
+            "status IN ('OPEN', 'APPROVED', 'FOLLOWED_UP', 'WITHDRAWN')",
+            name="ck_wellbeing_requests_status",
+        ),
+        Index("idx_wellbeing_requests_auditor_id", "auditor_id"),
+    )
+
+    request_id = Column(String(20), primary_key=True)
+    auditor_id = Column(String(50), nullable=False)
+    case_id = Column(String(20), nullable=True)
+    kind = Column(String(20), nullable=False)
+    reason = Column(Text, nullable=True)
+    status = Column(String(15), nullable=False, server_default="OPEN")
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ClientMessage(Base):
+    """A "Contact RCS" message from a customer user, and RCS's reply."""
+
+    __tablename__ = "client_messages"
+    __table_args__ = (
+        CheckConstraint(
+            "topic IN ('REPORT_QUESTION', 'DELIVERY_ISSUE', 'ACCOUNT_ACCESS', 'OTHER')",
+            name="ck_client_messages_topic",
+        ),
+        CheckConstraint("status IN ('SENT', 'SEEN', 'ANSWERED')", name="ck_client_messages_status"),
+        Index("idx_client_messages_organisation_id", "organisation_id"),
+    )
+
+    message_id = Column(String(20), primary_key=True)
+    organisation_id = Column(String(50), nullable=False)
+    user_id = Column(String(50), nullable=False)
+    topic = Column(String(20), nullable=False)
+    report_id = Column(String(60), nullable=True)
+    subject = Column(String(120), nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String(10), nullable=False, server_default="SENT")
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    seen_at = Column(DateTime(timezone=True), nullable=True)
+    reply_body = Column(Text, nullable=True)
+    reply_at = Column(DateTime(timezone=True), nullable=True)
+    reply_by = Column(String(100), nullable=True)

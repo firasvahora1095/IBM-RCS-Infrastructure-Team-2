@@ -1,6 +1,8 @@
 import { ApiError } from "../types";
 import type {
   ClientLoginResponse,
+  ClientMessage,
+  ClientMessageInput,
   CustomerIntegration,
   DataService,
   Delivery,
@@ -237,6 +239,33 @@ function authoriseClientReport(
   return forClient(report);
 }
 
+// ---- Contact RCS ----
+
+const MESSAGE_TOPICS = ["REPORT_QUESTION", "DELIVERY_ISSUE", "ACCOUNT_ACCESS", "OTHER"] as const;
+
+/** A client never sees which Manager answered; RCS replies as one team. */
+function messageForClient(m: ClientMessage): ClientMessage {
+  return { ...m, reply: m.reply ? { ...m.reply, by: "RCS" } : null };
+}
+
+function newestFirst(a: ClientMessage, b: ClientMessage): number {
+  return Date.parse(b.created_at) - Date.parse(a.created_at);
+}
+
+/** Deny by default: a client only ever reaches their own organisation's messages. */
+function findClientMessage(db: MockDb, token: string, messageId: string): ClientMessage {
+  const session = requireClient(db, token);
+  const found = db.clientMessages.find((m) => m.message_id === messageId);
+  if (!found || found.organisation_id !== session.organisationId) throw new ApiError("Message not found", 404);
+  return found;
+}
+
+function findMessage(db: MockDb, messageId: string): ClientMessage {
+  const found = db.clientMessages.find((m) => m.message_id === messageId);
+  if (!found) throw new ApiError("Message not found", 404);
+  return found;
+}
+
 // ---- Governance ----
 
 function overridePatterns(db: MockDb): { patterns: GovernanceSummary["override_patterns"]; compared: number } {
@@ -283,6 +312,12 @@ export const b2bMockOps: Pick<
   | "clientListReports"
   | "clientGetReport"
   | "clientRecordDownload"
+  | "clientSendMessage"
+  | "clientListMessages"
+  | "clientGetMessage"
+  | "listClientMessages"
+  | "getClientMessage"
+  | "replyClientMessage"
 > = {
   async getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration> {
     await delay();
@@ -575,6 +610,103 @@ export const b2bMockOps: Pick<
   async clientGetReport(reportId: string, token: string): Promise<ServiceReport> {
     await delay();
     return updateDb((db) => authoriseClientReport(db, token, reportId, "VIEW"));
+  },
+
+  async clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage> {
+    await delay();
+    const subject = input.subject.trim();
+    const body = input.body.trim();
+    if (!MESSAGE_TOPICS.includes(input.topic)) throw new ApiError("Choose what your message is about.", 400);
+    if (!subject) throw new ApiError("Add a subject.", 400);
+    if (!body) throw new ApiError("Write your message.", 400);
+    if (subject.length > 120 || body.length > 2000) throw new ApiError("Your message is too long.", 400);
+    return updateDb((db) => {
+      const session = requireClient(db, token);
+      const user = db.clients.find((u) => u.user_id === session.userId)!;
+      if (input.report_id) {
+        const report = db.reports.find((r) => r.report_id === input.report_id);
+        // Only a released report of their own can be referenced.
+        if (!report || report.organisation_id !== session.organisationId || report.status !== "RELEASED") {
+          throw new ApiError("Choose one of your released reports.", 400);
+        }
+      }
+      const message: ClientMessage = {
+        message_id: `MSG-${1000 + db.clientMessages.length + 1}`,
+        organisation_id: session.organisationId,
+        organisation_name: db.organisation.name,
+        user_id: user.user_id,
+        display_name: user.display_name,
+        topic: input.topic,
+        report_id: input.report_id ?? null,
+        subject,
+        body,
+        created_at: new Date().toISOString(),
+        status: "SENT",
+        seen_at: null,
+        reply: null,
+      };
+      db.clientMessages.push(message);
+      return messageForClient(message);
+    });
+  },
+
+  async clientListMessages(token: string): Promise<ClientMessage[]> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireClient(db, token);
+      return db.clientMessages
+        .filter((m) => m.organisation_id === session.organisationId)
+        .sort(newestFirst)
+        .map(messageForClient);
+    });
+  },
+
+  async clientGetMessage(messageId: string, token: string): Promise<ClientMessage> {
+    await delay();
+    return updateDb((db) => messageForClient(findClientMessage(db, token, messageId)));
+  },
+
+  async listClientMessages(token: string): Promise<ClientMessage[]> {
+    await delay();
+    return updateDb((db) => {
+      requireManager(db, token);
+      // Waiting messages first, then newest.
+      const rank = { SENT: 0, SEEN: 1, ANSWERED: 2 } as const;
+      return [...db.clientMessages]
+        .sort((a, b) => rank[a.status] - rank[b.status] || newestFirst(a, b))
+        .map((m) => ({ ...m }));
+    });
+  },
+
+  async getClientMessage(messageId: string, token: string): Promise<ClientMessage> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireManager(db, token);
+      const message = findMessage(db, messageId);
+      if (message.status === "SENT") {
+        message.status = "SEEN";
+        message.seen_at = new Date().toISOString();
+        audit(db, session.staffId, "CLIENT_MESSAGE_SEEN", null, messageId);
+      }
+      return { ...message };
+    });
+  },
+
+  async replyClientMessage(messageId: string, token: string, body: string): Promise<ClientMessage> {
+    await delay();
+    const text = body.trim();
+    if (!text) throw new ApiError("Write a reply.", 400);
+    if (text.length > 2000) throw new ApiError("Keep the reply under 2000 characters.", 400);
+    return updateDb((db) => {
+      const session = requireManager(db, token);
+      const message = findMessage(db, messageId);
+      const now = new Date().toISOString();
+      message.seen_at ??= now;
+      message.status = "ANSWERED";
+      message.reply = { body: text, at: now, by: managerName(db, session.staffId) };
+      audit(db, session.staffId, "CLIENT_MESSAGE_ANSWERED", null, messageId);
+      return { ...message };
+    });
   },
 
   async clientRecordDownload(reportId: string, token: string): Promise<{ recorded: true }> {

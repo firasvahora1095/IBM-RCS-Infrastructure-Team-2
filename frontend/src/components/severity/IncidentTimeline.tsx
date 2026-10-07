@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Tooltip } from "@carbon/react";
 import type { IncidentTimelineEntry } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { formatTimestamp } from "../../utils/formatTimestamp";
@@ -149,33 +150,40 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
 
         {withRows.map(({ entry, group, isPoint, leftPct, widthPct, labelLeftPx, row }, i) => {
           const info = getSeverityInfo(entry.severity_tier);
-          const title = `${timeLabel(entry)} · ${group.map((item) => item.tag ?? getSeverityInfo(item.severity_tier).label).join(", ")}`;
+          // Shown on hover: when, what the AI flagged, and how severe (e.g. "00:30–01:04 · physical_violence · S3 High").
+          const title = `${timeLabel(entry)} · ${group.map((item) => item.tag ?? "Flagged").join(", ")} · ${entry.severity_tier} ${info.label}`;
           return (
             <div key={i} style={{ display: "contents" }}>
               {isPoint ? (
-                <div
+                <Tooltip
+                  label={title}
+                  align="top"
                   data-testid="timeline-marker"
-                  title={title}
                   style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
                 >
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
-                  <div style={{ width: 1, height: 8, backgroundColor: "var(--cds-border-inverse)", margin: "0 auto" }} />
-                </div>
+                  <div style={{ cursor: "help" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: info.background }} />
+                    <div style={{ width: 1, height: 8, backgroundColor: "var(--cds-border-inverse)", margin: "0 auto" }} />
+                  </div>
+                </Tooltip>
               ) : (
-                <div
+                <Tooltip
+                  label={title}
+                  align="top"
                   data-testid="timeline-segment"
-                  title={title}
-                  style={{
-                    position: "absolute",
-                    top: 1,
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    height: 8,
-                    backgroundColor: info.background,
-                    // A thin dark outline keeps the pale S1 fill visible against the track.
-                    boxShadow: "0 0 0 1px var(--cds-border-inverse)",
-                  }}
-                />
+                  style={{ position: "absolute", top: 1, left: `${leftPct}%`, width: `${widthPct}%`, height: 8 }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 8,
+                      cursor: "help",
+                      backgroundColor: info.background,
+                      // A thin dark outline keeps the pale S1 fill visible against the track.
+                      boxShadow: "0 0 0 1px var(--cds-border-inverse)",
+                    }}
+                  />
+                </Tooltip>
               )}
               <div
                 className="flex flex-col items-center gap-1"

@@ -131,7 +131,6 @@ export function ManagerDeliveryDetailPage() {
           <ManagerBreadcrumb trail={[{ label: "Deliveries", to: "/manager/deliveries" }, { label: deliveryId }]} />
         }
         title={<span className="rcs-mono">{deliveryId}</span>}
-        meta={data && <StatusTag kind="delivery" value={data.delivery_status} />}
       />
       <LoadState error={error} loading={!data && !error} what="this delivery" />
       {data && (

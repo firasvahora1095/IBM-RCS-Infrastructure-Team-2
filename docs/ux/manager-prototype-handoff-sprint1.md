@@ -252,7 +252,7 @@ No items remain open in this list that require a UX/Figma decision.
 
 *Appended after the frontend build on `feature/frontend`. Nothing above this section was changed.*
 
-Every screen in this file is built (the whole Manager prototype, Sprint 3 included), and was compared against Figma at laptop and desktop sizes. Demo account: `manager-1` / `testpassword123`.
+Every screen in this file is built (the whole Manager prototype, Sprint 3 included), and was compared against Figma at laptop and desktop sizes. Demo account: `manager-1` / `test123`.
 
 | Screen | Figma | Route |
 |---|---|---|

@@ -20,6 +20,7 @@ import { ExposureBar } from "../../components/exposure/ExposureBar";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { SegmentedBar } from "../../components/ui/Charts";
 import { RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
+import { StatusTag } from "../../components/ui/StatusTag";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -181,9 +182,7 @@ function ReportPreview() {
     >
       <div className="rcs-preview-bar">
         <span style={{ fontSize: 14, fontWeight: 600 }}>Service report · August 2026</span>
-        <Tag type="gray" size="sm" style={{ margin: 0 }}>
-          Released
-        </Tag>
+        <StatusTag kind="report" value="RELEASED" size="sm" />
       </div>
       <dl className="grid grid-cols-3 gap-4">
         {[
@@ -238,7 +237,7 @@ export function RcsLandingPage() {
               ))}
             </ul>
             <span style={{ flex: 1 }} />
-            <Button size="sm" onClick={() => navigate("/rcs/get-started")}>
+            <Button size="sm" kind="tertiary" onClick={() => navigate("/rcs/get-started")}>
               Get started
             </Button>
           </div>
@@ -494,7 +493,9 @@ export function RcsLandingPage() {
                 </p>
               </Column>
               <Column sm={4} md={2} lg={6} className="mt-6 flex items-end lg:mt-0 lg:justify-end">
-                <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
+                <Button kind="secondary" onClick={() => navigate("/rcs/get-started")}>
+                  Get started
+                </Button>
               </Column>
             </Grid>
           </section>

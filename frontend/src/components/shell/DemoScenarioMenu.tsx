@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { OverflowMenu, OverflowMenuItem } from "@carbon/react";
-import { Settings } from "@carbon/icons-react";
+import { MenuButton, MenuItem, MenuItemDivider } from "@carbon/react";
 import { isMockData } from "../../services";
 import {
   DEMO_AI_FAILURE_EVENT,
@@ -76,28 +75,22 @@ export function DemoScenarioMenu({ role }: { role: StaffRole }) {
 
   return (
     <>
-      <OverflowMenu
-        renderIcon={Settings}
-        iconDescription="Demo scenarios"
-        aria-label="Demo scenarios"
-        flipped
-        size="lg"
-        menuOptionsClass="rcs-demo-menu"
-      >
+      {/* A labelled trigger, so it never reads as the app's own settings (mock only). */}
+      <MenuButton label="Demo scenarios" kind="ghost" size="lg" menuAlignment="bottom-end" className="rcs-demo-menu">
         {scenarios.map((scenario) => (
-          <OverflowMenuItem key={scenario.label} itemText={scenario.label} onClick={() => apply(scenario)} />
+          <MenuItem key={scenario.label} label={scenario.label} onClick={() => apply(scenario)} />
         ))}
-        <OverflowMenuItem
-          hasDivider
-          isDelete
-          itemText="Reset all demo data"
+        <MenuItemDivider />
+        <MenuItem
+          kind="danger"
+          label="Reset all demo data"
           onClick={() => {
             demoScenarios.reset();
             logout();
             navigate("/staff/login", { replace: true });
           }}
         />
-      </OverflowMenu>
+      </MenuButton>
       <span className="cds--visually-hidden" aria-live="polite">
         {announcement}
       </span>

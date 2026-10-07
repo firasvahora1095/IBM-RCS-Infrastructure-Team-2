@@ -35,6 +35,7 @@ from app.models import (
     Case,
     CaseHistory,
     CaseSource,
+    ClientMessage,
     ClientUser,
     Delivery,
     GovernanceLogEntry,
@@ -405,6 +406,17 @@ class GenerateReportRequest(BaseModel):
     organisation_id: str = Field(min_length=1, max_length=50)
     period_start: str
     period_end: str
+
+
+class ClientMessageRequest(BaseModel):
+    topic: str
+    report_id: str | None = Field(default=None, max_length=60)
+    subject: str = Field(max_length=120)
+    body: str = Field(max_length=2000)
+
+
+class ReplyRequest(BaseModel):
+    body: str = Field(max_length=2000)
 
 
 class ClientLoginRequest(BaseModel):
@@ -840,3 +852,154 @@ async def client_record_download(
 ):
     _authorise_client_report(db, user, report_id, "DOWNLOAD")
     return {"recorded": True}
+
+
+# ---- Contact RCS ------------------------------------------------------------
+
+MESSAGE_TOPICS = {"REPORT_QUESTION", "DELIVERY_ISSUE", "ACCOUNT_ACCESS", "OTHER"}
+MESSAGE_RANK = {"SENT": 0, "SEEN": 1, "ANSWERED": 2}
+
+
+def _message_payload(db: Session, m: ClientMessage, *, for_client: bool) -> dict:
+    user = db.get(ClientUser, m.user_id)
+    org = db.get(Organisation, m.organisation_id)
+    return {
+        "message_id": m.message_id,
+        "organisation_id": m.organisation_id,
+        "organisation_name": org.name if org else m.organisation_id,
+        "user_id": m.user_id,
+        "display_name": user.display_name if user else m.user_id,
+        "topic": m.topic,
+        "report_id": m.report_id,
+        "subject": m.subject,
+        "body": m.body,
+        "created_at": iso(m.created_at),
+        "status": m.status,
+        "seen_at": iso(m.seen_at),
+        "reply": (
+            {
+                "body": m.reply_body,
+                "at": iso(m.reply_at),
+                # A client never sees which Manager answered; RCS replies as one team.
+                "by": "RCS" if for_client else m.reply_by,
+            }
+            if m.reply_body
+            else None
+        ),
+    }
+
+
+def _client_message(db: Session, user: ClientUser, message_id: str) -> ClientMessage:
+    """Deny by default: only the client's own organisation's messages, else "not found"."""
+    message = db.get(ClientMessage, message_id)
+    if message is None or message.organisation_id != user.organisation_id:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return message
+
+
+def _manager_message(db: Session, message_id: str) -> ClientMessage:
+    message = db.get(ClientMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return message
+
+
+@router.post("/api/client/messages")
+async def client_send_message(
+    payload: ClientMessageRequest,
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    subject, body = payload.subject.strip(), payload.body.strip()
+    if payload.topic not in MESSAGE_TOPICS:
+        raise HTTPException(status_code=400, detail="Choose what your message is about.")
+    if not subject:
+        raise HTTPException(status_code=400, detail="Add a subject.")
+    if not body:
+        raise HTTPException(status_code=400, detail="Write your message.")
+    if payload.report_id:
+        report = db.get(ServiceReport, payload.report_id)
+        # Only a released report of their own can be referenced.
+        if report is None or report.organisation_id != user.organisation_id or report.status != "RELEASED":
+            raise HTTPException(status_code=400, detail="Choose one of your released reports.")
+    count = db.query(ClientMessage).count()
+    message = ClientMessage(
+        message_id=f"MSG-{1001 + count}",
+        organisation_id=user.organisation_id,
+        user_id=user.user_id,
+        topic=payload.topic,
+        report_id=payload.report_id or None,
+        subject=subject,
+        body=body,
+        status="SENT",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(message)
+    db.commit()
+    return _message_payload(db, message, for_client=True)
+
+
+@router.get("/api/client/messages")
+async def client_list_messages(
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    rows = db.scalars(select(ClientMessage).where(ClientMessage.organisation_id == user.organisation_id)).all()
+    rows = sorted(rows, key=lambda m: utc(m.created_at), reverse=True)
+    return [_message_payload(db, m, for_client=True) for m in rows]
+
+
+@router.get("/api/client/messages/{message_id}")
+async def client_get_message(
+    message_id: str,
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    return _message_payload(db, _client_message(db, user, message_id), for_client=True)
+
+
+@router.get("/api/manager/messages")
+async def list_client_messages(
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    rows = sorted(db.scalars(select(ClientMessage)).all(), key=lambda m: utc(m.created_at), reverse=True)
+    # Waiting messages first, then newest.
+    rows.sort(key=lambda m: MESSAGE_RANK[m.status])
+    return [_message_payload(db, m, for_client=False) for m in rows]
+
+
+@router.get("/api/manager/messages/{message_id}")
+async def get_client_message(
+    message_id: str,
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    message = _manager_message(db, message_id)
+    if message.status == "SENT":
+        # Opening it tells the client that RCS has it.
+        message.status = "SEEN"
+        message.seen_at = datetime.now(timezone.utc)
+        db.commit()
+    return _message_payload(db, message, for_client=False)
+
+
+@router.post("/api/manager/messages/{message_id}/reply")
+async def reply_client_message(
+    message_id: str,
+    payload: ReplyRequest,
+    manager: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    text = payload.body.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Write a reply.")
+    message = _manager_message(db, message_id)
+    now = datetime.now(timezone.utc)
+    message.seen_at = message.seen_at or now
+    message.status = "ANSWERED"
+    message.reply_body = text
+    message.reply_at = now
+    message.reply_by = manager.staff_id
+    db.commit()
+    return _message_payload(db, message, for_client=False)

@@ -34,8 +34,19 @@ import type {
   StaffLoginResponse,
   StatusUpdateContact,
   WellbeingRequestKind,
+  WellbeingRequestRecord,
+  AuditLogHistory,
+  AuditLogQuery,
 } from "../types";
-import { readDb, updateDb, type MockCase, type MockDb, type MockSosEvent, type MockStaff } from "./store";
+import {
+  readDb,
+  updateDb,
+  type MockCase,
+  type MockDb,
+  type MockSosEvent,
+  type MockStaff,
+  type MockWellbeingRequest,
+} from "./store";
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
 
 /**
@@ -309,7 +320,28 @@ function exposureState(staff: MockStaff): ExposureState {
   return "UNDER";
 }
 
-function overviewRow(staff: MockStaff): AuditorOverviewRow {
+const MAX_REASON_LENGTH = 500;
+
+/** Local midnight today: "today" on every Manager and Auditor screen. */
+function startOfToday(): number {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** The Auditor's cases completed today, newest first. The one source for every "cases today" figure. */
+function completedToday(db: MockDb, staffId: string): MockCase[] {
+  const since = startOfToday();
+  return db.cases
+    .filter((c) => c.status === "COMPLETE" && c.assigned_auditor === staffId && c.completed_at)
+    .filter((c) => Date.parse(c.completed_at!) >= since)
+    .sort((a, b) => Date.parse(b.completed_at!) - Date.parse(a.completed_at!));
+}
+
+function toRequestRecord(r: MockWellbeingRequest): WellbeingRequestRecord {
+  return { id: r.id, kind: r.kind, case_id: r.case_id, created_at: r.created_at, status: r.status, reason: r.reason };
+}
+
+function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
   return {
     auditor_id: staff.staff_id,
     display_name: staff.display_name,
@@ -317,7 +349,7 @@ function overviewRow(staff: MockStaff): AuditorOverviewRow {
     exposure_limit_minutes: staff.exposure_limit_minutes,
     exposure_state: exposureState(staff),
     cooldown: inCooldown(staff) ? staff.cooldown : null,
-    cases_today: staff.cases_reviewed_today,
+    cases_today: completedToday(db, staff.staff_id).length,
   };
 }
 
@@ -585,7 +617,7 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "auditor");
       return db.cases
         .filter((c) => c.assigned_auditor === session.staffId)
-        .sort((a, b) => Date.parse(a.assigned_at ?? a.created_at) - Date.parse(b.assigned_at ?? b.created_at))
+        .sort((a, b) => Date.parse(b.assigned_at ?? b.created_at) - Date.parse(a.assigned_at ?? a.created_at))
         .map((c) => ({
           case_id: c.case_id,
           status: c.status,
@@ -689,20 +721,42 @@ export const mockDataService: DataService = {
     token: string,
     kind: WellbeingRequestKind,
     caseId?: string,
-  ): Promise<{ received: true }> {
+    reason?: string,
+  ): Promise<{ received: true; request_id: string }> {
     await delay();
+    const trimmed = reason?.trim() ?? "";
+    if (trimmed.length > MAX_REASON_LENGTH) {
+      throw new ApiError(`Keep it under ${MAX_REASON_LENGTH} characters.`, 400);
+    }
     return updateDb((db) => {
       const session = requireSession(db, token, "auditor");
+      const id = newId("WB");
       db.wellbeingRequests.push({
-        id: newId("WB"),
+        id,
         auditor_id: session.staffId,
         case_id: caseId ?? null,
         kind,
         created_at: new Date().toISOString(),
         resolved_at: null,
+        status: "OPEN",
+        reason: trimmed || null,
       });
-      audit(db, session.staffId, "WELLBEING_REQUEST", caseId ?? null, kind);
-      return { received: true as const };
+      audit(db, session.staffId, "WELLBEING_SUPPORT_REQUESTED", caseId ?? null, kind);
+      return { received: true as const, request_id: id };
+    });
+  },
+
+  async withdrawWellbeingRequest(token: string, requestId: string): Promise<{ withdrawn: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const request = db.wellbeingRequests.find((r) => r.id === requestId && r.auditor_id === session.staffId);
+      if (!request) throw new ApiError("Request not found", 404);
+      if (request.status !== "OPEN") throw new ApiError("Your manager has already responded to this request.", 409);
+      request.status = "WITHDRAWN";
+      request.resolved_at = new Date().toISOString();
+      audit(db, session.staffId, "WELLBEING_REQUEST_WITHDRAWN", request.case_id, request.kind);
+      return { withdrawn: true as const };
     });
   },
 
@@ -780,7 +834,11 @@ export const mockDataService: DataService = {
         exposure_minutes_today: exposureMinutes(me),
         exposure_limit_minutes: me.exposure_limit_minutes,
         cooldown: me.cooldown,
-        cases_reviewed_today: me.cases_reviewed_today,
+        cases_reviewed_today: completedToday(db, me.staff_id).length,
+        requests: db.wellbeingRequests
+          .filter((r) => r.auditor_id === me.staff_id && Date.parse(r.created_at) >= startOfToday())
+          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+          .map(toRequestRecord),
       };
     });
   },
@@ -793,7 +851,7 @@ export const mockDataService: DataService = {
       requireSession(db, token, "manager");
       return db.staff
         .filter((st) => st.role === "auditor")
-        .map(overviewRow)
+        .map((st) => overviewRow(db, st))
         .sort(
           (a, b) =>
             b.exposure_minutes_today / b.exposure_limit_minutes - a.exposure_minutes_today / a.exposure_limit_minutes,
@@ -826,25 +884,29 @@ export const mockDataService: DataService = {
       requireSession(db, token, "manager");
       const auditor = db.staff.find((st) => st.staff_id === auditorId && st.role === "auditor");
       if (!auditor) throw new ApiError("Auditor not found", 404);
-      const dayAgo = Date.now() - 24 * 60 * 60_000;
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60_000;
+      const today = completedToday(db, auditorId);
+      const lastActive = [today[0]?.completed_at, auditor.last_assigned_at]
+        .filter((t): t is string => Boolean(t))
+        .sort((a, b) => Date.parse(b) - Date.parse(a))[0];
       return {
-        ...overviewRow(auditor),
+        ...overviewRow(db, auditor),
         pattern_flagged: auditor.pattern_flagged,
-        recent_cases: db.cases
-          .filter((c) => c.status === "COMPLETE" && c.assigned_auditor === auditorId && c.completed_at)
-          .filter((c) => Date.parse(c.completed_at!) >= dayAgo)
-          .sort((a, b) => Date.parse(a.completed_at!) - Date.parse(b.completed_at!))
-          .map((c) => ({ case_id: c.case_id, severity_tier: c.severity_tier, completed_at: c.completed_at! })),
+        recent_cases: today.map((c) => ({
+          case_id: c.case_id,
+          severity_tier: c.severity_tier,
+          completed_at: c.completed_at!,
+          final_outcome: c.final_outcome,
+        })),
         wellbeing_requests: db.wellbeingRequests
           .filter((r) => r.auditor_id === auditorId)
-          .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
-          .map((r) => ({
-            id: r.id,
-            kind: r.kind,
-            case_id: r.case_id,
-            created_at: r.created_at,
-            status: r.resolved_at ? ("APPROVED" as const) : ("OPEN" as const),
-          })),
+          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+          .map(toRequestRecord),
+        sos_history: db.sosEvents
+          .filter((e) => e.auditor_id === auditorId && Date.parse(e.triggered_at) >= weekAgo)
+          .sort((a, b) => Date.parse(b.triggered_at) - Date.parse(a.triggered_at))
+          .map((e) => ({ id: e.id, triggered_at: e.triggered_at, status: sosStatus(e) })),
+        last_active_at: lastActive ?? null,
       };
     });
   },
@@ -877,9 +939,29 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "manager");
       const request = db.wellbeingRequests.find((r) => r.id === requestId && r.kind === "BREAK_REQUEST");
       if (!request) throw new ApiError("Break request not found", 404);
-      request.resolved_at ??= new Date().toISOString();
-      audit(db, session.staffId, "BREAK_APPROVED", request.case_id, request.auditor_id);
+      if (request.status === "WITHDRAWN") throw new ApiError("The Auditor withdrew this request.", 409);
+      if (request.status === "OPEN") {
+        request.status = "APPROVED";
+        request.resolved_at = new Date().toISOString();
+        audit(db, session.staffId, "BREAK_APPROVED", request.case_id, request.auditor_id);
+      }
       return { approved: true as const };
+    });
+  },
+
+  async markWellbeingFollowedUp(requestId: string, token: string): Promise<{ followed_up: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const request = db.wellbeingRequests.find((r) => r.id === requestId && r.kind === "TALK_TO_MANAGER");
+      if (!request) throw new ApiError("Request not found", 404);
+      if (request.status === "WITHDRAWN") throw new ApiError("The Auditor withdrew this request.", 409);
+      if (request.status === "OPEN") {
+        request.status = "FOLLOWED_UP";
+        request.resolved_at = new Date().toISOString();
+        audit(db, session.staffId, "WELLBEING_FOLLOWED_UP", request.case_id, request.auditor_id);
+      }
+      return { followed_up: true as const };
     });
   },
 
@@ -1095,7 +1177,7 @@ export const mockDataService: DataService = {
         completed_at: now,
         updated_at: now,
       });
-      audit(db, session.staffId, "CLOSED_NO_REASSIGNMENT", caseId, note.trim());
+      audit(db, session.staffId, "CASE_CLOSED_BY_MANAGER", caseId, note.trim());
       return { status: mapStatusToPublicLabel("COMPLETE") };
     });
   },
@@ -1113,15 +1195,34 @@ export const mockDataService: DataService = {
     return updateDb((db) => {
       const session = requireSession(db, token, "manager");
       findCase(db, caseId);
-      audit(db, session.staffId, "EXCEPTIONAL_RAW_ACCESS", caseId);
+      audit(db, session.staffId, "EXCEPTIONAL_ACCESS_RECORDED", caseId);
       return { recorded: true as const };
     });
   },
 
-  async getAuditHistory(token: string) {
+  async getAuditHistory(token: string, query?: AuditLogQuery): Promise<AuditLogHistory> {
     await delay();
-    requireSession(readDb(), token, "manager");
-    throw new ApiError("Audit history is available when connected to the backend.", 501);
+    return updateDb((db) => {
+      requireSession(db, token, "manager");
+      const limit = Math.min(Math.max(query?.limit ?? 25, 1), 100);
+      const caseId = query?.case_id?.trim().toUpperCase();
+      const all = db.auditLog
+        .map((e, i) => ({
+          audit_log_id: i + 1,
+          case_id: e.case_id ?? "",
+          actor: e.actor,
+          action: e.action,
+          before_value: null,
+          after_value: e.detail === null ? null : { detail: e.detail },
+          created_at: e.at,
+        }))
+        .filter((e) => !caseId || e.case_id.toUpperCase() === caseId)
+        .filter((e) => !query?.action || e.action === query.action)
+        .filter((e) => query?.before_id === undefined || e.audit_log_id < query.before_id)
+        .reverse();
+      const entries = all.slice(0, limit);
+      return { entries, next_before_id: all.length > limit ? entries[entries.length - 1].audit_log_id : null };
+    });
   },
 
   async releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }> {

@@ -43,6 +43,16 @@ from app.api_schemas import (
 )
 from app.b2b import create_delivery_for_case, public_delivery_confirmed
 from app.b2b import router as b2b_router
+from app.support import (
+    auditor_exists,
+    completed_today,
+    create_request,
+    requests_for,
+    resolve_request,
+    sos_history,
+    start_of_today,
+)
+from app.support import router as support_router
 from app.auth import DUMMY_PASSWORD_HASH, StaffSession, session_store, verify_password
 from app.assignment import NoEligibleAuditorError, select_auditor
 from app.case_ids import generate_case_id
@@ -179,6 +189,7 @@ app.add_middleware(
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 app.include_router(b2b_router)
+app.include_router(support_router)
 
 
 def _custom_openapi():
@@ -901,17 +912,12 @@ async def get_my_wellbeing(
                 "requires_check_in": requires_check_in,
                 "check_in_completed_at": ends_at.isoformat() if check_in_done else None,
             }
-    cases_reviewed_today = db.scalar(
-        select(func.count()).select_from(Case).where(
-            Case.assigned_auditor_id == auditor.staff_id,
-            Case.status == "COMPLETE",
-        )
-    ) or 0
     return {
         "exposure_minutes_today": exposure,
         "exposure_limit_minutes": limit,
         "cooldown": cooldown,
-        "cases_reviewed_today": cases_reviewed_today,
+        "cases_reviewed_today": len(completed_today(db, auditor.staff_id)),
+        "requests": requests_for(db, auditor.staff_id, since=start_of_today()),
     }
 
 
@@ -1175,9 +1181,11 @@ async def stop_shift(
 async def request_wellbeing_support(
     kind: str = Body(embed=True),
     case_id: str | None = Body(default=None, embed=True),
+    reason: str | None = Body(default=None, embed=True),
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
+    request = create_request(db, auditor.staff_id, kind, case_id, reason)
     # AuditLog.case_id is NOT NULL — only log when we have a real case reference.
     if case_id:
         db.add(AuditLog(
@@ -1189,8 +1197,9 @@ async def request_wellbeing_support(
         ))
         db.commit()
     else:
+        db.commit()
         logger.info("Wellbeing support requested by %s (kind=%s, no case)", auditor.staff_id, kind)
-    return {"received": True}
+    return {"received": True, "request_id": request.request_id}
 
 
 # ---------------------------------------------------------------------------
@@ -1279,13 +1288,6 @@ async def list_auditors(
     db: Session = Depends(get_db),
 ):
     auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
-    cases_today = dict(
-        db.execute(
-            select(Case.assigned_auditor_id, func.count(Case.case_id))
-            .where(Case.assigned_auditor_id.is_not(None))
-            .group_by(Case.assigned_auditor_id)
-        ).all()
-    )
     result = []
     for a in auditors:
         exp = float(a.exposure_minutes or 0)
@@ -1297,7 +1299,7 @@ async def list_auditors(
             "exposure_limit_minutes": limit,
             "exposure_state": _exposure_state(exp, limit),
             "cooldown": _auditor_cooldown_payload(a),
-            "cases_today": cases_today.get(a.auditor_id, 0),
+            "cases_today": len(completed_today(db, a.auditor_id)),
         })
     return result
 
@@ -1339,17 +1341,11 @@ async def get_auditor_detail(
     _: StaffSession = Depends(get_current_manager),
     db: Session = Depends(get_db),
 ):
-    row = db.get(Auditor, auditor_id)
-    if row is None or row.role != "auditor":
-        raise HTTPException(status_code=404, detail="Auditor not found")
+    row = auditor_exists(db, auditor_id)
     exp = float(row.exposure_minutes or 0)
-    limit = _DEFAULT_EXPOSURE_LIMIT
-    recent = db.scalars(
-        select(Case)
-        .where(Case.assigned_auditor_id == auditor_id, Case.status == "COMPLETE")
-        .order_by(Case.completed_at.desc())
-        .limit(10)
-    ).all()
+    limit = int(row.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT)
+    recent = completed_today(db, auditor_id)
+    last_active = [t for t in (recent[0].completed_at if recent else None, row.last_assigned_at) if t is not None]
     return {
         "auditor_id": row.auditor_id,
         "display_name": row.auditor_id,
@@ -1364,10 +1360,15 @@ async def get_auditor_detail(
                 "case_id": c.case_id,
                 "severity_tier": c.severity_tier,
                 "completed_at": c.completed_at.isoformat() if c.completed_at else None,
+                "final_outcome": c.final_outcome,
             }
             for c in recent
         ],
-        "wellbeing_requests": [],
+        "wellbeing_requests": requests_for(db, auditor_id),
+        "sos_history": sos_history(db, auditor_id),
+        "last_active_at": max(
+            (t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in last_active), default=None
+        ),
     }
 
 
@@ -1391,7 +1392,9 @@ async def approve_break_request(
     auditor_id: str,
     request_id: str,
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    resolve_request(db, request_id, "BREAK_REQUEST", "APPROVED")
     return {"approved": True}
 
 

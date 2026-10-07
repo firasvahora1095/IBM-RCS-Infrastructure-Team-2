@@ -1,44 +1,15 @@
 import type { ReactNode } from "react";
-import { Breadcrumb, BreadcrumbItem, InlineNotification, SkeletonText, Tag } from "@carbon/react";
+import { Breadcrumb, BreadcrumbItem, InlineNotification, SkeletonText } from "@carbon/react";
 import { Link as RouterLink } from "react-router-dom";
 import type { ExposureState } from "../../services/types";
 import { EXPOSURE_STATE_LABEL } from "../../design-tokens/managerLabels";
 import { mono } from "./managerStyles";
+import { StatusTag } from "../ui/StatusTag";
+import { EXPOSURE_TONE } from "../../design-tokens/statusTones";
 
-/**
- * Exposure state tag (MR-OV-05). Carbon Tag with the state written out, so
- * it never relies on colour alone: "Under" gray, "Approaching" caution
- * yellow, "At limit" high-contrast.
- */
+/** Exposure state tag (MR-OV-05), coloured by the shared status scheme (design-tokens/statusTones.ts). */
 export function ExposureStateTag({ state }: { state: ExposureState }) {
-  const label = EXPOSURE_STATE_LABEL[state];
-  if (state === "AT_LIMIT") {
-    return (
-      <Tag type="high-contrast" size="md" style={{ margin: 0 }}>
-        {label}
-      </Tag>
-    );
-  }
-  if (state === "APPROACHING") {
-    return (
-      <Tag
-        type="gray"
-        size="md"
-        style={{
-          margin: 0,
-          backgroundColor: "var(--cds-support-caution-minor)",
-          color: "var(--cds-text-primary)",
-        }}
-      >
-        {label}
-      </Tag>
-    );
-  }
-  return (
-    <Tag type="gray" size="md" style={{ margin: 0 }}>
-      {label}
-    </Tag>
-  );
+  return <StatusTag tone={EXPOSURE_TONE[state]}>{EXPOSURE_STATE_LABEL[state]}</StatusTag>;
 }
 
 /** A bordered white panel, as the Manager Figma cards (e.g. 86:109). */

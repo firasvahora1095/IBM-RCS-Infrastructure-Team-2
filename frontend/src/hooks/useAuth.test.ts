@@ -14,7 +14,7 @@ describe("useAuth", () => {
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {
-      await result.current.login("auditor-1", "testpassword123");
+      await result.current.login("auditor-1", "test123");
     });
 
     expect(result.current.isLoggedIn).toBe(true);

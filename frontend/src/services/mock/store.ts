@@ -11,6 +11,8 @@ import type {
   SosFollowUpOutcome,
   SosTrigger,
   WellbeingRequestKind,
+  WellbeingRequestStatus,
+  ClientMessage,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -100,7 +102,10 @@ export interface MockWellbeingRequest {
   case_id: string | null;
   kind: WellbeingRequestKind;
   created_at: string;
+  /** When the status last changed (approved, followed up or withdrawn). */
   resolved_at: string | null;
+  status: WellbeingRequestStatus;
+  reason: string | null;
 }
 
 /** AR-AI-12 audit history entry. Never edited or removed once written. */
@@ -191,6 +196,7 @@ export interface MockDb {
   governanceLog: GovernanceLogRow[];
   clients: MockClientUser[];
   /** token → client session. Separate from staff sessions: a client token never opens a staff page. */
+  clientMessages: ClientMessage[];
   clientSessions: Record<string, { userId: string; organisationId: string }>;
   /** Optional Reporter-supplied source details, keyed by case ID (never required). */
   caseSources: Record<string, { url: string | null; detail: string | null }>;

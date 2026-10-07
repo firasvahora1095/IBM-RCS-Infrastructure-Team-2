@@ -66,7 +66,7 @@ screen that uses it.
 
 ### Accounts
 
-All passwords are `testpassword123`.
+All passwords are `test123`.
 
 | Staff ID    | Who                                  | State in the seed data                    |
 | ----------- | ------------------------------------ | ----------------------------------------- |

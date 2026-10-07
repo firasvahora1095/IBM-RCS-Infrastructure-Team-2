@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, SkeletonText } from "@carbon/react";
 import { ClientHeader } from "../../components/shell/ClientHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
@@ -22,6 +22,7 @@ import { formatPeriod } from "../../utils/formatPeriod";
  * access" state, the same as a report that doesn't exist.
  */
 export function ClientReportViewPage() {
+  const navigate = useNavigate();
   const { reportId = "" } = useParams();
   const { token } = useClientAuth();
   const { data, error } = useClientQuery((t) => clientGetReport(reportId, t), reportId);
@@ -76,7 +77,17 @@ export function ClientReportViewPage() {
               <PageHeader
                 title={formatPeriod(data.period_start, data.period_end)}
                 subtitle="Released by RCS. Figures are aggregate and come from completed case records."
-                actions={<Button onClick={download}>Download PDF</Button>}
+                actions={
+                  <>
+                    <Button
+                      kind="ghost"
+                      onClick={() => navigate(`/client/messages/new?report=${encodeURIComponent(data.report_id)}`)}
+                    >
+                      Ask RCS about this report
+                    </Button>
+                    <Button onClick={download}>Download PDF</Button>
+                  </>
+                }
               />
             </div>
             <div aria-live="polite" className="rcs-no-print">
