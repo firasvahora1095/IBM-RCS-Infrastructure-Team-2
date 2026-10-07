@@ -105,6 +105,9 @@ const STAGES: Stage[] = [
  * each linking into the live screen, for walkthroughs and presentations.
  * Not part of the product itself.
  */
+/** Local demo, or a deployed build that explicitly opts in (the test environment only). */
+const showDemoAccounts = isMockData || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+
 export function FlowHubPage() {
   return (
     <>
@@ -158,7 +161,9 @@ export function FlowHubPage() {
           </Grid>
         </section>
 
-        {/* Demo accounts for walkthroughs: synthetic data only, on the local demo and the deployed demo. */}
+        {/* Demo accounts for walkthroughs. The page is public, so on a deployed build they show only
+            where the build opts in (the test environment); the live app never publishes logins. */}
+        {showDemoAccounts && (
         <section style={{ paddingBlockEnd: "4rem" }} aria-labelledby="demo-accounts">
           <Grid>
             <Column sm={4} md={8} lg={10}>
@@ -202,6 +207,7 @@ export function FlowHubPage() {
             </Column>
           </Grid>
         </section>
+        )}
       </main>
     </>
   );
