@@ -859,5 +859,66 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(row["active_case_count"], 1)
 
 
+    # ---- Report evidence (Sprint 3 extras S6.2, S6.5) ----
+
+    def generate_today(self) -> dict:
+        today = datetime.now(timezone.utc).date().isoformat()
+        response = self.client.post(
+            "/api/manager/reports",
+            json={"organisation_id": COMMUNITYHUB_ID, "period_start": today, "period_end": today},
+            headers=self.staff_headers("manager-1"),
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_report_snapshot_stores_evidence_for_each_figure(self) -> None:
+        self.add_case("RCS-EV-00001")
+        self.resolve("RCS-EV-00001")
+        evidence = self.generate_today()["metrics"]["evidence"]
+        self.assertEqual(
+            set(evidence),
+            {"cases_received", "cases_completed", "open_at_end", "outcomes", "severity", "overrides", "workflow", "delivery"},
+        )
+        completed = evidence["cases_completed"]
+        self.assertEqual(completed["case_ids"], ["RCS-EV-00001"])
+        self.assertEqual(completed["records_included"], 1)
+        self.assertIn("cases.completed_at", completed["source_fields"])
+        self.assertTrue(completed["definition"])
+        self.assertTrue(completed["calculated_at"])
+
+    def test_released_report_evidence_never_changes(self) -> None:
+        self.add_case("RCS-EV-00002")
+        self.resolve("RCS-EV-00002")
+        draft = self.generate_today()
+        manager = self.staff_headers("manager-1")
+        released = self.client.post(f"/api/manager/reports/{draft['report_id']}/release", headers=manager).json()
+
+        # New work after release: a regeneration becomes v2; v1 stays exactly as released.
+        self.add_case("RCS-EV-00003")
+        self.resolve("RCS-EV-00003")
+        v2 = self.generate_today()
+        self.assertEqual(v2["version"], 2)
+        self.assertEqual(v2["metrics"]["evidence"]["cases_completed"]["records_included"], 2)
+        v1 = self.client.get(f"/api/manager/reports/{draft['report_id']}", headers=manager).json()
+        self.assertEqual(v1["metrics"], released["metrics"])
+        self.assertEqual(v1["metrics"]["evidence"]["cases_completed"]["case_ids"], ["RCS-EV-00002"])
+
+    def test_client_report_keeps_definitions_but_never_lists_case_ids(self) -> None:
+        self.add_case("RCS-EV-00004")
+        self.resolve("RCS-EV-00004")
+        draft = self.generate_today()
+        self.client.post(f"/api/manager/reports/{draft['report_id']}/release", headers=self.staff_headers("manager-1"))
+        client = self.client_headers()
+
+        viewed = self.client.get(f"/api/client/reports/{draft['report_id']}", headers=client)
+        listed = self.client.get("/api/client/reports", headers=client)
+        for response in (viewed, listed):
+            self.assertNotIn("RCS-EV-00004", response.text)
+        evidence = viewed.json()["metrics"]["evidence"]["cases_completed"]
+        self.assertEqual(evidence["case_ids"], [])
+        self.assertEqual(evidence["records_included"], 1)
+        self.assertTrue(evidence["definition"])
+
+
 if __name__ == "__main__":
     unittest.main()

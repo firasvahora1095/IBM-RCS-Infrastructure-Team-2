@@ -107,6 +107,23 @@ describe("mock B2B data source", () => {
   });
 
   describe("service reports", () => {
+    it("gives a client each figure's definition and count, never the contributing case IDs (D6)", async () => {
+      const manager = await managerToken();
+      const draft = await mock.generateReport(manager, "COMMUNITYHUB", "2026-09-01", "2026-09-30");
+      await mock.releaseReport(draft.report_id, manager);
+      const staffView = await mock.getReport(draft.report_id, manager);
+      expect(staffView.metrics.evidence?.cases_completed.case_ids.length).toBeGreaterThan(0);
+
+      const client = await mock.clientGetReport(draft.report_id, await clientToken());
+      const completed = client.metrics.evidence!.cases_completed;
+      expect(completed.case_ids).toEqual([]);
+      expect(completed.records_included).toBe(staffView.metrics.cases_completed);
+      expect(completed.definition).toBeTruthy();
+      for (const id of staffView.metrics.evidence!.cases_completed.case_ids) {
+        expect(JSON.stringify(client)).not.toContain(id);
+      }
+    });
+
     it("generates a draft from stored records, then releases it read-only", async () => {
       const manager = await managerToken();
       const draft = await mock.generateReport(manager, "COMMUNITYHUB", "2026-01-01", "2026-01-15");
@@ -114,8 +131,16 @@ describe("mock B2B data source", () => {
       expect(draft.report_id).toBe("RPT-CH-20260101-20260115");
       const db = readDb();
       expect(draft.metrics).toEqual(
-        computeMetrics({ history: db.caseHistory, cases: db.cases, deliveries: db.deliveries }, "2026-01-01", "2026-01-15"),
+        computeMetrics(
+          { history: db.caseHistory, cases: db.cases, deliveries: db.deliveries },
+          "2026-01-01",
+          "2026-01-15",
+          Date.parse(draft.generated_at),
+        ),
       );
+      // The snapshot carries its evidence, frozen at generation (Sprint 3 extras §6.2).
+      expect(draft.metrics.evidence?.cases_completed.records_included).toBe(draft.metrics.cases_completed);
+      expect(draft.metrics.evidence?.cases_completed.calculated_at).toBe(draft.generated_at);
       await mock.updateReportNote(draft.report_id, manager, "Steady month.");
       const released = await mock.releaseReport(draft.report_id, manager);
       expect(released.status).toBe("RELEASED");

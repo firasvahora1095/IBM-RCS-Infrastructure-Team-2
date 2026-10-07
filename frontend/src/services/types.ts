@@ -502,7 +502,23 @@ export interface ReportMetrics {
   override_rate: number;
   declined_reassigned: number;
   delivery: DeliveryHealth;
+  /**
+   * How each figure was calculated, frozen with the snapshot (Sprint 3 extras §6.2, §6.5).
+   * Optional: versions generated before evidence was recorded don't have it. A client
+   * receives the definitions and counts, never the case IDs.
+   */
+  evidence?: Record<ReportEvidenceKey, MetricEvidence>;
 }
+
+export type ReportEvidenceKey =
+  | "cases_received"
+  | "cases_completed"
+  | "open_at_end"
+  | "outcomes"
+  | "severity"
+  | "overrides"
+  | "workflow"
+  | "delivery";
 
 // ---- Manager Intelligence Dashboard (Sprint 3 extras §1) ----
 

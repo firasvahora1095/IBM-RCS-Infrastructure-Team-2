@@ -9,7 +9,14 @@ import type {
   SeverityTier,
 } from "../types";
 import type { MockCase, MockDelivery, MockHistoricalCase } from "./store";
-import { deliveryHealth, finalTierOf, median, MIN_CASES_FOR_MEDIAN, periodBounds } from "./reportMetrics";
+import {
+  deliveryHealth,
+  evidenceEntry,
+  finalTierOf,
+  median,
+  MIN_CASES_FOR_MEDIAN,
+  periodBounds,
+} from "./reportMetrics";
 
 /**
  * Manager Intelligence Dashboard figures (Sprint 3 extras §1), calculated only
@@ -17,9 +24,14 @@ import { deliveryHealth, finalTierOf, median, MIN_CASES_FOR_MEDIAN, periodBounds
  * backend/app/b2b.py, so both data sources tell the same story.
  */
 
-export const EVIDENCE_CASE_ID_CAP = 200;
 const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
-const OPEN_BUCKETS: OpenBucket[] = ["SUBMITTED", "AI_PROCESSING", "READY_FOR_REVIEW", "AUDITOR_REVIEW", "MANAGER_ACTION"];
+const OPEN_BUCKETS: OpenBucket[] = [
+  "SUBMITTED",
+  "AI_PROCESSING",
+  "READY_FOR_REVIEW",
+  "AUDITOR_REVIEW",
+  "MANAGER_ACTION",
+];
 const MAX_FAILED_LISTED = 5;
 
 /** Same wording as the backend's DEFINITIONS, so evidence reads the same on both data sources. */
@@ -145,17 +157,7 @@ function evidence(
   now: number,
   options: { eligible?: number; included?: number } = {},
 ): MetricEvidence {
-  const ordered = [...ids].sort();
-  return {
-    title: TITLES[key],
-    definition: DEFINITIONS[key],
-    source_fields: SOURCE_FIELDS[key],
-    records_included: options.included ?? ordered.length,
-    records_eligible: options.eligible ?? null,
-    calculated_at: new Date(now).toISOString(),
-    case_ids: ordered.slice(0, EVIDENCE_CASE_ID_CAP),
-    case_ids_truncated: ordered.length > EVIDENCE_CASE_ID_CAP,
-  };
+  return evidenceEntry(TITLES[key], DEFINITIONS[key], SOURCE_FIELDS[key], ids, now, options);
 }
 
 function openBucket(r: CaseRecord): OpenBucket {
@@ -206,9 +208,10 @@ export function computeIntelligence(
   const severity: Record<SeverityTier, number> = { S1: 0, S2: 0, S3: 0, S4: 0 };
   for (const r of decided) if (isTier(r.finalTier)) severity[r.finalTier] += 1;
   const comparable = decided.filter((r) => isTier(r.aiTier) && isTier(r.finalTier));
-  const matrix = Object.fromEntries(
-    TIERS.map((ai) => [ai, Object.fromEntries(TIERS.map((f) => [f, 0]))]),
-  ) as Record<SeverityTier, Record<SeverityTier, number>>;
+  const matrix = Object.fromEntries(TIERS.map((ai) => [ai, Object.fromEntries(TIERS.map((f) => [f, 0]))])) as Record<
+    SeverityTier,
+    Record<SeverityTier, number>
+  >;
   for (const r of comparable) matrix[r.aiTier!][r.finalTier!] += 1;
   const overridden = comparable.filter((r) => r.aiTier !== r.finalTier);
   const transitions = TIERS.flatMap((from) =>
@@ -218,7 +221,9 @@ export function computeIntelligence(
   const periodDeliveries = deliveries.filter((d) => inPeriod(Date.parse(d.completed_at)));
   const health = deliveryHealth(periodDeliveries);
   const finished = health.success + health.needs_attention;
-  const failedAttempts = deliveries.flatMap((d) => d.attempts.filter((a) => a.result === "FAILED").map((a) => Date.parse(a.at)));
+  const failedAttempts = deliveries.flatMap((d) =>
+    d.attempts.filter((a) => a.result === "FAILED").map((a) => Date.parse(a.at)),
+  );
   const failedRows: FailedDeliveryRow[] = failed
     .map((d) => ({
       delivery_id: d.delivery_id,

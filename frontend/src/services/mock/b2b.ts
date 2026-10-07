@@ -213,8 +213,27 @@ function findReport(db: MockDb, reportId: string): Mutable<ServiceReport> {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** What a client is allowed to see of a released report: no staff names. */
+/**
+ * What a client receives: staff names become "RCS", and the evidence keeps each
+ * figure's definition and record count but never the contributing case IDs (D6).
+ */
 function forClient(r: ServiceReport): ServiceReport {
-  return { ...r, released_by: "RCS" };
+  const evidence = r.metrics.evidence;
+  return {
+    ...r,
+    released_by: "RCS",
+    metrics: evidence
+      ? {
+          ...r.metrics,
+          evidence: Object.fromEntries(
+            Object.entries(evidence).map(([key, entry]) => [
+              key,
+              { ...entry, case_ids: [] as string[], case_ids_truncated: false },
+            ]),
+          ) as unknown as typeof evidence,
+        }
+      : r.metrics,
+  };
 }
 
 /**
@@ -496,14 +515,17 @@ export const b2bMockOps: Pick<
         throw new ApiError("Customer not found", 404);
       }
       advanceDeliveries(db);
+      // One moment for the whole snapshot: its evidence was calculated when it was generated.
+      const generatedAt = Date.now();
       const metrics = computeMetrics(
         { history: db.caseHistory, cases: db.cases, deliveries: db.deliveries },
         periodStart,
         periodEnd,
+        generatedAt,
       );
       const samePeriod = db.reports.filter((r) => r.period_start === periodStart && r.period_end === periodEnd);
       const existingDraft = samePeriod.find((r) => r.status === "DRAFT");
-      const now = new Date().toISOString();
+      const now = new Date(generatedAt).toISOString();
       if (existingDraft) {
         // Regenerating a draft refreshes its figures; the Manager's note stays.
         Object.assign(existingDraft, { metrics, generated_at: now });
