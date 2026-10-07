@@ -85,7 +85,8 @@ export function ReportSheet({
 }) {
   const m = report.metrics;
   const evidence = (key: ReportEvidenceKey) => (onEvidence && m.evidence?.[key] ? () => onEvidence(key) : undefined);
-  const calculatedAt = m.evidence?.cases_completed.calculated_at ?? report.generated_at;
+  // The snapshot moment: every figure in a version was calculated when it was generated.
+  const calculatedAt = report.generated_at;
   const decided = m.violation_count + m.no_violation_count;
   const violationRate = decided ? Math.round((m.violation_count / decided) * 100) : 0;
   const month = wholeMonthName(report.period_start, report.period_end);

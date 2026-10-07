@@ -88,6 +88,11 @@ a.rcs-stat-tile:focus-visible {
   outline: 2px solid var(--cds-focus);
   outline-offset: -2px;
 }
+// Tiles in one row share the row's height, so the strip has an even bottom edge.
+.rcs-grid > .cds--css-grid-column > .rcs-stat-tile,
+.rcs-grid > .cds--css-grid-column > .rcs-day-alert {
+  block-size: 100%;
+}
 .rcs-stat-tile.rcs-tone-error {
   box-shadow: inset 3px 0 0 var(--cds-support-error);
 }

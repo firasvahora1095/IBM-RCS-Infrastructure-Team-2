@@ -258,6 +258,9 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
     draft_start, draft_end = month_period(today, -1)
     previous_month_first = date.fromisoformat(draft_start)
     released_at = datetime(previous_month_first.year, previous_month_first.month, 2, 10, 41, tzinfo=timezone.utc)
+    # A snapshot's evidence is calculated when the report is generated, never later.
+    released_generated_at = released_at - timedelta(minutes=50)
+    draft_generated_at = now - timedelta(hours=2)
 
     released = ServiceReport(
         report_id=report_id_for(released_start, released_end, 1),
@@ -266,14 +269,14 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         period_end=released_end,
         status="RELEASED",
         version=1,
-        generated_at=released_at - timedelta(minutes=50),
+        generated_at=released_generated_at,
         released_at=released_at,
         released_by="manager-01",
         manager_note=(
             "Volumes were steady across the month. A small number of results needed an "
             "automatic retry before CommunityHub received them; all were delivered."
         ),
-        metrics=compute_metrics(db, released_start, released_end),
+        metrics=compute_metrics(db, released_start, released_end, released_generated_at),
     )
     draft = ServiceReport(
         report_id=report_id_for(draft_start, draft_end, 1),
@@ -282,8 +285,8 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         period_end=draft_end,
         status="DRAFT",
         version=1,
-        generated_at=now - timedelta(hours=2),
-        metrics=compute_metrics(db, draft_start, draft_end),
+        generated_at=draft_generated_at,
+        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at),
     )
     db.add_all([released, draft])
     db.add_all([

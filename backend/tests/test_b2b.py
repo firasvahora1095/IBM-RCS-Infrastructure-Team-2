@@ -871,6 +871,22 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
+    def test_seeded_reports_were_calculated_when_generated_not_at_start_up(self) -> None:
+        with self.Session() as db:
+            # The seed creates its own customer and accounts, as in the demo seed test.
+            db.query(ClientUser).delete()
+            db.query(Organisation).delete()
+            db.commit()
+            seed_b2b(db, datetime.now(timezone.utc), [], client_password="test123")
+        with self.Session() as db:
+            for report in db.scalars(select(ServiceReport)).all():
+                calculated = datetime.fromisoformat(report.metrics["evidence"]["cases_completed"]["calculated_at"])
+                generated = report.generated_at if report.generated_at.tzinfo else report.generated_at.replace(tzinfo=timezone.utc)
+                self.assertEqual(calculated, generated)
+                if report.released_at is not None:
+                    released = report.released_at if report.released_at.tzinfo else report.released_at.replace(tzinfo=timezone.utc)
+                    self.assertLess(calculated, released)
+
     def test_report_snapshot_stores_evidence_for_each_figure(self) -> None:
         self.add_case("RCS-EV-00001")
         self.resolve("RCS-EV-00001")
