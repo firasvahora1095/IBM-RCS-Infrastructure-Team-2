@@ -58,7 +58,7 @@ function source(partial: Partial<IntelligenceSource>): IntelligenceSource {
     cases: [],
     deliveries: [],
     openSosAuditors: 0,
-    openBreakRequests: 0,
+    openSupportRequests: { break_requests: 0, talk_requests: 0 },
     auditorCount: 4,
     organisation: { organisation_id: "COMMUNITYHUB", name: "CommunityHub" },
     provenance: "DEMO",
@@ -107,7 +107,7 @@ describe("computeIntelligence", () => {
     const body = run(
       source({
         openSosAuditors: 1,
-        openBreakRequests: 1,
+        openSupportRequests: { break_requests: 1, talk_requests: 1 },
         cases: [
           liveCase("A", "AUDITOR_REVIEW", { manager_flag: "DECLINED" }),
           liveCase("B", "AUDITOR_REVIEW", { manager_flag: "CAP_REACHED" }),
@@ -117,12 +117,13 @@ describe("computeIntelligence", () => {
     );
     expect(Object.fromEntries(body.attention.map((a) => [a.kind, a.count]))).toEqual({
       SOS: 1,
-      BREAK_REQUEST: 1,
+      SUPPORT_REQUEST: 2,
       REASSIGNMENT: 1,
       CAP_INTERRUPTED: 1,
       FAILED_HANDOFF: 1,
     });
-    expect(body.kpis.needs_manager_action).toBe(5);
+    expect(body.support_requests).toEqual({ break_requests: 1, talk_requests: 1 });
+    expect(body.kpis.needs_manager_action).toBe(6);
     expect(body.delivery.failed[0].case_id).toBe("C");
   });
 

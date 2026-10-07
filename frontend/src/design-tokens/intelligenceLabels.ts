@@ -57,10 +57,10 @@ export interface AttentionWording {
   to: string;
 }
 
-/** Needs Attention rows, in priority order. Only items that need a Manager decision (MR-SOS-07). */
+/** Needs Attention rows, in priority order: only items waiting for the Manager. */
 export const ATTENTION: Record<AttentionKind, AttentionWording> = {
   SOS: { label: "Open SOS", status: "Act now", tone: "error", to: "/manager/sos" },
-  BREAK_REQUEST: { label: "Break requests to approve", status: "Waiting", tone: "warning", to: "/manager" },
+  SUPPORT_REQUEST: { label: "Support requests", status: "Waiting for you", tone: "warning", to: "/manager" },
   REASSIGNMENT: {
     label: "Reassignment decisions",
     status: "Decision needed",
@@ -83,7 +83,7 @@ export const ATTENTION: Record<AttentionKind, AttentionWording> = {
 
 export const ATTENTION_ORDER: readonly AttentionKind[] = [
   "SOS",
-  "BREAK_REQUEST",
+  "SUPPORT_REQUEST",
   "REASSIGNMENT",
   "CAP_INTERRUPTED",
   "FAILED_HANDOFF",

@@ -620,8 +620,12 @@ export const b2bMockOps: Pick<
           deliveries: db.deliveries,
           // Counted, never named: the dashboard shows how many need the Manager, not who.
           openSosAuditors: new Set(db.sosEvents.filter((e) => !e.resolved_at).map((e) => e.auditor_id)).size,
-          openBreakRequests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
-            .length,
+          openSupportRequests: {
+            break_requests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
+              .length,
+            talk_requests: db.wellbeingRequests.filter((r) => r.kind === "TALK_TO_MANAGER" && r.status === "OPEN")
+              .length,
+          },
           auditorCount: db.staff.filter((s) => s.role === "auditor").length,
           organisation: db.organisation,
           // The mock data source is always synthetic (MR-OV-08).

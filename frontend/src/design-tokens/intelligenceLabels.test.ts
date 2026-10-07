@@ -45,10 +45,9 @@ describe("availabilityOf", () => {
 });
 
 describe("attention wording", () => {
-  it("covers every kind, and never routine check-ins", () => {
-    const kinds: AttentionKind[] = ["SOS", "BREAK_REQUEST", "REASSIGNMENT", "CAP_INTERRUPTED", "FAILED_HANDOFF"];
+  it("covers every kind", () => {
+    const kinds: AttentionKind[] = ["SOS", "SUPPORT_REQUEST", "REASSIGNMENT", "CAP_INTERRUPTED", "FAILED_HANDOFF"];
     for (const kind of kinds) expect(ATTENTION[kind].label).toBeTruthy();
-    expect(JSON.stringify(ATTENTION)).not.toMatch(/check-in|talk/i);
   });
 
   it("every open bucket has a label", () => {

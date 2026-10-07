@@ -47,7 +47,7 @@ from app.models import (
 )
 from app.rate_limit import InvalidLookupRateLimiter
 from app.severity import get_severity_tier
-from app.support import open_break_request_count, unresolved_sos_auditors
+from app.support import open_support_request_counts, unresolved_sos_auditors
 
 
 COMMUNITYHUB_ID = "COMMUNITYHUB"
@@ -430,8 +430,8 @@ DEFINITIONS = {
     "needs_manager_action": (
         "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases "
         "interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic "
-        "retries, and break requests waiting for approval. Routine check-ins are logged only and not counted. "
-        "SOS and break requests concern people, so they are counted but not listed."
+        "retries, and support requests (a break to approve or a request to talk) waiting for a reply. "
+        "SOS and support requests concern people, so they are counted here and named only in each Auditor's record."
     ),
     "case_flow": (
         "Current open cases by workflow stage. A case waiting for a Manager decision counts only there. "
@@ -550,9 +550,10 @@ def compute_intelligence(db: Session, org: Organisation, period_start: str, peri
         db.scalars(select(Delivery).where(Delivery.organisation_id == org.organisation_id)).all()
     )
     failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION"]
+    support = open_support_request_counts(db)
     attention = [
         {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
-        {"kind": "BREAK_REQUEST", "count": open_break_request_count(db)},
+        {"kind": "SUPPORT_REQUEST", "count": support["break_requests"] + support["talk_requests"]},
         {"kind": "REASSIGNMENT", "count": len(declined)},
         {"kind": "CAP_INTERRUPTED", "count": len(capped)},
         {"kind": "FAILED_HANDOFF", "count": len(failed)},
@@ -638,6 +639,7 @@ def compute_intelligence(db: Session, org: Organisation, period_start: str, peri
         },
         "open_breakdown": breakdown,
         "attention": attention,
+        "support_requests": support,
         "flow": {
             "median_decision_minutes": (
                 round(statistics.median(minutes)) if len(minutes) >= MIN_CASES_FOR_MEDIAN else None

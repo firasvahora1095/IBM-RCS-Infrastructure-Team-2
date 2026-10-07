@@ -127,19 +127,14 @@ def unresolved_sos_auditors(db: Session) -> list[Auditor]:
     )
 
 
-def open_break_request_count(db: Session) -> int:
-    """Break requests waiting for the Manager's approval (MR-SOS-07).
-
-    Routine "talk to my manager" check-ins are deliberately not counted: they
-    are logged in the Auditor's record and need no Manager action.
-    """
-    return len(
-        db.scalars(
-            select(WellbeingRequest).where(
-                WellbeingRequest.kind == "BREAK_REQUEST", WellbeingRequest.status == "OPEN"
-            )
-        ).all()
-    )
+def open_support_request_counts(db: Session) -> dict:
+    """Support requests still waiting for the Manager across all Auditors: breaks to
+    approve and requests to talk to follow up. Counted only; never attributed here."""
+    rows = db.scalars(select(WellbeingRequest).where(WellbeingRequest.status == "OPEN")).all()
+    return {
+        "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
+        "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
+    }
 
 
 def active_case_counts(db: Session) -> dict[str, int]:

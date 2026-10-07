@@ -29,7 +29,7 @@ const DEFINITIONS: Record<EvidenceKey, string> = {
   open_cases:
     "Cases that haven't reached Complete yet, including cases received before the period. This is the current backlog, so it isn't Total minus Completed.",
   needs_manager_action:
-    "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic retries, and break requests waiting for approval. Routine check-ins are logged only and not counted. SOS and break requests concern people, so they are counted but not listed.",
+    "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic retries, and support requests (a break to approve or a request to talk) waiting for a reply. SOS and support requests concern people, so they are counted here and named only in each Auditor's record.",
   case_flow:
     "Current open cases by workflow stage. A case waiting for a Manager decision counts only there. Median decision time is the middle value of time from report to final decision for cases completed in the period.",
   outcomes: "The Auditor's final outcome for each case decided during the period.",
@@ -93,8 +93,8 @@ export interface IntelligenceSource {
   deliveries: MockDelivery[];
   /** Auditors with an unresolved SOS (counted, never named). */
   openSosAuditors: number;
-  /** Break requests waiting for approval. Talk requests are deliberately not passed in. */
-  openBreakRequests: number;
+  /** Support requests waiting for the Manager, by kind. */
+  openSupportRequests: { break_requests: number; talk_requests: number };
   auditorCount: number;
   organisation: { organisation_id: string; name: string };
   provenance: Provenance;
@@ -189,7 +189,10 @@ export function computeIntelligence(
   const failed = deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION");
   const attention: { kind: AttentionKind; count: number }[] = [
     { kind: "SOS", count: source.openSosAuditors },
-    { kind: "BREAK_REQUEST", count: source.openBreakRequests },
+    {
+      kind: "SUPPORT_REQUEST",
+      count: source.openSupportRequests.break_requests + source.openSupportRequests.talk_requests,
+    },
     { kind: "REASSIGNMENT", count: declined.length },
     { kind: "CAP_INTERRUPTED", count: capped.length },
     { kind: "FAILED_HANDOFF", count: failed.length },
@@ -242,6 +245,7 @@ export function computeIntelligence(
     },
     open_breakdown: breakdown,
     attention,
+    support_requests: { ...source.openSupportRequests },
     flow: {
       median_decision_minutes: minutes.length >= MIN_CASES_FOR_MEDIAN ? Math.round(median(minutes)) : null,
       oldest_unresolved_minutes: oldest ? Math.round((now - oldest.created) / 60_000) : null,

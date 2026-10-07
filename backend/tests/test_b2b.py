@@ -756,7 +756,7 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(breakdown["AI_PROCESSING"], 1)
         self.assertEqual(sum(breakdown.values()), body["kpis"]["open_cases"])
 
-    def test_attention_counts_break_requests_but_not_routine_check_ins(self) -> None:
+    def test_attention_counts_support_requests_of_both_kinds(self) -> None:
         now = datetime.now(timezone.utc)
         with self.Session.begin() as db:
             db.add(Auditor(
@@ -774,9 +774,11 @@ class B2bContractTests(unittest.TestCase):
         counts = {item["kind"]: item["count"] for item in body["attention"]}
         self.assertEqual(
             counts,
-            {"SOS": 1, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "BREAK_REQUEST": 1},
+            {"SOS": 1, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "SUPPORT_REQUEST": 2},
         )
-        self.assertEqual(body["kpis"]["needs_manager_action"], 5)
+        # Which kinds are waiting, so the Manager knows whether to approve a break or talk.
+        self.assertEqual(body["support_requests"], {"break_requests": 1, "talk_requests": 1})
+        self.assertEqual(body["kpis"]["needs_manager_action"], 6)
         self.assertEqual(body["delivery"]["failed"][0]["case_id"], "RCS-AT-00003")
 
     def test_comparison_matrix_and_override_rate(self) -> None:
@@ -815,9 +817,8 @@ class B2bContractTests(unittest.TestCase):
                 created_at=datetime.now(timezone.utc),
             ))
         body = self.intel()
-        text = str(body)
-        self.assertNotIn("auditor-1", text)
-        self.assertNotIn("talk_requests", text)
+        # Support requests are counted, never attributed: the Auditor's own record says who.
+        self.assertNotIn("auditor-1", str(body))
 
     def test_intelligence_requires_a_manager_and_a_valid_period(self) -> None:
         params = {"organisation_id": COMMUNITYHUB_ID, "period_start": "2026-10-01", "period_end": "2026-10-31"}

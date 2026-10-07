@@ -515,8 +515,8 @@ export type Provenance = "DEMO" | "LIVE";
 /** Current open cases by stage. A case waiting for a Manager decision counts only under MANAGER_ACTION. */
 export type OpenBucket = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "MANAGER_ACTION";
 
-/** Items that need the Manager to act. Routine check-ins are logged only, so they never appear here (MR-SOS-07). */
-export type AttentionKind = "SOS" | "BREAK_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
+/** Items that need the Manager to act. A support request is a break to approve or a request to talk. */
+export type AttentionKind = "SOS" | "SUPPORT_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
 
 export type EvidenceKey =
   | "total_cases"
@@ -569,6 +569,8 @@ export interface ManagerIntelligence {
   open_breakdown: Record<OpenBucket, number>;
   /** Always the five kinds, in priority order; a count may be 0. */
   attention: { kind: AttentionKind; count: number }[];
+  /** Which support requests are waiting, so the Manager knows whether to approve a break or talk. Counted, never attributed. */
+  support_requests: { break_requests: number; talk_requests: number };
   flow: {
     median_decision_minutes: number | null;
     oldest_unresolved_minutes: number | null;
