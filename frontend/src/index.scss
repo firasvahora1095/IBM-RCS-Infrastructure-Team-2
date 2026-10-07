@@ -62,6 +62,15 @@
   }
 }
 
+// Figma foundation Button (Primary, Secondary, Tertiary, Danger): even padding
+// around the label. Carbon keeps a 64px icon slot at the end of every button,
+// which read as a long empty gap on buttons without an icon. Buttons with an
+// icon keep Carbon's layout.
+.cds--btn:not(.cds--btn--icon-only):not(:has(.cds--btn__icon)) {
+  justify-content: center;
+  padding-inline: 1rem;
+}
+
 // The evidence rail beside the player is already narrow (Figma 20:35), so the
 // 25% end padding Carbon reserves in Accordion content squeezed the summary
 // and transcript and stacked the entity tags one per line.
