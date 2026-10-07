@@ -25,12 +25,14 @@ from app.models import (
     Auditor,
     Base,
     Case,
+    CaseHistory,
     CaseSource,
     ClientUser,
     Delivery,
     Organisation,
     ReportAccess,
     ServiceReport,
+    WellbeingRequest,
 )
 from app.rate_limit import status_lookup_limiter
 
@@ -679,6 +681,181 @@ class B2bContractTests(unittest.TestCase):
             source = db.get(CaseSource, response.json()["case_id"])
         self.assertIsNone(source.source_url)
         self.assertEqual(source.source_detail, "javascript:alert(1)")
+
+
+    # ---- Manager intelligence (Sprint 3 extras S1) ----
+
+    def intel(self, start: str | None = None, end: str | None = None) -> dict:
+        today = datetime.now(timezone.utc).date()
+        query = {
+            "organisation_id": COMMUNITYHUB_ID,
+            "period_start": start or (today - timedelta(days=1)).isoformat(),
+            "period_end": end or (today + timedelta(days=1)).isoformat(),
+        }
+        response = self.client.get("/api/manager/intelligence", params=query, headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def add_history(self, case_id: str, ai_tier: str, final_tier: str, **fields) -> None:
+        now = datetime.now(timezone.utc)
+        values = {
+            "organisation_id": COMMUNITYHUB_ID,
+            "created_at": now - timedelta(hours=2),
+            "completed_at": now - timedelta(hours=1),
+            "outcome": "POLICY_VIOLATION_FOUND",
+            "declined_reassigned": 0,
+        }
+        values.update(fields)
+        with self.Session.begin() as db:
+            db.add(CaseHistory(case_id=case_id, ai_tier=ai_tier, final_tier=final_tier, **values))
+
+    def add_delivery(self, delivery_id: str, delivery_status: str, **fields) -> None:
+        values = {
+            "case_id": delivery_id.removeprefix("DEL-"),
+            "organisation_id": COMMUNITYHUB_ID,
+            "outcome": "POLICY_VIOLATION_FOUND",
+            "final_severity": "S2",
+            "completed_at": datetime.now(timezone.utc) - timedelta(minutes=30),
+            "delivery_status": delivery_status,
+            "attempts": [],
+        }
+        values.update(fields)
+        with self.Session.begin() as db:
+            db.add(Delivery(delivery_id=delivery_id, **values))
+
+    def test_intelligence_kpis_follow_the_definitions(self) -> None:
+        now = datetime.now(timezone.utc)
+        self.add_case(
+            "RCS-IN-00001", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+            created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1),
+        )
+        self.add_case("RCS-IN-00002", status="AUDITOR_REVIEW", created_at=now - timedelta(hours=1))
+        # Received before the period and still open: part of the backlog, not of Total.
+        self.add_case("RCS-OLD-00003", status="SUBMITTED", created_at=now - timedelta(days=10))
+        body = self.intel()
+        self.assertEqual(body["kpis"]["total_cases"], 2)
+        self.assertEqual(body["kpis"]["completed"], 1)
+        self.assertEqual(body["kpis"]["open_cases"], 2)
+        self.assertNotEqual(body["kpis"]["open_cases"], body["kpis"]["total_cases"] - body["kpis"]["completed"])
+        completed = body["evidence"]["completed"]
+        self.assertEqual(completed["case_ids"], ["RCS-IN-00001"])
+        self.assertEqual(completed["records_included"], 1)
+        self.assertIn("cases.completed_at", completed["source_fields"])
+        self.assertTrue(completed["definition"])
+        self.assertEqual(body["organisation_name"], "CommunityHub")
+        self.assertEqual(body["provenance"], "DEMO")
+
+    def test_open_breakdown_is_exclusive_and_sums_to_open(self) -> None:
+        self.add_case("RCS-BK-00001", status="AUDITOR_REVIEW", manager_flag="DECLINED")
+        self.add_case("RCS-BK-00002", status="AUDITOR_REVIEW")
+        self.add_case("RCS-BK-00003", status="AI_PROCESSING")
+        body = self.intel()
+        breakdown = body["open_breakdown"]
+        self.assertEqual(breakdown["MANAGER_ACTION"], 1)
+        self.assertEqual(breakdown["AUDITOR_REVIEW"], 1)
+        self.assertEqual(breakdown["AI_PROCESSING"], 1)
+        self.assertEqual(sum(breakdown.values()), body["kpis"]["open_cases"])
+
+    def test_attention_counts_break_requests_but_not_routine_check_ins(self) -> None:
+        now = datetime.now(timezone.utc)
+        with self.Session.begin() as db:
+            db.add(Auditor(
+                auditor_id="auditor-2", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="SOS", cooldown_check_in_done=0, cooldown_ends_at=now + timedelta(minutes=20),
+            ))
+            db.add_all([
+                WellbeingRequest(request_id="WR-0001", auditor_id="auditor-1", kind="BREAK_REQUEST", status="OPEN", created_at=now),
+                WellbeingRequest(request_id="WR-0002", auditor_id="auditor-1", kind="TALK_TO_MANAGER", status="OPEN", created_at=now),
+            ])
+        self.add_case("RCS-AT-00001", status="AUDITOR_REVIEW", manager_flag="DECLINED")
+        self.add_case("RCS-AT-00002", status="AUDITOR_REVIEW", manager_flag="CAP_REACHED")
+        self.add_delivery("DEL-RCS-AT-00003", "NEEDS_ATTENTION", failure_reason="Endpoint unavailable (503)")
+        body = self.intel()
+        counts = {item["kind"]: item["count"] for item in body["attention"]}
+        self.assertEqual(
+            counts,
+            {"SOS": 1, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "BREAK_REQUEST": 1},
+        )
+        self.assertEqual(body["kpis"]["needs_manager_action"], 5)
+        self.assertEqual(body["delivery"]["failed"][0]["case_id"], "RCS-AT-00003")
+
+    def test_comparison_matrix_and_override_rate(self) -> None:
+        for i, (ai, final) in enumerate([("S2", "S2"), ("S2", "S3"), ("S2", "S3"), ("S1", "S1"), ("S3", "S2")]):
+            self.add_history(f"RCS-CMP-{i:05d}", ai, final)
+        comparison = self.intel()["comparison"]
+        self.assertEqual(comparison["eligible"], 5)
+        self.assertEqual(comparison["overrides"], 3)
+        self.assertAlmostEqual(comparison["override_rate"], 0.6)
+        self.assertEqual(comparison["matrix"]["S2"]["S3"], 2)
+        self.assertEqual(comparison["matrix"]["S2"]["S2"], 1)
+        self.assertEqual(comparison["top_transition"], {"from": "S2", "to": "S3", "count": 2})
+
+    def test_timing_and_delivery_figures(self) -> None:
+        now = datetime.now(timezone.utc)
+        self.add_history("RCS-TM-00001", "S1", "S1")
+        self.add_case("RCS-TM-00002", status="READY_FOR_REVIEW", created_at=now - timedelta(hours=3))
+        self.add_delivery("DEL-RCS-TM-00003", "SUCCESS")
+        self.add_delivery("DEL-RCS-TM-00004", "SUCCESS")
+        self.add_delivery("DEL-RCS-TM-00005", "NEEDS_ATTENTION")
+        self.add_delivery("DEL-RCS-TM-00006", "PENDING")
+        body = self.intel()
+        # Below three completed cases, a median isn't stated.
+        self.assertIsNone(body["flow"]["median_decision_minutes"])
+        self.assertEqual(body["flow"]["oldest_unresolved_case_id"], "RCS-TM-00002")
+        self.assertAlmostEqual(body["flow"]["oldest_unresolved_minutes"], 180, delta=2)
+        # Pending isn't a failure: 2 delivered of 3 that finished.
+        self.assertAlmostEqual(body["delivery"]["success_rate"], 2 / 3)
+        self.assertEqual(body["delivery"]["health"]["pending"], 1)
+
+    def test_intelligence_never_names_an_auditor(self) -> None:
+        self.add_case("RCS-PV-00001", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            db.add(WellbeingRequest(
+                request_id="WR-0003", auditor_id="auditor-1", kind="BREAK_REQUEST", status="OPEN",
+                created_at=datetime.now(timezone.utc),
+            ))
+        body = self.intel()
+        text = str(body)
+        self.assertNotIn("auditor-1", text)
+        self.assertNotIn("talk_requests", text)
+
+    def test_intelligence_requires_a_manager_and_a_valid_period(self) -> None:
+        params = {"organisation_id": COMMUNITYHUB_ID, "period_start": "2026-10-01", "period_end": "2026-10-31"}
+        self.assertEqual(self.client.get("/api/manager/intelligence", params=params).status_code, 401)
+        auditor = self.staff_headers("auditor-1")
+        self.assertEqual(self.client.get("/api/manager/intelligence", params=params, headers=auditor).status_code, 403)
+        manager = self.staff_headers("manager-1")
+        backwards = {**params, "period_start": "2026-11-01"}
+        self.assertEqual(self.client.get("/api/manager/intelligence", params=backwards, headers=manager).status_code, 400)
+        unknown = {**params, "organisation_id": "NOPE"}
+        self.assertEqual(self.client.get("/api/manager/intelligence", params=unknown, headers=manager).status_code, 404)
+
+    def test_evidence_lists_at_most_two_hundred_case_ids(self) -> None:
+        now = datetime.now(timezone.utc)
+        with self.Session.begin() as db:
+            db.add_all([
+                CaseHistory(
+                    case_id=f"RCS-CAP-{i:05d}", organisation_id=COMMUNITYHUB_ID,
+                    created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1),
+                    ai_tier="S1", final_tier="S1", outcome="NO_VIOLATION_FOUND", declined_reassigned=0,
+                )
+                for i in range(205)
+            ])
+        evidence = self.intel()["evidence"]["total_cases"]
+        self.assertEqual(evidence["records_included"], 205)
+        self.assertEqual(len(evidence["case_ids"]), 200)
+        self.assertTrue(evidence["case_ids_truncated"])
+
+    def test_overview_counts_only_cases_the_auditor_is_carrying(self) -> None:
+        self.add_case("RCS-AC-00001", status="READY_FOR_REVIEW")
+        self.add_case("RCS-AC-00002", status="AUDITOR_REVIEW", manager_flag="DECLINED")
+        self.add_case(
+            "RCS-AC-00003", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+            completed_at=datetime.now(timezone.utc),
+        )
+        rows = self.client.get("/api/manager/auditors", headers=self.staff_headers("manager-1")).json()
+        row = next(r for r in rows if r["auditor_id"] == "auditor-1")
+        self.assertEqual(row["active_case_count"], 1)
 
 
 if __name__ == "__main__":

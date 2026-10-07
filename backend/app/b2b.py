@@ -17,6 +17,7 @@ simulated endpoint. Attempts that have fallen due run whenever deliveries are
 read, so progress is visible without a background worker.
 """
 
+import os
 import random
 import re
 import statistics
@@ -32,6 +33,7 @@ from app.api_schemas import StaffRole
 from app.auth import DUMMY_PASSWORD_HASH, SessionStore, StaffSession, session_store, verify_password
 from app.db import get_db
 from app.models import (
+    Auditor,
     Case,
     CaseHistory,
     CaseSource,
@@ -45,6 +47,7 @@ from app.models import (
 )
 from app.rate_limit import InvalidLookupRateLimiter
 from app.severity import get_severity_tier
+from app.support import open_break_request_count, unresolved_sos_auditors
 
 
 COMMUNITYHUB_ID = "COMMUNITYHUB"
@@ -326,6 +329,10 @@ def _find_organisation(db: Session, organisation_id: str) -> Organisation:
 def _records(db: Session) -> list[dict]:
     history = [
         {
+            "case_id": h.case_id,
+            "live": False,
+            "status": "COMPLETE",
+            "flag": None,
             "created": utc(h.created_at),
             "completed": utc(h.completed_at),
             "ai_tier": h.ai_tier,
@@ -337,6 +344,10 @@ def _records(db: Session) -> list[dict]:
     ]
     live = [
         {
+            "case_id": c.case_id,
+            "live": True,
+            "status": c.status,
+            "flag": c.manager_flag,
             "created": utc(c.created_at),
             "completed": utc(c.completed_at) if c.status == "COMPLETE" else None,
             "ai_tier": c.severity_tier,
@@ -394,6 +405,289 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
         "override_rate": overrides / len(comparable) if comparable else 0,
         "declined_reassigned": sum(1 for r in completed if r["declined"]),
         "delivery": delivery_health(deliveries),
+    }
+
+
+# ---- Manager intelligence (Sprint 3 extras S1) ----------------------------
+#
+# Every dashboard figure comes with its evidence: the definition, the stored
+# fields it reads and the records it counted, so a value never appears from
+# thin air. Mirrors frontend/src/services/mock/intelligence.ts.
+
+EVIDENCE_CASE_ID_CAP = 200
+OPEN_BUCKETS = ("SUBMITTED", "AI_PROCESSING", "READY_FOR_REVIEW", "AUDITOR_REVIEW", "MANAGER_ACTION")
+# A case with one of these flags is waiting for the Manager, not an Auditor.
+MANAGER_FLAGS = {"DECLINED", "CAP_REACHED", "SOS"}
+MAX_FAILED_LISTED = 5
+
+DEFINITIONS = {
+    "total_cases": "Reports received by RCS during the selected period.",
+    "completed": "Cases that reached Complete during the selected period.",
+    "open_cases": (
+        "Cases that haven't reached Complete yet, including cases received before the period. "
+        "This is the current backlog, so it isn't Total minus Completed."
+    ),
+    "needs_manager_action": (
+        "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases "
+        "interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic "
+        "retries, and break requests waiting for approval. Routine check-ins are logged only and not counted. "
+        "SOS and break requests concern people, so they are counted but not listed."
+    ),
+    "case_flow": (
+        "Current open cases by workflow stage. A case waiting for a Manager decision counts only there. "
+        "Median decision time is the middle value of time from report to final decision for cases completed "
+        "in the period."
+    ),
+    "outcomes": "The Auditor's final outcome for each case decided during the period.",
+    "severity": (
+        "The final severity after human review for cases decided during the period: the Auditor's rating "
+        "where they changed it, otherwise the AI rating they confirmed."
+    ),
+    "override_rate": (
+        "Decided cases in the period where the final Auditor severity differs from the original AI severity, "
+        "divided by all decided cases that have both. Operational disagreement, not model accuracy."
+    ),
+    "delivery_success_rate": (
+        "Results for cases completed in the period that CommunityHub acknowledged, divided by those that were "
+        "acknowledged or failed after automatic retries. Pending and retrying results aren't counted as failures."
+    ),
+    "protection": (
+        "Each Auditor's exposure today against their own limit, cooldown and the cases they are carrying. "
+        "Ordered by protection need, never by productivity."
+    ),
+}
+
+SOURCE_FIELDS = {
+    "total_cases": ["cases.created_at", "case_history.created_at", "organisation_id"],
+    "completed": ["cases.status", "cases.completed_at", "case_history.completed_at", "organisation_id"],
+    "open_cases": ["cases.status", "cases.manager_flag"],
+    "needs_manager_action": [
+        "auditors.cooldown_trigger",
+        "auditors.cooldown_check_in_done",
+        "cases.manager_flag",
+        "deliveries.delivery_status",
+        "wellbeing_requests.kind",
+        "wellbeing_requests.status",
+    ],
+    "case_flow": ["cases.status", "cases.manager_flag", "cases.created_at", "cases.completed_at"],
+    "outcomes": ["cases.final_outcome", "cases.completed_at", "case_history.outcome"],
+    "severity": ["cases.auditor_severity_score", "cases.severity_tier", "case_history.final_tier"],
+    "override_rate": [
+        "cases.severity_tier",
+        "cases.auditor_severity_score",
+        "case_history.ai_tier",
+        "case_history.final_tier",
+        "cases.completed_at",
+    ],
+    "delivery_success_rate": ["deliveries.delivery_status", "deliveries.completed_at", "deliveries.organisation_id"],
+    "protection": [
+        "auditors.exposure_minutes",
+        "auditors.exposure_limit_minutes",
+        "auditors.cooldown_ends_at",
+        "cases.assigned_auditor_id",
+    ],
+}
+
+TITLES = {
+    "total_cases": "Total cases",
+    "completed": "Completed",
+    "open_cases": "Open cases",
+    "needs_manager_action": "Needs manager action",
+    "case_flow": "Case flow",
+    "outcomes": "Moderation outcomes",
+    "severity": "Final severity",
+    "override_rate": "AI–Auditor override rate",
+    "delivery_success_rate": "Delivery success rate",
+    "protection": "Auditor protection",
+}
+
+
+def provenance() -> str:
+    """Every deployment of this prototype is seeded, so figures are demo data unless switched off."""
+    return "LIVE" if os.getenv("RCS_DEMO_DATA", "1") == "0" else "DEMO"
+
+
+def _evidence(key: str, ids: list[str], now: datetime, *, eligible: int | None = None, included: int | None = None) -> dict:
+    ordered = sorted(ids)
+    return {
+        "title": TITLES[key],
+        "definition": DEFINITIONS[key],
+        "source_fields": SOURCE_FIELDS[key],
+        "records_included": len(ordered) if included is None else included,
+        "records_eligible": eligible,
+        "calculated_at": iso(now),
+        "case_ids": ordered[:EVIDENCE_CASE_ID_CAP],
+        "case_ids_truncated": len(ordered) > EVIDENCE_CASE_ID_CAP,
+    }
+
+
+def _open_bucket(record: dict) -> str:
+    if record["flag"] in MANAGER_FLAGS:
+        return "MANAGER_ACTION"
+    return record["status"] if record["status"] in OPEN_BUCKETS else "SUBMITTED"
+
+
+def compute_intelligence(db: Session, org: Organisation, period_start: str, period_end: str, now: datetime) -> dict:
+    """The Manager Intelligence Dashboard: six widgets and the evidence behind each figure."""
+    start, end = period_bounds(period_start, period_end)
+
+    def in_period(moment: datetime | None) -> bool:
+        return moment is not None and start <= moment <= end
+
+    records = _records(db)
+    received = [r for r in records if in_period(r["created"])]
+    completed = [r for r in records if in_period(r["completed"])]
+    open_live = [r for r in records if r["live"] and r["status"] != "COMPLETE"]
+
+    breakdown = {bucket: 0 for bucket in OPEN_BUCKETS}
+    for r in open_live:
+        breakdown[_open_bucket(r)] += 1
+
+    # Needs attention: only items that need the Manager to act.
+    declined = [r for r in open_live if r["flag"] == "DECLINED"]
+    capped = [r for r in open_live if r["flag"] == "CAP_REACHED"]
+    deliveries = list(
+        db.scalars(select(Delivery).where(Delivery.organisation_id == org.organisation_id)).all()
+    )
+    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION"]
+    attention = [
+        {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
+        {"kind": "BREAK_REQUEST", "count": open_break_request_count(db)},
+        {"kind": "REASSIGNMENT", "count": len(declined)},
+        {"kind": "CAP_INTERRUPTED", "count": len(capped)},
+        {"kind": "FAILED_HANDOFF", "count": len(failed)},
+    ]
+    needs_action = sum(item["count"] for item in attention)
+
+    # Timing
+    minutes = [
+        (r["completed"] - r["created"]).total_seconds() / 60
+        for r in completed
+        if r["created"] is not None and r["completed"] >= r["created"]
+    ]
+    oldest = min((r for r in open_live if r["created"] is not None), key=lambda r: r["created"], default=None)
+
+    # Outcomes and AI–Auditor comparison, over cases decided in the period
+    decided = [r for r in completed if r["outcome"] in DECIDED_OUTCOMES]
+    severity = {tier: 0 for tier in TIERS}
+    for r in decided:
+        if r["final_tier"] in severity:
+            severity[r["final_tier"]] += 1
+    comparable = [r for r in decided if r["ai_tier"] in TIERS and r["final_tier"] in TIERS]
+    matrix = {ai: {final: 0 for final in TIERS} for ai in TIERS}
+    for r in comparable:
+        matrix[r["ai_tier"]][r["final_tier"]] += 1
+    overridden = [r for r in comparable if r["ai_tier"] != r["final_tier"]]
+    transitions = sorted(
+        (
+            {"from": ai, "to": final, "count": matrix[ai][final]}
+            for ai in TIERS
+            for final in TIERS
+            if ai != final and matrix[ai][final] > 0
+        ),
+        key=lambda t: (-t["count"], t["from"], t["to"]),
+    )
+
+    # Delivery health for results of cases completed in the period
+    period_deliveries = [d for d in deliveries if in_period(utc(d.completed_at))]
+    health = delivery_health(period_deliveries)
+    finished = health["success"] + health["needs_attention"]
+    failed_attempts = [
+        datetime.fromisoformat(a["at"])
+        for d in deliveries
+        for a in (d.attempts or [])
+        if a.get("result") == "FAILED" and a.get("at")
+    ]
+
+    def last_attempt(d: Delivery) -> str | None:
+        attempts = d.attempts or []
+        return attempts[-1]["at"] if attempts else None
+
+    failed_rows = sorted(
+        (
+            {
+                "delivery_id": d.delivery_id,
+                "case_id": d.case_id,
+                "attempts": len(d.attempts or []),
+                "reason": d.failure_reason,
+                "last_attempt_at": last_attempt(d),
+            }
+            for d in failed
+        ),
+        key=lambda row: row["last_attempt_at"] or "",
+        reverse=True,
+    )[:MAX_FAILED_LISTED]
+
+    auditor_count = len(db.scalars(select(Auditor).where(Auditor.role == "auditor")).all())
+
+    def ids(rows: list[dict]) -> list[str]:
+        return [r["case_id"] for r in rows]
+
+    return {
+        "organisation_id": org.organisation_id,
+        "organisation_name": org.name,
+        "period_start": period_start,
+        "period_end": period_end,
+        "calculated_at": iso(now),
+        "provenance": provenance(),
+        "kpis": {
+            "total_cases": len(received),
+            "completed": len(completed),
+            "open_cases": len(open_live),
+            "needs_manager_action": needs_action,
+        },
+        "open_breakdown": breakdown,
+        "attention": attention,
+        "flow": {
+            "median_decision_minutes": (
+                round(statistics.median(minutes)) if len(minutes) >= MIN_CASES_FOR_MEDIAN else None
+            ),
+            "oldest_unresolved_minutes": (
+                round((now - oldest["created"]).total_seconds() / 60) if oldest else None
+            ),
+            "oldest_unresolved_case_id": oldest["case_id"] if oldest else None,
+        },
+        "outcomes": {
+            "violation": sum(1 for r in decided if r["outcome"] == "POLICY_VIOLATION_FOUND"),
+            "no_violation": sum(1 for r in decided if r["outcome"] == "NO_VIOLATION_FOUND"),
+            "severity": severity,
+            "open_client_cases": len(open_live),
+        },
+        "comparison": {
+            "eligible": len(comparable),
+            "overrides": len(overridden),
+            "override_rate": len(overridden) / len(comparable) if comparable else 0,
+            "matrix": matrix,
+            "top_transition": transitions[0] if transitions else None,
+        },
+        "delivery": {
+            "health": health,
+            "success_rate": health["success"] / finished if finished else None,
+            "last_failed_at": iso(max(failed_attempts)) if failed_attempts else None,
+            "failed": failed_rows,
+        },
+        "evidence": {
+            "total_cases": _evidence("total_cases", ids(received), now),
+            "completed": _evidence("completed", ids(completed), now),
+            "open_cases": _evidence("open_cases", ids(open_live), now),
+            "needs_manager_action": _evidence(
+                "needs_manager_action",
+                ids(declined) + ids(capped) + [d.case_id for d in failed],
+                now,
+                included=needs_action,
+            ),
+            "case_flow": _evidence("case_flow", ids(open_live), now),
+            "outcomes": _evidence("outcomes", ids(decided), now),
+            "severity": _evidence("severity", ids([r for r in decided if r["final_tier"] in TIERS]), now),
+            "override_rate": _evidence("override_rate", ids(overridden), now, eligible=len(comparable)),
+            "delivery_success_rate": _evidence(
+                "delivery_success_rate",
+                [d.case_id for d in period_deliveries if d.delivery_status == "SUCCESS"],
+                now,
+                eligible=finished,
+            ),
+            "protection": _evidence("protection", [], now, included=auditor_count),
+        },
     }
 
 
@@ -594,6 +888,37 @@ async def escalate_delivery(
 # ---- Manager: reports -----------------------------------------------------
 
 
+def validate_period(period_start: str, period_end: str) -> None:
+    """Both ends are yyyy-mm-dd dates and the period doesn't run backwards."""
+    try:
+        valid = bool(
+            ISO_DATE.match(period_start)
+            and ISO_DATE.match(period_end)
+            and date.fromisoformat(period_start) <= date.fromisoformat(period_end)
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=400, detail="Choose a valid reporting period.")
+
+
+@router.get("/api/manager/intelligence")
+async def get_intelligence(
+    organisation_id: str,
+    period_start: str,
+    period_end: str,
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    validate_period(period_start, period_end)
+    org = _find_organisation(db, organisation_id)
+    now = datetime.now(timezone.utc)
+    advance_deliveries(db, now)
+    result = compute_intelligence(db, org, period_start, period_end, now)
+    db.commit()  # keeps any delivery attempts that just fell due
+    return result
+
+
 @router.get("/api/manager/reports")
 async def list_reports(
     _: StaffSession = Depends(require_manager),
@@ -610,16 +935,7 @@ async def generate_report(
     db: Session = Depends(get_db),
 ):
     start, end = payload.period_start, payload.period_end
-    try:
-        valid = bool(
-            ISO_DATE.match(start)
-            and ISO_DATE.match(end)
-            and date.fromisoformat(start) <= date.fromisoformat(end)
-        )
-    except ValueError:
-        valid = False
-    if not valid:
-        raise HTTPException(status_code=400, detail="Choose a valid reporting period.")
+    validate_period(start, end)
     org = _find_organisation(db, payload.organisation_id)
     now = datetime.now(timezone.utc)
     advance_deliveries(db, now)
