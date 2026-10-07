@@ -106,7 +106,7 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
   const href =
     row.manager_flag === "SOS" && row.sos_alert_id
       ? `/manager/sos/${encodeURIComponent(row.sos_alert_id)}`
-      : row.manager_flag === "DECLINED"
+      : (row.manager_flag === "DECLINED" || row.manager_flag === "CAP_REACHED")
         ? `/manager/cases/${encodeURIComponent(row.case_id)}/review`
         : null;
   const accent = flagged
@@ -140,6 +140,11 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
         {row.manager_flag === "DECLINED" && (
           <Tag type="high-contrast" size="sm" style={{ margin: 0 }}>
             Declined
+          </Tag>
+        )}
+        {row.manager_flag === "CAP_REACHED" && (
+          <Tag type="warm-gray" size="sm" style={{ margin: 0 }}>
+            Cap reached
           </Tag>
         )}
       </TableCell>

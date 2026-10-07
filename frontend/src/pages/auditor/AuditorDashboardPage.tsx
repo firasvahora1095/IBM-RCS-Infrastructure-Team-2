@@ -15,7 +15,7 @@ import {
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { getAuditorCases } from "../../services";
+import { getAuditorCases, releaseAllCasesAtLimit } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorCaseListItem, InternalCaseStatus } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
@@ -85,6 +85,15 @@ export function AuditorDashboardPage() {
     cooldown !== null &&
     (Date.parse(cooldown.ends_at) > pageOpenedAt || (cooldown.requires_check_in && !cooldown.check_in_completed_at));
   const atExposureLimit = wellbeing != null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
+
+  useEffect(() => {
+    if (!atExposureLimit || !token) return;
+    releaseAllCasesAtLimit(token)
+      .then(() => getAuditorCases(token))
+      .then((result) => setCases(result))
+      .catch(() => {});
+  }, [atExposureLimit, token]);
+
   const showAssignedColumn = cases?.some((c) => c.assigned_at) ?? false;
   const reviewableCount = cases?.filter((c) => isReviewable(c.status)).length ?? 0;
 
@@ -166,9 +175,14 @@ export function AuditorDashboardPage() {
                 <TableBody>
                   {cases.map((c) => {
                     const lockedByCooldown = inCooldown && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
-                    const openable = isReviewable(c.status) && !lockedByCooldown;
+                    const lockedByCap = atExposureLimit && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
+                    const openable = isReviewable(c.status) && !lockedByCooldown && !lockedByCap;
                     const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
-                    const statusLabel = lockedByCooldown ? "Locked during cooldown" : QUEUE_STATUS_LABEL[c.status];
+                    const statusLabel = lockedByCooldown
+                      ? "Locked during cooldown"
+                      : lockedByCap
+                      ? "Locked — daily limit reached"
+                      : QUEUE_STATUS_LABEL[c.status];
                     // "Every Processing row is disabled" (AR-AS-04): Gray 10 cells.
                     // Set per cell, because Carbon paints each cell's background
                     // over the row's. Figma also dims disabled rows to 60–70%

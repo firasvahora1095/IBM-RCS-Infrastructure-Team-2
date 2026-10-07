@@ -565,6 +565,15 @@ export async function releaseCaseAtLimit(caseId: string, token: string): Promise
   return parseJsonOrThrow<{ returned: true }>(r);
 }
 
+/** Sprint 3 rule: route all assigned pending cases to Manager when daily cap is reached. */
+export async function releaseAllCasesAtLimit(token: string): Promise<{ returned: number }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/release-all-at-limit`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ returned: number }>(r);
+}
+
 // ---- B2B: customer integration, case result handoff, client reports ----
 
 function bearer(token: string): Record<string, string> {

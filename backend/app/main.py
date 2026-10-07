@@ -133,6 +133,21 @@ def _run_db_migrations() -> None:
         conn.execute(text(
             "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
         ))
+        # auditors — Sprint 3 daily reset column
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
+        ))
+        # cases — Sprint 3 CAP_REACHED manager_flag support
+        conn.execute(text(
+            "ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
+            "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
+        ))
 
 
 try:
@@ -383,6 +398,7 @@ async def select_auditor_for_orchestrate(
         candidate = select_auditor(db)
     except NoEligibleAuditorError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+    db.commit()
     return {
         "auditor_id": candidate.auditor_id,
         "score": candidate.score,
@@ -465,7 +481,7 @@ async def list_auditor_cases(
         select(Case)
         .where(
             Case.assigned_auditor_id == auditor.staff_id,
-            (Case.manager_flag != "DECLINED") | (Case.manager_flag == None),
+            (Case.manager_flag.notin_(["DECLINED", "CAP_REACHED"])) | (Case.manager_flag == None),
         )
         .order_by(Case.created_at.desc())
     ).all()
@@ -621,7 +637,7 @@ async def resolve_case(
     case = _get_owned_case(db, case_id, auditor.staff_id, for_update=True)
     if case.status not in {"READY_FOR_REVIEW", "AUDITOR_REVIEW"}:
         raise HTTPException(status_code=409, detail="Case is not ready for resolution")
-    if case.manager_flag in {"DECLINED", "SOS"}:
+    if case.manager_flag in {"DECLINED", "SOS", "CAP_REACHED"}:
         raise HTTPException(
             status_code=409,
             detail="Flagged cases require Manager action",
@@ -739,7 +755,7 @@ async def manager_dashboard(
         })
     pending_declined = db.scalar(
         select(func.count()).select_from(Case).where(
-            Case.manager_flag == "DECLINED",
+            Case.manager_flag.in_(["DECLINED", "CAP_REACHED"]),
             Case.status != "COMPLETE",
         )
     ) or 0
@@ -759,6 +775,10 @@ async def get_my_wellbeing(
     db: Session = Depends(get_db),
 ):
     row = db.get(Auditor, auditor.staff_id)
+    if row:
+        from app.assignment import maybe_reset_daily_exposure
+        maybe_reset_daily_exposure(db, row)
+        db.commit()
     exposure = float(row.exposure_minutes or 0) if row else 0
     limit = int(row.exposure_limit_minutes or _DEFAULT_EXPOSURE_LIMIT) if row else _DEFAULT_EXPOSURE_LIMIT
     cooldown = None
@@ -843,21 +863,75 @@ async def release_case_at_limit(
     if case.status == "COMPLETE":
         raise HTTPException(status_code=409, detail="Cannot return a completed case")
     before = {"status": case.status, "manager_flag": case.manager_flag}
-    case.manager_flag = "DECLINED"
+    case.manager_flag = "CAP_REACHED"
     db.add(AuditLog(
         case_id=case.case_id,
         actor=auditor.staff_id,
         action="CASE_DECLINED",
         before_value=before,
         after_value={
-            "manager_flag": "DECLINED",
-            "reason": "NEAR_EXPOSURE_LIMIT",
+            "manager_flag": "CAP_REACHED",
+            "reason": "EXPOSURE_CAP_REACHED",
             "other_text": None,
             "returned_at_daily_limit": True,
         },
     ))
+    # Also route any other assigned-but-unstarted cases to the Manager queue
+    other_cases = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.case_id != case_id,
+            Case.status == "READY_FOR_REVIEW",
+            Case.manager_flag == None,
+        )
+    ).all()
+    for other in other_cases:
+        other.manager_flag = "CAP_REACHED"
+        db.add(AuditLog(
+            case_id=other.case_id,
+            actor=auditor.staff_id,
+            action="CASE_DECLINED",
+            before_value={"status": other.status, "manager_flag": None},
+            after_value={
+                "manager_flag": "CAP_REACHED",
+                "reason": "EXPOSURE_CAP_REACHED",
+                "other_text": None,
+                "returned_at_daily_limit": True,
+            },
+        ))
     db.commit()
     return {"returned": True}
+
+
+@app.post("/api/auditor/release-all-at-limit")
+async def release_all_cases_at_limit(
+    auditor: StaffSession = Depends(get_current_auditor),
+    db: Session = Depends(get_db),
+):
+    """Auditor reached daily exposure cap — route all assigned pending cases to Manager queue."""
+    pending_cases = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor.staff_id,
+            Case.status.in_(["READY_FOR_REVIEW", "AUDITOR_REVIEW"]),
+            Case.manager_flag == None,
+        )
+    ).all()
+    for case in pending_cases:
+        case.manager_flag = "CAP_REACHED"
+        db.add(AuditLog(
+            case_id=case.case_id,
+            actor=auditor.staff_id,
+            action="CASE_DECLINED",
+            before_value={"status": case.status, "manager_flag": None},
+            after_value={
+                "manager_flag": "CAP_REACHED",
+                "reason": "EXPOSURE_CAP_REACHED",
+                "other_text": None,
+                "returned_at_daily_limit": True,
+            },
+        ))
+    db.commit()
+    return {"returned": len(pending_cases)}
 
 
 @app.post("/api/auditor/cases/{case_id}/exposure")
@@ -1346,7 +1420,7 @@ async def list_declined_cases(
     db: Session = Depends(get_db),
 ):
     cases = db.scalars(
-        select(Case).where(Case.manager_flag == "DECLINED").order_by(Case.created_at.desc())
+        select(Case).where(Case.manager_flag.in_(["DECLINED", "CAP_REACHED"])).order_by(Case.created_at.desc())
     ).all()
     auditor_names = {
         a.auditor_id: a.auditor_id
@@ -1381,7 +1455,7 @@ async def get_manager_case_review(
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     decline_log = None
-    if case.manager_flag == "DECLINED":
+    if case.manager_flag in {"DECLINED", "CAP_REACHED"}:
         decline_log = db.scalars(
             select(AuditLog)
             .where(AuditLog.case_id == case.case_id, AuditLog.action == "CASE_DECLINED")

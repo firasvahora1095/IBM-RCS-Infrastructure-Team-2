@@ -45,6 +45,7 @@ class Auditor(Base):
     cooldown_ends_at = Column(DateTime(timezone=True), nullable=True)
     cooldown_trigger = Column(String(10), nullable=True)
     cooldown_check_in_done = Column(Integer, nullable=False, server_default="0")
+    exposure_last_reset_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -96,7 +97,7 @@ class Case(Base):
             name="ck_cases_ai_failure",
         ),
         CheckConstraint(
-            "manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS')",
+            "manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED')",
             name="ck_cases_manager_flag",
         ),
         Index("idx_cases_assigned_auditor_id", "assigned_auditor_id"),
@@ -132,7 +133,7 @@ class Case(Base):
     auditor_severity_score = Column(Integer, nullable=True)
     auditor_comment = Column(Text, nullable=True)
     final_outcome = Column(String(50), nullable=True)
-    manager_flag = Column(String(10), nullable=True)
+    manager_flag = Column(String(15), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),

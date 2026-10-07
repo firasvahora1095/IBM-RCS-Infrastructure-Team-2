@@ -10,6 +10,7 @@ export const DECLINE_REASON_OPTIONS: readonly { value: DeclineReason; label: str
   { value: "NEAR_EXPOSURE_LIMIT", label: "Near my exposure limit" },
   { value: "PERSONAL_TRIGGER", label: "Personal Trigger" },
   { value: "OTHER", label: "Other" },
+  { value: "EXPOSURE_CAP_REACHED", label: "Daily exposure cap reached mid-review" },
 ];
 
 export function declineReasonLabel(reason: DeclineReason): string {

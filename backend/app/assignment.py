@@ -16,6 +16,7 @@ from app.models import AuditLog, Auditor, Case
 
 DAILY_EXPOSURE_REFERENCE_MINUTES = 120
 CASE_COUNT_REFERENCE = 10
+WORKDAY_START_HOUR = 9  # 9:00 AM organisation local time (Sprint 3 prototype rule)
 
 
 class NoEligibleAuditorError(RuntimeError):
@@ -41,6 +42,41 @@ def calculate_assignment_score(
     exposure_ratio = exposure_minutes / DAILY_EXPOSURE_REFERENCE_MINUTES
     case_ratio = active_case_count / CASE_COUNT_REFERENCE
     return (0.6 * exposure_ratio) + (0.4 * case_ratio)
+
+
+def _today_workday_start(now: datetime) -> datetime:
+    """Return today's 9:00 AM AEST/AEDT reset boundary in UTC."""
+    from datetime import timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        aest = ZoneInfo("Australia/Sydney")
+    except Exception:
+        # tzdata not installed or unavailable — fall back to UTC+10 (standard AEST, no DST)
+        from datetime import timezone as _tz
+        aest = _tz(timedelta(hours=10))
+    local = now.astimezone(aest)
+    reset = local.replace(hour=WORKDAY_START_HOUR, minute=0, second=0, microsecond=0)
+    if local < reset:
+        reset = reset - timedelta(days=1)
+    return reset.astimezone(timezone.utc)
+
+
+def maybe_reset_daily_exposure(db: Session, auditor: "Auditor") -> bool:  # type: ignore[name-defined]
+    """Reset exposure_minutes to 0 if the workday reset boundary has passed since last reset.
+
+    Returns True if a reset was applied.
+    """
+    now = datetime.now(timezone.utc)
+    workday_start = _today_workday_start(now)
+    last_reset = auditor.exposure_last_reset_at
+    if last_reset is not None and last_reset.tzinfo is None:
+        last_reset = last_reset.replace(tzinfo=timezone.utc)
+    if last_reset is None or last_reset < workday_start:
+        auditor.exposure_minutes = 0
+        auditor.exposure_last_reset_at = now
+        db.flush()
+        return True
+    return False
 
 
 def _latest_assignment_events(db: Session) -> dict[str, tuple[datetime, int]]:
@@ -97,6 +133,8 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
 
     candidates = []
     for auditor in auditors:
+        # Reset daily exposure if workday boundary has passed
+        maybe_reset_daily_exposure(db, auditor)
         # Exclude auditors in active cooldown
         ends_at = auditor.cooldown_ends_at
         if ends_at is not None:
