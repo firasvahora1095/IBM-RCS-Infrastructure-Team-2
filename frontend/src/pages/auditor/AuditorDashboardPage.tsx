@@ -186,12 +186,10 @@ export function AuditorDashboardPage() {
                 {cooldownCause}
                 {waitingForCheckIn ? ". Your manager will check in before new cases resume." : "."}
               </p>
-              <div className="flex flex-wrap gap-2">
+              {/* The Wellbeing check-in card sits right beside this one, so it isn't repeated here. */}
+              <div>
                 <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
                   Play block puzzle
-                </Button>
-                <Button kind="ghost" size="sm" onClick={() => setSupportOpen(true)}>
-                  Wellbeing check-in
                 </Button>
               </div>
             </section>
