@@ -253,17 +253,18 @@ function ModerationQueue({ moderator, onSignOut }: { moderator: string; onSignOu
                 ) : (
                   <>
                     <p className="ch-post-body">{suggested(r.outcome)}</p>
+                    {/* The usual action for RCS's outcome is the strong button; the other stays available. */}
                     <div className="ch-actions" style={{ paddingBlockEnd: 8 }}>
                       <button
                         type="button"
-                        className="ch-button ch-button--danger"
+                        className={`ch-button ${violation ? "ch-button--danger" : "ch-button--outline"}`}
                         onClick={() => setConfirming({ result: r, action: "REMOVED" })}
                       >
                         Remove post
                       </button>
                       <button
                         type="button"
-                        className="ch-button ch-button--outline"
+                        className={`ch-button ${violation ? "ch-button--outline" : "ch-button--primary"}`}
                         onClick={() => setConfirming({ result: r, action: "KEPT" })}
                       >
                         Keep post

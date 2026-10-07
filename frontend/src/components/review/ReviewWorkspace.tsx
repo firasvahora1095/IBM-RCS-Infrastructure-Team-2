@@ -257,7 +257,11 @@ export function ReviewWorkspace({
           ? "Blurred — lower the blur above to view"
           : null;
 
-  const timeline = caseDetail.incident_timeline ?? [];
+  // Marks are drawn against the footage's real length. A flagged moment past
+  // the end of this video can't be shown on its timeline, so it isn't drawn
+  // there (it stays in the AI summary); the count below says so.
+  const timeline = (caseDetail.incident_timeline ?? []).filter((e) => e.start <= duration);
+  const hiddenMarks = (caseDetail.incident_timeline ?? []).length - timeline.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -455,10 +459,12 @@ export function ReviewWorkspace({
                     return (
                       <Tooltip
                         key={i}
-                        align={timelineTooltipAlign(entry.start / duration)}
+                        align={timelineTooltipAlign(Math.min(entry.start, duration) / duration)}
                         label={`${range} · ${entry.tag ?? "Flagged"} · ${entry.severity_tier} ${info.label}`}
                         className="rcs-tick"
-                        style={{ left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)` }}
+                        style={{
+                          left: `calc(${(Math.min(entry.start, duration) / duration) * 100}% - 8px + ${groupOffset}px)`,
+                        }}
                       >
                         <button
                           type="button"
@@ -512,6 +518,12 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
+          {hiddenMarks > 0 && (
+            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
+              {hiddenMarks} flagged moment{hiddenMarks === 1 ? " is" : "s are"} after the end of this video, so{" "}
+              {hiddenMarks === 1 ? "it isn't" : "they aren't"} marked on the timeline. See the AI summary.
+            </p>
+          )}
 
           {isMockData && (
             <div className="flex flex-wrap items-center gap-2">
