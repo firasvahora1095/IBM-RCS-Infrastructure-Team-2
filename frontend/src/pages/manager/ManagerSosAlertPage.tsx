@@ -62,7 +62,7 @@ export function ManagerSosAlertPage() {
             lowContrast={data.status !== "UNACKNOWLEDGED"}
             hideCloseButton
             title={`SOS alert — ${data.auditor_name} — ${formatRelativeTime(data.triggered_at, now)}`}
-            subtitle={SOS_STATUS_LABEL[data.status].toLowerCase()}
+            subtitle={(SOS_STATUS_LABEL[data.status] ?? "Open").toLowerCase()}
             style={{ maxWidth: "100%" }}
           />
 
