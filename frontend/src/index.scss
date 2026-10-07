@@ -49,6 +49,10 @@
 }
 .rcs-player-bar {
   gap: 0.5rem;
+  // Never wider than its column: the timeline gives up width first, so the
+  // reviewer never has to scroll sideways mid-review.
+  inline-size: 100%;
+  min-inline-size: 0;
 }
 .rcs-inline-control {
   display: flex;
@@ -137,7 +141,11 @@
   min-block-size: 10rem;
 }
 .rcs-player-volume {
-  flex: 0 0 6rem;
+  flex: 0 0 4rem;
+  // On narrow screens mute alone controls sound, so the bar still fits.
+  @media (max-width: 671px) {
+    display: none;
+  }
 }
 .rcs-tick {
   position: absolute;

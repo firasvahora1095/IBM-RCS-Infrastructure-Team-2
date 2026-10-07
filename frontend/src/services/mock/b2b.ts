@@ -1,6 +1,10 @@
 import { ApiError } from "../types";
 import type {
+  CaseResult,
+  ClientAccount,
+  ClientRole,
   ClientLoginResponse,
+  PlatformAction,
   ClientMessage,
   ClientMessageInput,
   CustomerIntegration,
@@ -50,11 +54,18 @@ function requireManager(db: MockDb, token: string) {
   return session;
 }
 
-function requireClient(db: MockDb, token: string) {
+function requireClient(db: MockDb, token: string, allowed?: ClientRole[]) {
   const session = db.clientSessions[token];
   if (!session) throw new ApiError("Not authenticated", 401);
+  // Least privilege: a role only reaches what its job needs.
+  if (allowed && !allowed.includes(session.role)) {
+    throw new ApiError("Your account doesn't include this. Ask your CommunityHub admin.", 403);
+  }
   return session;
 }
+
+const REPORT_ROLES: ClientRole[] = ["REPORTS", "ADMIN"];
+const CASE_ROLES: ClientRole[] = ["TRUST_SAFETY", "ADMIN"];
 
 function managerName(db: MockDb, staffId: string): string {
   return db.staff.find((s) => s.staff_id === staffId)?.display_name ?? staffId;
@@ -72,7 +83,9 @@ function audit(db: MockDb, actor: string, action: string, caseId: string | null,
  * The Manager never approves it (extras §4.1).
  */
 export function createDeliveryForCase(db: MockDb, c: MockCase): void {
-  if (c.final_outcome !== "POLICY_VIOLATION_FOUND" && c.final_outcome !== "NO_VIOLATION_FOUND") return;
+  // An Auditor decision, or a Manager closing the case without one: either way
+  // CommunityHub hears the final result for the post.
+  if (!c.final_outcome) return;
   if (db.deliveries.some((d) => d.case_id === c.case_id)) return; // idempotent: one delivery per case
   const failThisOne = db.demo.failNextDelivery;
   db.demo.failNextDelivery = false;
@@ -82,7 +95,7 @@ export function createDeliveryForCase(db: MockDb, c: MockCase): void {
     case_id: c.case_id,
     organisation_id: COMMUNITYHUB_ID,
     outcome: c.final_outcome,
-    final_severity: finalTierOf(c) ?? "S1",
+    final_severity: c.final_outcome === "CLOSED_NO_REASSIGNMENT" ? null : (finalTierOf(c) ?? "S1"),
     completed_at: c.completed_at ?? new Date(now).toISOString(),
     delivery_status: "PENDING",
     attempts: [],
@@ -158,6 +171,23 @@ function toDelivery(db: MockDb, d: MockDelivery): Delivery {
     escalated_at: d.escalated_at,
     source_url: d.source_url,
     case_available: db.cases.some((c) => c.case_id === d.case_id),
+    platform_action: d.platform_action ?? null,
+  };
+}
+
+/** The client-safe view of a delivery: agreed facts only, never delivery errors. */
+function toCaseResult(d: MockDelivery): CaseResult {
+  const delivered = d.attempts.find((a) => a.result === "SUCCESS");
+  return {
+    delivery_id: d.delivery_id,
+    case_id: d.case_id,
+    post_url: d.source_url,
+    outcome: d.outcome,
+    final_severity: d.final_severity,
+    completed_at: d.completed_at,
+    delivered_at: delivered?.at ?? null,
+    status: d.delivery_status === "SUCCESS" ? "DELIVERED" : "ON_ITS_WAY",
+    platform_action: d.platform_action ?? null,
   };
 }
 
@@ -212,7 +242,7 @@ function authoriseClientReport(
   reportId: string,
   action: ReportAccessEntry["action"],
 ): ServiceReport {
-  const session = requireClient(db, token);
+  const session = requireClient(db, token, REPORT_ROLES);
   const report = db.reports.find((r) => r.report_id === reportId);
   const deny = (reason: string) => {
     logAccess(db, {
@@ -318,6 +348,9 @@ export const b2bMockOps: Pick<
   | "listClientMessages"
   | "getClientMessage"
   | "replyClientMessage"
+  | "clientListCaseResults"
+  | "clientRecordPlatformAction"
+  | "listClientAccounts"
 > = {
   async getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration> {
     await delay();
@@ -585,13 +618,14 @@ export const b2bMockOps: Pick<
       }
       delete db.loginAttempts[key];
       const token = `client-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-      db.clientSessions[token] = { userId: user.user_id, organisationId: user.organisation_id };
+      db.clientSessions[token] = { userId: user.user_id, organisationId: user.organisation_id, role: user.role };
       return {
         token,
         user_id: user.user_id,
         display_name: user.display_name,
         organisation_id: user.organisation_id,
         organisation_name: db.organisation.name,
+        role: user.role,
       };
     });
   },
@@ -599,7 +633,7 @@ export const b2bMockOps: Pick<
   async clientListReports(token: string): Promise<ServiceReport[]> {
     await delay();
     return updateDb((db) => {
-      const session = requireClient(db, token);
+      const session = requireClient(db, token, REPORT_ROLES);
       return db.reports
         .filter((r) => r.status === "RELEASED" && r.organisation_id === session.organisationId)
         .sort((a, b) => b.period_start.localeCompare(a.period_start) || b.version - a.version)
@@ -706,6 +740,47 @@ export const b2bMockOps: Pick<
       message.reply = { body: text, at: now, by: managerName(db, session.staffId) };
       audit(db, session.staffId, "CLIENT_MESSAGE_ANSWERED", null, messageId);
       return { ...message };
+    });
+  },
+
+  async clientListCaseResults(token: string): Promise<CaseResult[]> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireClient(db, token, CASE_ROLES);
+      advanceDeliveries(db);
+      return db.deliveries
+        .filter((d) => d.organisation_id === session.organisationId)
+        .sort((a, b) => Date.parse(b.completed_at) - Date.parse(a.completed_at))
+        .map(toCaseResult);
+    });
+  },
+
+  async clientRecordPlatformAction(
+    deliveryId: string,
+    token: string,
+    action: PlatformAction["action"],
+    note?: string,
+  ): Promise<CaseResult> {
+    await delay();
+    if (action !== "REMOVED" && action !== "KEPT") throw new ApiError("Choose Remove or Keep.", 400);
+    return updateDb((db) => {
+      const session = requireClient(db, token, CASE_ROLES);
+      const d = db.deliveries.find((x) => x.delivery_id === deliveryId);
+      // Deny by default: their own organisation's results only, and only once CommunityHub has it.
+      if (!d || d.organisation_id !== session.organisationId) throw new ApiError("Result not found", 404);
+      if (d.delivery_status !== "SUCCESS") throw new ApiError("This result hasn't reached CommunityHub yet.", 409);
+      d.platform_action = { action, note: note?.trim() || null, at: new Date().toISOString(), by: session.userId };
+      return toCaseResult(d);
+    });
+  },
+
+  async listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]> {
+    await delay();
+    return updateDb((db) => {
+      requireManager(db, token);
+      return db.clients
+        .filter((u) => u.organisation_id === organisationId.toUpperCase())
+        .map((u) => ({ user_id: u.user_id, display_name: u.display_name, role: u.role }));
     });
   },
 

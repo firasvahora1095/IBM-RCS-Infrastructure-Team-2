@@ -164,7 +164,9 @@ def create_delivery_for_case(db: Session, case: Case, now: datetime) -> Delivery
     Idempotent: one delivery per case, whose ID is reused on every retry so the
     customer never processes the same result twice.
     """
-    if case.final_outcome not in DECIDED_OUTCOMES:
+    # An Auditor decision, or a Manager closing the case without one: either
+    # way the customer hears the final result for the post.
+    if case.final_outcome not in DECIDED_OUTCOMES | {"CLOSED_NO_REASSIGNMENT"}:
         return None
     existing = db.scalars(select(Delivery).where(Delivery.case_id == case.case_id)).first()
     if existing is not None:
@@ -175,7 +177,7 @@ def create_delivery_for_case(db: Session, case: Case, now: datetime) -> Delivery
         case_id=case.case_id,
         organisation_id=COMMUNITYHUB_ID,
         outcome=case.final_outcome,
-        final_severity=final_tier_of(case) or "S1",
+        final_severity=None if case.final_outcome == "CLOSED_NO_REASSIGNMENT" else (final_tier_of(case) or "S1"),
         completed_at=case.completed_at or now,
         delivery_status="PENDING",
         attempts=[],
@@ -269,6 +271,34 @@ def _delivery_payload(d: Delivery, live_case_ids: set[str]) -> dict:
         "escalated_at": iso(d.escalated_at),
         "source_url": d.source_url,
         "case_available": d.case_id in live_case_ids,
+        "platform_action": _platform_action(d),
+    }
+
+
+def _platform_action(d: Delivery) -> dict | None:
+    if not d.platform_action:
+        return None
+    return {
+        "action": d.platform_action,
+        "note": d.platform_action_note,
+        "at": iso(d.platform_action_at),
+        "by": d.platform_action_by,
+    }
+
+
+def _case_result(d: Delivery) -> dict:
+    """The client-safe view of a delivery: agreed facts only, never delivery errors."""
+    delivered = next((a for a in (d.attempts or []) if a["result"] == "SUCCESS"), None)
+    return {
+        "delivery_id": d.delivery_id,
+        "case_id": d.case_id,
+        "post_url": d.source_url,
+        "outcome": d.outcome,
+        "final_severity": d.final_severity,
+        "completed_at": iso(d.completed_at),
+        "delivered_at": delivered["at"] if delivered else None,
+        "status": "DELIVERED" if d.delivery_status == "SUCCESS" else "ON_ITS_WAY",
+        "platform_action": _platform_action(d),
     }
 
 
@@ -785,7 +815,21 @@ async def client_login(payload: ClientLoginRequest, db: Session = Depends(get_db
         "display_name": user.display_name,
         "organisation_id": user.organisation_id,
         "organisation_name": org.name if org else user.organisation_id,
+        "role": user.role or "REPORTS",
     }
+
+
+REPORT_ROLES = {"REPORTS", "ADMIN"}
+CASE_ROLES = {"TRUST_SAFETY", "ADMIN"}
+
+
+def _require_role(user: ClientUser, roles: set[str]) -> None:
+    """Least privilege: a client role only reaches what its job needs."""
+    if (user.role or "REPORTS") not in roles:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account doesn't include this. Ask your CommunityHub admin.",
+        )
 
 
 @router.get("/api/client/reports")
@@ -793,6 +837,7 @@ async def client_list_reports(
     user: ClientUser = Depends(require_client),
     db: Session = Depends(get_db),
 ):
+    _require_role(user, REPORT_ROLES)
     reports = db.scalars(
         select(ServiceReport).where(
             ServiceReport.organisation_id == user.organisation_id,
@@ -811,6 +856,7 @@ def _authorise_client_report(db: Session, user: ClientUser, report_id: str, acti
     Every refusal is logged and answered as "not found", so it reveals nothing
     about reports belonging to anyone else.
     """
+    _require_role(user, REPORT_ROLES)
     report = db.get(ServiceReport, report_id)
     reason = None
     if report is None:
@@ -1003,3 +1049,63 @@ async def reply_client_message(
     message.reply_by = manager.staff_id
     db.commit()
     return _message_payload(db, message, for_client=False)
+
+
+# ---- Per-case results for the customer --------------------------------------
+
+
+class PlatformActionRequest(BaseModel):
+    action: str
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.get("/api/client/case-results")
+async def client_list_case_results(
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    _require_role(user, CASE_ROLES)
+    advance_deliveries(db, datetime.now(timezone.utc))
+    db.commit()
+    rows = db.scalars(select(Delivery).where(Delivery.organisation_id == user.organisation_id)).all()
+    rows = sorted(rows, key=lambda d: utc(d.completed_at), reverse=True)
+    return [_case_result(d) for d in rows]
+
+
+@router.post("/api/client/case-results/{delivery_id}/action")
+async def client_record_platform_action(
+    delivery_id: str,
+    payload: PlatformActionRequest,
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    """CommunityHub's moderator acted on a result. A second action replaces the first."""
+    _require_role(user, CASE_ROLES)
+    if payload.action not in {"REMOVED", "KEPT"}:
+        raise HTTPException(status_code=400, detail="Choose Remove or Keep.")
+    delivery = db.get(Delivery, delivery_id)
+    # Deny by default: their own organisation's results only.
+    if delivery is None or delivery.organisation_id != user.organisation_id:
+        raise HTTPException(status_code=404, detail="Result not found")
+    if delivery.delivery_status != "SUCCESS":
+        raise HTTPException(status_code=409, detail="This result hasn't reached CommunityHub yet.")
+    delivery.platform_action = payload.action
+    delivery.platform_action_note = (payload.note or "").strip() or None
+    delivery.platform_action_at = datetime.now(timezone.utc)
+    delivery.platform_action_by = user.user_id
+    db.commit()
+    return _case_result(delivery)
+
+
+@router.get("/api/manager/customers/{organisation_id}/accounts")
+async def list_client_accounts(
+    organisation_id: str,
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    org = _find_organisation(db, organisation_id)
+    users = db.scalars(select(ClientUser).where(ClientUser.organisation_id == org.organisation_id)).all()
+    return [
+        {"user_id": u.user_id, "display_name": u.display_name, "role": u.role or "REPORTS"}
+        for u in sorted(users, key=lambda u: u.user_id)
+    ]

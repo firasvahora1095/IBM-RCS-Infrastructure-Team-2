@@ -6,7 +6,10 @@ import type {
   AuditorDetail,
   AuditorOverviewRow,
   AuditorWellbeing,
+  CaseResult,
+  ClientAccount,
   ClientLoginResponse,
+  PlatformAction,
   ClientMessage,
   ClientMessageInput,
   CooldownState,
@@ -774,4 +777,32 @@ export async function replyClientMessage(messageId: string, token: string, body:
     body: JSON.stringify({ body }),
   });
   return parseJsonOrThrow<ClientMessage>(r);
+}
+
+// ---- Per-case results ----
+
+export async function clientListCaseResults(token: string): Promise<CaseResult[]> {
+  const r = await fetch(`${API_BASE_URL}/api/client/case-results`, { headers: bearer(token) });
+  return parseJsonOrThrow<CaseResult[]>(r);
+}
+
+export async function clientRecordPlatformAction(
+  deliveryId: string,
+  token: string,
+  action: PlatformAction["action"],
+  note?: string,
+): Promise<CaseResult> {
+  const r = await fetch(`${API_BASE_URL}/api/client/case-results/${encodeURIComponent(deliveryId)}/action`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ action, note: note?.trim() || null }),
+  });
+  return parseJsonOrThrow<CaseResult>(r);
+}
+
+export async function listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/customers/${encodeURIComponent(organisationId)}/accounts`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ClientAccount[]>(r);
 }

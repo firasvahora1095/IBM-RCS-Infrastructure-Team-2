@@ -198,12 +198,16 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         destination_masked="https://api.communityhub.example/••••••/rcs-results",
         last_tested_at=now - timedelta(hours=3),
     ))
-    db.add(ClientUser(
-        user_id=CLIENT_USER_ID,
-        login_hash=hash_password(client_password),
-        display_name="Taylor Brooks",
-        organisation_id=COMMUNITYHUB_ID,
-    ))
+    # Least privilege: each CommunityHub account sees only what its job needs.
+    client_hash = hash_password(client_password)
+    db.add_all([
+        ClientUser(user_id=CLIENT_USER_ID, login_hash=client_hash, display_name="Taylor Brooks",
+                   organisation_id=COMMUNITYHUB_ID, role="REPORTS"),
+        ClientUser(user_id="ch-mod-04", login_hash=client_hash, display_name="Jordan Kim",
+                   organisation_id=COMMUNITYHUB_ID, role="TRUST_SAFETY"),
+        ClientUser(user_id="ch-admin-01", login_hash=client_hash, display_name="Sam Rivera",
+                   organisation_id=COMMUNITYHUB_ID, role="ADMIN"),
+    ])
 
     history = _historical_cases(now, rng)
     db.add_all(history)
@@ -235,6 +239,17 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         deliveries.append(_delivered(
             case.case_id, case.final_outcome, final_tier_of(case) or "S1", case.completed_at, False,
         ))
+    # Reports came from CommunityHub posts, so each result carries its post link.
+    for i, d in enumerate(deliveries):
+        d.source_url = d.source_url or f"https://communityhub.example/post/{3100 + i}"
+    # CommunityHub's moderators have dealt with everything except the newest few results.
+    delivered = sorted((d for d in deliveries if d.delivery_status == "SUCCESS"), key=lambda d: d.completed_at)
+    for i, d in enumerate(delivered[:-4]):
+        violation = d.outcome == "POLICY_VIOLATION_FOUND"
+        d.platform_action = "REMOVED" if violation else "KEPT"
+        d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
+        d.platform_action_at = d.completed_at + timedelta(minutes=25)
+        d.platform_action_by = "ch-mod-04"
     db.add_all(deliveries)
     db.flush()
 

@@ -1,3 +1,4 @@
+import { safeHttpUrl } from "../../utils/safeUrl";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
 import { scoreToTier } from "../../design-tokens/severity";
@@ -298,8 +299,10 @@ function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: s
 
 /** Keeps optional Reporter source details (B2B spec S2). Blank details are not stored. */
 function rememberSource(db: MockDb, caseId: string, source?: ReportSource): void {
-  const url = source?.url?.trim() || null;
-  const detail = source?.detail?.trim() || null;
+  const raw = source?.url?.trim() || null;
+  const url = safeHttpUrl(raw);
+  // Anything that isn't an http(s) link is kept as text, never as a link.
+  const detail = [raw && !url ? raw : null, source?.detail?.trim() || null].filter(Boolean).join(" · ") || null;
   if (url || detail) db.caseSources[caseId] = { url, detail };
 }
 
@@ -1178,6 +1181,8 @@ export const mockDataService: DataService = {
         updated_at: now,
       });
       audit(db, session.staffId, "CASE_CLOSED_BY_MANAGER", caseId, note.trim());
+      // CommunityHub still hears about the post: "closed without a decision".
+      createDeliveryForCase(db, c);
       return { status: mapStatusToPublicLabel("COMPLETE") };
     });
   },

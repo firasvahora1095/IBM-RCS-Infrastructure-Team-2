@@ -1,6 +1,7 @@
 """Sprint 2 Week 1 API for the mocked end-to-end moderation flow."""
 
 import hmac
+from urllib.parse import urlparse
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -374,11 +375,16 @@ async def create_report(
         # Flush the parent row before adding its audit record. Without an ORM
         # relationship SQLAlchemy cannot infer the insert order from IDs alone.
         db.flush()
-        if (source_url and source_url.strip()) or (source_detail and source_detail.strip()):
+        raw_url = (source_url or "").strip()
+        # A Reporter's link is untrusted: only an http(s) URL is stored as a link
+        # (it's rendered as one for the customer); anything else is kept as text.
+        safe_url = raw_url if urlparse(raw_url).scheme in {"http", "https"} else ""
+        detail = " · ".join(t for t in ((raw_url if not safe_url else ""), (source_detail or "").strip()) if t)
+        if safe_url or detail:
             db.add(CaseSource(
                 case_id=case_id,
-                source_url=(source_url or "").strip() or None,
-                source_detail=(source_detail or "").strip() or None,
+                source_url=safe_url or None,
+                source_detail=detail or None,
             ))
         db.add(
             AuditLog(
@@ -1672,6 +1678,8 @@ async def close_without_reassignment(
         before_value=before,
         after_value={"status": "COMPLETE", "note": note},
     ))
+    # The customer still hears about the post: "closed without a decision".
+    create_delivery_for_case(db, case, case.completed_at)
     db.commit()
     return {"status": "COMPLETE"}
 

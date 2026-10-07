@@ -13,6 +13,9 @@ import type {
   WellbeingRequestKind,
   WellbeingRequestStatus,
   ClientMessage,
+  ClientRole,
+  DeliveredOutcome,
+  PlatformAction,
   FlaggedEntity,
   IncidentTimelineEntry,
   InternalCaseStatus,
@@ -146,8 +149,8 @@ export interface MockDelivery {
   delivery_id: string;
   case_id: string;
   organisation_id: string;
-  outcome: FinalOutcome;
-  final_severity: SeverityTier;
+  outcome: DeliveredOutcome;
+  final_severity: SeverityTier | null;
   completed_at: string;
   delivery_status: DeliveryStatus;
   attempts: DeliveryAttempt[];
@@ -156,6 +159,8 @@ export interface MockDelivery {
   escalated_at: string | null;
   escalation_note: string | null;
   source_url: string | null;
+  /** What CommunityHub's moderator did with it, once they act. */
+  platform_action?: PlatformAction | null;
   /** Mock only: the automatic attempts for this delivery fail (endpoint "down"). */
   simulate_failure: boolean;
 }
@@ -165,6 +170,7 @@ export interface MockClientUser {
   password: string;
   display_name: string;
   organisation_id: string;
+  role: ClientRole;
 }
 
 export interface MockDb {
@@ -197,7 +203,7 @@ export interface MockDb {
   clients: MockClientUser[];
   /** token → client session. Separate from staff sessions: a client token never opens a staff page. */
   clientMessages: ClientMessage[];
-  clientSessions: Record<string, { userId: string; organisationId: string }>;
+  clientSessions: Record<string, { userId: string; organisationId: string; role: ClientRole }>;
   /** Optional Reporter-supplied source details, keyed by case ID (never required). */
   caseSources: Record<string, { url: string | null; detail: string | null }>;
 }
