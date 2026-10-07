@@ -896,6 +896,36 @@ class ApiContractTests(unittest.TestCase):
     # Cooldown — SOS saves to DB and wellbeing API returns real state
     # ------------------------------------------------------------------
 
+    def test_sos_alert_can_be_reopened_after_acknowledging_and_then_resolved(self) -> None:
+        case_id = "SOSCASE000000002"
+        self.add_case(case_id)
+        self.client.post(f"/api/auditor/cases/{case_id}/sos", headers=self.auth_headers())
+        manager = self.auth_headers("manager-1")
+
+        alert = self.client.get("/api/manager/sos-alerts", headers=manager).json()[0]
+        self.assertEqual(alert["status"], "UNACKNOWLEDGED")
+        alert_id = alert["id"]
+        self.client.post(f"/api/manager/sos-alerts/{alert_id}/acknowledge", headers=manager)
+
+        # Leaving and coming back: the alert is still reachable and says follow-up is next.
+        listed = self.client.get("/api/manager/sos-alerts", headers=manager).json()[0]
+        self.assertEqual(listed["status"], "IN_PROGRESS")
+        detail = self.client.get(f"/api/manager/sos-alerts/{alert_id}", headers=manager).json()
+        self.assertEqual(detail["status"], "IN_PROGRESS")
+        self.assertEqual(self.client.get("/api/manager/sos-summary", headers=manager).json()["unresolved_count"], 1)
+
+        done = self.client.post(
+            f"/api/manager/sos-alerts/{alert_id}/follow-up",
+            json={"notes": "Called them; they're OK.", "outcome": "NO_FURTHER_ACTION"},
+            headers=manager,
+        )
+        self.assertEqual(done.status_code, 200, done.text)
+        self.assertEqual(self.client.get("/api/manager/sos-alerts", headers=manager).json()[0]["status"], "RESOLVED")
+        detail = self.client.get(f"/api/manager/sos-alerts/{alert_id}", headers=manager).json()
+        self.assertEqual(detail["follow_up_notes"], "Called them; they're OK.")
+        # The banner clears once the follow-up is logged.
+        self.assertEqual(self.client.get("/api/manager/sos-summary", headers=manager).json()["unresolved_count"], 0)
+
     def test_sos_saves_cooldown_to_db_and_wellbeing_returns_it(self) -> None:
         case_id = "SOSCASE000000001"
         self.add_case(case_id)

@@ -230,3 +230,20 @@
   outline: 2px solid var(--cds-focus);
   outline-offset: 2px;
 }
+
+// Auditor "Your day" card when the wellbeing state needs attention (cooldown,
+// daily limit): same panel shape, with the caution accent and a large figure.
+.rcs-day-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 3px 0 0 var(--cds-support-warning);
+}
+.rcs-day-alert-figure {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+}

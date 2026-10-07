@@ -7,6 +7,7 @@ import {
   ArrowUp,
   Bicycle,
   Bookmark,
+  Download,
   Chat,
   Fire,
   Flag,
@@ -171,6 +172,8 @@ export function CommunityHubPage() {
   const [sort, setSort] = useState("Best");
   const [votes, setVotes] = useState<Record<string, 1 | -1 | 0>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [sharing, setSharing] = useState<Post | null>(null);
+  const [savingVideo, setSavingVideo] = useState(false);
 
   function openReport(post: Post) {
     setReporting(post);
@@ -327,7 +330,14 @@ export function CommunityHubPage() {
                         <Chat size={16} aria-hidden="true" />
                         {post.comments} comments
                       </button>
-                      <button type="button" className="ch-action">
+                      <button
+                        type="button"
+                        className="ch-action"
+                        onClick={() => {
+                          setSharing(post);
+                          setSavingVideo(false);
+                        }}
+                      >
                         <Share size={16} aria-hidden="true" />
                         Share
                       </button>
@@ -416,6 +426,71 @@ export function CommunityHubPage() {
           <p className="ch-footer">CommunityHub · Help · Terms · Privacy · Simulated for the RCS demo</p>
         </aside>
       </div>
+
+      {/* Share (simulated). "Download video" saves nothing in this demo: it explains how someone
+          could save the video and upload it to RCS themselves, e.g. from another device. */}
+      <Modal
+        open={sharing !== null}
+        passiveModal
+        modalLabel="CommunityHub"
+        modalHeading={savingVideo ? "Save this video" : "Share this post"}
+        onRequestClose={() => setSharing(null)}
+      >
+        {sharing && !savingVideo && (
+          <div className="flex flex-col gap-4">
+            <p className="ch-muted" style={{ overflowWrap: "anywhere" }}>
+              {postUrl(sharing.id)}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="ch-button ch-button--outline"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(postUrl(sharing.id)).catch(() => undefined);
+                  setSharing(null);
+                }}
+              >
+                Copy link
+              </button>
+              <button type="button" className="ch-button ch-button--primary" onClick={() => setSavingVideo(true)}>
+                <Download size={16} aria-hidden="true" />
+                Download video
+              </button>
+            </div>
+          </div>
+        )}
+        {sharing && savingVideo && (
+          <div className="flex flex-col gap-4">
+            <p className="ch-demo-note">Demo only: nothing is downloaded here.</p>
+            <p style={{ fontSize: 14 }}>On the real CommunityHub, this saves the video to your device. To report it to RCS yourself:</p>
+            <ol className="ch-steps">
+              <li>Download the video. It's saved to your Downloads folder (or Photos on a phone).</li>
+              <li>Open the RCS report form.</li>
+              <li>Choose the saved file under Upload a video, and paste the post link if you have it.</li>
+              <li>Submit. You'll get a case ID to check its progress; you can stay anonymous.</li>
+            </ol>
+            <p className="ch-muted">
+              Easier: use <strong>Report</strong> on the post and choose &ldquo;Violent or harmful video&rdquo;. It opens
+              the RCS form with this post&apos;s link already attached.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="ch-button ch-button--outline" onClick={() => setSavingVideo(false)}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="ch-button ch-button--primary"
+                onClick={() => {
+                  const params = new URLSearchParams({ from: "communityhub", source: postUrl(sharing.id) });
+                  navigate(`/?${params.toString()}`);
+                }}
+              >
+                Open the RCS report form
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={reporting !== null}

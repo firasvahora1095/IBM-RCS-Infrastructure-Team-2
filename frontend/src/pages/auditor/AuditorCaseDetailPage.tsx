@@ -563,7 +563,7 @@ export function AuditorCaseDetailPage() {
       {step === "check-in" && (
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
-          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Request support</h1>
+          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Wellbeing check-in</h1>
           <p style={secondaryText}>
             Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
             you need to stop right now, go back and use SOS.
