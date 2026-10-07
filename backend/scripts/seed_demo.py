@@ -46,6 +46,7 @@ a1 = Auditor(
     login_hash=hash_password("test123"),
     role="auditor",
     exposure_minutes=45.0,
+    exposure_last_reset_at=now,
     active_case_count=2,
 )
 
@@ -54,6 +55,7 @@ a2 = Auditor(
     login_hash=hash_password("test123"),
     role="auditor",
     exposure_minutes=30.0,
+    exposure_last_reset_at=now,
     active_case_count=1,
 )
 
@@ -62,6 +64,7 @@ a3 = Auditor(
     login_hash=hash_password("test123"),
     role="auditor",
     exposure_minutes=110.0,
+    exposure_last_reset_at=now,
     active_case_count=1,
 )
 
@@ -70,6 +73,7 @@ a4 = Auditor(
     login_hash=hash_password("test123"),
     role="auditor",
     exposure_minutes=120.0,
+    exposure_last_reset_at=now,
     active_case_count=0,
 )
 

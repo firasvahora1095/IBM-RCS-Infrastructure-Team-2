@@ -192,6 +192,31 @@ app.include_router(b2b_router)
 app.include_router(support_router)
 
 
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    schema.setdefault("components", {}).setdefault("securitySchemes", {})["InternalApiKey"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-API-Key",
+    }
+    internal_paths = [
+        "/api/internal/auditors/available",
+        "/api/internal/auditors/{auditor_id}/exposure",
+        "/api/internal/auditors/{auditor_id}/cases",
+    ]
+    for path in internal_paths:
+        for method in schema.get("paths", {}).get(path, {}).values():
+            if isinstance(method, dict):
+                method["security"] = [{"InternalApiKey": []}]
+    app.openapi_schema = schema
+    return schema
+
+app.openapi = _custom_openapi  # type: ignore[method-assign]
+
+
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     response = await call_next(request)
@@ -415,6 +440,85 @@ async def select_auditor_for_orchestrate(
         "score": candidate.score,
         "active_case_count": candidate.active_case_count,
         "exposure_minutes": candidate.exposure_minutes,
+    }
+
+
+@app.get("/api/internal/auditors/available")
+async def get_available_auditors(
+    _: None = Depends(require_internal_api_key),
+    db: Session = Depends(get_db),
+):
+    """List all Auditors currently eligible for assignment (not in cooldown, under exposure limit).
+    Orchestrate calls this first to know who is available.
+    """
+    from app.assignment import list_assignment_candidates
+    candidates = list_assignment_candidates(db)
+    return {
+        "available_auditors": [
+            {
+                "auditor_id": c.auditor_id,
+                "active_case_count": c.active_case_count,
+                "exposure_minutes": c.exposure_minutes,
+                "score": c.score,
+            }
+            for c in candidates
+        ],
+        "count": len(candidates),
+    }
+
+
+@app.get("/api/internal/auditors/{auditor_id}/exposure")
+async def get_auditor_exposure(
+    auditor_id: str,
+    _: None = Depends(require_internal_api_key),
+    db: Session = Depends(get_db),
+):
+    """Return exposure and cooldown state for a specific Auditor.
+    Orchestrate calls this to check whether an Auditor is safe to assign.
+    """
+    from datetime import datetime, timezone
+    auditor = db.get(Auditor, auditor_id)
+    if auditor is None:
+        raise HTTPException(status_code=404, detail="Auditor not found")
+    now = datetime.now(timezone.utc)
+    ends_at = auditor.cooldown_ends_at
+    if ends_at is not None and ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+    in_cooldown = ends_at is not None and ends_at > now
+    limit = auditor.exposure_limit_minutes or 120
+    return {
+        "auditor_id": auditor_id,
+        "exposure_minutes": auditor.exposure_minutes or 0,
+        "exposure_limit_minutes": limit,
+        "exposure_remaining_minutes": max(0, limit - (auditor.exposure_minutes or 0)),
+        "in_cooldown": in_cooldown,
+        "cooldown_ends_at": ends_at.isoformat() if in_cooldown else None,
+        "eligible_for_assignment": not in_cooldown and (auditor.exposure_minutes or 0) < limit,
+    }
+
+
+@app.get("/api/internal/auditors/{auditor_id}/cases")
+async def get_auditor_active_cases(
+    auditor_id: str,
+    _: None = Depends(require_internal_api_key),
+    db: Session = Depends(get_db),
+):
+    """Return active (non-complete) case count for a specific Auditor.
+    Orchestrate calls this to assess current workload.
+    """
+    auditor = db.get(Auditor, auditor_id)
+    if auditor is None:
+        raise HTTPException(status_code=404, detail="Auditor not found")
+    from sqlalchemy import func, select as sa_select
+    active_count = db.scalar(
+        sa_select(func.count(Case.case_id)).where(
+            Case.assigned_auditor_id == auditor_id,
+            Case.status != "COMPLETE",
+        )
+    ) or 0
+    return {
+        "auditor_id": auditor_id,
+        "active_case_count": active_count,
     }
 
 
