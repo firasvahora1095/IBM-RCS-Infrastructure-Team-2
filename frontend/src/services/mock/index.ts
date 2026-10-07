@@ -293,7 +293,7 @@ function rememberSource(db: MockDb, caseId: string, source?: ReportSource): void
 }
 
 /** Takes a case off an Auditor's queue and hands it to the Manager (AR-AI-09, AR-DF-02). */
-function routeToManager(db: MockDb, c: MockCase, flag: "DECLINED" | "SOS"): void {
+function routeToManager(db: MockDb, c: MockCase, flag: "DECLINED" | "SOS" | "CAP_REACHED"): void {
   const auditor = db.staff.find((s) => s.staff_id === c.assigned_auditor);
   if (auditor) auditor.active_case_count = Math.max(0, auditor.active_case_count - 1);
   c.assigned_auditor = null;
@@ -764,7 +764,7 @@ export const mockDataService: DataService = {
     const db = readDb();
     return {
       auditors: db.staff.filter((s) => s.role === "auditor").map((s) => ({ auditor_id: s.staff_id })),
-      pending_declined_cases: db.cases.filter((c) => c.manager_flag === "DECLINED").length,
+      pending_declined_cases: db.cases.filter((c) => c.manager_flag === "DECLINED" || c.manager_flag === "CAP_REACHED").length,
     };
   },
 
@@ -976,14 +976,24 @@ export const mockDataService: DataService = {
     return updateDb((db) => {
       requireSession(db, token, "manager");
       return db.cases
-        .filter((c) => c.manager_flag === "DECLINED" && c.decline && c.status !== "COMPLETE" && !c.assigned_auditor)
-        .sort((a, b) => Date.parse(b.decline!.declined_at) - Date.parse(a.decline!.declined_at))
+        .filter(
+          (c) =>
+            (c.manager_flag === "DECLINED" || c.manager_flag === "CAP_REACHED") &&
+            c.status !== "COMPLETE",
+        )
+        .sort((a, b) => {
+          const aDate = a.decline?.declined_at ?? a.updated_at;
+          const bDate = b.decline?.declined_at ?? b.updated_at;
+          return Date.parse(bDate) - Date.parse(aDate);
+        })
         .map((c) => ({
           case_id: c.case_id,
-          auditor_name: displayName(db, c.decline!.declined_by) ?? c.decline!.declined_by,
+          auditor_name: c.decline
+            ? (displayName(db, c.decline.declined_by) ?? c.decline.declined_by)
+            : (c.assigned_auditor ? (displayName(db, c.assigned_auditor) ?? c.assigned_auditor) : "Unknown"),
           severity_tier: c.severity_tier,
-          reason: c.decline!.reason,
-          declined_at: c.decline!.declined_at,
+          reason: c.decline?.reason ?? ("EXPOSURE_CAP_REACHED" as const),
+          declined_at: c.decline?.declined_at ?? c.updated_at,
         }));
     });
   },
@@ -1120,14 +1130,37 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "auditor");
       const c = findOwnCase(db, caseId, session.staffId);
       c.decline = {
-        reason: "NEAR_EXPOSURE_LIMIT",
+        reason: "EXPOSURE_CAP_REACHED",
         other_text: null,
         declined_by: session.staffId,
         declined_at: new Date().toISOString(),
       };
-      routeToManager(db, c, "DECLINED");
+      routeToManager(db, c, "CAP_REACHED");
       audit(db, session.staffId, "RETURNED_AT_DAILY_LIMIT", caseId);
       return { returned: true as const };
+    });
+  },
+
+  async releaseAllCasesAtLimit(token: string): Promise<{ returned: number }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const pending = db.cases.filter(
+        (c) => c.assigned_auditor === session.staffId &&
+          (c.status === "READY_FOR_REVIEW" || c.status === "AUDITOR_REVIEW") &&
+          !c.manager_flag,
+      );
+      for (const c of pending) {
+        c.decline = {
+          reason: "EXPOSURE_CAP_REACHED",
+          other_text: null,
+          declined_by: session.staffId,
+          declined_at: new Date().toISOString(),
+        };
+        routeToManager(db, c, "CAP_REACHED");
+        audit(db, session.staffId, "RETURNED_AT_DAILY_LIMIT", c.case_id);
+      }
+      return { returned: pending.length };
     });
   },
 

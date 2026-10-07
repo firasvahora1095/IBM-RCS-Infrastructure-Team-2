@@ -308,9 +308,9 @@ class B2bContractTests(unittest.TestCase):
         )
         self.assertEqual(response.json(), {"returned": True})
         with self.Session() as db:
-            self.assertEqual(db.get(Case, "RCS-AAAA-0006").manager_flag, "DECLINED")
+            self.assertEqual(db.get(Case, "RCS-AAAA-0006").manager_flag, "CAP_REACHED")
             log = db.scalars(select(AuditLog).where(AuditLog.case_id == "RCS-AAAA-0006")).one()
-        self.assertEqual(log.after_value["reason"], "NEAR_EXPOSURE_LIMIT")
+        self.assertEqual(log.after_value["reason"], "EXPOSURE_CAP_REACHED")
 
     # ---- customer integration ----
 
