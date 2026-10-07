@@ -46,8 +46,9 @@ describe("CooldownPage (Figma 31:99)", () => {
     expect(screen.getByText("Your manager will check in before this ends")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Return to queue \(available in/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop my shift" })).toBeEnabled();
-    // The optional check-in is offered inline.
-    expect(screen.getByRole("button", { name: "Talk to my manager" })).toBeInTheDocument();
+    // The optional check-in is offered inline, with what each option gives.
+    expect(await screen.findByRole("radio", { name: /Talk to my manager/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Take a break/ })).toBeInTheDocument();
   });
 
   it("keeps the queue locked after the timer until the manager has checked in", async () => {

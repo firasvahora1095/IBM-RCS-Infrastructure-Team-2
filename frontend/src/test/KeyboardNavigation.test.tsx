@@ -255,7 +255,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     expect(await screen.findByText(/Your manager will review it directly\./)).toBeInTheDocument();
   });
 
-  it("Cooldown: Talk to my manager, the break toggle and Stop my shift are reachable", async () => {
+  it("Cooldown: the support options, Send request and Stop my shift are reachable", async () => {
     const user = userEvent.setup();
     const token = await signIn("auditor-2");
     const { demoScenarios } = await import("../services/mock/demo");
@@ -263,8 +263,9 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     renderAt("/auditor/cooldown");
 
     await screen.findByRole("heading", { name: "Cooldown in progress" });
-    await tabTo(user, screen.getByRole("button", { name: "Talk to my manager" }));
-    await tabTo(user, screen.getByRole("switch", { name: "I'd like to take a break" }));
+    // A radio group is one tab stop; arrow keys move between its options.
+    await tabTo(user, await screen.findByRole("radio", { name: /Talk to my manager/ }));
+    await tabTo(user, screen.getByRole("button", { name: "Send request" }));
     await tabTo(user, screen.getByRole("button", { name: "Stop my shift" }));
   });
 

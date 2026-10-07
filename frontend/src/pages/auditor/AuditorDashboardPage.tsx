@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
+  Button,
+  Modal,
   Table,
   TableHead,
   TableRow,
@@ -22,6 +24,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { Figure, Panel } from "../../components/manager/ManagerBits";
+import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
 
 /**
  * Status copy exactly as the Figma queue writes it ("Ready for review", "AI
@@ -87,18 +91,80 @@ export function AuditorDashboardPage() {
   const atExposureLimit = wellbeing != null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
   const showAssignedColumn = cases?.some((c) => c.assigned_at) ?? false;
   const reviewableCount = cases?.filter((c) => isReviewable(c.status)).length ?? 0;
+  const [supportOpen, setSupportOpen] = useState(false);
+
+  // Newest first; completed cases move to their own list below.
+  const newestFirst = (a: AuditorCaseListItem, b: AuditorCaseListItem) =>
+    Date.parse(b.assigned_at ?? "") - Date.parse(a.assigned_at ?? "");
+  const openCases = (cases ?? []).filter((c) => c.status !== "COMPLETE").sort(newestFirst);
+  const completedCases = (cases ?? []).filter((c) => c.status === "COMPLETE").sort(newestFirst);
+  const nextCase = inCooldown ? undefined : openCases.find((c) => isReviewable(c.status));
+
+  const minutesLeft = wellbeing
+    ? Math.max(0, Math.round(wellbeing.exposure_limit_minutes - wellbeing.exposure_minutes_today))
+    : null;
+  const cooldownLeft =
+    inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - pageOpenedAt) / 60_000)) : 0;
 
   return (
     <>
       <StaffHeader role="auditor" />
       <StaffPage>
-        <div className="flex flex-col gap-5">
-          <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-            Cases assigned to you, in the order the system assigned them. Thumbnails are suppressed — open a case to see
-            its content-warning gate.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
+            <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+              Cases assigned to you, newest first. There are no thumbnails: each case opens on its content warning.
+            </p>
+          </div>
+          {/* The one primary action: the next case that is ready to review. */}
+          {nextCase && (
+            <Button onClick={() => navigate(`/auditor/cases/${encodeURIComponent(nextCase.case_id)}`)}>
+              Open next case
+            </Button>
+          )}
         </div>
+
+        {/* Your day: what the wellbeing rules use to protect you (AR-WB-01, 02, 12, 16). */}
+        <section aria-label="Your day" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Panel>
+            <dl>
+              <Figure label="Exposure left today" value={minutesLeft === null ? "—" : `${minutesLeft} min`} />
+            </dl>
+            <p className="rcs-helper">
+              {wellbeing
+                ? `${Math.round(wellbeing.exposure_minutes_today)} of ${wellbeing.exposure_limit_minutes} min watched`
+                : "Loading…"}
+            </p>
+          </Panel>
+          <Panel>
+            <dl>
+              <Figure label="Completed today" value={completedCases.length} />
+            </dl>
+            <p className="rcs-helper">Listed below your open cases</p>
+          </Panel>
+          <Panel>
+            <dl>
+              <Figure label="Cooldown" value={inCooldown ? `${cooldownLeft} min left` : "None"} />
+            </dl>
+            <p className="rcs-helper">
+              {inCooldown ? "New cases resume when it ends" : "Starts after S3 and S4 cases, or an SOS"}
+            </p>
+          </Panel>
+          <Panel>
+            <p style={{ fontSize: 14, fontWeight: 600 }}>Need support?</p>
+            <p className="rcs-helper">Talk to your manager or ask for a break. This isn&apos;t an alert.</p>
+            <div>
+              <Button kind="tertiary" size="sm" onClick={() => setSupportOpen(true)}>
+                Request support
+              </Button>
+            </div>
+          </Panel>
+        </section>
+
+        <Modal open={supportOpen} passiveModal modalHeading="Request support" onRequestClose={() => setSupportOpen(false)}>
+          {supportOpen && <WellbeingCheckIn onSessionExpired={handleSessionExpiry} />}
+        </Modal>
 
         {/* AR-WB-12: new assignments pause and earlier footage stays locked (Figma 36:189). */}
         {inCooldown && (
@@ -148,7 +214,7 @@ export function AuditorDashboardPage() {
             {/* Layer raises the table one Carbon layer, so rows render white
                 (as in Figma) instead of the default Gray 10 row fill. */}
             <Layer>
-              <Table aria-label="Cases assigned to you">
+              <Table aria-label="Open cases">
                 <TableHead>
                   <TableRow>
                     <TableHeader>Case ID</TableHeader>
@@ -164,7 +230,7 @@ export function AuditorDashboardPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {cases.map((c) => {
+                  {openCases.map((c) => {
                     const lockedByCooldown = inCooldown && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
                     const openable = isReviewable(c.status) && !lockedByCooldown;
                     const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
@@ -234,7 +300,7 @@ export function AuditorDashboardPage() {
             </Layer>
 
             {/* Empty-state panels (Figma 36:146, 36:189, 34:121). */}
-            {cases.length === 0 ? (
+            {openCases.length === 0 ? (
               <EmptyPanel>
                 No cases assigned right now — new cases are assigned automatically as they come in.
               </EmptyPanel>
@@ -244,9 +310,39 @@ export function AuditorDashboardPage() {
               <EmptyPanel>No available cases right now</EmptyPanel>
             ) : (
               <p style={{ fontSize: 12, lineHeight: "16px", color: SECONDARY_TEXT }}>
-                Every &quot;Processing&quot; row is disabled — not just discouraged. A case only enters this queue if
-                the Look-Ahead Assignment Check confirmed your remaining exposure budget covers its full video duration.
+                Cases still in AI analysis can&apos;t be opened yet. You&apos;re only assigned cases that fit inside your
+                remaining exposure for today.
               </p>
+            )}
+
+            {completedCases.length > 0 && (
+              <section aria-labelledby="completed-title" className="flex flex-col gap-3">
+                <h2 id="completed-title" style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                  Completed today
+                </h2>
+                <Layer>
+                  <Table aria-label="Completed today" size="sm">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Case ID</TableHeader>
+                        <TableHeader>Severity</TableHeader>
+                        <TableHeader>Status</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {completedCases.map((c) => (
+                        <TableRow key={c.case_id}>
+                          <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
+                            {c.case_id}
+                          </TableCell>
+                          <TableCell>{c.severity_tier ? <SeverityTag tier={c.severity_tier} /> : "Unknown"}</TableCell>
+                          <TableCell style={{ color: "var(--cds-text-secondary)" }}>Complete</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Layer>
+              </section>
             )}
           </>
         )}
