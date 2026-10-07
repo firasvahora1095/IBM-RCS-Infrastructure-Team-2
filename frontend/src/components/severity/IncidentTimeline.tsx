@@ -3,6 +3,7 @@ import { Tooltip } from "@carbon/react";
 import type { IncidentTimelineEntry } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { formatTimestamp } from "../../utils/formatTimestamp";
+import { timelineTooltipAlign } from "../../utils/tooltipAlign";
 import { SeverityTag } from "./SeverityTag";
 
 interface IncidentTimelineProps {
@@ -157,7 +158,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
               {isPoint ? (
                 <Tooltip
                   label={title}
-                  align="top"
+                  align={timelineTooltipAlign(leftPct / 100)}
                   data-testid="timeline-marker"
                   style={{ position: "absolute", top: 0, left: `calc(${leftPct}% - 5px)` }}
                 >
@@ -169,7 +170,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
               ) : (
                 <Tooltip
                   label={title}
-                  align="top"
+                  align={timelineTooltipAlign((leftPct + widthPct / 2) / 100)}
                   data-testid="timeline-segment"
                   style={{ position: "absolute", top: 1, left: `${leftPct}%`, width: `${widthPct}%`, height: 8 }}
                 >
