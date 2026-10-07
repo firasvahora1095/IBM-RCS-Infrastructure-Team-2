@@ -389,6 +389,18 @@ a.rcs-stat-tile .rcs-stat-helper {
 .rcs-widget-grid.cds--css-grid {
   row-gap: 1rem;
 }
+// Grid columns default to min-width: auto and would grow to fit a wide table,
+// pushing the whole page sideways on small screens. Letting them shrink keeps
+// the page inside the viewport; Carbon's table wrapper scrolls on its own.
+.rcs-grid > .cds--css-grid-column {
+  min-inline-size: 0;
+}
+// A scrolling table must also contain its absolutely positioned children
+// (e.g. a visually hidden column label), or they escape the scroller and
+// widen the page.
+.cds--data-table-content {
+  position: relative;
+}
 .rcs-widget-grid .rcs-section {
   block-size: 100%;
 }
