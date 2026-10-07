@@ -10,7 +10,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tag,
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
@@ -20,6 +19,7 @@ import { getCaseOversight } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { StatusTag } from "../../components/ui/StatusTag";
 
 const ALL_STATUSES = "All statuses";
 
@@ -133,14 +133,10 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
       </TableCell>
       <TableCell>
         {row.manager_flag === "SOS" && (
-          <Tag type="red" size="sm" style={{ margin: 0 }}>
-            SOS
-          </Tag>
+          <StatusTag tone="error" size="sm">SOS</StatusTag>
         )}
         {row.manager_flag === "DECLINED" && (
-          <Tag type="high-contrast" size="sm" style={{ margin: 0 }}>
-            Declined
-          </Tag>
+          <StatusTag tone="warning" size="sm">Declined</StatusTag>
         )}
       </TableCell>
     </TableRow>

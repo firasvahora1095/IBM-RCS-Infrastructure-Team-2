@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Button, CodeSnippet, Column, Grid, InlineLoading, InlineNotification, Tag } from "@carbon/react";
+import { Button, CodeSnippet, Column, Grid, InlineLoading, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -63,11 +63,6 @@ export function ManagerCustomerPage() {
         breadcrumb={<ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: "CommunityHub" }]} />}
         title="CommunityHub"
         subtitle={data?.description ?? "Social platform"}
-        meta={
-          <Tag type="gray" size="md" style={{ margin: 0 }}>
-            Customer
-          </Tag>
-        }
       />
       <LoadState error={error} loading={!data && !error} what="this customer" />
       {data && (
@@ -80,9 +75,7 @@ export function ManagerCustomerPage() {
                     <h2 id="connection-heading" className="rcs-section-title">
                       CommunityHub connection
                     </h2>
-                    <Tag type={ready ? "gray" : "red"} size="md" style={{ margin: 0 }}>
-                      {ready ? "Ready" : "Needs attention"}
-                    </Tag>
+                    <StatusTag tone={ready ? "success" : "error"}>{ready ? "Connected" : "Needs attention"}</StatusTag>
                   </div>
                   <p className="rcs-helper">
                     {data.last_tested_at ? `Last tested ${formatShortDateTime(data.last_tested_at)}` : "Not tested yet"}
