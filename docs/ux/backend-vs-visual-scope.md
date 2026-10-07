@@ -3,7 +3,7 @@
 **Purpose:** one page so the team knows which parts of the RCS journey need a
 real backend (data, rules, audit trail) and which are visual only (demo or
 simulated screens that only need to look and click right).
-**Status as of:** 7 Oct 2026, `main`. Related: [`b2b-flow-build-handoff.md`](b2b-flow-build-handoff.md).
+**Status as of:** 8 Oct 2026, `main`. Related: [`b2b-flow-build-handoff.md`](b2b-flow-build-handoff.md).
 
 ## The line in one sentence
 
@@ -30,6 +30,8 @@ RCS website → buy / set up → CommunityHub feed | report → AI → Auditor �
 | Auditor review | `/auditor`, `/auditor/cases/:id`, `/auditor/cooldown` | Case access, video stream, exposure tracking, decision, decline, SOS, cooldowns, release at daily cap, stop shift | Built |
 | Auditor support | Request support (case, cooldown, queue) | Support requests with optional reason, withdraw, Manager approve/follow-up | Built |
 | Manager oversight | `/manager`, `/manager/auditors/:id`, `/manager/sos*`, `/manager/reassignment`, `/manager/cases*`, `/manager/audit-logs` | Overview counts, Auditor record, exposure limits, SOS follow-up, reassignment and close, exceptional access (logged), audit history | Built |
+| Manager Intelligence Dashboard (Sprint 3 HD) | `/manager` | `GET /api/manager/intelligence`: KPI strip, Needs Attention, case flow, AI–Auditor comparison, client outcomes, delivery health, with evidence behind every figure | Built (#61, #62) |
+| Report evidence | `/manager/reports/:id`, `/client/reports/:id` | Each report figure frozen with its definition, source fields and contributing cases; clients get definitions and counts only | Built (#64) |
 | Result delivery | `/manager/deliveries*`, `/manager/customers/communityhub` | One delivery per completed case, retries, escalation, delivery health | Built (the receiving endpoint is simulated, see below) |
 | Service reports | `/manager/reports*` | Generate from stored records, note, release, access log | Built |
 | Client portal | `/client/login`, `/client/reports*`, `/client/messages*` | Client sign-in (separate session and lockout), released reports only, deny-by-default and logged, Contact RCS messages and replies | Built |
@@ -72,8 +74,10 @@ status-update email/SMS. Nice-to-haves, not needed for the main flow.
 
 ## Not started (later, by agreement)
 
-Manager Intelligence Dashboard (trends, evidence drill-down) and Manager
-Copilot.
+Manager Copilot (optional in the Sprint 3 extras, §11), and a
+completion-validation state (`BLOCKED_INVALID`, extras §4.3) that the
+dashboard's Needs Attention could count. See
+[`manager-intelligence-dashboard-handoff.md`](manager-intelligence-dashboard-handoff.md).
 
 ## Demo accounts (deployed test and live, password `test123`)
 
