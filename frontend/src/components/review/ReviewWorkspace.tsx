@@ -6,6 +6,7 @@ import { isMockData } from "../../services";
 import { DEMO_CONNECTION_LOST_EVENT } from "../../services/mock/demo";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { formatTimestamp } from "../../utils/formatTimestamp";
+import { timelineTooltipAlign } from "../../utils/tooltipAlign";
 import { SeverityTag } from "../severity/SeverityTag";
 import { AudioIntensityGraph, EntityPills, TranscriptList } from "./AiEvidencePanels";
 import type { ViewerSettings } from "./viewerSettings";
@@ -454,7 +455,7 @@ export function ReviewWorkspace({
                     return (
                       <Tooltip
                         key={i}
-                        align="top"
+                        align={timelineTooltipAlign(entry.start / duration)}
                         label={`${range} · ${entry.tag ?? "Flagged"} · ${entry.severity_tier} ${info.label}`}
                         className="rcs-tick"
                         style={{ left: `calc(${(entry.start / duration) * 100}% - 8px + ${groupOffset}px)` }}
@@ -465,7 +466,16 @@ export function ReviewWorkspace({
                           onClick={() => seek(entry.start)}
                           className="rcs-tick-button"
                         >
-                          <span style={{ display: "block", width: 4, height: 12, backgroundColor: info.background }} />
+                          {/* A thin dark outline keeps pale S1 marks visible, as on the incident timeline. */}
+                          <span
+                            style={{
+                              display: "block",
+                              width: 6,
+                              height: 12,
+                              backgroundColor: info.background,
+                              boxShadow: "0 0 0 1px var(--cds-border-inverse)",
+                            }}
+                          />
                         </button>
                       </Tooltip>
                     );
