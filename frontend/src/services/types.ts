@@ -350,8 +350,7 @@ export interface AuditLogQuery {
 }
 
 // ---- B2B: customer integration, case result handoff, client reports ----
-// docs/ux/b2b-end-to-end-flow-spec.md §6. None of these exist in the backend
-// yet; the `api` data source rejects them with NotImplementedError.
+// docs/ux/b2b-end-to-end-flow-spec.md §6; served by backend/app/b2b.py.
 
 /**
  * Delivery of one completed case's result to the customer platform. Kept
