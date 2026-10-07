@@ -207,6 +207,8 @@ export interface AuditorOverviewRow {
   exposure_state: ExposureState;
   cooldown: CooldownState | null;
   cases_today: number;
+  /** Open cases the Auditor is carrying; cases handed to the Manager aren't counted. */
+  active_case_count: number;
   /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
   open_sos?: boolean;
   /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
@@ -502,6 +504,98 @@ export interface ReportMetrics {
   delivery: DeliveryHealth;
 }
 
+// ---- Manager Intelligence Dashboard (Sprint 3 extras §1) ----
+
+/** Period presets on the dashboard; each becomes an inclusive yyyy-mm-dd range. */
+export type PeriodKey = "today" | "this-week" | "this-month" | "last-month";
+
+/** DEMO while the deployment runs on seeded data (MR-OV-08: never passed off as real results). */
+export type Provenance = "DEMO" | "LIVE";
+
+/** Current open cases by stage. A case waiting for a Manager decision counts only under MANAGER_ACTION. */
+export type OpenBucket = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "MANAGER_ACTION";
+
+/** Items that need the Manager to act. Routine check-ins are logged only, so they never appear here (MR-SOS-07). */
+export type AttentionKind = "SOS" | "BREAK_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
+
+export type EvidenceKey =
+  | "total_cases"
+  | "completed"
+  | "open_cases"
+  | "needs_manager_action"
+  | "case_flow"
+  | "outcomes"
+  | "severity"
+  | "override_rate"
+  | "delivery_success_rate"
+  | "protection";
+
+/** Where a figure came from ("How is this calculated?"), so no value appears from thin air (§1.4). */
+export interface MetricEvidence {
+  title: string;
+  definition: string;
+  source_fields: string[];
+  records_included: number;
+  /** The denominator where it differs, e.g. 23 included of 172 eligible. */
+  records_eligible: number | null;
+  calculated_at: string;
+  /** Contributing case IDs, capped at 200. */
+  case_ids: string[];
+  case_ids_truncated: boolean;
+}
+
+export interface IntelligenceQuery {
+  organisationId: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface FailedDeliveryRow {
+  delivery_id: string;
+  case_id: string;
+  attempts: number;
+  reason: string | null;
+  last_attempt_at: string | null;
+}
+
+export interface ManagerIntelligence {
+  organisation_id: string;
+  organisation_name: string;
+  period_start: string;
+  period_end: string;
+  calculated_at: string;
+  provenance: Provenance;
+  kpis: { total_cases: number; completed: number; open_cases: number; needs_manager_action: number };
+  open_breakdown: Record<OpenBucket, number>;
+  /** Always the five kinds, in priority order; a count may be 0. */
+  attention: { kind: AttentionKind; count: number }[];
+  flow: {
+    median_decision_minutes: number | null;
+    oldest_unresolved_minutes: number | null;
+    oldest_unresolved_case_id: string | null;
+  };
+  outcomes: { violation: number; no_violation: number; severity: Record<SeverityTier, number>; open_client_cases: number };
+  comparison: {
+    eligible: number;
+    overrides: number;
+    /** 0–1 */
+    override_rate: number;
+    /** matrix[aiTier][finalTier] */
+    matrix: Record<SeverityTier, Record<SeverityTier, number>>;
+    top_transition: { from: SeverityTier; to: SeverityTier; count: number } | null;
+  };
+  delivery: {
+    /** For results of cases completed in the period. */
+    health: DeliveryHealth;
+    /** 0–1; null until a result has been acknowledged or has failed. */
+    success_rate: number | null;
+    last_failed_at: string | null;
+    /** Results waiting for the Manager now, newest first, at most five. */
+    failed: FailedDeliveryRow[];
+  };
+  evidence: Record<EvidenceKey, MetricEvidence>;
+}
+
 export type ReportStatus = "DRAFT" | "RELEASED";
 
 /** A Manager-reviewed aggregate service report (B2B spec S9). */
@@ -733,6 +827,8 @@ export interface DataService {
   releaseReport(reportId: string, token: string): Promise<ServiceReport>;
   listReportAccess(reportId: string, token: string): Promise<ReportAccessEntry[]>;
   getGovernanceSummary(token: string): Promise<GovernanceSummary>;
+  /** Manager Intelligence Dashboard: every widget and the evidence behind each figure (Sprint 3 extras §1). */
+  getManagerIntelligence(token: string, query: IntelligenceQuery): Promise<ManagerIntelligence>;
 
   // B2B — CommunityHub authorised user (released, own-organisation reports only)
   clientLogin(userId: string, password: string): Promise<ClientLoginResponse>;

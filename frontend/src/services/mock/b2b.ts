@@ -12,6 +12,8 @@ import type {
   Delivery,
   GovernanceSummary,
   IntegrationTestResult,
+  IntelligenceQuery,
+  ManagerIntelligence,
   ReportAccessEntry,
   ServiceReport,
   SeverityTier,
@@ -25,6 +27,7 @@ import {
   reportIdFor,
 } from "./b2bSeed";
 import { computeMetrics, deliveryHealth, finalTierOf } from "./reportMetrics";
+import { computeIntelligence } from "./intelligence";
 import { readDb, updateDb, type MockCase, type MockDb, type MockDelivery } from "./store";
 
 /**
@@ -338,6 +341,7 @@ export const b2bMockOps: Pick<
   | "releaseReport"
   | "listReportAccess"
   | "getGovernanceSummary"
+  | "getManagerIntelligence"
   | "clientLogin"
   | "clientListReports"
   | "clientGetReport"
@@ -593,6 +597,40 @@ export const b2bMockOps: Pick<
         override_patterns: patterns,
         compared_cases: compared,
       };
+    });
+  },
+
+  async getManagerIntelligence(token: string, query: IntelligenceQuery): Promise<ManagerIntelligence> {
+    await delay();
+    const { organisationId, periodStart, periodEnd } = query;
+    if (!ISO_DATE.test(periodStart) || !ISO_DATE.test(periodEnd) || periodStart > periodEnd) {
+      throw new ApiError("Choose a valid reporting period.", 400);
+    }
+    return updateDb((db) => {
+      requireManager(db, token);
+      if (organisationId.toUpperCase() !== db.organisation.organisation_id) {
+        throw new ApiError("Customer not found", 404);
+      }
+      advanceDeliveries(db);
+      const now = Date.now();
+      return computeIntelligence(
+        {
+          history: db.caseHistory,
+          cases: db.cases,
+          deliveries: db.deliveries,
+          // Counted, never named: the dashboard shows how many need the Manager, not who.
+          openSosAuditors: new Set(db.sosEvents.filter((e) => !e.resolved_at).map((e) => e.auditor_id)).size,
+          openBreakRequests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
+            .length,
+          auditorCount: db.staff.filter((s) => s.role === "auditor").length,
+          organisation: db.organisation,
+          // The mock data source is always synthetic (MR-OV-08).
+          provenance: "DEMO",
+        },
+        periodStart,
+        periodEnd,
+        now,
+      );
     });
   },
 

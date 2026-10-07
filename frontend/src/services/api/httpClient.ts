@@ -22,9 +22,11 @@ import type {
   FinalOutcome,
   GovernanceSummary,
   IntegrationTestResult,
+  IntelligenceQuery,
   ManagerCaseReview,
   ManagerCaseRow,
   ManagerDashboardResponse,
+  ManagerIntelligence,
   PublicStatusResponse,
   ReassignmentContext,
   ReportAccessEntry,
@@ -698,6 +700,16 @@ export async function listReportAccess(reportId: string, token: string): Promise
     headers: bearer(token),
   });
   return parseJsonOrThrow<ReportAccessEntry[]>(r);
+}
+
+export async function getManagerIntelligence(token: string, query: IntelligenceQuery): Promise<ManagerIntelligence> {
+  const params = new URLSearchParams({
+    organisation_id: query.organisationId,
+    period_start: query.periodStart,
+    period_end: query.periodEnd,
+  });
+  const r = await fetch(`${API_BASE_URL}/api/manager/intelligence?${params}`, { headers: bearer(token) });
+  return parseJsonOrThrow<ManagerIntelligence>(r);
 }
 
 export async function getGovernanceSummary(token: string): Promise<GovernanceSummary> {
