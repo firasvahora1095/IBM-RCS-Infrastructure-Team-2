@@ -42,10 +42,11 @@ export function availabilityOf(row: AuditorOverviewRow, now: number): Availabili
   return "AVAILABLE";
 }
 
-/** Sort order for "who needs protecting first" (an open SOS, then exposure against their own limit). */
+/** Who needs protecting first: an open SOS, a support request waiting, then exposure against their own limit. */
 export function protectionNeed(row: AuditorOverviewRow): number {
   const ratio = row.exposure_limit_minutes ? row.exposure_minutes_today / row.exposure_limit_minutes : 0;
-  return (row.open_sos ? 10 : 0) + ratio;
+  const asked = (row.open_requests?.break_requests ?? 0) + (row.open_requests?.talk_requests ?? 0) > 0;
+  return (row.open_sos ? 10 : 0) + (asked ? 5 : 0) + ratio;
 }
 
 export interface AttentionWording {

@@ -6,8 +6,10 @@ import { StatusTag } from "../ui/StatusTag";
 
 interface AttentionListProps {
   items: { kind: AttentionKind; count: number }[];
-  /** Overrides a row's destination, e.g. the first Auditor with a break request. */
+  /** Overrides a row's destination, e.g. the first Auditor with a support request. */
   targets?: Partial<Record<AttentionKind, string>>;
+  /** Replaces a row's status text when it's above zero, e.g. "1 break · 1 talk". */
+  details?: Partial<Record<AttentionKind, string>>;
 }
 
 /**
@@ -16,7 +18,7 @@ interface AttentionListProps {
  * Manager can see what RCS is watching. Rows that need action carry the SOS
  * Inbox's 3px error accent, an icon and a written status, never colour alone.
  */
-export function AttentionList({ items, targets = {} }: AttentionListProps) {
+export function AttentionList({ items, targets = {}, details = {} }: AttentionListProps) {
   const counts = new Map(items.map((item) => [item.kind, item.count]));
   return (
     <ul className="rcs-attention" aria-label="Items that need you">
@@ -26,20 +28,21 @@ export function AttentionList({ items, targets = {} }: AttentionListProps) {
         const urgent = count > 0;
         const Icon = !urgent ? CheckmarkOutline : wording.tone === "error" ? ErrorFilled : WarningAltFilled;
         const to = targets[kind] ?? wording.to;
+        const status = details[kind] || wording.status;
         return (
           <li key={kind}>
             <RouterLink
               to={to}
               className="rcs-attention-row"
               data-urgent={urgent ? wording.tone : undefined}
-              aria-label={`${wording.label}: ${count}. ${urgent ? wording.status : "All clear"}.`}
+              aria-label={`${wording.label}: ${count}. ${urgent ? status : "All clear"}.`}
             >
               <Icon aria-hidden="true" className="rcs-attention-icon" size={16} />
               <span className="rcs-attention-label">{wording.label}</span>
               <span className="rcs-attention-status">
                 {urgent ? (
                   <StatusTag tone={wording.tone} size="sm">
-                    {wording.status}
+                    {status}
                   </StatusTag>
                 ) : (
                   <span className="rcs-helper">All clear</span>

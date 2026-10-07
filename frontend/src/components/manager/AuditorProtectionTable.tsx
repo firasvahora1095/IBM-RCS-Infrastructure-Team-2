@@ -34,10 +34,11 @@ const HEADERS = [
 
 /**
  * Auditor protection & availability (Sprint 3 extras §1.2 widget 3). Ordered
- * by protection need (an open SOS, then exposure against each Auditor's own
- * limit), never by productivity. MR-SOS-07: no check-in counts, support
- * tallies, cooldown frequency or rankings. Break requests and check-ins stay
- * in the Auditor's own record; Needs Attention counts the breaks waiting.
+ * by protection need (an open SOS, a support request waiting, then exposure
+ * against each Auditor's own limit), never by productivity. A waiting break
+ * or talk request shows as one quiet tag under the name, so the Manager can
+ * see who asked; there are no check-in counts, tallies, cooldown frequency
+ * or rankings (MR-SOS-07). SOS shows once, in Availability.
  */
 export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow[]; now: number }) {
   const navigate = useNavigate();
@@ -92,9 +93,27 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                     style={{ cursor: "pointer" }}
                   >
                     <TableCell>
-                      <RouterLink to={url} className="cds--link" onClick={(e) => e.stopPropagation()}>
-                        {row.display_name}
-                      </RouterLink>
+                      <div className="flex flex-col items-start gap-1">
+                        <RouterLink to={url} className="cds--link" onClick={(e) => e.stopPropagation()}>
+                          {row.display_name}
+                        </RouterLink>
+                        {/* Who asked, low-key (MR-SOS-07): quiet tags, answered in their record. */}
+                        {((row.open_requests?.break_requests ?? 0) > 0 ||
+                          (row.open_requests?.talk_requests ?? 0) > 0) && (
+                          <div className="flex flex-wrap gap-1">
+                            {(row.open_requests?.break_requests ?? 0) > 0 && (
+                              <StatusTag tone="warning" size="sm">
+                                Break requested
+                              </StatusTag>
+                            )}
+                            {(row.open_requests?.talk_requests ?? 0) > 0 && (
+                              <StatusTag tone="info" size="sm">
+                                Wants to talk
+                              </StatusTag>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <ExposureBar

@@ -40,6 +40,13 @@ const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
 
+/** "1 break · 2 talk": which replies are waiting, so the Manager knows what was asked for. */
+function supportSummary({ break_requests, talk_requests }: ManagerIntelligence["support_requests"]): string {
+  return [break_requests ? `${break_requests} break` : null, talk_requests ? `${talk_requests} talk` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
  * Manager Intelligence Dashboard, the Sprint 3 HD feature (Sprint 3 extras
  * §1; docs/ux/manager-intelligence-dashboard-plan.md). It grows the Oversight
@@ -77,9 +84,15 @@ export function ManagerOversightDashboardPage() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const firstWithBreak = overview.data?.find((row) => (row.open_requests?.break_requests ?? 0) > 0);
-  const attentionTargets: Partial<Record<AttentionKind, string>> = firstWithBreak
-    ? { BREAK_REQUEST: `/manager/auditors/${encodeURIComponent(firstWithBreak.auditor_id)}` }
+  // Who asked is named only in the table and the Auditor's record; the row goes to the first of them.
+  const firstWithRequest = overview.data?.find(
+    (row) => (row.open_requests?.break_requests ?? 0) + (row.open_requests?.talk_requests ?? 0) > 0,
+  );
+  const attentionTargets: Partial<Record<AttentionKind, string>> = firstWithRequest
+    ? { SUPPORT_REQUEST: `/manager/auditors/${encodeURIComponent(firstWithRequest.auditor_id)}` }
+    : {};
+  const attentionDetails: Partial<Record<AttentionKind, string>> = data
+    ? { SUPPORT_REQUEST: supportSummary(data.support_requests) }
     : {};
 
   const urgent = data
@@ -229,11 +242,11 @@ export function ManagerOversightDashboardPage() {
           <Section
             id="needs-attention"
             title="Needs attention"
-            description="Only items that need your decision. Routine wellbeing check-ins stay in each Auditor's record."
+            description="Only items waiting for your decision or reply. Select one to act on it."
             actions={<Button {...evidenceProps("needs_manager_action")}>View evidence</Button>}
           >
             {data ? (
-              <AttentionList items={data.attention} targets={attentionTargets} />
+              <AttentionList items={data.attention} targets={attentionTargets} details={attentionDetails} />
             ) : (
               <WidgetLoading error={intel.error} />
             )}
@@ -253,7 +266,7 @@ export function ManagerOversightDashboardPage() {
           <Section
             id="protection"
             title="Auditor protection & availability"
-            description="Ordered by protection need, never by productivity. Select an Auditor to see their day, approve a break or adjust their exposure limit."
+            description="Ordered by protection need, never by productivity. Select an Auditor to see their day, answer a request or adjust their exposure limit."
             actions={<Button {...evidenceProps("protection")}>View evidence</Button>}
           >
             <LoadState error={overview.error} loading={!overview.data && !overview.error} what="the Auditors" />
@@ -326,10 +339,10 @@ function nextAction(
   switch (kind) {
     case "SOS":
       return { label: `Follow up ${plural(count, "SOS alert", "SOS alerts")}`, to: "/manager/sos" };
-    case "BREAK_REQUEST":
+    case "SUPPORT_REQUEST":
       return {
-        label: `Approve ${plural(count, "break request", "break requests")}`,
-        to: targets.BREAK_REQUEST ?? "/manager",
+        label: `Answer ${plural(count, "support request", "support requests")}`,
+        to: targets.SUPPORT_REQUEST ?? "/manager",
       };
     case "REASSIGNMENT":
       return { label: `Decide ${plural(count, "declined case", "declined cases")}`, to: "/manager/reassignment" };

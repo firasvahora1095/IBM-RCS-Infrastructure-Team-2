@@ -108,14 +108,18 @@ describe("Manager screens", () => {
         "href",
         "/manager/reassignment",
       );
-      // MR-SOS-07: routine check-ins are logged in the Auditor's record, never counted here.
-      expect(list.textContent).not.toMatch(/talk|check-in/i);
+      // Break and talk requests share one row that says which replies are waiting.
+      expect(within(list).getByRole("link", { name: /^Support requests/ }).getAttribute("href")).toMatch(
+        /^\/manager\/auditors\//,
+      );
     });
 
-    it("keeps wellbeing private: no talk requests, rankings or scores on the dashboard (MR-SOS-07)", async () => {
+    it("shows who asked for support with one quiet tag, and no rankings or scores (MR-SOS-07)", async () => {
       renderAt("/manager");
-      await screen.findByRole("table", { name: "Auditor protection and availability" });
-      expect(screen.queryByText("Wants to talk")).not.toBeInTheDocument();
+      const table = await screen.findByRole("table", { name: "Auditor protection and availability" });
+      const reese = within(table).getByRole("link", { name: "Reese Patel" }).closest("td")!;
+      expect(within(reese).getByText("Break requested")).toBeInTheDocument();
+      expect(within(reese).getByText("Wants to talk")).toBeInTheDocument();
       expect(screen.queryByText("Cases today")).not.toBeInTheDocument();
       expect(document.body.textContent).not.toMatch(/leaderboard|ranking|performance score|fastest/i);
     });
