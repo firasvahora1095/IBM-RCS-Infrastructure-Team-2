@@ -7,7 +7,7 @@ import { getStatus } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { PublicStatusResponse, PublicCaseStatus } from "../../services/types";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
-import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
+import { mapOutcomeToDisplay, PLATFORM_NOTIFIED_SENTENCE } from "../../design-tokens/outcomeLabels";
 import { loadCaseId } from "../../hooks/useCaseIdStorage";
 import { AddCaseInformationModal } from "../../components/forms/AddCaseInformationModal";
 import { formatDateTime, formatDuration } from "../../utils/formatRelativeTime";
@@ -211,6 +211,11 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
                   {outcome.title}
                 </h3>
                 <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{outcome.body}</p>
+                {result.public_delivery_confirmed && outcome.title === "Policy Violation Found" && (
+                  <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+                    {PLATFORM_NOTIFIED_SENTENCE}
+                  </p>
+                )}
               </div>
             </>
           )}

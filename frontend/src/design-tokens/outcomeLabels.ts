@@ -63,6 +63,15 @@ export function mapOutcomeToDisplay(rawOutcome: string): OutcomeDisplay | null {
   return null;
 }
 
+/**
+ * Added under a "Policy Violation Found" outcome only once the result has
+ * actually been delivered to the customer platform (B2B spec S4). It states
+ * who decides enforcement, not that anything was removed, so RT-01's scope
+ * note still holds. Never shown while delivery is pending or failing.
+ */
+export const PLATFORM_NOTIFIED_SENTENCE =
+  "CommunityHub has been notified and will decide any action under its own policies.";
+
 /** The two options in the Auditor's outcome selector: RT-01 value + Auditor label. */
 export const OUTCOME_OPTIONS: ReadonlyArray<{ value: FinalOutcome; label: string }> = [
   { value: "NO_VIOLATION_FOUND", label: OUTCOME_COPY.NO_VIOLATION_FOUND.title },

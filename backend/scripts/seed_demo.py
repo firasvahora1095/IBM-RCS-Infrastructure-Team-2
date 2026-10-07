@@ -25,11 +25,13 @@ from app.models import Auditor, Case, AuditLog, Base
 from app.db import engine, SessionLocal
 from app.auth import hash_password
 from app.case_ids import generate_case_id
+from app.b2b_seed import CLIENT_USER_ID, seed_b2b, wipe_b2b
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
 # ── Wipe existing demo data ──────────────────────────────────────────────────
+wipe_b2b(db)
 db.query(AuditLog).delete()
 db.query(Case).delete()
 db.query(Auditor).delete()
@@ -289,6 +291,9 @@ c7 = Case(
 db.add_all([c1, c2, c3, c4, c5, c6, c7])
 db.commit()
 
+# ── B2B: CommunityHub, result handoffs, reports, client user ────────────────
+b2b = seed_b2b(db, now, [c1, c2, c3, c4, c5, c6, c7], client_password="test123")
+
 print()
 print("Demo seed complete.")
 print()
@@ -298,6 +303,7 @@ print("  auditor-02 / test123  — 1 active case (S4 SOS demo), 30 min exposure"
 print("  auditor-03 / test123  — 1 active case (S3), 110 min exposure (APPROACHING)")
 print("  auditor-04 / test123  — 0 cases, 120 min (AT_LIMIT, excluded from assignment)")
 print("  manager-01 / test123  — manager dashboard")
+print(f"  {CLIENT_USER_ID} / test123  — CommunityHub client (released reports only)")
 print()
 print("Cases:")
 print(f"  {c1.case_id}  auditor-01  S1 READY_FOR_REVIEW  → demo: Complete (no violation)")
@@ -307,3 +313,7 @@ print(f"  {c4.case_id}  auditor-02  S4 READY_FOR_REVIEW  → demo: SOS → manag
 print(f"  {c5.case_id}  auditor-03  S3 READY_FOR_REVIEW  → demo: exposure APPROACHING")
 print(f"  {c6.case_id}  auditor-01  S2 COMPLETE          → demo: completed case history")
 print(f"  {c7.case_id}  (unassigned) S3 DECLINED         → demo: manager reassignment queue")
+print()
+print("B2B:")
+print(f"  {b2b['history']} older completed cases, {b2b['deliveries']} result deliveries")
+print(f"  {b2b['released_report']} RELEASED, {b2b['draft_report']} DRAFT")

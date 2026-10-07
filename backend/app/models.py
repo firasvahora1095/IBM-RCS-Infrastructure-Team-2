@@ -168,3 +168,160 @@ class AuditLog(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+# ---------------------------------------------------------------------------
+# B2B: customer organisation, case result handoff and client service reports
+# (docs/ux/b2b-end-to-end-flow-spec.md). New tables only, created by
+# Base.metadata.create_all, so the existing schema is untouched.
+# ---------------------------------------------------------------------------
+
+
+class Organisation(Base):
+    """A customer platform that receives RCS case results (e.g. CommunityHub)."""
+
+    __tablename__ = "organisations"
+    __table_args__ = (
+        CheckConstraint("status IN ('READY', 'ERROR')", name="ck_organisations_status"),
+    )
+
+    organisation_id = Column(String(50), primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False, server_default="")
+    status = Column(String(10), nullable=False, server_default="READY")
+    destination_masked = Column(Text, nullable=False)
+    last_tested_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class CaseSource(Base):
+    """Optional Reporter-supplied "where did you see it?" details for a case."""
+
+    __tablename__ = "case_sources"
+
+    case_id = Column(
+        String(20),
+        ForeignKey("cases.case_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    source_url = Column(Text, nullable=True)
+    source_detail = Column(Text, nullable=True)
+
+
+class CaseHistory(Base):
+    """Older completed cases kept only as the figures reports need.
+
+    No content, summaries or Auditor identities: just timings, tiers and
+    outcomes, so service reports can cover months the live queue no longer holds.
+    """
+
+    __tablename__ = "case_history"
+
+    case_id = Column(String(20), primary_key=True)
+    organisation_id = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=False)
+    ai_tier = Column(String(2), nullable=True)
+    final_tier = Column(String(2), nullable=True)
+    outcome = Column(String(50), nullable=False)
+    declined_reassigned = Column(Integer, nullable=False, server_default="0")
+
+
+class Delivery(Base):
+    """One completed case's result handed off to the customer platform.
+
+    Delivery status is kept apart from the case's moderation status: a failed
+    delivery never reopens a completed case.
+    """
+
+    __tablename__ = "deliveries"
+    __table_args__ = (
+        CheckConstraint(
+            "delivery_status IN ('PENDING', 'RETRYING', 'SUCCESS', 'NEEDS_ATTENTION')",
+            name="ck_deliveries_status",
+        ),
+        Index("idx_deliveries_case_id", "case_id", unique=True),
+    )
+
+    delivery_id = Column(String(40), primary_key=True)
+    case_id = Column(String(20), nullable=False)
+    organisation_id = Column(String(50), nullable=False)
+    outcome = Column(String(50), nullable=False)
+    final_severity = Column(String(2), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=False)
+    delivery_status = Column(String(20), nullable=False, server_default="PENDING")
+    attempts = Column(JSON_DOCUMENT, nullable=False, default=list)
+    failure_reason = Column(Text, nullable=True)
+    next_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    escalated_at = Column(DateTime(timezone=True), nullable=True)
+    escalation_note = Column(Text, nullable=True)
+    source_url = Column(Text, nullable=True)
+    # Demo only: the simulated customer endpoint times out for this delivery.
+    simulate_failure = Column(Integer, nullable=False, server_default="0")
+
+
+class ServiceReport(Base):
+    """A Manager-reviewed aggregate report for one customer and period."""
+
+    __tablename__ = "service_reports"
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT', 'RELEASED')", name="ck_service_reports_status"),
+    )
+
+    report_id = Column(String(60), primary_key=True)
+    organisation_id = Column(String(50), nullable=False)
+    period_start = Column(String(10), nullable=False)
+    period_end = Column(String(10), nullable=False)
+    status = Column(String(10), nullable=False, server_default="DRAFT")
+    version = Column(Integer, nullable=False, server_default="1")
+    generated_at = Column(DateTime(timezone=True), nullable=False)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    released_by = Column(String(100), nullable=True)
+    manager_note = Column(Text, nullable=True)
+    metrics = Column(JSON_DOCUMENT, nullable=False)
+
+
+class ReportAccess(Base):
+    """Every client view or download attempt, including refusals."""
+
+    __tablename__ = "report_access"
+    __table_args__ = (Index("idx_report_access_report_id", "report_id"),)
+
+    access_id = Column(AUDIT_LOG_ID, Identity(), primary_key=True)
+    report_id = Column(String(60), nullable=False)
+    user_id = Column(String(50), nullable=False)
+    organisation_id = Column(String(50), nullable=False)
+    action = Column(String(10), nullable=False)
+    access_result = Column(String(10), nullable=False)
+    reason = Column(String(40), nullable=True)
+    at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ClientUser(Base):
+    """An authorised customer user. Separate from staff, bound to one organisation."""
+
+    __tablename__ = "client_users"
+
+    user_id = Column(String(50), primary_key=True)
+    login_hash = Column(Text, nullable=False)
+    display_name = Column(String(100), nullable=False)
+    organisation_id = Column(String(50), nullable=False)
+
+
+class GovernanceLogEntry(Base):
+    """One logged watsonx.ai call in the simplified governance log."""
+
+    __tablename__ = "governance_log"
+
+    entry_id = Column(String(20), primary_key=True)
+    case_id = Column(String(20), nullable=False)
+    at = Column(DateTime(timezone=True), nullable=False)
+    model_id = Column(String(100), nullable=False)
+    model_version = Column(String(30), nullable=False)
+    prompt_version = Column(String(50), nullable=False)
+    success = Column(Integer, nullable=False)
+    prompt_leakage = Column(Float, nullable=False)
+    source_attribution = Column(Float, nullable=False)
+    accumulated_score = Column(Float, nullable=False)
+    tokens_in = Column(Integer, nullable=False)
+    tokens_out = Column(Integer, nullable=False)
+    reasoning = Column(Text, nullable=True)

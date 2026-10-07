@@ -40,6 +40,13 @@ export const demoScenarios = {
     });
   },
 
+  /** B2B spec S8: the next CommunityHub result delivery fails all its automatic attempts. */
+  failNextDelivery(): void {
+    updateDb((db) => {
+      db.demo.failNextDelivery = true;
+    });
+  },
+
   /** Figma 36:235 / Manager 1:1231: the server forgets this session; the next request gets a 401. */
   expireSession(token: string): void {
     updateDb((db) => {

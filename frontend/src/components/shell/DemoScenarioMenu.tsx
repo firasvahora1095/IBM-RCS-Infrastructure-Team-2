@@ -38,6 +38,11 @@ const SCENARIOS: Scenario[] = [
     forManager: true,
     managerOnly: true,
   },
+  {
+    label: "Fail the next CommunityHub delivery",
+    run: () => demoScenarios.failNextDelivery(),
+    forManager: true,
+  },
   { label: "Expire my session", run: (token) => demoScenarios.expireSession(token), forManager: true },
   { label: "Put me at my exposure limit", run: (token) => demoScenarios.reachExposureLimit(token) },
   { label: "Start a 15-minute S3 cooldown", run: (token) => demoScenarios.startCooldown(token, "S3", 15) },

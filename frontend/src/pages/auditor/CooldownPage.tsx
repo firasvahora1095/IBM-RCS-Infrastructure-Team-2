@@ -4,6 +4,7 @@ import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/r
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
+import { BlockPuzzle } from "../../components/wellbeing/BlockPuzzle";
 import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { stopShift as stopShiftApi } from "../../services/api/httpClient";
@@ -49,6 +50,7 @@ export function CooldownPage() {
   const { logout, token } = useAuth();
   const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -188,6 +190,27 @@ export function CooldownPage() {
             Stop my shift
           </Button>
         </div>
+
+        {cooldown && (
+          <section aria-labelledby="puzzle-title" className="rcs-section">
+            <h2 id="puzzle-title" className="rcs-section-title">
+              Take a moment (optional)
+            </h2>
+            <p className="rcs-body" style={{ color: "var(--cds-text-secondary)" }}>
+              A simple block puzzle some people find helps them switch off. It doesn&apos;t shorten your cooldown and
+              isn&apos;t a treatment.
+            </p>
+            {puzzleOpen ? (
+              <BlockPuzzle onClose={() => setPuzzleOpen(false)} />
+            ) : (
+              <div>
+                <Button kind="tertiary" size="md" onClick={() => setPuzzleOpen(true)}>
+                  Play block puzzle
+                </Button>
+              </div>
+            )}
+          </section>
+        )}
       </StaffPage>
     </>
   );

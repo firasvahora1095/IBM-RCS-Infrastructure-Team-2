@@ -6,18 +6,26 @@ import type {
   AuditorDetail,
   AuditorOverviewRow,
   AuditorWellbeing,
+  ClientLoginResponse,
   CooldownState,
   CreateReportResponse,
+  CustomerIntegration,
   DeclinedCaseRow,
   DeclineReason,
+  Delivery,
   ExposureSample,
   FinalOutcome,
+  GovernanceSummary,
+  IntegrationTestResult,
   ManagerCaseReview,
   ManagerCaseRow,
   ManagerDashboardResponse,
   PublicStatusResponse,
   ReassignmentContext,
+  ReportAccessEntry,
+  ReportSource,
   ResolveCaseResponse,
+  ServiceReport,
   SosAlert,
   SosAlertDetail,
   SosFollowUpOutcome,
@@ -80,10 +88,14 @@ async function parseJsonOrThrow<T>(response: Response): Promise<T> {
 /** Normal User uploads a video and gets back a Case ID. Public — no auth. */
 export async function createReport(
   videoFile: File,
+  source?: ReportSource,
 ): Promise<CreateReportResponse> {
-  // The backend expects multipart/form-data with a single field named "video".
+  // multipart/form-data: the "video" file, plus the optional source fields
+  // only when the Reporter filled them in.
   const formData = new FormData();
   formData.append("video", videoFile);
+  if (source?.url?.trim()) formData.append("source_url", source.url.trim());
+  if (source?.detail?.trim()) formData.append("source_detail", source.detail.trim());
 
   const response = await fetch(`${API_BASE_URL}/api/reports`, {
     method: "POST",
@@ -542,4 +554,152 @@ export async function getValidationSummary(token: string): Promise<ValidationSum
     headers: { Authorization: `Bearer ${token}` },
   });
   return parseJsonOrThrow<ValidationSummary>(r);
+}
+
+/** Sprint 3 rule (extras §2): the case goes back to the Manager when the Auditor hits the daily cap mid-review. */
+export async function releaseCaseAtLimit(caseId: string, token: string): Promise<{ returned: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/release-at-limit`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ returned: true }>(r);
+}
+
+// ---- B2B: customer integration, case result handoff, client reports ----
+
+function bearer(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
+function jsonBearer(token: string): Record<string, string> {
+  return { ...bearer(token), "Content-Type": "application/json" };
+}
+
+export async function getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/customers/${encodeURIComponent(organisationId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<CustomerIntegration>(r);
+}
+
+export async function testIntegration(organisationId: string, token: string): Promise<IntegrationTestResult> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/customers/${encodeURIComponent(organisationId)}/test`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<IntegrationTestResult>(r);
+}
+
+export async function listDeliveries(token: string): Promise<Delivery[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/deliveries`, { headers: bearer(token) });
+  return parseJsonOrThrow<Delivery[]>(r);
+}
+
+export async function getDelivery(deliveryId: string, token: string): Promise<Delivery> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/deliveries/${encodeURIComponent(deliveryId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<Delivery>(r);
+}
+
+export async function retryDelivery(deliveryId: string, token: string): Promise<Delivery> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<Delivery>(r);
+}
+
+export async function escalateDelivery(deliveryId: string, token: string, note: string): Promise<{ escalated: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/deliveries/${encodeURIComponent(deliveryId)}/escalate`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ note }),
+  });
+  return parseJsonOrThrow<{ escalated: true }>(r);
+}
+
+export async function listReports(token: string): Promise<ServiceReport[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports`, { headers: bearer(token) });
+  return parseJsonOrThrow<ServiceReport[]>(r);
+}
+
+export async function generateReport(
+  token: string,
+  organisationId: string,
+  periodStart: string,
+  periodEnd: string,
+): Promise<ServiceReport> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ organisation_id: organisationId, period_start: periodStart, period_end: periodEnd }),
+  });
+  return parseJsonOrThrow<ServiceReport>(r);
+}
+
+export async function getReport(reportId: string, token: string): Promise<ServiceReport> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports/${encodeURIComponent(reportId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ServiceReport>(r);
+}
+
+export async function updateReportNote(reportId: string, token: string, note: string): Promise<ServiceReport> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports/${encodeURIComponent(reportId)}/note`, {
+    method: "PUT",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ note }),
+  });
+  return parseJsonOrThrow<ServiceReport>(r);
+}
+
+export async function releaseReport(reportId: string, token: string): Promise<ServiceReport> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports/${encodeURIComponent(reportId)}/release`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ServiceReport>(r);
+}
+
+export async function listReportAccess(reportId: string, token: string): Promise<ReportAccessEntry[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/reports/${encodeURIComponent(reportId)}/access`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ReportAccessEntry[]>(r);
+}
+
+export async function getGovernanceSummary(token: string): Promise<GovernanceSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/governance`, { headers: bearer(token) });
+  return parseJsonOrThrow<GovernanceSummary>(r);
+}
+
+/** CommunityHub authorised user. A separate sign-in from staff; staff accounts are refused. */
+export async function clientLogin(userId: string, password: string): Promise<ClientLoginResponse> {
+  const r = await fetch(`${API_BASE_URL}/api/client/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, password }),
+  });
+  return parseJsonOrThrow<ClientLoginResponse>(r);
+}
+
+export async function clientListReports(token: string): Promise<ServiceReport[]> {
+  const r = await fetch(`${API_BASE_URL}/api/client/reports`, { headers: bearer(token) });
+  return parseJsonOrThrow<ServiceReport[]>(r);
+}
+
+export async function clientGetReport(reportId: string, token: string): Promise<ServiceReport> {
+  const r = await fetch(`${API_BASE_URL}/api/client/reports/${encodeURIComponent(reportId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ServiceReport>(r);
+}
+
+export async function clientRecordDownload(reportId: string, token: string): Promise<{ recorded: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/client/reports/${encodeURIComponent(reportId)}/download`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ recorded: true }>(r);
 }
