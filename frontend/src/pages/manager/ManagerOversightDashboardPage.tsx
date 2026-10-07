@@ -20,6 +20,8 @@ import { getAuditorOverview, listDeclinedCases, listDeliveries } from "../../ser
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useSosSummary } from "../../hooks/useSosSummary";
 import { StatTile } from "../../components/ui/StatTile";
+import { StatusTag } from "../../components/ui/StatusTag";
+import type { AuditorOverviewRow } from "../../services/types";
 import { Section } from "../../components/ui/Blocks";
 import { cooldownSummary } from "../../design-tokens/managerLabels";
 import { ChevronRight } from "@carbon/icons-react";
@@ -48,7 +50,15 @@ export function ManagerOversightDashboardPage() {
   const openSos = sos?.unresolved_count ?? 0;
   const awaiting = declined.data?.length ?? 0;
   const failed = deliveries.data?.filter((d) => d.delivery_status === "NEEDS_ATTENTION").length ?? 0;
-  const atLimit = data?.filter((row) => row.exposure_state === "AT_LIMIT").length ?? 0;
+  // Support requests are quiet by design for the Auditor, so they must be loud here.
+  const requestsOf = (row: AuditorOverviewRow) =>
+    (row.open_requests?.break_requests ?? 0) + (row.open_requests?.talk_requests ?? 0);
+  const supportWaiting = data?.reduce((sum, row) => sum + requestsOf(row), 0) ?? 0;
+  const firstWithRequest = data?.find((row) => requestsOf(row) > 0);
+  // Auditors who need the Manager come first: SOS, then support requests, then everyone else.
+  const rows = [...(data ?? [])].sort(
+    (a, b) => Number(Boolean(b.open_sos)) - Number(Boolean(a.open_sos)) || requestsOf(b) - requestsOf(a),
+  );
   const delivered = deliveries.data?.filter((d) => d.delivery_status === "SUCCESS").length ?? 0;
   const inFlight =
     deliveries.data?.filter((d) => d.delivery_status === "PENDING" || d.delivery_status === "RETRYING").length ?? 0;
@@ -58,7 +68,12 @@ export function ManagerOversightDashboardPage() {
   const nextAction =
     openSos > 0
       ? { label: `Follow up ${plural(openSos, "SOS alert", "SOS alerts")}`, to: "/manager/sos" }
-      : awaiting > 0
+      : supportWaiting > 0 && firstWithRequest
+        ? {
+            label: `Respond to ${plural(supportWaiting, "support request", "support requests")}`,
+            to: `/manager/auditors/${encodeURIComponent(firstWithRequest.auditor_id)}`,
+          }
+        : awaiting > 0
         ? { label: `Decide ${plural(awaiting, "declined case", "declined cases")}`, to: "/manager/reassignment" }
         : failed > 0
           ? { label: `Fix ${plural(failed, "failed delivery", "failed deliveries")}`, to: "/manager/deliveries" }
@@ -112,9 +127,12 @@ export function ManagerOversightDashboardPage() {
           </Column>
           <Column sm={2} md={2} lg={4}>
             <StatTile
-              label="At daily exposure limit"
-              value={data ? atLimit : "–"}
-              helper={atLimit ? "No new cases for them today" : "All below their limit"}
+              label="Support requests waiting"
+              value={data ? supportWaiting : "–"}
+              tone={supportWaiting ? "error" : "neutral"}
+              helper={supportWaiting ? "Breaks and talk requests to answer" : "All answered"}
+              to={firstWithRequest ? `/manager/auditors/${encodeURIComponent(firstWithRequest.auditor_id)}` : undefined}
+              linkLabel={`Support requests waiting: ${supportWaiting}. Open the first Auditor who asked`}
             />
           </Column>
         </Grid>
@@ -122,7 +140,8 @@ export function ManagerOversightDashboardPage() {
       <LoadState error={error} loading={!data && !error} what="the dashboard" />
       {data && (
         <p className="rcs-helper" style={{ fontSize: 14 }}>
-          Select an auditor to see their day, their support requests and to adjust their exposure limit.
+          Auditors who need you are listed first. Select an auditor to see their day, answer their requests and
+          adjust their exposure limit.
         </p>
       )}
       {data && (
@@ -131,6 +150,7 @@ export function ManagerOversightDashboardPage() {
             <TableHead>
               <TableRow>
                 <TableHeader>Auditor</TableHeader>
+                <TableHeader>Needs you</TableHeader>
                 <TableHeader>Exposure</TableHeader>
                 <TableHeader>State</TableHeader>
                 <TableHeader>Cooldown</TableHeader>
@@ -141,7 +161,7 @@ export function ManagerOversightDashboardPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((row) => {
+              {rows.map((row) => {
                 const detailUrl = `/manager/auditors/${encodeURIComponent(row.auditor_id)}`;
                 return (
                   <TableRow
@@ -155,6 +175,28 @@ export function ManagerOversightDashboardPage() {
                       <RouterLink to={detailUrl} className="cds--link" onClick={(e) => e.stopPropagation()}>
                         {row.display_name}
                       </RouterLink>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {row.open_sos && (
+                          <StatusTag tone="error" size="sm">
+                            SOS
+                          </StatusTag>
+                        )}
+                        {(row.open_requests?.break_requests ?? 0) > 0 && (
+                          <StatusTag tone="warning" size="sm">
+                            Break requested
+                          </StatusTag>
+                        )}
+                        {(row.open_requests?.talk_requests ?? 0) > 0 && (
+                          <StatusTag tone="info" size="sm">
+                            Wants to talk
+                          </StatusTag>
+                        )}
+                        {!row.open_sos && requestsOf(row) === 0 && (
+                          <span style={{ color: "var(--cds-text-secondary)" }}>—</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <ExposureBar

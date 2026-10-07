@@ -353,6 +353,15 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
     exposure_state: exposureState(staff),
     cooldown: inCooldown(staff) ? staff.cooldown : null,
     cases_today: completedToday(db, staff.staff_id).length,
+    open_sos: db.sosEvents.some((e) => e.auditor_id === staff.staff_id && !e.resolved_at),
+    open_requests: {
+      break_requests: db.wellbeingRequests.filter(
+        (r) => r.auditor_id === staff.staff_id && r.kind === "BREAK_REQUEST" && r.status === "OPEN",
+      ).length,
+      talk_requests: db.wellbeingRequests.filter(
+        (r) => r.auditor_id === staff.staff_id && r.kind === "TALK_TO_MANAGER" && r.status === "OPEN",
+      ).length,
+    },
   };
 }
 
