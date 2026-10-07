@@ -67,6 +67,7 @@
   white-space: nowrap;
 }
 .rcs-inline-control .cds--toggle__label {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 0.75rem;
@@ -80,6 +81,10 @@
 }
 .rcs-player-blur .cds--slider-container {
   flex: 1 1 auto;
+}
+// The live readout beside the slider replaces Carbon's 0% / 100% end labels.
+.rcs-player-blur .cds--slider__range-label {
+  display: none;
 }
 .rcs-player-blur .cds--slider {
   inline-size: 100%;
@@ -124,6 +129,12 @@
   flex-direction: column;
   min-inline-size: 0;
   padding-block-start: 14px; // balances the flagged-moment row below the track
+}
+// The footage gives up height first, so the safety toolbar, the video and the
+// player bar always fit on one screen together (no scrolling to reach a control).
+.rcs-player-frame {
+  max-block-size: calc(100vh - 21rem);
+  min-block-size: 10rem;
 }
 .rcs-player-volume {
   flex: 0 0 6rem;

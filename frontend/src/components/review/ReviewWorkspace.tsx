@@ -253,7 +253,7 @@ export function ReviewWorkspace({
       : offline
         ? "Playback paused — reconnecting"
         : settings.blur >= 80
-          ? "Blurred — reduce the slider below to view"
+          ? "Blurred — lower the blur above to view"
           : null;
 
   const timeline = caseDetail.incident_timeline ?? [];
@@ -328,7 +328,7 @@ export function ReviewWorkspace({
           </p>
 
           <div
-            className="relative w-full shrink-0 overflow-hidden"
+            className="rcs-player-frame relative w-full shrink-0 overflow-hidden"
             style={{ aspectRatio: "16 / 9", backgroundColor: "var(--cds-background-inverse)" }}
           >
             <div
