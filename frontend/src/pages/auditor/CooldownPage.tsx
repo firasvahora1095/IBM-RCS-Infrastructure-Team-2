@@ -192,7 +192,7 @@ export function CooldownPage() {
         </div>
 
         {cooldown && (
-          <section aria-labelledby="puzzle-title" className="rcs-section">
+          <section id="take-a-moment" aria-labelledby="puzzle-title" className="rcs-section">
             <h2 id="puzzle-title" className="rcs-section-title">
               Take a moment (optional)
             </h2>

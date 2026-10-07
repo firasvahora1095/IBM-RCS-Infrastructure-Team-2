@@ -112,8 +112,19 @@ export function AuditorDashboardPage() {
   const minutesLeft = wellbeing
     ? Math.max(0, Math.round(wellbeing.exposure_limit_minutes - wellbeing.exposure_minutes_today))
     : null;
-  const cooldownLeft =
-    inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - pageOpenedAt) / 60_000)) : 0;
+  // A live countdown while a cooldown runs; the clock only ticks when it's needed.
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (!inCooldown) return;
+    const id = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [inCooldown]);
+  const secondsLeft = inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - clock) / 1000)) : 0;
+  const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
+  const cooldownCause =
+    cooldown?.trigger === "SOS" ? "Started after your SOS" : `Triggered by ${cooldown?.trigger ?? ""} exposure`;
+  const waitingForCheckIn = Boolean(cooldown?.requires_check_in && !cooldown.check_in_completed_at);
+  const readyCount = openCases.filter((c) => isReviewable(c.status)).length;
 
   return (
     <>
@@ -122,6 +133,11 @@ export function AuditorDashboardPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
+            {cases && (
+              <p style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                {openCases.length} open case{openCases.length === 1 ? "" : "s"} · {readyCount} ready for review
+              </p>
+            )}
             <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
               Cases assigned to you, newest first. There are no thumbnails: each case opens on its content warning.
             </p>
@@ -152,26 +168,65 @@ export function AuditorDashboardPage() {
             </dl>
             <p className="rcs-helper">Listed below your open cases</p>
           </Panel>
+          {/* This card adapts to the Auditor's wellbeing state instead of adding sections (AR-WB-02, AR-WB-12). */}
+          {inCooldown ? (
+            <section className="rcs-day-alert" aria-labelledby="cooldown-card-title" aria-live="polite">
+              <p id="cooldown-card-title" style={{ fontSize: 14, fontWeight: 600 }}>
+                Cooldown
+              </p>
+              <p className="rcs-day-alert-figure">
+                {countdown}
+                <span className="cds--visually-hidden"> remaining</span>
+                <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 400 }}>
+                  {" "}
+                  remaining
+                </span>
+              </p>
+              <p className="rcs-helper">
+                {cooldownCause}
+                {waitingForCheckIn ? ". Your manager will check in before new cases resume." : "."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
+                  Play block puzzle
+                </Button>
+                <Button kind="ghost" size="sm" onClick={() => setSupportOpen(true)}>
+                  Wellbeing check-in
+                </Button>
+              </div>
+            </section>
+          ) : atExposureLimit && wellbeing ? (
+            <section className="rcs-day-alert" aria-labelledby="limit-card-title">
+              <p id="limit-card-title" style={{ fontSize: 14, fontWeight: 600 }}>
+                Daily exposure limit reached
+              </p>
+              <p className="rcs-day-alert-figure">
+                {Math.round(wellbeing.exposure_minutes_today)} / {wellbeing.exposure_limit_minutes} min
+              </p>
+              <p className="rcs-helper">No new harmful-content cases will be assigned today.</p>
+            </section>
+          ) : (
+            <Panel>
+              <dl>
+                <Figure label="Cooldown" value="None" />
+              </dl>
+              <p className="rcs-helper">Starts after S3 and S4 cases, or an SOS</p>
+            </Panel>
+          )}
           <Panel>
-            <dl>
-              <Figure label="Cooldown" value={inCooldown ? `${cooldownLeft} min left` : "None"} />
-            </dl>
+            <p style={{ fontSize: 14, fontWeight: 600 }}>Wellbeing check-in</p>
             <p className="rcs-helper">
-              {inCooldown ? "New cases resume when it ends" : "Starts after S3 and S4 cases, or an SOS"}
+              Had a difficult case? You can ask to talk to your Manager or request a break. This is separate from SOS.
             </p>
-          </Panel>
-          <Panel>
-            <p style={{ fontSize: 14, fontWeight: 600 }}>Need support?</p>
-            <p className="rcs-helper">Talk to your manager or ask for a break. This isn&apos;t an alert.</p>
             <div>
               <Button kind="tertiary" size="sm" onClick={() => setSupportOpen(true)}>
-                Request support
+                Wellbeing check-in
               </Button>
             </div>
           </Panel>
         </section>
 
-        <Modal open={supportOpen} passiveModal modalHeading="Request support" onRequestClose={() => setSupportOpen(false)}>
+        <Modal open={supportOpen} passiveModal modalHeading="Wellbeing check-in" onRequestClose={() => setSupportOpen(false)}>
           {supportOpen && <WellbeingCheckIn onSessionExpired={handleSessionExpiry} />}
         </Modal>
 

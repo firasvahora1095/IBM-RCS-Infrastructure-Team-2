@@ -568,13 +568,13 @@ export function ReviewWorkspace({
             // Sprint 3 extras §9: two different paths, said plainly, before anything else in the rail.
             <section className="rcs-support-guide" aria-label="Getting help">
               <div>
-                <p className="rcs-support-guide-title">Request support: not urgent</p>
+                <p className="rcs-support-guide-title">Wellbeing check-in: not urgent</p>
                 <p className="rcs-helper">
                   Talk to your manager or ask for a break. Your case stays open and nothing is paused.
                 </p>
                 {onTalkToManager && (
                   <Button kind="tertiary" size="sm" onClick={onTalkToManager} style={{ marginTop: 8 }}>
-                    Request support
+                    Wellbeing check-in
                   </Button>
                 )}
               </div>
