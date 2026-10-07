@@ -22,6 +22,8 @@ import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBi
 import { PageHeader } from "../../components/ui/PageHeader";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { ReportSheet } from "../../components/reports/ReportSheet";
+import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
+import type { ReportEvidenceKey, ServiceReport } from "../../services/types";
 import { generateReport, getReport, listReportAccess, releaseReport, updateReportNote } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
@@ -45,6 +47,7 @@ export function ManagerReportDetailPage() {
   const handleSessionExpiry = useSessionExpiryHandler();
   const { data, error, reload } = useStaffQuery((t) => getReport(reportId, t), reportId);
   const access = useStaffQuery((t) => listReportAccess(reportId, t), `${reportId}:${data?.status ?? ""}`);
+  const [evidenceKey, setEvidenceKey] = useState<ReportEvidenceKey | null>(null);
   const [note, setNote] = useState("");
   const [noteSaved, setNoteSaved] = useState(true);
   const [savingNote, setSavingNote] = useState(false);
@@ -91,7 +94,11 @@ export function ManagerReportDetailPage() {
       if (!noteSaved) await updateReportNote(data.report_id, token, note);
       await releaseReport(data.report_id, token);
       setConfirmOpen(false);
-      setNotice({ kind: "success", title: "Report released.", subtitle: "CommunityHub's authorised users can now view it." });
+      setNotice({
+        kind: "success",
+        title: "Report released.",
+        subtitle: "CommunityHub's authorised users can now view it.",
+      });
       reload();
     } catch (err) {
       setConfirmOpen(false);
@@ -114,7 +121,9 @@ export function ManagerReportDetailPage() {
   return (
     <ManagerLayout>
       <PageHeader
-        breadcrumb={<ManagerBreadcrumb trail={[{ label: "Client reports", to: "/manager/reports" }, { label: reportId }]} />}
+        breadcrumb={
+          <ManagerBreadcrumb trail={[{ label: "Client reports", to: "/manager/reports" }, { label: reportId }]} />
+        }
         title={data ? formatPeriod(data.period_start, data.period_end) : "Report"}
         meta={data && <StatusTag kind="report" value={data.status} />}
         subtitle={
@@ -143,8 +152,13 @@ export function ManagerReportDetailPage() {
       {data && (
         <Grid className="rcs-grid">
           <Column sm={4} md={8} lg={11} className="flex flex-col gap-4">
-            <p className="rcs-helper rcs-no-print">This is exactly what CommunityHub will see.</p>
-            <ReportSheet report={{ ...data, manager_note: draft ? note.trim() || null : data.manager_note }} />
+            <p className="rcs-helper rcs-no-print">
+              This is exactly what CommunityHub will see. Only you can open the evidence behind each section.
+            </p>
+            <ReportSheet
+              report={{ ...data, manager_note: draft ? note.trim() || null : data.manager_note }}
+              onEvidence={setEvidenceKey}
+            />
           </Column>
 
           <Column sm={4} md={8} lg={5} className="rcs-no-print">
@@ -180,9 +194,7 @@ export function ManagerReportDetailPage() {
                     Figures come from completed case records. No individual wellbeing, SOS or internal information is
                     included.
                   </p>
-                  <Button onClick={() => setConfirmOpen(true)}>
-                    Approve and release
-                  </Button>
+                  <Button onClick={() => setConfirmOpen(true)}>Approve and release</Button>
                   <Button kind="ghost" onClick={() => window.print()}>
                     Download draft as PDF
                   </Button>
@@ -206,10 +218,7 @@ export function ManagerReportDetailPage() {
               )}
 
               <Accordion>
-                <AccordionItem
-                  open
-                  title="Never included in a client report"
-                >
+                <AccordionItem open title="Never included in a client report">
                   <ul className="flex flex-col gap-2" style={{ listStyle: "disc", paddingInlineStart: "1.25rem" }}>
                     {NOT_IN_CLIENT_REPORT.map((item) => (
                       <li key={item} className="rcs-body">
@@ -236,7 +245,9 @@ export function ManagerReportDetailPage() {
                               <TableCell>{formatShortDateTime(e.at)}</TableCell>
                               <TableCell className="rcs-mono">{e.user_id}</TableCell>
                               <TableCell>{e.action === "VIEW" ? "Viewed" : "Downloaded"}</TableCell>
-                              <TableCell>{e.access_result === "SUCCESS" ? "Allowed" : `Denied (${e.reason})`}</TableCell>
+                              <TableCell>
+                                {e.access_result === "SUCCESS" ? "Allowed" : `Denied (${e.reason})`}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -265,6 +276,46 @@ export function ManagerReportDetailPage() {
       >
         <p className="rcs-body">{RELEASE_CONFIRM_BODY}</p>
       </Modal>
+      {data && evidenceKey && data.metrics.evidence && (
+        <EvidenceDialog
+          open
+          onClose={() => setEvidenceKey(null)}
+          evidence={data.metrics.evidence[evidenceKey]}
+          value={reportEvidenceValue(data, evidenceKey)}
+          organisation={data.organisation_name}
+          period={formatPeriod(data.period_start, data.period_end)}
+        >
+          <p className="rcs-helper">
+            Frozen in version {data.version} of this report.{" "}
+            {data.status === "RELEASED"
+              ? "A released version never changes; newer figures need a new version."
+              : "Regenerating this draft recalculates it."}
+          </p>
+        </EvidenceDialog>
+      )}
     </ManagerLayout>
   );
+}
+
+/** The figure an evidence dialog is about, as the report shows it. */
+function reportEvidenceValue(report: ServiceReport, key: ReportEvidenceKey): string {
+  const m = report.metrics;
+  switch (key) {
+    case "cases_received":
+      return String(m.cases_received);
+    case "cases_completed":
+      return String(m.cases_completed);
+    case "open_at_end":
+      return String(m.open_at_end);
+    case "outcomes":
+      return String(m.violation_count + m.no_violation_count);
+    case "severity":
+      return String(Object.values(m.severity_breakdown).reduce((a, b) => a + b, 0));
+    case "overrides":
+      return `${Math.round(m.override_rate * 100)}%`;
+    case "workflow":
+      return String(m.declined_reassigned);
+    case "delivery":
+      return String(m.delivery.success + m.delivery.pending + m.delivery.retrying + m.delivery.needs_attention);
+  }
 }

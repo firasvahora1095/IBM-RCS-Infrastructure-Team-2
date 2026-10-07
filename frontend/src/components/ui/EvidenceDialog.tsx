@@ -42,7 +42,7 @@ export function EvidenceDialog({ open, onClose, evidence, value, organisation, p
       ? String(evidence.records_included)
       : `${evidence.records_included} of ${evidence.records_eligible} eligible`;
   return (
-    <ComposedModal open={open} onClose={onClose} size="md" preventCloseOnClickOutside={false}>
+    <ComposedModal open={open} onClose={onClose} size="md">
       <ModalHeader label="Evidence" title={`${evidence.title}: ${value}`} />
       <ModalBody hasScrollingContent aria-label={`How ${evidence.title.toLowerCase()} is calculated`}>
         <div className="flex flex-col gap-6">
