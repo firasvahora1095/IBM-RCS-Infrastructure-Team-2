@@ -10,9 +10,16 @@ export const DECLINE_REASON_OPTIONS: readonly { value: DeclineReason; label: str
   { value: "NEAR_EXPOSURE_LIMIT", label: "Near my exposure limit" },
   { value: "PERSONAL_TRIGGER", label: "Personal Trigger" },
   { value: "OTHER", label: "Other" },
-  { value: "EXPOSURE_CAP_REACHED", label: "Daily exposure cap reached mid-review" },
 ];
 
+/**
+ * Recorded by the system when the daily cap is reached mid-review, never
+ * chosen by the Auditor, so it isn't one of the options above.
+ */
+const SYSTEM_REASON_LABEL: Partial<Record<DeclineReason, string>> = {
+  EXPOSURE_CAP_REACHED: "Daily exposure cap reached mid-review",
+};
+
 export function declineReasonLabel(reason: DeclineReason): string {
-  return DECLINE_REASON_OPTIONS.find((o) => o.value === reason)?.label ?? reason;
+  return DECLINE_REASON_OPTIONS.find((o) => o.value === reason)?.label ?? SYSTEM_REASON_LABEL[reason] ?? reason;
 }

@@ -139,9 +139,7 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
           <StatusTag tone="warning" size="sm">Declined</StatusTag>
         )}
         {row.manager_flag === "CAP_REACHED" && (
-          <Tag type="warm-gray" size="sm" style={{ margin: 0 }}>
-            Cap reached
-          </Tag>
+          <StatusTag tone="warning" size="sm">Cap reached</StatusTag>
         )}
       </TableCell>
     </TableRow>
