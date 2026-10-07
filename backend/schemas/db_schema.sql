@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS auditors (
     cooldown_ends_at TIMESTAMPTZ,
     cooldown_trigger VARCHAR(10),
     cooldown_check_in_done INTEGER NOT NULL DEFAULT 0,
+    exposure_last_reset_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     CONSTRAINT ck_auditors_role
@@ -43,7 +44,7 @@ CREATE TABLE IF NOT EXISTS cases (
     auditor_severity_score INTEGER,
     auditor_comment TEXT,
     final_outcome VARCHAR(50),
-    manager_flag VARCHAR(10),
+    manager_flag VARCHAR(15),
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at TIMESTAMPTZ,
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS cases (
     ),
     CONSTRAINT ck_cases_manager_flag CHECK (
         manager_flag IS NULL
-        OR manager_flag IN ('DECLINED', 'SOS')
+        OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED')
     ),
     CONSTRAINT ck_cases_ai_failure CHECK (
         ai_failure IS NULL
@@ -102,6 +103,9 @@ ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ;
 ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10);
 ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float;
+-- Sprint 3 daily exposure reset: the seed runs before the API's own migrations,
+-- so every column the models write must exist here.
+ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ;
 
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT;
@@ -109,7 +113,8 @@ ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30);
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB;
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB;
-ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10);
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(15);
+ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15);
 
 DO $$
 BEGIN
@@ -119,12 +124,10 @@ BEGIN
         ALTER TABLE cases ADD CONSTRAINT ck_cases_ai_failure
             CHECK (ai_failure IS NULL OR ai_failure IN ('vision', 'speech_to_text'));
     END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'ck_cases_manager_flag'
-    ) THEN
-        ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag
-            CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS'));
-    END IF;
+    -- Recreated so existing databases also accept CAP_REACHED.
+    ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag;
+    ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag
+        CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'));
 END
 $$;
 
