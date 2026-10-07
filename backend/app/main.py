@@ -45,6 +45,7 @@ from app.api_schemas import (
 from app.b2b import create_delivery_for_case, public_delivery_confirmed
 from app.b2b import router as b2b_router
 from app.support import (
+    active_case_counts,
     auditor_exists,
     completed_today,
     create_request,
@@ -53,6 +54,7 @@ from app.support import (
     resolve_request,
     sos_history,
     start_of_today,
+    unresolved_sos_auditors,
 )
 from app.support import router as support_router
 from app.auth import DUMMY_PASSWORD_HASH, StaffSession, session_store, verify_password
@@ -1295,6 +1297,7 @@ async def list_auditors(
     db: Session = Depends(get_db),
 ):
     auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
+    active = active_case_counts(db)
     result = []
     for a in auditors:
         exp = float(a.exposure_minutes or 0)
@@ -1307,6 +1310,7 @@ async def list_auditors(
             "exposure_state": _exposure_state(exp, limit),
             "cooldown": _auditor_cooldown_payload(a),
             "cases_today": len(completed_today(db, a.auditor_id)),
+            "active_case_count": active.get(a.auditor_id, 0),
             # Same rule as the SOS summary: an SOS stays open until the Manager's check-in.
             "open_sos": a.cooldown_trigger == "SOS" and not a.cooldown_check_in_done and a.cooldown_ends_at is not None,
             "open_requests": open_request_counts(db, a.auditor_id),
@@ -1320,15 +1324,7 @@ async def get_sos_summary(
     db: Session = Depends(get_db),
 ):
     # Unresolved = SOS triggered but cooldown_check_in_done is still 0
-    sos_auditors = db.scalars(
-        select(Auditor)
-        .where(
-            Auditor.cooldown_trigger == "SOS",
-            Auditor.cooldown_check_in_done == 0,
-            Auditor.cooldown_ends_at.is_not(None),
-        )
-        .order_by(Auditor.cooldown_ends_at.desc())
-    ).all()
+    sos_auditors = unresolved_sos_auditors(db)
     if not sos_auditors:
         return {"unresolved_count": 0, "most_recent": None}
     most_recent = sos_auditors[0]

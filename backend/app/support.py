@@ -112,6 +112,45 @@ def open_request_counts(db: Session, auditor_id: str) -> dict:
     }
 
 
+def unresolved_sos_auditors(db: Session) -> list[Auditor]:
+    """Auditors whose SOS is still open: it stays open until the Manager's check-in, newest first."""
+    return list(
+        db.scalars(
+            select(Auditor)
+            .where(
+                Auditor.cooldown_trigger == "SOS",
+                Auditor.cooldown_check_in_done == 0,
+                Auditor.cooldown_ends_at.is_not(None),
+            )
+            .order_by(Auditor.cooldown_ends_at.desc())
+        ).all()
+    )
+
+
+def open_support_request_counts(db: Session) -> dict:
+    """Support requests still waiting for the Manager across all Auditors: breaks to
+    approve and requests to talk to follow up. Counted only; never attributed here."""
+    rows = db.scalars(select(WellbeingRequest).where(WellbeingRequest.status == "OPEN")).all()
+    return {
+        "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
+        "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
+    }
+
+
+def active_case_counts(db: Session) -> dict[str, int]:
+    """Open cases each Auditor is carrying; cases handed to the Manager aren't theirs to work on."""
+    counts: dict[str, int] = {}
+    for case in db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id.is_not(None),
+            Case.status != "COMPLETE",
+            Case.manager_flag.is_(None),
+        )
+    ).all():
+        counts[case.assigned_auditor_id] = counts.get(case.assigned_auditor_id, 0) + 1
+    return counts
+
+
 def sos_history(db: Session, auditor_id: str, now: datetime | None = None) -> list[dict]:
     """SOS raised in the last 7 days, newest first."""
     since = (now or datetime.now(timezone.utc)) - timedelta(days=7)

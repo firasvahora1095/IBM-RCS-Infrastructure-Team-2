@@ -35,6 +35,9 @@ ENV PGDATA=/var/lib/postgresql/data
 ENV CORS_ALLOWED_ORIGINS=http://localhost:5173,https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud,https://rcs-frontend-test.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
 ENV ORCHESTRATE_MODE=mock
 ENV VIDEO_STORAGE_BACKEND=local
+# Every container is seeded with demo data (scripts/seed_demo.py), so the Manager
+# dashboard labels its figures as demo data. Set to 0 for a real deployment.
+ENV RCS_DEMO_DATA=1
 
 EXPOSE 8080
 

@@ -102,6 +102,7 @@ export const updateReportNote = delegate("updateReportNote");
 export const releaseReport = delegate("releaseReport");
 export const listReportAccess = delegate("listReportAccess");
 export const getGovernanceSummary = delegate("getGovernanceSummary");
+export const getManagerIntelligence = delegate("getManagerIntelligence");
 
 // B2B — CommunityHub authorised user
 export const clientLogin = delegate("clientLogin");

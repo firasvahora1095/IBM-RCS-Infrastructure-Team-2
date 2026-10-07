@@ -56,14 +56,14 @@ export function periodBounds(periodStart: string, periodEnd: string): { start: n
   return { start: new Date(sy, sm - 1, sd).getTime(), end: new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime() };
 }
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 /** Below this many completed cases, a median timing figure isn't stated (spec S9b "unreliable timing" state). */
-const MIN_CASES_FOR_MEDIAN = 3;
+export const MIN_CASES_FOR_MEDIAN = 3;
 
 export function deliveryHealth(deliveries: MockDelivery[]): DeliveryHealth {
   return {

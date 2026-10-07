@@ -77,6 +77,7 @@ export const apiDataService: DataService = {
   releaseReport: http.releaseReport,
   listReportAccess: http.listReportAccess,
   getGovernanceSummary: http.getGovernanceSummary,
+  getManagerIntelligence: http.getManagerIntelligence,
   clientLogin: http.clientLogin,
   clientListReports: http.clientListReports,
   clientGetReport: http.clientGetReport,
