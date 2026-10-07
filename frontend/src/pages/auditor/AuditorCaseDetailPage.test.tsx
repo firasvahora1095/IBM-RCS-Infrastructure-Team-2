@@ -404,10 +404,10 @@ describe("AuditorCaseDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to submit" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Your session has timed out" });
-    fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: "testpassword123" } });
+    fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: "test123" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Log in to continue" }));
 
-    await waitFor(() => expect(login).toHaveBeenCalledWith("auditor-1", "testpassword123"));
+    await waitFor(() => expect(login).toHaveBeenCalledWith("auditor-1", "test123"));
     await waitFor(() => expect(sessionStorage.getItem("rcs_staff_token")).toBe("fresh-token"));
     expect(screen.getByLabelText("Comment (optional)")).toHaveValue("Consistent with AI.");
     expect(screen.getByLabelText("No Violation Found")).toBeChecked();

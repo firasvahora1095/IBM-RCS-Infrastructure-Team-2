@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TextInput } from "@carbon/react";
+import { Button, ComboBox, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TextInput } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { getAuditHistory } from "../../services";
+import { AUDIT_ACTIONS, auditActionLabel } from "../../design-tokens/auditActions";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditLogHistory, AuditLogQuery } from "../../services/types";
 
@@ -73,13 +74,16 @@ export function ManagerAuditHistoryPage() {
           />
         </div>
         <div style={{ flex: "1 1 260px", maxWidth: 360 }}>
-          <TextInput
+          {/* A list, so the Manager can see every recorded action instead of guessing a code. */}
+          <ComboBox
             id="audit-action"
-            labelText="Action (optional)"
-            placeholder="e.g. AI_ANALYSIS_COMPLETED"
-            maxLength={50}
-            value={action}
-            onChange={(event) => setAction(event.target.value)}
+            titleText="Action"
+            placeholder="All actions"
+            items={[...AUDIT_ACTIONS]}
+            itemToString={(item) => (item ? item.label : "")}
+            selectedItem={AUDIT_ACTIONS.find((a) => a.code === action) ?? null}
+            onChange={({ selectedItem }) => setAction(selectedItem?.code ?? "")}
+            helperText="Type to filter, or open the list."
           />
         </div>
         <Button type="submit" disabled={loading}>
@@ -118,7 +122,10 @@ export function ManagerAuditHistoryPage() {
                       <TableRow key={entry.audit_log_id}>
                         <TableCell style={mono}>{entry.audit_log_id}</TableCell>
                         <TableCell style={mono}>{entry.case_id}</TableCell>
-                        <TableCell style={{ ...mono, overflowWrap: "anywhere" }}>{entry.action}</TableCell>
+                        <TableCell>
+                          <span style={{ display: "block" }}>{auditActionLabel(entry.action)}</span>
+                          <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>{entry.action}</span>
+                        </TableCell>
                         <TableCell>{entry.actor}</TableCell>
                         <TableCell>
                           <time dateTime={entry.created_at} title={entry.created_at}>

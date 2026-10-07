@@ -1,5 +1,5 @@
-import { Header, HeaderGlobalBar, HeaderName, Tag, Theme } from "@carbon/react";
-import { useNavigate } from "react-router-dom";
+import { Button, Header, HeaderGlobalBar, HeaderMenuItem, HeaderName, HeaderNavigation, Tag, Theme } from "@carbon/react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useClientAuth } from "../../hooks/useClientAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
 
@@ -12,6 +12,7 @@ import { DemoDataBadge } from "./DemoDataBadge";
 export function ClientHeader() {
   const { session, logout } = useClientAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   function handleSignOut() {
     logout();
@@ -24,10 +25,24 @@ export function ClientHeader() {
         <HeaderName href="/client/reports" prefix="" aria-label="RCS — Client reports">
           RCS<span className="hidden sm:inline"> — Client reports</span>
         </HeaderName>
+        {session && (
+          <HeaderNavigation aria-label="Client sections">
+            <HeaderMenuItem as={RouterLink} to="/client/reports" isActive={pathname.startsWith("/client/reports")}>
+              Reports
+            </HeaderMenuItem>
+            <HeaderMenuItem as={RouterLink} to="/client/messages" isActive={pathname.startsWith("/client/messages")}>
+              Messages
+            </HeaderMenuItem>
+          </HeaderNavigation>
+        )}
         <DemoDataBadge />
         <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
           {session && (
             <>
+              {/* Always reachable: a client can contact RCS from any page. */}
+              <Button kind="tertiary" size="sm" onClick={() => navigate("/client/messages/new")}>
+                Contact RCS
+              </Button>
               <Tag type="gray" size="md" style={{ margin: 0, whiteSpace: "nowrap" }}>
                 {session.organisationName}
               </Tag>

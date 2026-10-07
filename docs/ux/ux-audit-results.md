@@ -57,3 +57,21 @@ Rules and method are in [`ux-audit-checklist.md`](ux-audit-checklist.md). Run on
   ghost buttons or an overflow menu, and the exposure bar uses Blue 60 on a
   non-interactive bar (A5). Both come from the original Figma design, so they
   need a team decision rather than a silent change.
+
+## Round 2: walkthrough feedback (7 Oct 2026)
+
+| Screen | Change | Why |
+|---|---|---|
+| All buttons | Buttons without an icon have even padding, as on the Figma foundation Button sheet. | The empty icon slot read as a random gap. |
+| Review workspace | Blur and grayscale sit in one toolbar above the video. Play, timeline, time, mute and volume form one player bar beneath it. The video gives up height so everything fits on one screen. | Controls were stacked unevenly and needed a scroll; play sat apart from the timeline. |
+| Review workspace | Flagged moments and timeline segments show "00:30–01:04 · tag · S3 High" on hover or focus. | The coloured marks had no meaning on hover. |
+| Review workspace | The "Request support: not urgent" vs "SOS: stop now" guide heads the side rail, with a Request support button. | When to use which wasn't clear. |
+| Request support | Options say what each one gives. An optional reason, today's requests with their status, and Withdraw. Calm wording. | A break request couldn't be taken back, and there was no way to say why. |
+| Auditor queue | "Your day" strip, one primary "Open next case", open cases newest first, completed today in its own list. | Recent cases were at the bottom and the page showed nothing about the Auditor's day. |
+| Manager dashboard | One primary that follows the most urgent item; rows open the Auditor; hint above the table; per-row buttons removed. | There was no primary, and five identical buttons. |
+| Auditor detail | One page: today, completed cases (same records as the count), support requests with actions, SOS history, exposure limit. | Counts disagreed with the dashboard; check-ins weren't actionable. |
+| SOS inbox | Acknowledge is red (danger). | Urgency. |
+| Reassignment queue | Reassign button on every row. | The action was only reachable through the case link. |
+| Audit history | Action is a searchable list with readable names. | A free-text field made the Manager guess codes. |
+| Client | "Contact RCS" always in the header, Messages with status, and "Ask RCS about this report". Manager: Client messages tab and reply. | Clients had no way to reach RCS. |
+| Demo menu | Labelled "Demo scenarios". | The bare gear looked like real settings. |

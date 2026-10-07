@@ -53,7 +53,7 @@ export function ManagerSosInboxPage() {
                     <TableCell>
                       {unacknowledged ? (
                         <Button
-                          kind="secondary"
+                          kind="danger"
                           size="sm"
                           onClick={() => navigate(detailUrl)}
                           aria-label={`Acknowledge ${alert.auditor_name}'s SOS alert`}

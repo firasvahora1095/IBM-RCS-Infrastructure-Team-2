@@ -26,6 +26,11 @@ import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetail
 import { ManagerCustomerPage } from "./pages/manager/ManagerCustomerPage";
 import { ManagerReportsPage } from "./pages/manager/ManagerReportsPage";
 import { ManagerReportDetailPage } from "./pages/manager/ManagerReportDetailPage";
+import { ManagerClientMessagesPage } from "./pages/manager/ManagerClientMessagesPage";
+import { ManagerClientMessagePage } from "./pages/manager/ManagerClientMessagePage";
+import { ClientMessagesPage } from "./pages/client/ClientMessagesPage";
+import { ClientNewMessagePage } from "./pages/client/ClientNewMessagePage";
+import { ClientMessagePage } from "./pages/client/ClientMessagePage";
 import { ClientRoute } from "./components/shell/ClientRoute";
 import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
 import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
@@ -249,6 +254,22 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/manager/messages"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerClientMessagesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/messages/:messageId"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerClientMessagePage />
+          </ProtectedRoute>
+        }
+      />
       {/* CommunityHub authorised users: a separate surface and session (B2B spec S11–S12). */}
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route
@@ -264,6 +285,30 @@ export function AppRoutes() {
         element={
           <ClientRoute>
             <ClientReportViewPage />
+          </ClientRoute>
+        }
+      />
+      <Route
+        path="/client/messages"
+        element={
+          <ClientRoute>
+            <ClientMessagesPage />
+          </ClientRoute>
+        }
+      />
+      <Route
+        path="/client/messages/new"
+        element={
+          <ClientRoute>
+            <ClientNewMessagePage />
+          </ClientRoute>
+        }
+      />
+      <Route
+        path="/client/messages/:messageId"
+        element={
+          <ClientRoute>
+            <ClientMessagePage />
           </ClientRoute>
         }
       />

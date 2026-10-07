@@ -52,6 +52,7 @@ export const recordExposure = delegate("recordExposure");
 export const triggerSos = delegate("triggerSos");
 export const reportUnexpectedExposure = delegate("reportUnexpectedExposure");
 export const requestWellbeingSupport = delegate("requestWellbeingSupport");
+export const withdrawWellbeingRequest = delegate("withdrawWellbeingRequest");
 
 // Manager oversight
 export const getAuditHistory = delegate("getAuditHistory");
@@ -61,6 +62,13 @@ export const getSosSummary = delegate("getSosSummary");
 export const getAuditorDetail = delegate("getAuditorDetail");
 export const setExposureLimit = delegate("setExposureLimit");
 export const approveBreakRequest = delegate("approveBreakRequest");
+export const markWellbeingFollowedUp = delegate("markWellbeingFollowedUp");
+export const clientSendMessage = delegate("clientSendMessage");
+export const clientListMessages = delegate("clientListMessages");
+export const clientGetMessage = delegate("clientGetMessage");
+export const listClientMessages = delegate("listClientMessages");
+export const getClientMessage = delegate("getClientMessage");
+export const replyClientMessage = delegate("replyClientMessage");
 export const getCaseOversight = delegate("getCaseOversight");
 export const listSosAlerts = delegate("listSosAlerts");
 export const getSosAlert = delegate("getSosAlert");

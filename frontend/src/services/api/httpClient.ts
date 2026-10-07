@@ -7,6 +7,8 @@ import type {
   AuditorOverviewRow,
   AuditorWellbeing,
   ClientLoginResponse,
+  ClientMessage,
+  ClientMessageInput,
   CooldownState,
   CreateReportResponse,
   CustomerIntegration,
@@ -346,13 +348,22 @@ export async function requestWellbeingSupport(
   token: string,
   kind: WellbeingRequestKind,
   caseId?: string,
-): Promise<{ received: true }> {
+  reason?: string,
+): Promise<{ received: true; request_id?: string }> {
   const r = await fetch(`${API_BASE_URL}/api/auditor/wellbeing-support`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, case_id: caseId ?? null }),
+    body: JSON.stringify({ kind, case_id: caseId ?? null, reason: reason?.trim() || null }),
   });
-  return parseJsonOrThrow<{ received: true }>(r);
+  return parseJsonOrThrow<{ received: true; request_id?: string }>(r);
+}
+
+export async function withdrawWellbeingRequest(token: string, requestId: string): Promise<{ withdrawn: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/auditor/wellbeing-requests/${encodeURIComponent(requestId)}/withdraw`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ withdrawn: true }>(r);
 }
 
 export async function stopShift(token: string): Promise<{ stopped: boolean; cases_returned: number }> {
@@ -414,6 +425,14 @@ export async function approveBreakRequest(
     { method: "POST", headers: { Authorization: `Bearer ${token}` } },
   );
   return parseJsonOrThrow<{ approved: true }>(r);
+}
+
+export async function markWellbeingFollowedUp(requestId: string, token: string): Promise<{ followed_up: true }> {
+  const r = await fetch(
+    `${API_BASE_URL}/api/manager/wellbeing-requests/${encodeURIComponent(requestId)}/follow-up`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  return parseJsonOrThrow<{ followed_up: true }>(r);
 }
 
 export async function getCaseOversight(token: string): Promise<ManagerCaseRow[]> {
@@ -711,4 +730,48 @@ export async function clientRecordDownload(reportId: string, token: string): Pro
     headers: bearer(token),
   });
   return parseJsonOrThrow<{ recorded: true }>(r);
+}
+
+// ---- Contact RCS ----
+
+export async function clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function clientListMessages(token: string): Promise<ClientMessage[]> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientMessage[]>(r);
+}
+
+export async function clientGetMessage(messageId: string, token: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/client/messages/${encodeURIComponent(messageId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function listClientMessages(token: string): Promise<ClientMessage[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientMessage[]>(r);
+}
+
+export async function getClientMessage(messageId: string, token: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages/${encodeURIComponent(messageId)}`, {
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
+}
+
+export async function replyClientMessage(messageId: string, token: string, body: string): Promise<ClientMessage> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/messages/${encodeURIComponent(messageId)}/reply`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ body }),
+  });
+  return parseJsonOrThrow<ClientMessage>(r);
 }

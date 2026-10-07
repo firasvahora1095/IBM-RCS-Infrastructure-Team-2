@@ -1,6 +1,7 @@
 /**
  * The Manager sections: the five from the Figma TopNav (94:132) plus Deliveries
- * and Reports from the B2B flow (docs/ux/b2b-end-to-end-flow-spec.md §2).
+ * and Reports from the B2B flow (docs/ux/b2b-end-to-end-flow-spec.md §2), and
+ * Client messages for "Contact RCS".
  */
 export interface NavTab {
   label: string;
@@ -16,5 +17,6 @@ export const MANAGER_SECTIONS: readonly NavTab[] = [
   { label: "Reassignment Queue", path: "/manager/reassignment", end: false },
   { label: "Deliveries", path: "/manager/deliveries", end: false },
   { label: "Reports", path: "/manager/reports", end: false },
+  { label: "Client messages", path: "/manager/messages", end: false },
   { label: "Validation", path: "/manager/validation", end: false },
 ];

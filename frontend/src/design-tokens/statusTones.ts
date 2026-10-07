@@ -1,4 +1,4 @@
-import type { DeliveryStatus, ExposureState, ReportStatus } from "../services/types";
+import type { DeliveryStatus, ExposureState, ReportStatus, WellbeingRequestStatus } from "../services/types";
 
 /**
  * One status colour scheme for every screen, from the Figma foundation Tag
@@ -34,3 +34,18 @@ export const EXPOSURE_TONE: Record<ExposureState, StatusTone> = {
 };
 
 export const INTEGRATION_TONE = { READY: "success", ERROR: "error" } as const satisfies Record<string, StatusTone>;
+
+/** An Auditor's support request, as both the Auditor and the Manager see it. */
+export const WELLBEING_TONE: Record<WellbeingRequestStatus, StatusTone> = {
+  OPEN: "info",
+  APPROVED: "success",
+  FOLLOWED_UP: "success",
+  WITHDRAWN: "neutral",
+};
+
+export const WELLBEING_STATUS_LABEL: Record<WellbeingRequestStatus, string> = {
+  OPEN: "Waiting for your manager",
+  APPROVED: "Break approved",
+  FOLLOWED_UP: "Followed up",
+  WITHDRAWN: "Withdrawn",
+};
