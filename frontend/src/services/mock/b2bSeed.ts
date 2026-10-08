@@ -1,4 +1,12 @@
-import type { ClientMessage, DeliveredOutcome, FinalOutcome, GovernanceLogRow, ReportAccessEntry, ServiceReport, SeverityTier } from "../types";
+import type {
+  ClientMessage,
+  DeliveredOutcome,
+  FinalOutcome,
+  GovernanceLogRow,
+  ReportAccessEntry,
+  ServiceReport,
+  SeverityTier,
+} from "../types";
 import { computeMetrics } from "./reportMetrics";
 import type { MockCase, MockClientUser, MockDelivery, MockHistoricalCase, MockOrganisation } from "./store";
 
@@ -67,7 +75,9 @@ export function reportIdFor(start: string, end: string, version: number): string
   const [sy, sm, sd] = start.split("-").map(Number);
   const lastOfMonth = new Date(sy, sm, 0).getDate();
   const wholeMonth = sd === 1 && end === `${sy}-${pad(sm)}-${pad(lastOfMonth)}`;
-  const base = wholeMonth ? `RPT-CH-${sy}-${pad(sm)}` : `RPT-CH-${start.replaceAll("-", "")}-${end.replaceAll("-", "")}`;
+  const base = wholeMonth
+    ? `RPT-CH-${sy}-${pad(sm)}`
+    : `RPT-CH-${start.replaceAll("-", "")}-${end.replaceAll("-", "")}`;
   return version > 1 ? `${base}-v${version}` : base;
 }
 
@@ -144,9 +154,23 @@ function successfulDelivery(
           reason: DELIVERY_TIMEOUT_REASON,
           manual: false,
         },
-        { attempt: 2, at: new Date(completed + 8_000).toISOString(), result: "SUCCESS" as const, reason: null, manual: false },
+        {
+          attempt: 2,
+          at: new Date(completed + 8_000).toISOString(),
+          result: "SUCCESS" as const,
+          reason: null,
+          manual: false,
+        },
       ]
-    : [{ attempt: 1, at: new Date(completed + 2_000).toISOString(), result: "SUCCESS" as const, reason: null, manual: false }];
+    : [
+        {
+          attempt: 1,
+          at: new Date(completed + 2_000).toISOString(),
+          result: "SUCCESS" as const,
+          reason: null,
+          manual: false,
+        },
+      ];
   return {
     delivery_id: `DEL-${caseId}`,
     case_id: caseId,
@@ -249,7 +273,12 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       };
     }
     if (c.case_id === "AR-2026-00399") {
-      delivery = { ...delivery, delivery_status: "PENDING", attempts: [], next_attempt_at: new Date(now + 30_000).toISOString() };
+      delivery = {
+        ...delivery,
+        delivery_status: "PENDING",
+        attempts: [],
+        next_attempt_at: new Date(now + 30_000).toISOString(),
+      };
     }
     deliveries.push(delivery);
   }
@@ -289,7 +318,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       released_at: null,
       released_by: null,
       manager_note: null,
-      metrics: computeMetrics(metricsSource, draft.start, draft.end),
+      metrics: computeMetrics(metricsSource, draft.start, draft.end, now - 2 * 60 * 60_000),
     },
     {
       report_id: reportIdFor(released.start, released.end, 1),
@@ -304,7 +333,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       released_by: "Alex Morgan",
       manager_note:
         "Volumes were steady across the month. A small number of results needed an automatic retry before CommunityHub received them; all were delivered.",
-      metrics: computeMetrics(metricsSource, released.start, released.end),
+      metrics: computeMetrics(metricsSource, released.start, released.end, Date.parse(releasedAt) - 50 * 60_000),
     },
   ];
 

@@ -353,7 +353,11 @@
   }
 }
 .ch-search {
-  display: flex;
+  // Phones keep the header actions; the inline search returns from md up.
+  display: none;
+  @include breakpoint.breakpoint(md) {
+    display: flex;
+  }
   flex: 1 1 auto;
   align-items: center;
   gap: 0.5rem;

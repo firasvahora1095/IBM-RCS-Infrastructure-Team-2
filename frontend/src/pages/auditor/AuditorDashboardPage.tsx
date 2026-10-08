@@ -11,7 +11,9 @@ import {
   TableCell,
   InlineNotification,
   ActionableNotification,
+  Column,
   DataTableSkeleton,
+  Grid,
   Layer,
 } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
@@ -24,7 +26,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
-import { Figure, Panel } from "../../components/manager/ManagerBits";
+import { StatTile } from "../../components/ui/StatTile";
+import { StatusTag } from "../../components/ui/StatusTag";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
 
 /**
@@ -39,6 +42,13 @@ const QUEUE_STATUS_LABEL: Record<InternalCaseStatus, string> = {
   AUDITOR_REVIEW: "In review",
   COMPLETE: "Complete",
 };
+
+/** My queue groups, in the order an Auditor works through them. */
+const QUEUE_GROUPS: readonly { id: string; title: string; statuses: InternalCaseStatus[] }[] = [
+  { id: "in-review", title: "In review", statuses: ["AUDITOR_REVIEW"] },
+  { id: "ready", title: "Ready for review", statuses: ["READY_FOR_REVIEW"] },
+  { id: "processing", title: "Processing", statuses: ["SUBMITTED", "AI_PROCESSING"] },
+];
 
 /** Only cases the AI has finished analysing can be opened for review (AR-AS-04). */
 function isReviewable(status: InternalCaseStatus): boolean {
@@ -119,12 +129,85 @@ export function AuditorDashboardPage() {
     const id = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [inCooldown]);
-  const secondsLeft = inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - clock) / 1000)) : 0;
+  const secondsLeft =
+    inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - clock) / 1000)) : 0;
   const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
   const cooldownCause =
     cooldown?.trigger === "SOS" ? "Started after your SOS" : `Triggered by ${cooldown?.trigger ?? ""} exposure`;
   const waitingForCheckIn = Boolean(cooldown?.requires_check_in && !cooldown.check_in_completed_at);
-  const readyCount = openCases.filter((c) => isReviewable(c.status)).length;
+  // Ready to review means AI analysis is finished and the Auditor hasn't started yet (§1.5).
+  const readyCount = openCases.filter((c) => c.status === "READY_FOR_REVIEW").length;
+
+  const renderRow = (c: AuditorCaseListItem) => {
+    const lockedByCooldown = inCooldown && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
+    const lockedByCap = atExposureLimit && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
+    const openable = isReviewable(c.status) && !lockedByCooldown && !lockedByCap;
+    const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
+    const statusLabel = lockedByCooldown
+      ? "Locked during cooldown"
+      : lockedByCap
+        ? "Locked — daily limit reached"
+        : QUEUE_STATUS_LABEL[c.status];
+    // "Every Processing row is disabled" (AR-AS-04): Gray 10 cells.
+    // Set per cell, because Carbon paints each cell's background
+    // over the row's. Figma also dims disabled rows to 60–70%
+    // opacity, which fails text contrast, so muted text is used instead.
+    const cellStyle = openable
+      ? undefined
+      : {
+          backgroundColor: c.status === "AI_PROCESSING" ? "var(--cds-layer-01)" : undefined,
+          color: "var(--cds-text-secondary)",
+        };
+    return (
+      <TableRow
+        key={c.case_id}
+        // Mouse users can click anywhere on a ready row; keyboard
+        // and screen-reader users get the real link in the
+        // Status cell, so the row itself isn't a fake button.
+        onClick={openable ? () => navigate(caseUrl) : undefined}
+        style={{ cursor: openable ? "pointer" : "default" }}
+      >
+        <TableCell style={{ ...cellStyle, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
+          {c.case_id}
+        </TableCell>
+        <TableCell style={cellStyle}>
+          {c.severity_tier ? (
+            <SeverityTag tier={c.severity_tier} />
+          ) : c.status === "SUBMITTED" || c.status === "AI_PROCESSING" ? (
+            <span className="cds--visually-hidden">No severity yet</span>
+          ) : (
+            // AI analysis finished without a severity: it failed (AR-AI-10). Say so
+            // instead of leaving a blank that reads as "still loading".
+            <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>Unknown</span>
+          )}
+        </TableCell>
+        <TableCell style={cellStyle}>
+          {openable ? (
+            <RouterLink
+              to={caseUrl}
+              className="cds--link"
+              style={{ fontWeight: 600 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {statusLabel}
+            </RouterLink>
+          ) : (
+            <span
+              style={{ color: lockedByCooldown ? SECONDARY_TEXT : "var(--cds-text-secondary)" }}
+              aria-disabled="true"
+            >
+              {statusLabel}
+            </span>
+          )}
+        </TableCell>
+        {showAssignedColumn && (
+          <TableCell style={{ ...cellStyle, fontSize: 12, color: SECONDARY_TEXT, textAlign: "right" }}>
+            {c.assigned_at ? formatRelativeTime(c.assigned_at) : "—"}
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  };
 
   return (
     <>
@@ -133,98 +216,110 @@ export function AuditorDashboardPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <h1 style={{ fontSize: 32, lineHeight: "40px", fontWeight: 600 }}>Case queue</h1>
-            {cases && (
-              <p style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
-                {openCases.length} open case{openCases.length === 1 ? "" : "s"} · {readyCount} ready for review
-              </p>
-            )}
             <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-              Cases assigned to you, newest first. There are no thumbnails: each case opens on its content warning.
+              Your work and protection today. Each case opens on its content warning; there are no thumbnails.
             </p>
           </div>
-          {/* The one primary action: the next case that is ready to review. */}
-          {nextCase && (
-            <Button onClick={() => navigate(`/auditor/cases/${encodeURIComponent(nextCase.case_id)}`)}>
-              Open next case
+          <div className="flex flex-wrap items-center gap-2">
+            {/* The single way into the check-in (separate from SOS), always one click away. */}
+            <Button kind="tertiary" onClick={() => setSupportOpen(true)}>
+              Wellbeing check-in
             </Button>
-          )}
+            {/* The one primary action: the next case that is ready to review. */}
+            {nextCase && (
+              <Button onClick={() => navigate(`/auditor/cases/${encodeURIComponent(nextCase.case_id)}`)}>
+                Open next case
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Your day: what the wellbeing rules use to protect you (AR-WB-01, 02, 12, 16). */}
-        <section aria-label="Your day" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Panel>
-            <dl>
-              <Figure label="Exposure left today" value={minutesLeft === null ? "—" : `${minutesLeft} min`} />
-            </dl>
-            <p className="rcs-helper">
-              {wellbeing
-                ? `${Math.round(wellbeing.exposure_minutes_today)} of ${wellbeing.exposure_limit_minutes} min watched`
-                : "Loading…"}
-            </p>
-          </Panel>
-          <Panel>
-            <dl>
-              <Figure label="Completed today" value={completedCases.length} />
-            </dl>
-            <p className="rcs-helper">Listed below your open cases</p>
-          </Panel>
-          {/* This card adapts to the Auditor's wellbeing state instead of adding sections (AR-WB-02, AR-WB-12). */}
-          {inCooldown ? (
-            <section className="rcs-day-alert" aria-labelledby="cooldown-card-title" aria-live="polite">
-              <p id="cooldown-card-title" style={{ fontSize: 14, fontWeight: 600 }}>
-                Cooldown
-              </p>
-              <p className="rcs-day-alert-figure">
-                {countdown}
-                <span className="cds--visually-hidden"> remaining</span>
-                <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 400 }}>
-                  {" "}
-                  remaining
-                </span>
-              </p>
-              <p className="rcs-helper">
-                {cooldownCause}
-                {waitingForCheckIn ? ". Your manager will check in before new cases resume." : "."}
-              </p>
-              {/* The Wellbeing check-in card sits right beside this one, so it isn't repeated here. */}
-              <div>
-                <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
-                  Play block puzzle
-                </Button>
-              </div>
-            </section>
-          ) : atExposureLimit && wellbeing ? (
-            <section className="rcs-day-alert" aria-labelledby="limit-card-title">
-              <p id="limit-card-title" style={{ fontSize: 14, fontWeight: 600 }}>
-                Daily exposure limit reached
-              </p>
-              <p className="rcs-day-alert-figure">
-                {Math.round(wellbeing.exposure_minutes_today)} / {wellbeing.exposure_limit_minutes} min
-              </p>
-              <p className="rcs-helper">No new harmful-content cases will be assigned today.</p>
-            </section>
-          ) : (
-            <Panel>
-              <dl>
-                <Figure label="Cooldown" value="None" />
-              </dl>
-              <p className="rcs-helper">Starts after S3 and S4 cases, or an SOS</p>
-            </Panel>
-          )}
-          <Panel>
-            <p style={{ fontSize: 14, fontWeight: 600 }}>Wellbeing check-in</p>
-            <p className="rcs-helper">
-              Had a difficult case? You can ask to talk to your Manager or request a break. This is separate from SOS.
-            </p>
-            <div>
-              <Button kind="tertiary" size="sm" onClick={() => setSupportOpen(true)}>
-                Wellbeing check-in
-              </Button>
-            </div>
-          </Panel>
+        {/*
+          My work & protection (Sprint 3 extras §1.5): a personal snapshot, never a
+          performance measure. No quota, target or comparison with other Auditors.
+          The header already shows minutes watched against the limit, so this strip
+          shows what's left; the last tile adapts to the protection state (AR-WB-02, 12).
+        */}
+        <section aria-label="My work and protection">
+          <Grid className="rcs-grid" condensed>
+            <Column sm={2} md={2} lg={3}>
+              <StatTile label="My open cases" value={cases ? openCases.length : "–"} helper="Assigned to you" />
+            </Column>
+            <Column sm={2} md={2} lg={3}>
+              <StatTile label="Ready to review" value={cases ? readyCount : "–"} helper="AI analysis finished" />
+            </Column>
+            <Column sm={2} md={2} lg={3}>
+              <StatTile
+                label="Completed today"
+                value={cases ? completedCases.length : "–"}
+                helper="For your own record"
+              />
+            </Column>
+            <Column sm={2} md={2} lg={3}>
+              <StatTile
+                label="Exposure left today"
+                value={minutesLeft === null ? "–" : `${minutesLeft} min`}
+                helper="Counts only while source video plays"
+              />
+            </Column>
+            <Column sm={4} md={8} lg={4}>
+              {inCooldown ? (
+                <section className="rcs-day-alert" aria-labelledby="status-title" aria-live="polite">
+                  <p id="status-title" className="rcs-stat-label">
+                    Status
+                  </p>
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <StatusTag tone="info" size="sm">
+                      Cooldown
+                    </StatusTag>
+                    <span className="rcs-day-alert-figure">
+                      {countdown}
+                      <span className="cds--visually-hidden"> remaining</span>
+                    </span>
+                  </div>
+                  <p className="rcs-helper">
+                    {cooldownCause}
+                    {waitingForCheckIn
+                      ? ". Your manager will check in before new cases resume."
+                      : ". No new harmful-content case is assigned until it ends."}
+                  </p>
+                  <div>
+                    <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
+                      Play block puzzle
+                    </Button>
+                  </div>
+                </section>
+              ) : atExposureLimit && wellbeing ? (
+                <section className="rcs-day-alert" aria-labelledby="status-title">
+                  <p id="status-title" className="rcs-stat-label">
+                    Status
+                  </p>
+                  <StatusTag tone="warning" size="sm">
+                    Daily limit reached
+                  </StatusTag>
+                  <p className="rcs-helper">No new harmful-content cases will be assigned today.</p>
+                </section>
+              ) : (
+                <div className="rcs-stat-tile" aria-labelledby="status-title" role="group">
+                  <span id="status-title" className="rcs-stat-label">
+                    Status
+                  </span>
+                  <span className="rcs-stat-value" style={{ fontFamily: "inherit" }}>
+                    <StatusTag tone="success">Available</StatusTag>
+                  </span>
+                  <span className="rcs-stat-helper">Cooldown starts after S3 and S4 cases, or an SOS.</span>
+                </div>
+              )}
+            </Column>
+          </Grid>
         </section>
 
-        <Modal open={supportOpen} passiveModal modalHeading="Wellbeing check-in" onRequestClose={() => setSupportOpen(false)}>
+        <Modal
+          open={supportOpen}
+          passiveModal
+          modalHeading="Wellbeing check-in"
+          onRequestClose={() => setSupportOpen(false)}
+        >
           {supportOpen && <WellbeingCheckIn onSessionExpired={handleSessionExpiry} />}
         </Modal>
 
@@ -273,98 +368,43 @@ export function AuditorDashboardPage() {
 
         {cases && (
           <>
-            {/* Layer raises the table one Carbon layer, so rows render white
-                (as in Figma) instead of the default Gray 10 row fill. */}
-            <Layer>
-              <Table aria-label="Open cases">
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Case ID</TableHeader>
-                    <TableHeader>Severity</TableHeader>
-                    <TableHeader>Status</TableHeader>
-                    {/* Right-aligned like its values (Figma 10:6). Carbon's label div sets its own
-                        text-align, and outranks Tailwind's layered utilities, so align inline. */}
-                    {showAssignedColumn && (
-                      <TableHeader>
-                        <span style={{ display: "block", textAlign: "right" }}>Assigned</span>
-                      </TableHeader>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {openCases.map((c) => {
-                    const lockedByCooldown = inCooldown && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
-                    const lockedByCap = atExposureLimit && c.status !== "AI_PROCESSING" && c.status !== "COMPLETE";
-                    const openable = isReviewable(c.status) && !lockedByCooldown && !lockedByCap;
-                    const caseUrl = `/auditor/cases/${encodeURIComponent(c.case_id)}`;
-                    const statusLabel = lockedByCooldown
-                      ? "Locked during cooldown"
-                      : lockedByCap
-                      ? "Locked — daily limit reached"
-                      : QUEUE_STATUS_LABEL[c.status];
-                    // "Every Processing row is disabled" (AR-AS-04): Gray 10 cells.
-                    // Set per cell, because Carbon paints each cell's background
-                    // over the row's. Figma also dims disabled rows to 60–70%
-                    // opacity, which fails text contrast, so muted text is used instead.
-                    const cellStyle = openable
-                      ? undefined
-                      : {
-                          backgroundColor: c.status === "AI_PROCESSING" ? "var(--cds-layer-01)" : undefined,
-                          color: "var(--cds-text-secondary)",
-                        };
-                    return (
-                      <TableRow
-                        key={c.case_id}
-                        // Mouse users can click anywhere on a ready row; keyboard
-                        // and screen-reader users get the real link in the
-                        // Status cell, so the row itself isn't a fake button.
-                        onClick={openable ? () => navigate(caseUrl) : undefined}
-                        style={{ cursor: openable ? "pointer" : "default" }}
-                      >
-                        <TableCell style={{ ...cellStyle, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
-                          {c.case_id}
-                        </TableCell>
-                        <TableCell style={cellStyle}>
-                          {c.severity_tier ? (
-                            <SeverityTag tier={c.severity_tier} />
-                          ) : c.status === "SUBMITTED" || c.status === "AI_PROCESSING" ? (
-                            <span className="cds--visually-hidden">No severity yet</span>
-                          ) : (
-                            // AI analysis finished without a severity: it failed (AR-AI-10). Say so
-                            // instead of leaving a blank that reads as "still loading".
-                            <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>Unknown</span>
+            {/*
+              My queue, grouped by what the Auditor can do next (Sprint 3 extras §1.5):
+              finish what's in review, then what's ready, then what's still in AI analysis.
+              Counts live in the strip above, so the headings don't repeat them.
+            */}
+            {QUEUE_GROUPS.map((group) => {
+              const rows = openCases.filter((c) => group.statuses.includes(c.status));
+              if (rows.length === 0) return null;
+              return (
+                <section key={group.id} aria-labelledby={`queue-${group.id}`} className="flex flex-col gap-2">
+                  <h2 id={`queue-${group.id}`} style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
+                    {group.title}
+                  </h2>
+                  {/* Layer raises the table one Carbon layer, so rows render white
+                      (as in Figma) instead of the default Gray 10 row fill. */}
+                  <Layer>
+                    <Table aria-label={group.title}>
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Case ID</TableHeader>
+                          <TableHeader>Severity</TableHeader>
+                          <TableHeader>Status</TableHeader>
+                          {/* Right-aligned like its values (Figma 10:6). Carbon's label div sets its own
+                              text-align, and outranks Tailwind's layered utilities, so align inline. */}
+                          {showAssignedColumn && (
+                            <TableHeader>
+                              <span style={{ display: "block", textAlign: "right" }}>Assigned</span>
+                            </TableHeader>
                           )}
-                        </TableCell>
-                        <TableCell style={cellStyle}>
-                          {openable ? (
-                            <RouterLink
-                              to={caseUrl}
-                              className="cds--link"
-                              style={{ fontWeight: 600 }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {statusLabel}
-                            </RouterLink>
-                          ) : (
-                            <span
-                              style={{ color: lockedByCooldown ? SECONDARY_TEXT : "var(--cds-text-secondary)" }}
-                              aria-disabled="true"
-                            >
-                              {statusLabel}
-                            </span>
-                          )}
-                        </TableCell>
-                        {showAssignedColumn && (
-                          <TableCell style={{ ...cellStyle, fontSize: 12, color: SECONDARY_TEXT, textAlign: "right" }}>
-                            {c.assigned_at ? formatRelativeTime(c.assigned_at) : "—"}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Layer>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>{rows.map(renderRow)}</TableBody>
+                    </Table>
+                  </Layer>
+                </section>
+              );
+            })}
 
             {/* Empty-state panels (Figma 36:146, 36:189, 34:121). */}
             {openCases.length === 0 ? (
@@ -377,8 +417,8 @@ export function AuditorDashboardPage() {
               <EmptyPanel>No available cases right now</EmptyPanel>
             ) : (
               <p style={{ fontSize: 12, lineHeight: "16px", color: SECONDARY_TEXT }}>
-                Cases still in AI analysis can&apos;t be opened yet. You&apos;re only assigned cases that fit inside your
-                remaining exposure for today.
+                Cases still in AI analysis can&apos;t be opened yet. You&apos;re only assigned cases that fit inside
+                your remaining exposure for today.
               </p>
             )}
 

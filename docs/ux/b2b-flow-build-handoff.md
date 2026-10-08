@@ -86,7 +86,7 @@ The three tests that failed on `main` before this work (`IncidentTimeline`, MR-O
 2. Handoff payload: minimal five fields; confirm with Naresh.
 3. RT-01 should note the "CommunityHub has been notified" sentence (shown only on delivered violation outcomes).
 4. Sprint 3 plan mentions "daily/weekly reset"; the extras doc defines daily only.
-5. Not built (later HD pass): Manager Intelligence Dashboard analytics and evidence drill-down, Manager Copilot.
+5. Manager Intelligence Dashboard and evidence drill-down: built in Sprint 3 (see [`manager-intelligence-dashboard-handoff.md`](manager-intelligence-dashboard-handoff.md)). Manager Copilot: not built (optional).
 
 ## 7. Backend
 
