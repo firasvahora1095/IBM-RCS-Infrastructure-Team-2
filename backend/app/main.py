@@ -33,6 +33,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api_schemas import (
+    ChatRequest,
     DeclineCaseRequest,
     ExposureSampleRequest,
     LoginRequest,
@@ -1834,3 +1835,67 @@ async def get_validation_summary(
         "match_rate_pct": 84.0,
         "validation_set_size": 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# AI Chatbot ("AI buddy") — watsonx.ai backed
+# ---------------------------------------------------------------------------
+
+@app.post("/api/chat")
+async def ai_chat(
+    body: ChatRequest,
+    session: StaffSession = Depends(get_current_session),
+    db: Session = Depends(get_db),
+):
+    from app.chat import chat
+
+    context: dict = {}
+
+    if session.role == "manager":
+        now = datetime.now(timezone.utc)
+        auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
+        open_cases = db.scalar(select(func.count()).select_from(Case).where(Case.status != "COMPLETE")) or 0
+        completed_today_count = db.scalar(
+            select(func.count()).select_from(Case).where(
+                Case.status == "COMPLETE",
+                Case.completed_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+            )
+        ) or 0
+        pending_declined = db.scalar(
+            select(func.count()).select_from(Case).where(
+                Case.manager_flag.in_(["DECLINED", "CAP_REACHED"]),
+                Case.status != "COMPLETE",
+            )
+        ) or 0
+        context = {
+            "open cases": open_cases,
+            "completed today": completed_today_count,
+            "cases awaiting reassignment": pending_declined,
+            "auditor count": len(auditors),
+            "auditors at exposure limit": sum(
+                1 for a in auditors
+                if (a.exposure_minutes or 0) >= (a.exposure_limit_minutes or 120)
+            ),
+        }
+
+    elif session.role == "auditor":
+        auditor = db.get(Auditor, session.staff_id)
+        if auditor:
+            active_cases = db.scalars(
+                select(Case).where(
+                    Case.assigned_auditor_id == session.staff_id,
+                    Case.status.in_(["READY_FOR_REVIEW", "AUDITOR_REVIEW"]),
+                )
+            ).all()
+            context = {
+                "your exposure today": f"{round(auditor.exposure_minutes or 0)} / {auditor.exposure_limit_minutes or 120} min",
+                "your active cases": len(active_cases),
+                "active case IDs": ", ".join(c.case_id for c in active_cases) or "none",
+            }
+
+    try:
+        reply = await run_in_threadpool(chat, body.message, session.role, context)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    return {"reply": reply}

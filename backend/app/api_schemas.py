@@ -94,3 +94,7 @@ class ExposureSampleRequest(BaseModel):
 
 class SetExposureLimitRequest(BaseModel):
     minutes: int = Field(ge=0, le=1440)
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
