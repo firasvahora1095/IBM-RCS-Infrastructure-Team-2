@@ -1,6 +1,7 @@
 """Adapter between case creation and the watsonx Orchestrate assignment flow."""
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -44,37 +45,150 @@ class MockWatsonxOrchestrator:
 
 
 @dataclass
-class RemoteWatsonxOrchestrator:
-    """HTTP contract for the deployed watsonx Orchestrate workflow endpoint."""
+class _IamTokenCache:
+    """Simple in-memory cache for IBM IAM bearer tokens (expire after 55 min)."""
+    token: str = ""
+    expires_at: float = 0.0
 
-    url: str
+
+_iam_cache = _IamTokenCache()
+
+
+async def _get_iam_token(api_key: str, timeout: float) -> str:
+    """Fetch a fresh IBM IAM token, reusing the cached one if still valid."""
+    now = time.time()
+    if _iam_cache.token and now < _iam_cache.expires_at:
+        return _iam_cache.token
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(
+            "https://iam.cloud.ibm.com/identity/token",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data={
+                "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+                "apikey": api_key,
+            },
+        )
+        r.raise_for_status()
+        data = r.json()
+
+    token = data.get("access_token")
+    if not token:
+        raise AssignmentOrchestrationError("IBM IAM did not return an access_token")
+
+    _iam_cache.token = token
+    _iam_cache.expires_at = now + 55 * 60  # refresh 5 min before 1h expiry
+    return token
+
+
+@dataclass
+class RemoteWatsonxOrchestrator:
+    """HTTP contract for the deployed watsonx Orchestrate Native Runs API."""
+
+    base_url: str  # https://.../instances/<tenant_id>
+    agent_id: str
+    api_key: str | None
     bearer_token: str | None
     timeout_seconds: float
+    poll_interval: float = 3.0
+    max_polls: int = 20
+
+    async def _auth_header(self) -> str:
+        if self.api_key:
+            token = await _get_iam_token(self.api_key, self.timeout_seconds)
+            return f"Bearer {token}"
+        if self.bearer_token:
+            return f"Bearer {self.bearer_token}"
+        raise AssignmentOrchestrationError(
+            "Either IBM_API_KEY or WATSONX_ORCHESTRATE_BEARER_TOKEN is required"
+        )
 
     async def assign_case(self, case_id: str) -> AssignmentDecision:
-        headers = {"Accept": "application/json"}
-        if self.bearer_token:
-            headers["Authorization"] = f"Bearer {self.bearer_token}"
+        import asyncio
+        auth = await self._auth_header()
+        headers = {
+            "Authorization": auth,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.post(
-                    self.url,
+                # Step 1: submit run
+                r = await client.post(
+                    f"{self.base_url}/v1/orchestrate/runs",
                     headers=headers,
-                    json={"case_id": case_id},
+                    json={
+                        "agent_id": self.agent_id,
+                        "message": {
+                            "role": "user",
+                            "content": f"A new case has been submitted. Please assign the best available auditor. Case ID: {case_id}",
+                        },
+                    },
                 )
-                response.raise_for_status()
-                payload = response.json()
-        except (httpx.HTTPError, ValueError) as error:
+                r.raise_for_status()
+                run_data = r.json()
+                thread_id = run_data["thread_id"]
+                run_id = run_data["run_id"]
+
+                # Step 2: poll until completed
+                for _ in range(self.max_polls):
+                    await asyncio.sleep(self.poll_interval)
+                    pr = await client.get(
+                        f"{self.base_url}/v1/orchestrate/runs/{run_id}",
+                        headers=headers,
+                    )
+                    pr.raise_for_status()
+                    status = pr.json().get("status", "")
+                    if status == "completed":
+                        break
+                    if status in ("failed", "cancelled"):
+                        raise AssignmentOrchestrationError(
+                            f"watsonx Orchestrate run ended with status: {status}"
+                        )
+                else:
+                    raise AssignmentOrchestrationError(
+                        "watsonx Orchestrate run did not complete in time"
+                    )
+
+                # Step 3: fetch messages and find last assistant reply
+                mr = await client.get(
+                    f"{self.base_url}/v1/orchestrate/threads/{thread_id}/messages",
+                    headers=headers,
+                )
+                mr.raise_for_status()
+                messages = mr.json()
+
+        except (httpx.HTTPError, ValueError, KeyError) as error:
             raise AssignmentOrchestrationError(
-                "watsonx Orchestrate assignment request failed"
+                f"watsonx Orchestrate assignment request failed: {error}"
             ) from error
 
-        auditor_id = payload.get("auditor_id") if isinstance(payload, dict) else None
-        if not isinstance(auditor_id, str) or not auditor_id.strip():
+        # Extract auditor_id from the last assistant message
+        auditor_id = ""
+        for msg in reversed(messages if isinstance(messages, list) else []):
+            if msg.get("role") == "assistant":
+                for block in msg.get("content", []):
+                    text = block.get("text", "").strip()
+                    if text:
+                        auditor_id = text
+                        break
+                if auditor_id:
+                    break
+
+        if not auditor_id:
             raise AssignmentOrchestrationError(
-                "watsonx Orchestrate did not return an auditor_id"
+                f"watsonx Orchestrate returned no auditor_id. Messages: {messages}"
             )
+
+        if auditor_id.lower().startswith("no eligible"):
+            raise NoEligibleAuditorError("No eligible auditors available (Orchestrate)")
+
+        # Extract just the auditor_id token in case LLM adds surrounding text
+        import re
+        match = re.search(r"auditor-\w+", auditor_id, re.IGNORECASE)
+        if match:
+            auditor_id = match.group(0).lower()
 
         return AssignmentDecision(
             auditor_id=auditor_id,
@@ -90,15 +204,21 @@ def build_assignment_orchestrator(db: Session) -> AssignmentOrchestrator:
     if mode != "remote":
         raise AssignmentOrchestrationError("Unsupported ORCHESTRATE_MODE")
 
-    url = os.getenv("WATSONX_ORCHESTRATE_URL", "").strip()
-    if not url:
+    base_url = os.getenv("WATSONX_ORCHESTRATE_URL", "").strip().rstrip("/")
+    if not base_url:
         raise AssignmentOrchestrationError(
             "WATSONX_ORCHESTRATE_URL is required in remote mode"
         )
 
+    agent_id = os.getenv("WATSONX_ORCHESTRATE_AGENT_ID", "").strip()
+    if not agent_id:
+        raise AssignmentOrchestrationError(
+            "WATSONX_ORCHESTRATE_AGENT_ID is required in remote mode"
+        )
+
     try:
         timeout_seconds = float(
-            os.getenv("WATSONX_ORCHESTRATE_TIMEOUT_SECONDS", "10")
+            os.getenv("WATSONX_ORCHESTRATE_TIMEOUT_SECONDS", "90")
         )
     except ValueError as error:
         raise AssignmentOrchestrationError(
@@ -106,7 +226,9 @@ def build_assignment_orchestrator(db: Session) -> AssignmentOrchestrator:
         ) from error
 
     return RemoteWatsonxOrchestrator(
-        url=url,
+        base_url=base_url,
+        agent_id=agent_id,
+        api_key=os.getenv("IBM_CLOUD_API_KEY"),
         bearer_token=os.getenv("WATSONX_ORCHESTRATE_BEARER_TOKEN"),
         timeout_seconds=timeout_seconds,
     )
