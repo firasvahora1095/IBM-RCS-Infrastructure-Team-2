@@ -812,6 +812,17 @@ export async function clientRecordPlatformAction(
   return parseJsonOrThrow<CaseResult>(r);
 }
 
+// ---- AI Chatbot ----
+
+export async function aiChat(message: string, token: string): Promise<{ reply: string }> {
+  const r = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: jsonBearer(token),
+    body: JSON.stringify({ message }),
+  });
+  return parseJsonOrThrow<{ reply: string }>(r);
+}
+
 export async function listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]> {
   const r = await fetch(`${API_BASE_URL}/api/manager/customers/${encodeURIComponent(organisationId)}/accounts`, {
     headers: bearer(token),

@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { AiChatWidget } from "../chat/AiChatWidget";
+import { isMockData } from "../../services";
 
 interface StaffPageProps {
   children: ReactNode;
@@ -17,6 +20,7 @@ interface StaffPageProps {
  * 48px side padding and 32px top padding (Figma "Body" frames, e.g. 10:18).
  */
 export function StaffPage({ children, maxWidth, clearHeader = true }: StaffPageProps) {
+  const session = useAuth();
   return (
     <main
       className="px-4 pb-12 sm:px-8 lg:px-12"
@@ -26,6 +30,7 @@ export function StaffPage({ children, maxWidth, clearHeader = true }: StaffPageP
       <div className="flex min-w-0 flex-col gap-6" style={{ maxWidth: maxWidth ?? 1584, marginInline: "auto" }}>
         {children}
       </div>
+      {!isMockData && session?.role === "auditor" && <AiChatWidget />}
     </main>
   );
 }
