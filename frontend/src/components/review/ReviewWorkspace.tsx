@@ -86,6 +86,7 @@ export function ReviewWorkspace({
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [totals, setTotals] = useState<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
@@ -200,8 +201,24 @@ export function ReviewWorkspace({
     // oxlint-disable-next-line react/set-state-in-effect
     if (!canPlay) setPlaying(false);
     if (!video) return;
-    if (isPlaying) void video.play().catch(() => setPlaying(false));
-    else video.pause();
+    let cancelled = false;
+    if (isPlaying) {
+      void video.play().catch((error: unknown) => {
+        // An old play request can reject after pausing or replacing its source.
+        if (cancelled) return;
+        setPlaying(false);
+        setBuffering(false);
+        const name = error instanceof Error ? error.name : "";
+        setPlaybackError(
+          name === "NotAllowedError"
+            ? "Your browser blocked playback. Check this site's playback permissions and try Play again."
+            : "The video could not start. Reload the page and sign in again if prompted. If it still fails, contact your manager.",
+        );
+      });
+    } else video.pause();
+    return () => {
+      cancelled = true;
+    };
   }, [isPlaying, canPlay, activeVideoUrl]);
 
   useEffect(() => {
@@ -223,6 +240,7 @@ export function ReviewWorkspace({
 
   function togglePlayback() {
     if (!isPlaying) {
+      setPlaybackError(null);
       if (videoRef.current?.ended || positionRef.current >= duration) seek(0);
       setBuffering(Boolean(videoRef.current && videoRef.current.readyState < 3));
     }
@@ -268,6 +286,17 @@ export function ReviewWorkspace({
           style={{ maxWidth: "100%" }}
         />
       )}
+      {playbackError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="Video unavailable"
+          subtitle={playbackError}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
           This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (
@@ -301,6 +330,16 @@ export function ReviewWorkspace({
                   className="h-full w-full object-contain"
                   playsInline
                   preload="auto"
+                  onLoadStart={() => setPlaybackError(null)}
+                  onError={(e) => {
+                    setPlaying(false);
+                    setBuffering(false);
+                    setPlaybackError(
+                      e.currentTarget.error?.code === 3
+                        ? "Your browser could not decode this video. Try another browser or ask your manager to check the file."
+                        : "The video could not be loaded. Reload the page and sign in again if prompted. If it still fails, contact your manager.",
+                    );
+                  }}
                   onLoadedMetadata={(e) => {
                     const video = e.currentTarget;
                     if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -320,7 +359,10 @@ export function ReviewWorkspace({
                     setBuffering(e.currentTarget.readyState < 3);
                   }}
                   onWaiting={() => setBuffering(true)}
-                  onPlaying={() => setBuffering(false)}
+                  onPlaying={() => {
+                    setBuffering(false);
+                    setPlaybackError(null);
+                  }}
                   onCanPlay={() => setBuffering(false)}
                   onEnded={(e) => {
                     syncMediaPosition(e.currentTarget);
@@ -350,12 +392,7 @@ export function ReviewWorkspace({
 
             {onSos && (
               <div className="absolute right-4 top-4">
-                <Button
-                  kind="danger"
-                  size="md"
-                  onClick={onSos}
-                  aria-label="SOS: pause this case and notify my manager"
-                >
+                <Button kind="danger" size="md" onClick={onSos} aria-label="SOS: pause this case and notify my manager">
                   SOS
                 </Button>
               </div>

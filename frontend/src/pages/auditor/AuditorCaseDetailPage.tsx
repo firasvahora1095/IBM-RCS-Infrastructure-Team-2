@@ -128,7 +128,8 @@ export function AuditorCaseDetailPage() {
   const [sosState, setSosState] = useState<"sending" | "sent" | "failed">("sending");
   const [pauseCause, setPauseCause] = useState<PauseCause>("sos");
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [signedVideoUrl, setSignedVideoUrl] = useState<string | null>(null);
+  // Reauthentication replaces the token; the media source must follow it too.
+  const signedVideoUrl = caseId && token ? `${getCaseVideoStreamUrl(caseId)}?token=${encodeURIComponent(token)}` : null;
 
   const tokenRef = useRef(token);
   const unsentExposureRef = useRef<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
@@ -154,12 +155,6 @@ export function AuditorCaseDetailPage() {
       .then((detail) => {
         if (cancelled) return;
         setCaseDetail(detail);
-        if (tokenRef.current) {
-          // Pass token as query param so <video src> can stream without needing
-          // an Authorization header (browsers don't send custom headers for video).
-          const streamUrl = `${getCaseVideoStreamUrl(caseId)}?token=${encodeURIComponent(tokenRef.current)}`;
-          if (!cancelled) setSignedVideoUrl(streamUrl);
-        }
         // Task 102: an in-progress review resumes where it left off — but only
         // after the content warning again. Otherwise the rating starts at the
         // AI's effective score, since the Auditor adjusts FROM that suggestion.
