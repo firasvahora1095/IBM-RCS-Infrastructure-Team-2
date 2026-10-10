@@ -35,7 +35,7 @@ const HEADINGS: Record<string, string> = {
   "/manager/reassignment": "Reassignment Queue",
   "/manager/deliveries": "Deliveries",
   "/manager/reports": "Client reports",
-  "/manager/validation": "Validation View",
+  "/manager/validation": "Validation & Audit",
 };
 
 describe("Manager screens", () => {
@@ -55,6 +55,72 @@ describe("Manager screens", () => {
       expect(screen.getByText("Demo data")).toBeInTheDocument();
     },
   );
+
+  describe("Validation & Audit (one screen, three separate views)", () => {
+    it("shows the ground-truth check, the AI vs Auditor comparison and the audit log together, with no tabs", async () => {
+      renderAt("/manager/validation");
+      for (const name of ["AI vs ground truth", "AI vs Auditor", "Audit log"]) {
+        expect(await screen.findByRole("heading", { level: 2, name })).toBeInTheDocument();
+      }
+      expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+      // The comparison and the three client-required audit fields are on screen at the same moment.
+      expect(
+        await screen.findByRole("table", { name: /AI severity against final Auditor severity/ }),
+      ).toBeInTheDocument();
+      for (const field of [/Accumulated score/, /Prompt leakage/, /Source attribution/]) {
+        expect(screen.getByText(field)).toBeInTheDocument();
+      }
+      expect(screen.getByRole("table", { name: "watsonx.ai call log" })).toBeInTheDocument();
+    });
+
+    it("names every result in words and never calls the AI or an Auditor wrong", async () => {
+      renderAt("/manager/validation");
+      const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
+      const results = within(table).getAllByText(/^AI (Override|Match)$/);
+      expect(results.length).toBeGreaterThan(0);
+      expect(document.body.textContent).not.toMatch(/AI wrong|Auditor wrong|poor Auditor/i);
+    });
+
+    it("filters the comparison by result and keeps Auditors unnamed", async () => {
+      renderAt("/manager/validation");
+      const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
+      expect(within(table).queryByText(/Reese|Marcus|Sam Nguyen|auditor-/)).not.toBeInTheDocument();
+      // jsdom has no scrollIntoView; Carbon's dropdown calls it when the menu opens.
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = () => {};
+      try {
+        fireEvent.click(screen.getByRole("combobox", { name: /Result/ }));
+        fireEvent.click(await screen.findByRole("option", { name: "AI Override" }));
+        await waitFor(() => expect(within(table).queryByText("AI Match")).not.toBeInTheDocument());
+        expect(within(table).queryAllByText("AI Override").length).toBeGreaterThan(0);
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
+    });
+
+    it("opens a case's audit trail from its row", async () => {
+      renderAt("/manager/validation");
+      const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
+      const [link] = within(table).getAllByRole("link", { name: /^View audit trail for / });
+      expect(link.getAttribute("href")).toMatch(/^\/manager\/audit-logs\?case=/);
+    });
+
+    it("writes a failed AI call as a word as well as an accent, and shows the chart's values", async () => {
+      renderAt("/manager/validation");
+      const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
+      fireEvent.click(await screen.findByRole("button", { name: /^Show all \d+ calls$/ }));
+      await waitFor(() => expect(within(log).queryAllByText("Failed").length).toBeGreaterThan(0));
+      expect(within(log).getAllByText("Succeeded").length).toBeGreaterThan(0);
+      // Each bar's value is printed beside it, so the chart never rests on colour or pattern.
+      const validation = document.getElementById("validation")!;
+      expect(within(validation).getAllByText(/^\d+(\.\d+)?%$/).length).toBeGreaterThanOrEqual(8);
+    });
+
+    it("opens the audit history already filtered to the case it was linked from", async () => {
+      renderAt("/manager/audit-logs?case=AR-2026-00417");
+      expect(await screen.findByDisplayValue("AR-2026-00417")).toBeInTheDocument();
+    });
+  });
 
   it("labels the validation data as a placeholder everywhere it appears (Task 96, MR-OV-08)", async () => {
     renderAt("/manager/validation");
@@ -109,9 +175,11 @@ describe("Manager screens", () => {
         "/manager/reassignment",
       );
       // Break and talk requests share one row that says which replies are waiting.
-      expect(within(list).getByRole("link", { name: /^Support requests/ }).getAttribute("href")).toMatch(
-        /^\/manager\/auditors\//,
-      );
+      expect(
+        within(list)
+          .getByRole("link", { name: /^Support requests/ })
+          .getAttribute("href"),
+      ).toMatch(/^\/manager\/auditors\//);
     });
 
     it("shows who asked for support with one quiet tag, and no rankings or scores (MR-SOS-07)", async () => {
@@ -132,6 +200,15 @@ describe("Manager screens", () => {
       expect(await screen.findByText("Reports received by RCS during the selected period.")).toBeInTheDocument();
       expect(screen.getByText("cases.created_at")).toBeInTheDocument();
       expect(screen.getByRole("table", { name: "Contributing cases" })).toBeInTheDocument();
+    });
+
+    it("the KPI jump links point at sections that exist", async () => {
+      renderAt("/manager");
+      const strip = await screen.findByRole("region", { name: "Operations at a glance" });
+      for (const link of within(strip).getAllByRole("link")) {
+        const target = link.getAttribute("href")!.slice(1);
+        expect(document.getElementById(target), `#${target} has no section`).not.toBeNull();
+      }
     });
 
     it("keeps the chosen period in the URL", async () => {

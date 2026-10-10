@@ -676,7 +676,31 @@ export interface GovernanceSummary {
   failed_calls: number;
   /** AI tier → final Auditor tier, aggregate only; never per Auditor. */
   override_patterns: { from: SeverityTier; to: SeverityTier; count: number }[];
+  /** Decided cases with both an AI and a final severity; the same set `comparisons` lists. */
   compared_cases: number;
+  /** One row per compared case, newest decision first, at most 200 (Validation & Audit, section B). */
+  comparisons: ComparisonRow[];
+}
+
+/**
+ * The AI's first severity against the Auditor's final severity for one case.
+ * Never names an Auditor, and never says either side was wrong: a difference
+ * is a reason to look closer, not a verdict.
+ */
+export interface ComparisonRow {
+  case_id: string;
+  ai_tier: SeverityTier;
+  final_tier: SeverityTier;
+  /** The final tier differs from the AI's. */
+  override: boolean;
+  /** Null for older cases that kept tiers only; scores are never invented. */
+  ai_score: number | null;
+  auditor_score: number | null;
+  /** Auditor score minus AI score. */
+  score_delta: number | null;
+  /** The Auditor's comment, only where they changed the severity. */
+  override_reason: string | null;
+  decided_at: string;
 }
 
 /** Response from the client sign-in (COMMUNITYHUB_CLIENT role, B2B spec S11). */

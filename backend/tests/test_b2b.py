@@ -35,6 +35,7 @@ from app.models import (
     WellbeingRequest,
 )
 from app.rate_limit import status_lookup_limiter
+from app.severity import get_severity_tier
 
 
 PASSWORD = "correct horse battery staple"
@@ -934,6 +935,65 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(evidence["case_ids"], [])
         self.assertEqual(evidence["records_included"], 1)
         self.assertTrue(evidence["definition"])
+
+
+    # ---- Validation & Audit: AI vs Auditor, case by case ----
+
+    def governance(self) -> dict:
+        response = self.client.get("/api/manager/governance", headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_governance_lists_each_compared_case_without_naming_anyone(self) -> None:
+        now = datetime.now(timezone.utc)
+        # The AI said S2 (score 50); the Auditor changed it, with a reason.
+        self.add_case(
+            "RCS-CMP-00001", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+            auditor_severity_score=80, auditor_comment="Weapon became visible later in the footage.",
+            created_at=now - timedelta(hours=3), completed_at=now - timedelta(hours=2),
+        )
+        # The Auditor confirmed the AI's severity.
+        self.add_case(
+            "RCS-CMP-00002", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+            created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1),
+        )
+        # Closed by the Manager with no decision: there is no human severity to compare.
+        self.add_case(
+            "RCS-CMP-00003", status="COMPLETE", final_outcome="CLOSED_NO_REASSIGNMENT",
+            created_at=now - timedelta(hours=1), completed_at=now - timedelta(minutes=30),
+        )
+        self.add_history("RCS-CMP-00004", "S1", "S1", completed_at=now - timedelta(days=2), created_at=now - timedelta(days=2, hours=1))
+
+        data = self.governance()
+        rows = {r["case_id"]: r for r in data["comparisons"]}
+        self.assertEqual(set(rows), {"RCS-CMP-00001", "RCS-CMP-00002", "RCS-CMP-00004"})
+        self.assertEqual(data["compared_cases"], 3)
+
+        changed = rows["RCS-CMP-00001"]
+        self.assertTrue(changed["override"])
+        self.assertEqual((changed["ai_tier"], changed["final_tier"]), ("S2", get_severity_tier(80)))
+        self.assertEqual((changed["ai_score"], changed["auditor_score"], changed["score_delta"]), (50, 80, 30))
+        self.assertEqual(changed["override_reason"], "Weapon became visible later in the footage.")
+
+        same = rows["RCS-CMP-00002"]
+        self.assertFalse(same["override"])
+        self.assertIsNone(same["override_reason"])
+        self.assertEqual(same["score_delta"], 0)
+
+        # Older history keeps tiers only: no scores are invented.
+        old = rows["RCS-CMP-00004"]
+        self.assertEqual((old["ai_score"], old["auditor_score"], old["score_delta"]), (None, None, None))
+
+        # Newest decision first, and nobody is named.
+        self.assertEqual([r["case_id"] for r in data["comparisons"]], ["RCS-CMP-00002", "RCS-CMP-00001", "RCS-CMP-00004"])
+        self.assertNotIn("auditor-1", str(data["comparisons"]))
+
+    def test_comparison_override_counts_match_the_patterns(self) -> None:
+        for i, (ai, final) in enumerate([("S2", "S3"), ("S2", "S3"), ("S1", "S1")]):
+            self.add_history(f"RCS-PAT-{i:05d}", ai, final)
+        data = self.governance()
+        self.assertEqual(sum(1 for r in data["comparisons"] if r["override"]), sum(p["count"] for p in data["override_patterns"]))
+        self.assertEqual(len(data["comparisons"]), data["compared_cases"])
 
 
 if __name__ == "__main__":

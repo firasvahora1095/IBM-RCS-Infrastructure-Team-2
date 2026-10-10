@@ -221,5 +221,42 @@ describe("mock B2B data source", () => {
       expect(summary.override_patterns.every((p) => p.from !== p.to)).toBe(true);
       expect(JSON.stringify(summary.override_patterns)).not.toMatch(/auditor/i);
     });
+
+    it("lists each compared case, newest first, with the same counts as the patterns", async () => {
+      const summary = await mock.getGovernanceSummary(await managerToken());
+      const rows = summary.comparisons;
+      expect(rows.length).toBe(Math.min(summary.compared_cases, 200));
+      expect(rows.filter((r) => r.override).length).toBeLessThanOrEqual(
+        summary.override_patterns.reduce((sum, p) => sum + p.count, 0),
+      );
+      expect(rows.every((r) => r.override === (r.ai_tier !== r.final_tier))).toBe(true);
+      const times = rows.map((r) => Date.parse(r.decided_at));
+      expect([...times].sort((a, b) => b - a)).toEqual(times);
+      // Nobody is named: a difference isn't a verdict on an Auditor.
+      expect(JSON.stringify(rows)).not.toMatch(/auditor-|Reese|Marcus|Sam Nguyen/);
+    });
+
+    it("compares a case the Auditor changed, with their reason, and leaves out a case closed without a decision", async () => {
+      await mock.resolveCase(
+        "AR-2026-00417",
+        await auditorToken(),
+        "POLICY_VIOLATION_FOUND",
+        95,
+        "Weapon became visible later.",
+      );
+      const manager = await managerToken();
+      const summary = await mock.getGovernanceSummary(manager);
+      const row = summary.comparisons.find((r) => r.case_id === "AR-2026-00417")!;
+      expect(row.override).toBe(true);
+      expect(row.auditor_score).toBe(95);
+      expect(row.score_delta).toBe(95 - row.ai_score!);
+      expect(row.override_reason).toBe("Weapon became visible later.");
+
+      updateDb((db) => {
+        db.cases.find((c) => c.case_id === "AR-2026-00417")!.final_outcome = "CLOSED_NO_REASSIGNMENT";
+      });
+      const after = await mock.getGovernanceSummary(manager);
+      expect(after.comparisons.some((r) => r.case_id === "AR-2026-00417")).toBe(false);
+    });
   });
 });

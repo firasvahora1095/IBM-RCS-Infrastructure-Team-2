@@ -155,7 +155,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     ["Reassignment Queue", "/manager/reassignment", "Reassignment Queue"],
     ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
     ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
-    ["Validation View", "/manager/validation", "Validation View"],
+    ["Validation & Audit", "/manager/validation", "Validation & Audit"],
   ])("Manager %s has no detectable violations", async (_name, path, heading) => {
     resetDb();
     const { token } = await mockDataService.staffLogin("manager-1", DEMO_PASSWORD);
