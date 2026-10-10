@@ -7,7 +7,7 @@
 |---|---|---|
 | #61 | `feature/intelligence-data-contract` | `GET /api/manager/intelligence`, types, mock, HTTP client, period presets, labels |
 | #62 | `feature/manager-intelligence-dashboard` | The `/manager` dashboard, evidence dialog, Case Oversight filters, support requests made clear |
-| #63 | `feat/flow-hd-section` | Sprint 3 HD section on the `/flow` guide |
+| #63 | `feat/flow-hd-section` | HD section on the `/flow` guide. **Removed again** on `feature/b2b-flow-touchpoints` after the client meeting on 8 Oct ("don't show the HD part on `/flow`; delete it from the deployed site") |
 | #64 | `feature/report-evidence-snapshot` | Evidence frozen with each Client Service Report figure |
 | next | `feature/auditor-my-work-dashboard` | Auditor "My Work & Protection" dashboard |
 | next | `docs/sprint3-qa-and-handoff` | This handoff, QA checklist sections 12–14, plan and scope updates |
