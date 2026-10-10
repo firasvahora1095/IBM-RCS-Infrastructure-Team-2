@@ -34,6 +34,21 @@ Demo accounts:
 | Mock (local) | `auditor-1` to `auditor-5` | `manager-1` | `ch-user-17` | `test123` |
 | Deployed (test and live) | `auditor-01` to `auditor-04` | `manager-01` | `ch-user-17` | `test123` |
 
+### Flow integrity (checked 10 Oct 2026)
+
+Every touchpoint in the B2B high-level flow has a screen, and the chain has no gaps:
+
+| Check | How | Where |
+|---|---|---|
+| A stage on `/flow` for every touchpoint (customer set-up, Reporter submission, status, Auditor review, completion and delivery, Manager oversight, report approval, Client sign-in and view) | Vitest | `pages/marketing/FlowHubPage.test.tsx` |
+| Each of the 11 stages opens its own screen for the right person (no bounce to a sign-in or home page) | Vitest, one case per stage | same file |
+| The hand-offs between people: Reporter submits → AI pre-screen → Auditor decides → result delivered → Manager's dashboard and report → Client reads the released report, with moderation and delivery status kept apart, and no case IDs reaching the Client | Vitest, one journey through the real mock data source | `services/mock/b2bJourney.test.ts` |
+| Links inside each person's journey (e.g. product page → set-up → CommunityHub → report form → confirmation → status; queue → case; dashboard → Case Oversight, Deliveries, SOS) | Crawled in the browser on the local build | not automated |
+
+The hops **between different people** (Reporter → Auditor → Manager → Client) are not links on purpose: they are different people on different devices. `/flow` bridges them, and the journey test proves the data arrives.
+
+The flow guide no longer carries the Sprint 3 feature pitch: the client asked for it to be removed from the deployed site before the final presentation.
+
 ## 2. Ten-minute demo
 
 1. `/flow` → stage 01 `/rcs` → **Bring RCS to your platform** → complete the four set-up steps.
