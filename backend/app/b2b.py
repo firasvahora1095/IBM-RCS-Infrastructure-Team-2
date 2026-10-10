@@ -1140,23 +1140,63 @@ async def list_report_access(
 # ---- Manager: governance log ---------------------------------------------
 
 
-def _override_patterns(db: Session) -> tuple[list[dict], int]:
-    pairs = [(h.ai_tier, h.final_tier) for h in db.scalars(select(CaseHistory)).all()]
-    pairs += [
-        (c.severity_tier, final_tier_of(c))
-        for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all()
-        if c.severity_tier and final_tier_of(c)
-    ]
-    pairs = [(a, f) for a, f in pairs if a and f]
+MAX_COMPARISONS = 200
+
+
+def comparison_rows(db: Session) -> list[dict]:
+    """AI vs Auditor, one row per decided case, newest decision first (Validation & Audit, section B).
+
+    Cases a Manager closed without a decision are left out: there is no human
+    severity to compare. Older cases keep tiers only; scores are never invented.
+    No Auditor is named: a difference isn't a verdict on anyone.
+    """
+    rows: list[dict] = []
+    for h in db.scalars(select(CaseHistory)).all():
+        if h.ai_tier and h.final_tier:
+            rows.append({
+                "case_id": h.case_id,
+                "ai_tier": h.ai_tier,
+                "final_tier": h.final_tier,
+                "override": h.ai_tier != h.final_tier,
+                "ai_score": None,
+                "auditor_score": None,
+                "score_delta": None,
+                "override_reason": None,
+                "decided_at": iso(h.completed_at),
+            })
+    for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all():
+        final_tier = final_tier_of(c)
+        if c.final_outcome not in DECIDED_OUTCOMES or not c.severity_tier or not final_tier:
+            continue
+        override = c.severity_tier != final_tier
+        ai_score = c.effective_severity_score
+        auditor_score = c.auditor_severity_score if c.auditor_severity_score is not None else ai_score
+        rows.append({
+            "case_id": c.case_id,
+            "ai_tier": c.severity_tier,
+            "final_tier": final_tier,
+            "override": override,
+            "ai_score": ai_score,
+            "auditor_score": auditor_score,
+            "score_delta": (auditor_score - ai_score) if ai_score is not None and auditor_score is not None else None,
+            "override_reason": c.auditor_comment if override else None,
+            "decided_at": iso(c.completed_at),
+        })
+    return sorted(rows, key=lambda r: r["decided_at"] or "", reverse=True)
+
+
+def _override_patterns(db: Session) -> tuple[list[dict], int, list[dict]]:
+    rows = comparison_rows(db)
     counts: dict[tuple[str, str], int] = {}
-    for ai_tier, final_tier in pairs:
-        if ai_tier != final_tier:
-            counts[(ai_tier, final_tier)] = counts.get((ai_tier, final_tier), 0) + 1
+    for r in rows:
+        if r["override"]:
+            key = (r["ai_tier"], r["final_tier"])
+            counts[key] = counts.get(key, 0) + 1
     patterns = [
         {"from": ai_tier, "to": final_tier, "count": count}
         for (ai_tier, final_tier), count in sorted(counts.items(), key=lambda item: -item[1])
     ]
-    return patterns, len(pairs)
+    return patterns, len(rows), rows[:MAX_COMPARISONS]
 
 
 def _average(values: list[float]) -> float:
@@ -1170,7 +1210,7 @@ async def get_governance_summary(
 ):
     rows = db.scalars(select(GovernanceLogEntry).order_by(GovernanceLogEntry.at.desc())).all()
     ok = [r for r in rows if r.success]
-    patterns, compared = _override_patterns(db)
+    patterns, compared, comparisons = _override_patterns(db)
     return {
         "is_placeholder": True,
         "rows": [
@@ -1200,6 +1240,7 @@ async def get_governance_summary(
         "failed_calls": len(rows) - len(ok),
         "override_patterns": patterns,
         "compared_cases": compared,
+        "comparisons": comparisons,
     }
 
 
