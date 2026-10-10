@@ -1,13 +1,10 @@
+import { useState } from "react";
 import {
+  Button,
   Column,
   Grid,
   InlineNotification,
   Layer,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -16,10 +13,12 @@ import {
   TableRow,
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
-import { Figure, LoadState, Panel } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
+import { Figure, LoadState } from "../../components/manager/ManagerBits";
+import { mono, pageTitle } from "../../components/manager/managerStyles";
+import { Section } from "../../components/ui/Blocks";
 import { StatTile } from "../../components/ui/StatTile";
-import { SeverityTag } from "../../components/severity/SeverityTag";
+import { StatusTag } from "../../components/ui/StatusTag";
 import { getGovernanceSummary, getValidationSummary } from "../../services";
 import type { GovernanceSummary, ValidationSummary } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -29,21 +28,20 @@ const AI_COLOUR = "var(--cds-support-info)";
 const TRUTH_COLOUR = "var(--cds-support-success)";
 
 /**
- * Validation View (Manager Figma 136:257, MR-OV-08 / CV-10): AI-predicted vs
- * manually labelled ground-truth severity distribution, kept separate from
- * live oversight.
+ * Validation & Audit (Manager Figma 136:257, MR-OV-08 / CV-10; BA screen
+ * "Validation & Audit", docs/ba/validation-audit-governance-fields.md): one
+ * screen with three views that are never mixed.
  *
- * Task 96: the placeholder banner is mandatory and always shown while the data
- * is a placeholder, and the "illustrative" wording stays on every figure, so
- * nothing here can be read as real model-performance evidence. The chart has
- * a full text equivalent, and each series is told apart by a legend with
- * position and pattern, not colour alone.
+ * 1. AI vs ground truth: the AI's severity against manually labelled footage.
+ * 2. AI vs Auditor: live completed cases where the final severity differs.
+ *    Operational disagreement, not model accuracy, and no one is named.
+ * 3. Audit log: every watsonx.ai call with the three client-required fields
+ *    (prompt leakage, source attribution, accumulated score).
  *
- * Sprint 3 (B2B spec S10): one combined screen with two tabs. The first adds
- * where Auditors changed the AI's severity (aggregate only); the second is the
- * simplified governance audit log — prompt leakage, source attribution and an
- * accumulated score per watsonx.ai call, the lightweight alternative to
- * watsonx.governance agreed with Naresh.
+ * They sit on one page, in sections, rather than behind tabs, so a Manager can
+ * read the comparison and the audit log together. Placeholder data is flagged
+ * on every figure (Task 96). Nothing here relies on colour alone: every state
+ * is written out, and the chart shows its values.
  */
 export function ManagerValidationPage() {
   const { data, error } = useStaffQuery(getValidationSummary);
@@ -51,77 +49,89 @@ export function ManagerValidationPage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Validation View</h1>
-      <LoadState error={error} loading={!data && !error} what="validation results" />
-      {data && (
-        <>
-          {data.is_placeholder && (
-            <InlineNotification
-              kind="warning"
-              lowContrast
-              hideCloseButton
-              title="Placeholder / mock data — not real validation results."
-              subtitle="This screen shows illustrative sample values until Dev's pipeline produces real results."
-              style={{ maxWidth: "100%" }}
-            />
-          )}
+      <div className="flex flex-col gap-2">
+        <h1 style={pageTitle}>Validation &amp; Audit</h1>
+        <p className="rcs-page-subtitle">
+          Is the AI trustworthy, and can every result be traced? Three separate views on one screen: they are never
+          mixed.
+        </p>
+        <nav aria-label="On this page" className="flex flex-wrap gap-x-6 gap-y-1">
+          <a className="cds--link" href="#validation">
+            AI vs ground truth
+          </a>
+          <a className="cds--link" href="#ai-vs-auditor">
+            AI vs Auditor
+          </a>
+          <a className="cds--link" href="#audit-log">
+            Audit log
+          </a>
+        </nav>
+      </div>
 
-          <Tabs>
-            <TabList aria-label="Validation views" contained={false}>
-              <Tab>AI accuracy and human review</Tab>
-              <Tab>Audit log</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel style={{ paddingInline: 0 }}>
-                <div className="flex flex-col gap-6">
-                  <Panel title="AI-predicted vs. ground-truth severity distribution" maxWidth={720}>
-                    <DistributionChart data={data} />
-                    <dl className="flex flex-wrap gap-12">
-                      <Figure
-                        label={data.is_placeholder ? "Match rate (illustrative)" : "Match rate"}
-                        value={`${data.match_rate_pct}%`}
-                      />
-                      <Figure label="Validation set size" value={`${data.validation_set_size} clips`} />
-                    </dl>
-                  </Panel>
-
-                  <Panel title="Text equivalent (for screen readers)">
-                    <p style={{ fontSize: 14, lineHeight: "20px" }}>
-                      {data.tiers
-                        .map((t) => `${t.tier}: AI predicted ${t.ai_predicted_pct}%, ground truth ${t.ground_truth_pct}%.`)
-                        .join(" ")}
-                      {data.is_placeholder ? " All values illustrative placeholder data." : ""}
-                    </p>
-                  </Panel>
-
-                  {governance.data && <OverridePatterns data={governance.data} />}
-
-                  <Panel title="Methodology">
-                    <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-                      The AI severity output is compared against a manually labelled ground-truth set using the
-                      project&apos;s synthetic/staged validation footage (~10–20 clips, MVP/demo scale). The pass/fail
-                      threshold itself remains open — it now requires continuous testing infrastructure, so setting it
-                      is retargeted to Sprint 3 and is no longer a Sprint 2 blocker; this view does not display a
-                      specific pass/fail number as if it were adopted, since none is in the finalised baseline.
-                    </p>
-                  </Panel>
-                </div>
-              </TabPanel>
-              <TabPanel style={{ paddingInline: 0 }}>
-                <div className="flex flex-col gap-6">
-                  <LoadState
-                    error={governance.error}
-                    loading={!governance.data && !governance.error}
-                    what="the audit log"
-                  />
-                  {governance.data && <AuditLog data={governance.data} />}
-                </div>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </>
+      {data?.is_placeholder && (
+        <InlineNotification
+          kind="warning"
+          lowContrast
+          hideCloseButton
+          title="Placeholder / mock data — not real validation results."
+          subtitle="This screen shows illustrative sample values until Dev's pipeline produces real results."
+          style={{ maxWidth: "100%" }}
+        />
       )}
+
+      <Section
+        id="validation"
+        title="AI vs ground truth"
+        description="The AI's severity checked against manually labelled footage from the validation set. This isn't about live cases."
+      >
+        <LoadState error={error} loading={!data && !error} what="validation results" />
+        {data && <GroundTruth data={data} />}
+      </Section>
+
+      <Section
+        id="ai-vs-auditor"
+        title="AI vs Auditor"
+        description="Live completed cases. A difference isn't a verdict on the AI or the Auditor; it points to cases worth a closer look. It isn't model accuracy."
+      >
+        <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
+        {governance.data && <AiAuditorComparison data={governance.data} />}
+      </Section>
+
+      <Section
+        id="audit-log"
+        title="Audit log"
+        description="Every watsonx.ai call, with the three governance scores. Entries are written once and can't be edited or deleted."
+      >
+        <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
+        {governance.data && <AuditLog data={governance.data} />}
+      </Section>
     </ManagerLayout>
+  );
+}
+
+/** Section 1. The chart's values are written beside each bar; the numbers also have a text equivalent for screen readers. */
+function GroundTruth({ data }: { data: ValidationSummary }) {
+  return (
+    <>
+      <DistributionChart data={data} />
+      <dl className="rcs-figure-row">
+        <Figure
+          label={data.is_placeholder ? "Match rate (illustrative)" : "Match rate"}
+          value={`${data.match_rate_pct}%`}
+        />
+        <Figure label="Validation set size" value={`${data.validation_set_size} clips`} />
+      </dl>
+      <p className="cds--visually-hidden">
+        {data.tiers
+          .map((t) => `${t.tier}: AI predicted ${t.ai_predicted_pct}%, ground truth ${t.ground_truth_pct}%.`)
+          .join(" ")}
+        {data.is_placeholder ? " All values illustrative placeholder data." : ""}
+      </p>
+      <p className="rcs-helper" style={{ maxInlineSize: "72ch" }}>
+        Compared with a manually labelled set of the project&apos;s synthetic or staged footage (about 10–20 clips,
+        prototype scale). The pass or fail threshold is still open, so none is shown as if it were adopted.
+      </p>
+    </>
   );
 }
 
@@ -136,15 +146,26 @@ function DistributionChart({ data }: { data: ValidationSummary }) {
         <div key={t.tier} className="grid grid-cols-[28px_1fr] items-center gap-2">
           <span style={{ fontSize: 12 }}>{t.tier}</span>
           <div className="flex flex-col gap-1">
-            <div style={{ height: 8, width: `${t.ai_predicted_pct}%`, backgroundColor: AI_COLOUR }} />
-            <div
-              style={{
-                height: 8,
-                width: `${t.ground_truth_pct}%`,
-                backgroundColor: TRUTH_COLOUR,
-                backgroundImage: "repeating-linear-gradient(135deg, transparent 0 3px, var(--cds-background) 3px 4px)",
-              }}
-            />
+            <div className="flex items-center gap-2">
+              <div style={{ height: 8, width: `${t.ai_predicted_pct}%`, backgroundColor: AI_COLOUR }} />
+              <span className="rcs-mono" style={{ fontSize: 12 }}>
+                {t.ai_predicted_pct}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                style={{
+                  height: 8,
+                  width: `${t.ground_truth_pct}%`,
+                  backgroundColor: TRUTH_COLOUR,
+                  backgroundImage:
+                    "repeating-linear-gradient(135deg, transparent 0 3px, var(--cds-background) 3px 4px)",
+                }}
+              />
+              <span className="rcs-mono" style={{ fontSize: 12 }}>
+                {t.ground_truth_pct}%
+              </span>
+            </div>
           </div>
         </div>
       ))}
@@ -170,54 +191,6 @@ function DistributionChart({ data }: { data: ValidationSummary }) {
   );
 }
 
-/**
- * Where the Auditor's final severity differed from the AI's. Aggregate only,
- * never broken down by Auditor: disagreement isn't a verdict on anyone
- * (Sprint 3 extras §1.1).
- */
-function OverridePatterns({ data }: { data: GovernanceSummary }) {
-  const total = data.override_patterns.reduce((sum, p) => sum + p.count, 0);
-  const share = Math.round((total / Math.max(1, data.compared_cases)) * 100);
-  return (
-    <Panel title="Where Auditors changed the AI severity">
-      <p style={secondaryText}>
-        {total} of {data.compared_cases} completed cases ({share}%) ended with a different severity after human review.
-        Disagreement isn&apos;t a verdict on either side; it points to cases worth a closer look.
-      </p>
-      {data.override_patterns.length === 0 ? (
-        <p style={secondaryText}>No severity changes yet.</p>
-      ) : (
-        <Layer>
-          <Table aria-label="Severity changes after human review">
-            <TableHead>
-              <TableRow>
-                <TableHeader>AI severity</TableHeader>
-                <TableHeader>Final severity</TableHeader>
-                <TableHeader>Cases</TableHeader>
-                <TableHeader>Share of changes</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.override_patterns.map((p) => (
-                <TableRow key={`${p.from}-${p.to}`}>
-                  <TableCell>
-                    <SeverityTag tier={p.from} size="sm" />
-                  </TableCell>
-                  <TableCell>
-                    <SeverityTag tier={p.to} size="sm" />
-                  </TableCell>
-                  <TableCell style={mono}>{p.count}</TableCell>
-                  <TableCell style={mono}>{Math.round((p.count / total) * 100)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Layer>
-      )}
-    </Panel>
-  );
-}
-
 const score = (n: number) => n.toFixed(2);
 
 /**
@@ -225,7 +198,16 @@ const score = (n: number) => n.toFixed(2);
  * and evaluation scores. Append-only, and labelled illustrative until
  * evaluation runs on the deployed pipeline.
  */
+const LOG_SHOWN_AT_FIRST = 8;
+
+/**
+ * Section 3. The three client-required fields as averages, then every call.
+ * Result is written as "Succeeded" or "Failed" with a tag and an error accent,
+ * never colour alone.
+ */
 function AuditLog({ data }: { data: GovernanceSummary }) {
+  const [showAll, setShowAll] = useState(false);
+  const rows = showAll ? data.rows : data.rows.slice(0, LOG_SHOWN_AT_FIRST);
   return (
     <>
       <Grid className="rcs-grid" condensed>
@@ -275,7 +257,7 @@ function AuditLog({ data }: { data: GovernanceSummary }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.rows.map((row) => (
+            {rows.map((row) => (
               <TableRow
                 key={row.entry_id}
                 style={row.success ? undefined : { boxShadow: "inset 3px 0 0 var(--cds-support-error)" }}
@@ -286,7 +268,11 @@ function AuditLog({ data }: { data: GovernanceSummary }) {
                   {row.model_id} <span style={{ color: "var(--cds-text-secondary)" }}>· {row.model_version}</span>
                 </TableCell>
                 <TableCell>{row.prompt_version}</TableCell>
-                <TableCell>{row.success ? "Succeeded" : "Failed"}</TableCell>
+                <TableCell>
+                  <StatusTag tone={row.success ? "success" : "error"} size="sm">
+                    {row.success ? "Succeeded" : "Failed"}
+                  </StatusTag>
+                </TableCell>
                 <TableCell style={mono}>{row.success ? score(row.prompt_leakage) : "—"}</TableCell>
                 <TableCell style={mono}>{row.success ? score(row.source_attribution) : "—"}</TableCell>
                 <TableCell style={mono}>{row.success ? score(row.accumulated_score) : "—"}</TableCell>
@@ -298,10 +284,14 @@ function AuditLog({ data }: { data: GovernanceSummary }) {
           </TableBody>
         </Table>
       </Layer>
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-        Entries are written once per model call and can&apos;t be edited or deleted. Scores are illustrative
-        placeholders until evaluation runs on the deployed pipeline.
-      </p>
+      {data.rows.length > LOG_SHOWN_AT_FIRST && (
+        <div>
+          <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Show fewer" : `Show all ${data.rows.length} calls`}
+          </Button>
+        </div>
+      )}
+      <p className="rcs-helper">Scores are illustrative placeholders until evaluation runs on the deployed pipeline.</p>
     </>
   );
 }

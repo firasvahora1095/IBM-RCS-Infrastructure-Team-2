@@ -1,6 +1,7 @@
 import { ApiError } from "../types";
 import type {
   CaseResult,
+  ComparisonRow,
   ClientAccount,
   ClientRole,
   ClientLoginResponse,
@@ -320,17 +321,57 @@ function findMessage(db: MockDb, messageId: string): ClientMessage {
 
 // ---- Governance ----
 
-function overridePatterns(db: MockDb): { patterns: GovernanceSummary["override_patterns"]; compared: number } {
-  const pairs: [SeverityTier, SeverityTier][] = [
-    ...db.caseHistory.map((h) => [h.ai_tier, h.final_tier] as [SeverityTier, SeverityTier]),
-    ...db.cases
-      .filter((c) => c.status === "COMPLETE" && c.severity_tier && finalTierOf(c))
-      .map((c) => [c.severity_tier!, finalTierOf(c)!] as [SeverityTier, SeverityTier]),
-  ];
+const MAX_COMPARISONS = 200;
+
+/**
+ * AI vs Auditor, one row per decided case, newest first. Mirrors
+ * comparison_rows in backend/app/b2b.py: cases a Manager closed without a
+ * decision are left out, older cases keep tiers only, and no Auditor is named.
+ */
+function comparisonRows(db: MockDb): ComparisonRow[] {
+  const fromHistory: ComparisonRow[] = db.caseHistory.map((h) => ({
+    case_id: h.case_id,
+    ai_tier: h.ai_tier,
+    final_tier: h.final_tier,
+    override: h.ai_tier !== h.final_tier,
+    ai_score: null,
+    auditor_score: null,
+    score_delta: null,
+    override_reason: null,
+    decided_at: h.completed_at,
+  }));
+  const fromLive: ComparisonRow[] = [];
+  for (const c of db.cases) {
+    const finalTier = finalTierOf(c);
+    const decided = c.final_outcome === "POLICY_VIOLATION_FOUND" || c.final_outcome === "NO_VIOLATION_FOUND";
+    if (c.status !== "COMPLETE" || !decided || !c.severity_tier || !finalTier || !c.completed_at) continue;
+    const override = c.severity_tier !== finalTier;
+    const aiScore = c.effective_severity_score;
+    const auditorScore = c.auditor_severity_score ?? aiScore;
+    fromLive.push({
+      case_id: c.case_id,
+      ai_tier: c.severity_tier,
+      final_tier: finalTier,
+      override,
+      ai_score: aiScore,
+      auditor_score: auditorScore,
+      score_delta: aiScore !== null && auditorScore !== null ? auditorScore - aiScore : null,
+      override_reason: override ? c.auditor_comment : null,
+      decided_at: c.completed_at,
+    });
+  }
+  return [...fromHistory, ...fromLive].sort((a, b) => Date.parse(b.decided_at) - Date.parse(a.decided_at));
+}
+
+function overridePatterns(db: MockDb): {
+  patterns: GovernanceSummary["override_patterns"];
+  compared: number;
+  comparisons: ComparisonRow[];
+} {
+  const rows = comparisonRows(db);
   const counts = new Map<string, number>();
-  for (const [from, to] of pairs) {
-    if (from === to) continue;
-    counts.set(`${from}>${to}`, (counts.get(`${from}>${to}`) ?? 0) + 1);
+  for (const r of rows) {
+    if (r.override) counts.set(`${r.ai_tier}>${r.final_tier}`, (counts.get(`${r.ai_tier}>${r.final_tier}`) ?? 0) + 1);
   }
   const patterns = [...counts.entries()]
     .map(([key, count]) => {
@@ -338,7 +379,7 @@ function overridePatterns(db: MockDb): { patterns: GovernanceSummary["override_p
       return { from, to, count };
     })
     .sort((a, b) => b.count - a.count);
-  return { patterns, compared: pairs.length };
+  return { patterns, compared: rows.length, comparisons: rows.slice(0, MAX_COMPARISONS) };
 }
 
 function average(values: number[]): number {
@@ -605,7 +646,7 @@ export const b2bMockOps: Pick<
       requireManager(db, token);
       const rows = [...db.governanceLog].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       const ok = rows.filter((r) => r.success);
-      const { patterns, compared } = overridePatterns(db);
+      const { patterns, compared, comparisons } = overridePatterns(db);
       return {
         is_placeholder: true,
         rows,
@@ -618,6 +659,7 @@ export const b2bMockOps: Pick<
         failed_calls: rows.length - ok.length,
         override_patterns: patterns,
         compared_cases: compared,
+        comparisons,
       };
     });
   },
