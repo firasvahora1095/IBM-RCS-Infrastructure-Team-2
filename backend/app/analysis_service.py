@@ -7,7 +7,8 @@ import logging
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
+from app.governance_recorder import GovernanceRecorder
 
 from app.models import AuditLog, Case
 from app.video_analysis import VideoAnalysisRun, analyse_video
@@ -54,11 +55,15 @@ def process_case_analysis(
     case.analysis_output_path = None
     db.commit()
 
-    analysis_run_id = str(uuid4())
+    recorder = GovernanceRecorder(sessionmaker(bind=db.get_bind(), expire_on_commit=False))
+    analysis_run_id = recorder.start_run(case_id, context="live", case_id=case_id)
+    case.analysis_run_id = analysis_run_id
+    db.commit()
 
     run = analyse_video(
         case.case_id,
         case.video_storage_path,
+        recorder=recorder, run_id=analysis_run_id, context="live", persisted_case_id=case_id,
         **analysis_options,
     )
 

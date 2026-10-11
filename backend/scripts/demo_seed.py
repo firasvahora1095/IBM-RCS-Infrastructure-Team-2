@@ -22,6 +22,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, timezone, timedelta
+if os.getenv("RCS_ALLOW_DESTRUCTIVE_SEED") != "1":
+    raise SystemExit("Demo reseeding is disabled; use scripts.seed_demo on an isolated demo database.")
+
 from app.models import Auditor, Case, AuditLog, Base
 from app.db import engine, SessionLocal
 from app.auth import hash_password

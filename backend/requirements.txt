@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 ibm-cos-sdk
-av>=18.1.0
+av>=17.1.0
 ibm-watson>=9.0.0
 ibm-watson-openscale>=3.0.0
 ibm-cloud-sdk-core>=3.20.0
