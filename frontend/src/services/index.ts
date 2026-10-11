@@ -109,3 +109,5 @@ export const clientLogin = delegate("clientLogin");
 export const clientListReports = delegate("clientListReports");
 export const clientGetReport = delegate("clientGetReport");
 export const clientRecordDownload = delegate("clientRecordDownload");
+
+export const getGovernanceCase = delegate("getGovernanceCase");

@@ -155,8 +155,7 @@ export function AuditorCaseDetailPage() {
    * The Auditor isn't encouraged to exceed the cap to finish the case.
    */
   const { wellbeing } = useMyWellbeing();
-  const reachedDailyCap =
-    wellbeing !== null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
+  const reachedDailyCap = wellbeing !== null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
   useEffect(() => {
     if (!reachedDailyCap || step !== "workspace" || !token) return;
     setStep("daily-cap");
@@ -417,6 +416,7 @@ export function AuditorCaseDetailPage() {
         // the Auditor's score; confirming the AI's rating leaves it empty.
         scoreWasChanged || aiScore === null ? auditorScore : undefined,
         comment.trim() !== "" ? comment.trim() : undefined,
+        ...(caseDetail?.analysis_run_id ? [caseDetail.analysis_run_id] : []),
       );
       clearDraftResolution(caseId);
       setConfirmation(result);

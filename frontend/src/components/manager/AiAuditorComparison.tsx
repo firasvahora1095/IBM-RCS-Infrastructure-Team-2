@@ -63,6 +63,10 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
 
   return (
     <>
+      <p className="rcs-helper">
+        A score change within the same tier also counts as an override. Unavailable legacy values stay blank; accepting
+        an AI score is not an independent human measurement.
+      </p>
       <dl className="rcs-figure-row">
         <Figure label="Cases compared" value={data.compared_cases} />
         <Figure label="AI Override" value={overrides} />
@@ -120,6 +124,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
                 <TableHeader>Score change</TableHeader>
                 <TableHeader>Reason</TableHeader>
                 <TableHeader>Decided</TableHeader>
+                <TableHeader>Provenance</TableHeader>
                 <TableHeader>
                   <span className="cds--visually-hidden">Audit trail</span>
                 </TableHeader>
@@ -210,6 +215,7 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
         )}
       </TableCell>
       <TableCell style={{ whiteSpace: "nowrap", fontSize: 14 }}>{formatShortDateTime(row.decided_at)}</TableCell>
+      <TableCell>{row.provenance === "live" ? "Recorded live run" : "Legacy / demo — unverified"}</TableCell>
       <TableCell>
         <RouterLink
           className="cds--link"
