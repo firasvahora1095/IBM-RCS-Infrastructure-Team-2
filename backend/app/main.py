@@ -4,6 +4,7 @@ import hmac
 from urllib.parse import urlparse
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO)
@@ -108,7 +109,125 @@ class _VideoStreamingResponse(StreamingResponse):
             with CancelScope(shield=True):
                 await run_in_threadpool(self._video_body.close)
 
-app = FastAPI(title="IBM RCS Backend", version="0.1.0")
+def _run_db_migrations() -> None:
+    """Apply all incremental schema changes to the deployed database.
+
+    Every statement uses IF NOT EXISTS / safe casts so re-running is harmless.
+    """
+    from app.db import engine
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        # auditors — Sprint 2 columns
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
+        ))
+        # cases — AI pipeline output columns (Sprint 2/3)
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
+        ))
+        # auditors — Sprint 3 daily reset column
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
+        ))
+        # cases — Sprint 3 CAP_REACHED manager_flag support
+        conn.execute(text(
+            "ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
+            "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
+        ))
+
+
+try:
+    _run_db_migrations()
+except Exception as _migration_exc:
+    logging.getLogger("ibm_rcs.api").warning(
+        "DB migration skipped (non-PostgreSQL or already applied): %s", _migration_exc
+    )
+
+def _daily_exposure_reset_job() -> None:
+    """Reset exposure_minutes for all auditors at the daily workday boundary."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.models import Auditor
+    from app.assignment import maybe_reset_daily_exposure
+    db = SessionLocal()
+    try:
+        auditors = db.query(Auditor).all()
+        reset_count = sum(1 for a in auditors if maybe_reset_daily_exposure(db, a))
+        db.commit()
+        log.info("[SCHEDULER] daily exposure reset: %d/%d auditors reset", reset_count, len(auditors))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] daily exposure reset failed: %s", exc)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from zoneinfo import ZoneInfo
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            _daily_exposure_reset_job,
+            CronTrigger(hour=9, minute=0, timezone=ZoneInfo("Australia/Sydney")),
+            id="daily_exposure_reset",
+            replace_existing=True,
+        )
+        scheduler.start()
+        logging.getLogger("ibm_rcs.scheduler").info("[SCHEDULER] daily exposure reset scheduled at 09:00 AEST")
+    except ImportError:
+        logging.getLogger("ibm_rcs.scheduler").warning("[SCHEDULER] apscheduler not installed — daily reset disabled")
+        scheduler = None
+    yield
+    if scheduler:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="IBM RCS Backend", version="0.1.0", lifespan=lifespan)
 
 allowed_origins = [
     origin.strip()
