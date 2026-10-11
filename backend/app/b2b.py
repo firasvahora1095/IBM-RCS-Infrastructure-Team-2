@@ -17,15 +17,16 @@ simulated endpoint. Attempts that have fallen due run whenever deliveries are
 read, so progress is visible without a background worker.
 """
 
+from typing import Literal
 import os
 import random
 import re
 import statistics
 from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import Query, Response, APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,6 +35,7 @@ from app.auth import DUMMY_PASSWORD_HASH, SessionStore, StaffSession, session_st
 from app.db import get_db
 from app.models import (
     Auditor,
+    AuditLog,
     Case,
     CaseHistory,
     CaseSource,
@@ -1163,24 +1165,29 @@ def comparison_rows(db: Session) -> list[dict]:
                 "score_delta": None,
                 "override_reason": None,
                 "decided_at": iso(h.completed_at),
+                "provenance": "legacy",
             })
     for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all():
         final_tier = final_tier_of(c)
         if c.final_outcome not in DECIDED_OUTCOMES or not c.severity_tier or not final_tier:
             continue
-        override = c.severity_tier != final_tier
+        override = c.severity_tier != final_tier or (c.auditor_severity_score is not None and c.effective_severity_score is not None and c.auditor_severity_score != c.effective_severity_score)
         ai_score = c.effective_severity_score
-        auditor_score = c.auditor_severity_score if c.auditor_severity_score is not None else ai_score
+        auditor_score = c.auditor_severity_score if c.auditor_severity_score is not None else ai_score if c.ai_auditor_comparison or db.scalar(select(AuditLog.audit_log_id).where(AuditLog.case_id == c.case_id, AuditLog.action == "CASE_RESOLVED").limit(1)) else None
+        snapshot = c.ai_auditor_comparison
         rows.append({
             "case_id": c.case_id,
-            "ai_tier": c.severity_tier,
-            "final_tier": final_tier,
-            "override": override,
-            "ai_score": ai_score,
-            "auditor_score": auditor_score,
-            "score_delta": (auditor_score - ai_score) if ai_score is not None and auditor_score is not None else None,
-            "override_reason": c.auditor_comment if override else None,
-            "decided_at": iso(c.completed_at),
+            "ai_tier": snapshot["ai_tier"] if snapshot else c.severity_tier,
+            "final_tier": snapshot["auditor_tier"] if snapshot else final_tier,
+            "override": snapshot["override"] if snapshot else override,
+            "ai_score": snapshot["ai_score"] if snapshot else ai_score,
+            "auditor_score": snapshot["auditor_score"] if snapshot else auditor_score,
+            "score_delta": snapshot["score_delta"] if snapshot else (auditor_score - ai_score) if ai_score is not None and auditor_score is not None else None,
+            "override_reason": snapshot["override_reason"] if snapshot else c.auditor_comment if override else None,
+            "decided_at": snapshot["compared_at"] if snapshot else iso(c.completed_at),
+            "analysis_run_id": snapshot.get("run_id") if snapshot else None,
+            "provenance": "live" if snapshot and snapshot.get("run_id") else "legacy",
+            "auditor_score_provenance": snapshot.get("auditor_score_provenance") if snapshot else "UNAVAILABLE" if auditor_score is None else "LEGACY_ACCEPTED_AI" if c.auditor_severity_score is None else "EXPLICIT",
         })
     return sorted(rows, key=lambda r: r["decided_at"] or "", reverse=True)
 
@@ -1205,43 +1212,27 @@ def _average(values: list[float]) -> float:
 
 @router.get("/api/manager/governance")
 async def get_governance_summary(
+    response: Response,
     _: StaffSession = Depends(require_manager),
     db: Session = Depends(get_db),
+    case_id: str | None = Query(default=None, max_length=20),
+    context: Literal["live", "test", "demo"] = "live",
+    leakage: Literal["NOT_CHECKED", "NOT_DETECTED", "DETECTED"] | None = None,
+    from_at: AwareDatetime | None = None,
+    to_at: AwareDatetime | None = None,
+    before: str | None = Query(default=None, max_length=36),
+    limit: int = Query(default=25, ge=1, le=100),
+    ai_tier: Literal["S1", "S2", "S3", "S4"] | None = None,
+    auditor_tier: Literal["S1", "S2", "S3", "S4"] | None = None,
+    override: bool | None = None,
+    comparison_offset: int = Query(default=0, ge=0),
 ):
-    rows = db.scalars(select(GovernanceLogEntry).order_by(GovernanceLogEntry.at.desc())).all()
-    ok = [r for r in rows if r.success]
-    patterns, compared, comparisons = _override_patterns(db)
-    return {
-        "is_placeholder": True,
-        "rows": [
-            {
-                "entry_id": r.entry_id,
-                "case_id": r.case_id,
-                "at": iso(r.at),
-                "model_id": r.model_id,
-                "model_version": r.model_version,
-                "prompt_version": r.prompt_version,
-                "success": bool(r.success),
-                "prompt_leakage": r.prompt_leakage,
-                "source_attribution": r.source_attribution,
-                "accumulated_score": r.accumulated_score,
-                "tokens_in": r.tokens_in,
-                "tokens_out": r.tokens_out,
-                "reasoning": r.reasoning,
-            }
-            for r in rows
-        ],
-        "averages": {
-            "prompt_leakage": _average([r.prompt_leakage for r in ok]),
-            "source_attribution": _average([r.source_attribution for r in ok]),
-            "accumulated_score": _average([r.accumulated_score for r in ok]),
-        },
-        "total_calls": len(rows),
-        "failed_calls": len(rows) - len(ok),
-        "override_patterns": patterns,
-        "compared_cases": compared,
-        "comparisons": comparisons,
-    }
+    from app.governance_views import summary
+    response.headers["Cache-Control"] = "no-store"
+    return summary(db, comparison_rows(db), case_id=case_id, context=context, leakage=leakage,
+                   from_at=from_at, to_at=to_at, before=before, limit=limit,
+                   ai_tier=ai_tier, auditor_tier=auditor_tier, override=override,
+                   comparison_offset=comparison_offset)
 
 
 # ---- CommunityHub authorised user ----------------------------------------

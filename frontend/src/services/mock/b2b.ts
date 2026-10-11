@@ -12,6 +12,8 @@ import type {
   DataService,
   Delivery,
   GovernanceSummary,
+  GovernanceQuery,
+  GovernanceCase,
   IntegrationTestResult,
   IntelligenceQuery,
   ManagerIntelligence,
@@ -401,6 +403,7 @@ export const b2bMockOps: Pick<
   | "releaseReport"
   | "listReportAccess"
   | "getGovernanceSummary"
+  | "getGovernanceCase"
   | "getManagerIntelligence"
   | "clientLogin"
   | "clientListReports"
@@ -640,20 +643,32 @@ export const b2bMockOps: Pick<
     });
   },
 
-  async getGovernanceSummary(token: string): Promise<GovernanceSummary> {
+  async getGovernanceCase(caseId: string, token: string): Promise<GovernanceCase> {
     await delay();
     return updateDb((db) => {
       requireManager(db, token);
-      const rows = [...db.governanceLog].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+      return { case_id: caseId, comparison: null, runs: [] };
+    });
+  },
+
+  async getGovernanceSummary(token: string, query: GovernanceQuery = {}): Promise<GovernanceSummary> {
+    await delay();
+    return updateDb((db) => {
+      requireManager(db, token);
+      const rows = [...db.governanceLog]
+        .filter((r) => !query.case_id || r.case_id === query.case_id)
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       const ok = rows.filter((r) => r.success);
       const { patterns, compared, comparisons } = overridePatterns(db);
       return {
         is_placeholder: true,
         rows,
         averages: {
-          prompt_leakage: average(ok.map((r) => r.prompt_leakage)),
-          source_attribution: average(ok.map((r) => r.source_attribution)),
-          accumulated_score: average(ok.map((r) => r.accumulated_score)),
+          prompt_leakage: average(ok.map((r) => r.prompt_leakage ?? 0)),
+          source_attribution: average(
+            ok.map((r) => (typeof r.source_attribution === "number" ? r.source_attribution : 0)),
+          ),
+          accumulated_score: average(ok.map((r) => r.accumulated_score ?? 0)),
         },
         total_calls: rows.length,
         failed_calls: rows.length - ok.length,

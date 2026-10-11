@@ -68,7 +68,7 @@ describe("Manager screens", () => {
         await screen.findByRole("table", { name: /AI severity against final Auditor severity/ }),
       ).toBeInTheDocument();
       for (const field of [/Accumulated score/, /Prompt leakage/, /Source attribution/]) {
-        expect(screen.getByText(field)).toBeInTheDocument();
+        expect(screen.getAllByText(field).length).toBeGreaterThan(0);
       }
       expect(screen.getByRole("table", { name: "watsonx.ai call log" })).toBeInTheDocument();
     });
@@ -105,12 +105,12 @@ describe("Manager screens", () => {
       expect(link.getAttribute("href")).toMatch(/^\/manager\/audit-logs\?case=/);
     });
 
-    it("writes a failed AI call as a word as well as an accent, and shows the chart's values", async () => {
+    it("labels old demo calls without inventing real outcomes, and shows the chart's values", async () => {
       renderAt("/manager/validation");
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
       fireEvent.click(await screen.findByRole("button", { name: /^Show all \d+ calls$/ }));
-      await waitFor(() => expect(within(log).queryAllByText("Failed").length).toBeGreaterThan(0));
-      expect(within(log).getAllByText("Succeeded").length).toBeGreaterThan(0);
+      await waitFor(() => expect(within(log).queryAllByText("Legacy demo").length).toBeGreaterThan(0));
+      expect(within(log).getAllByText("Unavailable").length).toBeGreaterThan(0);
       // Each bar's value is printed beside it, so the chart never rests on colour or pattern.
       const validation = document.getElementById("validation")!;
       expect(within(validation).getAllByText(/^\d+(\.\d+)?%$/).length).toBeGreaterThanOrEqual(8);

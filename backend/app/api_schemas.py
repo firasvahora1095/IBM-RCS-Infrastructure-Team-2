@@ -51,6 +51,7 @@ class MockAiResultRequest(BaseModel):
 
 
 class ResolutionRequest(BaseModel):
+    analysis_run_id: str | None = Field(default=None, max_length=36)
     final_outcome: FinalOutcome
     auditor_severity_score: int | None = Field(default=None, ge=0, le=100)
     auditor_comment: str | None = Field(default=None, max_length=5000)
@@ -94,3 +95,7 @@ class ExposureSampleRequest(BaseModel):
 
 class SetExposureLimitRequest(BaseModel):
     minutes: int = Field(ge=0, le=1440)
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)

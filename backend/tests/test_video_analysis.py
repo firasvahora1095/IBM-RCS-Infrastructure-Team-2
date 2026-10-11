@@ -289,7 +289,7 @@ def test_model_failure_returns_handled_state_and_database_fallback(tmp_path: Pat
 
         stored = db.get(Case, "CASE-FAILURE-001")
         audit = db.scalar(
-            select(AuditLog).where(AuditLog.case_id == "CASE-FAILURE-001")
+            select(AuditLog).where(AuditLog.case_id == "CASE-FAILURE-001", AuditLog.action == "AI_ANALYSIS_FAILED")
         )
         assert run.status == "failed"
         assert run.failure_stage == "watsonx_call"
@@ -383,7 +383,7 @@ def test_completed_pipeline_updates_case_and_audit_record(
 
         stored = db.get(Case, "CASE-SUCCESS-001")
         audit = db.scalar(
-            select(AuditLog).where(AuditLog.case_id == "CASE-SUCCESS-001")
+            select(AuditLog).where(AuditLog.case_id == "CASE-SUCCESS-001", AuditLog.action == "AI_ANALYSIS_COMPLETED")
         )
         assert run.status == "completed"
         assert stored.status == "READY_FOR_REVIEW"

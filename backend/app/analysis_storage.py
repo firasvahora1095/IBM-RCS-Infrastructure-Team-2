@@ -132,6 +132,7 @@ def create_analysis_output_store(
     case_id: str,
     *,
     local_root: str | Path | None = None,
+    run_id: str | None = None,
     cos_client: Any | None = None,
 ) -> AnalysisOutputStore:
     """Create a store beside the source video for local or COS storage.
@@ -151,6 +152,9 @@ def create_analysis_output_store(
     ):
         raise ValueError("case_id contains unsupported characters")
 
+    suffix = f"/{run_id}" if run_id else ""
+    if run_id and any(c not in allowed_case_id_characters for c in run_id):
+        raise ValueError("Invalid run ID")
     if storage_reference.startswith("cos://"):
         without_scheme = storage_reference.removeprefix("cos://")
         bucket, separator, _ = without_scheme.partition("/")
@@ -158,7 +162,7 @@ def create_analysis_output_store(
             raise ValueError("Invalid COS storage reference")
         return CosAnalysisOutputStore(
             bucket=bucket,
-            prefix=f"cases/{case_id}/analysis-output",
+            prefix=f"cases/{case_id}/analysis-output{suffix}",
             client=cos_client or create_cos_client(),
         )
 
@@ -170,4 +174,6 @@ def create_analysis_output_store(
         directory = source_path.parent / "analysis-output"
     else:
         directory = source_path.parent / "analysis-output" / case_id
+    if run_id:
+        directory = directory / run_id
     return LocalAnalysisOutputStore(directory=directory)

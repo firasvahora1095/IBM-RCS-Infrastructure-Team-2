@@ -21,7 +21,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, timezone, timedelta
-from app.models import Auditor, Case, AuditLog, Base
+if os.getenv("RCS_ALLOW_DESTRUCTIVE_SEED") != "1":
+    raise SystemExit("Demo reseeding is disabled. Use an isolated demo database and explicitly set RCS_ALLOW_DESTRUCTIVE_SEED=1.")
+
+from app.models import Auditor, Case, AuditLog, Base, AnalysisRun, GovernanceLogEntry
 from app.db import engine, SessionLocal
 from app.auth import hash_password
 from app.case_ids import generate_case_id
@@ -33,6 +36,8 @@ db = SessionLocal()
 # ── Wipe existing demo data ──────────────────────────────────────────────────
 wipe_b2b(db)
 db.query(AuditLog).delete()
+db.query(Case).update({Case.analysis_run_id: None})
+db.query(AnalysisRun).delete()
 db.query(Case).delete()
 db.query(Auditor).delete()
 db.commit()

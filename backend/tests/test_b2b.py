@@ -881,7 +881,7 @@ class B2bContractTests(unittest.TestCase):
             seed_b2b(db, datetime.now(timezone.utc), [], client_password="test123")
         with self.Session() as db:
             for report in db.scalars(select(ServiceReport)).all():
-                calculated = datetime.fromisoformat(report.metrics["evidence"]["cases_completed"]["calculated_at"])
+                calculated = datetime.fromisoformat(report.metrics["evidence"]["cases_completed"]["calculated_at"].replace("Z", "+00:00"))
                 generated = report.generated_at if report.generated_at.tzinfo else report.generated_at.replace(tzinfo=timezone.utc)
                 self.assertEqual(calculated, generated)
                 if report.released_at is not None:
@@ -978,7 +978,7 @@ class B2bContractTests(unittest.TestCase):
         same = rows["RCS-CMP-00002"]
         self.assertFalse(same["override"])
         self.assertIsNone(same["override_reason"])
-        self.assertEqual(same["score_delta"], 0)
+        self.assertIsNone(same["score_delta"])  # No saved human score or resolution evidence.
 
         # Older history keeps tiers only: no scores are invented.
         old = rows["RCS-CMP-00004"]

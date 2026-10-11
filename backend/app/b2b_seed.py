@@ -149,15 +149,16 @@ def _governance_log(now: datetime, case_ids: list[str], rng: random.Random) -> l
         attribution = 0.72 + rng.random() * 0.24
         entries.append(GovernanceLogEntry(
             entry_id=f"GOV-{1000 + i}",
+            context="demo", schema_version=1, outcome="LEGACY_DEMO",
             case_id=case_id,
             at=now - timedelta(minutes=(len(recent) - i) * 47),
             model_id="watsonx.ai multimodal vision model",
             model_version="2026-09",
             prompt_version="frame-severity v2" if i < 10 else "frame-severity v3",
             success=1 if success else 0,
-            prompt_leakage=round(leakage, 2) if success else 0,
-            source_attribution=round(attribution, 2) if success else 0,
-            accumulated_score=round((leakage + attribution) / 2, 2) if success else 0,
+            legacy_prompt_leakage=round(leakage, 2) if success else 0,
+            legacy_source_attribution=round(attribution, 2) if success else 0,
+            legacy_accumulated_score=round((leakage + attribution) / 2, 2) if success else 0,
             tokens_in=1800 + round(rng.random() * 1400),
             tokens_out=220 + round(rng.random() * 260) if success else 0,
             reasoning=(
