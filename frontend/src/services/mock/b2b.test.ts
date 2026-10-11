@@ -107,6 +107,23 @@ describe("mock B2B data source", () => {
   });
 
   describe("service reports", () => {
+    it("gives a client each figure's definition and count, never the contributing case IDs (D6)", async () => {
+      const manager = await managerToken();
+      const draft = await mock.generateReport(manager, "COMMUNITYHUB", "2026-09-01", "2026-09-30");
+      await mock.releaseReport(draft.report_id, manager);
+      const staffView = await mock.getReport(draft.report_id, manager);
+      expect(staffView.metrics.evidence?.cases_completed.case_ids.length).toBeGreaterThan(0);
+
+      const client = await mock.clientGetReport(draft.report_id, await clientToken());
+      const completed = client.metrics.evidence!.cases_completed;
+      expect(completed.case_ids).toEqual([]);
+      expect(completed.records_included).toBe(staffView.metrics.cases_completed);
+      expect(completed.definition).toBeTruthy();
+      for (const id of staffView.metrics.evidence!.cases_completed.case_ids) {
+        expect(JSON.stringify(client)).not.toContain(id);
+      }
+    });
+
     it("generates a draft from stored records, then releases it read-only", async () => {
       const manager = await managerToken();
       const draft = await mock.generateReport(manager, "COMMUNITYHUB", "2026-01-01", "2026-01-15");
@@ -114,8 +131,16 @@ describe("mock B2B data source", () => {
       expect(draft.report_id).toBe("RPT-CH-20260101-20260115");
       const db = readDb();
       expect(draft.metrics).toEqual(
-        computeMetrics({ history: db.caseHistory, cases: db.cases, deliveries: db.deliveries }, "2026-01-01", "2026-01-15"),
+        computeMetrics(
+          { history: db.caseHistory, cases: db.cases, deliveries: db.deliveries },
+          "2026-01-01",
+          "2026-01-15",
+          Date.parse(draft.generated_at),
+        ),
       );
+      // The snapshot carries its evidence, frozen at generation (Sprint 3 extras §6.2).
+      expect(draft.metrics.evidence?.cases_completed.records_included).toBe(draft.metrics.cases_completed);
+      expect(draft.metrics.evidence?.cases_completed.calculated_at).toBe(draft.generated_at);
       await mock.updateReportNote(draft.report_id, manager, "Steady month.");
       const released = await mock.releaseReport(draft.report_id, manager);
       expect(released.status).toBe("RELEASED");
@@ -195,6 +220,43 @@ describe("mock B2B data source", () => {
       expect(summary.rows.length).toBe(summary.total_calls);
       expect(summary.override_patterns.every((p) => p.from !== p.to)).toBe(true);
       expect(JSON.stringify(summary.override_patterns)).not.toMatch(/auditor/i);
+    });
+
+    it("lists each compared case, newest first, with the same counts as the patterns", async () => {
+      const summary = await mock.getGovernanceSummary(await managerToken());
+      const rows = summary.comparisons;
+      expect(rows.length).toBe(Math.min(summary.compared_cases, 200));
+      expect(rows.filter((r) => r.override).length).toBeLessThanOrEqual(
+        summary.override_patterns.reduce((sum, p) => sum + p.count, 0),
+      );
+      expect(rows.every((r) => r.override === (r.ai_tier !== r.final_tier))).toBe(true);
+      const times = rows.map((r) => Date.parse(r.decided_at));
+      expect([...times].sort((a, b) => b - a)).toEqual(times);
+      // Nobody is named: a difference isn't a verdict on an Auditor.
+      expect(JSON.stringify(rows)).not.toMatch(/auditor-|Reese|Marcus|Sam Nguyen/);
+    });
+
+    it("compares a case the Auditor changed, with their reason, and leaves out a case closed without a decision", async () => {
+      await mock.resolveCase(
+        "AR-2026-00417",
+        await auditorToken(),
+        "POLICY_VIOLATION_FOUND",
+        95,
+        "Weapon became visible later.",
+      );
+      const manager = await managerToken();
+      const summary = await mock.getGovernanceSummary(manager);
+      const row = summary.comparisons.find((r) => r.case_id === "AR-2026-00417")!;
+      expect(row.override).toBe(true);
+      expect(row.auditor_score).toBe(95);
+      expect(row.score_delta).toBe(95 - row.ai_score!);
+      expect(row.override_reason).toBe("Weapon became visible later.");
+
+      updateDb((db) => {
+        db.cases.find((c) => c.case_id === "AR-2026-00417")!.final_outcome = "CLOSED_NO_REASSIGNMENT";
+      });
+      const after = await mock.getGovernanceSummary(manager);
+      expect(after.comparisons.some((r) => r.case_id === "AR-2026-00417")).toBe(false);
     });
   });
 });

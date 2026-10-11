@@ -35,6 +35,9 @@ ENV PGDATA=/var/lib/postgresql/data
 ENV CORS_ALLOWED_ORIGINS=http://localhost:5173,https://rcs-frontend.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud,https://rcs-frontend-test.2emp87e5l3yh.ca-tor.codeengine.appdomain.cloud
 ENV ORCHESTRATE_MODE=mock
 ENV VIDEO_STORAGE_BACKEND=local
+# Demo data is opt-in and only suitable for isolated disposable databases.
+ENV RCS_DEMO_DATA=0
+ENV RCS_ALLOW_DESTRUCTIVE_SEED=0
 
 EXPOSE 8080
 

@@ -5,6 +5,7 @@ import {
   createReport,
   escalateDelivery,
   generateReport,
+  getManagerIntelligence,
   releaseCaseAtLimit,
   retryDelivery,
 } from "./httpClient";
@@ -34,6 +35,7 @@ describe("api client: B2B flow", () => {
       "releaseReport",
       "listReportAccess",
       "getGovernanceSummary",
+      "getManagerIntelligence",
       "clientLogin",
       "clientListReports",
       "clientGetReport",
@@ -68,6 +70,31 @@ describe("api client: B2B flow", () => {
       period_start: "2026-09-01",
       period_end: "2026-09-30",
     });
+  });
+
+  it("getManagerIntelligence reads the organisation and period from the query string", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(ok({ kpis: {} }));
+    await getManagerIntelligence("tok", {
+      organisationId: "COMMUNITYHUB",
+      periodStart: "2026-10-05",
+      periodEnd: "2026-10-11",
+    });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    const parsed = new URL(String(url), "http://localhost");
+    expect(parsed.pathname).toMatch(/\/api\/manager\/intelligence$/);
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
+      organisation_id: "COMMUNITYHUB",
+      period_start: "2026-10-05",
+      period_end: "2026-10-11",
+    });
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer tok");
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ detail: "Choose a valid reporting period." }), { status: 400 }),
+    );
+    await expect(
+      getManagerIntelligence("tok", { organisationId: "COMMUNITYHUB", periodStart: "x", periodEnd: "y" }),
+    ).rejects.toThrow("Choose a valid reporting period.");
   });
 
   it("retry, escalate and release-at-limit hit their own endpoints", async () => {

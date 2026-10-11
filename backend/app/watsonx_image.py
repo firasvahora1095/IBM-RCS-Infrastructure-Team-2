@@ -38,6 +38,7 @@ def create_watsonx_image_client():
         model_id=get_environment_variable("WATSONX_VISION_MODEL_ID"),
         credentials=watsonx_credentials,
         project_id=get_environment_variable("WATSONX_PROJECT_ID"),
+        max_retries=0,  # An application retry must create a new logged invocation.
     )
 
 
@@ -62,7 +63,7 @@ def validate_image(image_data, content_type):
         )
 
 
-def analyse_image(image_file, content_type, prompt, client=None):
+def analyse_image(image_file, content_type, prompt, client=None, *, context=None, recorder=None):
     # clean and detect prompt
     if not prompt or not prompt.strip():
         raise ValueError("An image analysis prompt is required")
@@ -98,13 +99,18 @@ def analyse_image(image_file, content_type, prompt, client=None):
         }
     ]
 
-    response = client.chat(
-        messages=messages,
-        params={
-            "max_tokens": 600,
-            "temperature": 0.2,
-        },
-    )
+    if context is None or recorder is None:
+        raise ValueError("Every IBM invocation requires a persisted governance context")
+    call_id = recorder.start_call(context, model_id, prompt.strip())
+    try:
+        response = client.chat(
+            messages=messages,
+            params={"max_tokens": 600, "temperature": 0.2},
+        )
+    except Exception as error:
+        recorder.failed(call_id, error)
+        raise
+    recorder.received(call_id, response)
 
     # Record receipt before parsing or storing the model result.
     decision_timestamp = datetime.now(timezone.utc).isoformat()
@@ -114,14 +120,18 @@ def analyse_image(image_file, content_type, prompt, client=None):
     try:
         analysis = response["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as error:
+        recorder.invalid(call_id, error)
         raise RuntimeError(
             "watsonx.ai returned an unexpected response"
         ) from error
 
     if not analysis:
+        recorder.invalid(call_id, ValueError("EmptyModelResponse"))
         raise RuntimeError("watsonx.ai returned an empty analysis")
 
+    recorder.check_leakage(call_id, analysis, prompt)
     return {
+        "call_id": call_id,
         "model": model_id,
         "analysis": analysis,
         "raw_response": response,

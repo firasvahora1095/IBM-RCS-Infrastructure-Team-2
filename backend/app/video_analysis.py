@@ -22,6 +22,7 @@ from app.frame_extraction import (
     iter_frames_from_storage,
 )
 from app.severity import build_frame_analysis, calculate_case_severity
+from app.governance_recorder import CallContext, GovernanceRecorder
 from app.watsonx_image import analyse_image, create_watsonx_image_client
 
 
@@ -487,6 +488,10 @@ def analyse_video(
     client: Any | None = None,
     analyse_frame: FrameAnalyser = analyse_image,
     progress: ProgressReporter | None = None,
+    recorder: GovernanceRecorder | None = None,
+    run_id: str | None = None,
+    context: str = "test",
+    persisted_case_id: str | None = None,
 ) -> VideoAnalysisRun:
     """Analyse every sampled frame and always return a handled run state."""
 
@@ -503,12 +508,17 @@ def analyse_video(
     duration: float | None = None
     failed_frame: str | None = None
     stage = "initialization"
+    current_call_id = None
+    if recorder is None and analyse_frame is analyse_image:
+        recorder = GovernanceRecorder()
+    if recorder is not None and run_id is None:
+        run_id = recorder.start_run(case_id, context=context, case_id=persisted_case_id)
 
     try:
         if interval_seconds <= 0:
             raise ValueError("Frame interval must be greater than zero")
         if store is None:
-            store = create_analysis_output_store(storage_reference, case_id)
+            store = create_analysis_output_store(storage_reference, case_id, run_id=run_id)
         if client is None and analyse_frame is analyse_image:
             client = create_watsonx_image_client()
 
@@ -523,12 +533,15 @@ def analyse_video(
             duration = frame.source_duration_seconds or duration
 
             stage = "watsonx_call"
-            response = analyse_frame(
-                frame.as_file(),
-                frame.content_type,
-                VISION_ANALYSIS_PROMPT,
-                client=client,
-            )
+            current_call_id = None
+            options = {"client": client}
+            if analyse_frame is analyse_image:
+                options.update(recorder=recorder, context=CallContext(
+                    run_id=run_id, context=context, subject_reference=case_id,
+                    case_id=persisted_case_id, frame_num=frame_id,
+                    timestamp=frame.timestamp, prompt_version=PROMPT_VERSION))
+            response = analyse_frame(frame.as_file(), frame.content_type, VISION_ANALYSIS_PROMPT, **options)
+            current_call_id = response.get("call_id")
 
             # The real client captures receipt immediately after the IBM call.
             # Custom frame analysers may omit it, so capture their return time here.
@@ -583,6 +596,11 @@ def analyse_video(
                 frame_analysis,
             )
             analysis_files.append(analysis_file)
+            if recorder is not None and current_call_id:
+                recorder.validated(current_call_id, {
+                    "source_type": "VIDEO_FRAME", "frame_num": frame_id,
+                    "start_timestamp": frame.timestamp, "end_timestamp": frame.timestamp,
+                    "analysis_output_reference": analysis_file, **audit})
             frame_results.append(frame_analysis)
             if progress is not None:
                 try:
@@ -622,9 +640,16 @@ def analyse_video(
         )
         stage = "manifest_storage"
         store.write_json("manifest.json", run.manifest())
+        if recorder is not None:
+            recorder.finish_run(run_id, run)
         return run
 
     except Exception as error:
+        if recorder is not None and current_call_id:
+            if stage == "response_validation":
+                recorder.invalid(current_call_id, error)
+            elif stage in {"raw_response_storage", "normalized_analysis_storage"}:
+                recorder.storage_failed(current_call_id, error)
         logger.warning(
             "Video analysis entered fallback at stage %s (%s)",
             stage,
@@ -657,4 +682,6 @@ def analyse_video(
                 store.write_json("manifest.json", run.manifest())
             except Exception:
                 logger.warning("Could not persist failed analysis manifest")
+        if recorder is not None:
+            recorder.finish_run(run_id, run)
         return run

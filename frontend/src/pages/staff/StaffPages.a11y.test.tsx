@@ -146,7 +146,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
   });
 
   it.each([
-    ["Oversight Dashboard", "/manager", "Oversight Dashboard"],
+    ["Intelligence Dashboard", "/manager", "Manager Intelligence Dashboard"],
     ["Auditor Detail", "/manager/auditors/auditor-4", "Reese Patel"],
     ["Case Oversight", "/manager/cases", "Consolidated Case Oversight"],
     ["SOS Inbox", "/manager/sos", "SOS Inbox"],
@@ -155,7 +155,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     ["Reassignment Queue", "/manager/reassignment", "Reassignment Queue"],
     ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
     ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
-    ["Validation View", "/manager/validation", "Validation View"],
+    ["Validation & Audit", "/manager/validation", "Validation & Audit"],
   ])("Manager %s has no detectable violations", async (_name, path, heading) => {
     resetDb();
     const { token } = await mockDataService.staffLogin("manager-1", DEMO_PASSWORD);

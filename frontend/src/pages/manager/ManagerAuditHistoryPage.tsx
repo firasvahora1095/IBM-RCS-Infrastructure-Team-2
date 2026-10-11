@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
-import { Button, ComboBox, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TextInput } from "@carbon/react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Button,
+  ComboBox,
+  Layer,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TextInput,
+} from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
@@ -13,9 +25,12 @@ import type { AuditLogHistory, AuditLogQuery } from "../../services/types";
 export function ManagerAuditHistoryPage() {
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
-  const [caseId, setCaseId] = useState("");
+  // "Audit trail" links elsewhere (e.g. Validation & Audit) open this already filtered to one case.
+  const [params] = useSearchParams();
+  const linkedCase = params.get("case")?.trim() ?? "";
+  const [caseId, setCaseId] = useState(linkedCase);
   const [action, setAction] = useState("");
-  const [query, setQuery] = useState<AuditLogQuery>({ limit: 25 });
+  const [query, setQuery] = useState<AuditLogQuery>({ limit: 25, case_id: linkedCase || undefined });
   const [history, setHistory] = useState<AuditLogHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +139,9 @@ export function ManagerAuditHistoryPage() {
                         <TableCell style={mono}>{entry.case_id}</TableCell>
                         <TableCell>
                           <span style={{ display: "block" }}>{auditActionLabel(entry.action)}</span>
-                          <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>{entry.action}</span>
+                          <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                            {entry.action}
+                          </span>
                         </TableCell>
                         <TableCell>{entry.actor}</TableCell>
                         <TableCell>

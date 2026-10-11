@@ -31,6 +31,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from pydantic import AwareDatetime
 
 from app.api_schemas import (
     ChatRequest,
@@ -46,6 +47,7 @@ from app.api_schemas import (
 from app.b2b import create_delivery_for_case, public_delivery_confirmed
 from app.b2b import router as b2b_router
 from app.support import (
+    active_case_counts,
     auditor_exists,
     completed_today,
     create_request,
@@ -54,6 +56,7 @@ from app.support import (
     resolve_request,
     sos_history,
     start_of_today,
+    unresolved_sos_auditors,
 )
 from app.support import router as support_router
 from app.auth import DUMMY_PASSWORD_HASH, StaffSession, session_store, verify_password
@@ -93,82 +96,6 @@ class _VideoStreamingResponse(StreamingResponse):
             # Cleanup must run even if the request's task was cancelled.
             with CancelScope(shield=True):
                 await run_in_threadpool(self._video_body.close)
-
-def _run_db_migrations() -> None:
-    """Apply all incremental schema changes to the deployed database.
-
-    Every statement uses IF NOT EXISTS / safe casts so re-running is harmless.
-    """
-    from app.db import engine
-    from sqlalchemy import text
-    with engine.begin() as conn:
-        # auditors — Sprint 2 columns
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10)"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0"
-        ))
-        conn.execute(text(
-            "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
-        ))
-        # cases — AI pipeline output columns (Sprint 2/3)
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30)"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
-        ))
-        # auditors — Sprint 3 daily reset column
-        conn.execute(text(
-            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
-        ))
-        # cases — Sprint 3 CAP_REACHED manager_flag support
-        conn.execute(text(
-            "ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15)"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag"
-        ))
-        conn.execute(text(
-            "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
-            "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
-        ))
-
-
-try:
-    _run_db_migrations()
-except Exception as _migration_exc:
-    logging.getLogger("ibm_rcs.api").warning(
-        "DB migration skipped (non-PostgreSQL or already applied): %s", _migration_exc
-    )
 
 app = FastAPI(title="IBM RCS Backend", version="0.1.0")
 
@@ -309,7 +236,8 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "ibm-rcs-backend"}
+    from app.backup_status import read_status
+    return {"status": "ok", "service": "ibm-rcs-backend", "backup": read_status()}
 
 
 @app.get("/storage-check")
@@ -658,6 +586,7 @@ async def get_auditor_case_detail(
         "audio_intensity": case.audio_intensity,
         "video_duration_seconds": case.video_duration_seconds,
         "ai_failure": case.ai_failure,
+        "analysis_run_id": case.analysis_run_id,
     }
 
 
@@ -715,6 +644,8 @@ async def insert_mock_ai_result(
         raise HTTPException(status_code=404, detail="Case not found")
     if case.status == "COMPLETE":
         raise HTTPException(status_code=409, detail="Completed cases cannot be changed")
+    if case.analysis_run_id is not None:
+        raise HTTPException(status_code=409, detail="Mock results cannot replace a recorded AI run")
     if any(entry.end < entry.start for entry in payload.incident_timeline):
         raise HTTPException(status_code=422, detail="Timeline end must not precede start")
 
@@ -760,6 +691,8 @@ async def resolve_case(
     case = _get_owned_case(db, case_id, auditor.staff_id, for_update=True)
     if case.status not in {"READY_FOR_REVIEW", "AUDITOR_REVIEW"}:
         raise HTTPException(status_code=409, detail="Case is not ready for resolution")
+    if case.analysis_run_id is not None and payload.analysis_run_id != case.analysis_run_id:
+        raise HTTPException(status_code=409, detail="AI assessment changed. Reload the case before submitting a decision.")
     if case.manager_flag in {"DECLINED", "SOS", "CAP_REACHED"}:
         raise HTTPException(
             status_code=409,
@@ -818,6 +751,20 @@ async def resolve_case(
                 auditor_row.cooldown_trigger = tier
                 auditor_row.cooldown_check_in_done = 0
 
+    # Bind the human decision to the AI run actually reviewed; never overwrite AI values.
+    from app.severity import get_severity_tier
+    final_score = case.auditor_severity_score if case.auditor_severity_score is not None else case.effective_severity_score
+    case.ai_auditor_comparison = {
+        "run_id": case.analysis_run_id,
+        "ai_score": case.effective_severity_score, "ai_tier": case.severity_tier,
+        "watson_severity_score": case.watson_severity_score,
+        "auditor_score": final_score,
+        "auditor_tier": get_severity_tier(final_score) if final_score is not None else None,
+        "auditor_score_provenance": "EXPLICIT" if case.auditor_severity_score is not None else "ACCEPTED_AI" if final_score is not None else "UNAVAILABLE",
+        "override": is_override if case.effective_severity_score is not None else None,
+        "score_delta": final_score - case.effective_severity_score if final_score is not None and case.effective_severity_score is not None else None,
+        "override_reason": comment if is_override else None, "compared_at": now.isoformat(),
+    }
     db.add(
         AuditLog(
             case_id=case.case_id,
@@ -831,6 +778,7 @@ async def resolve_case(
                 "auditor_comment": case.auditor_comment,
                 "final_outcome": case.final_outcome,
                 "is_override": is_override,
+                "ai_auditor_comparison": case.ai_auditor_comparison,
             },
         )
     )
@@ -938,6 +886,9 @@ async def acknowledge_content_warning(
     case = _get_owned_case(db, case_id, auditor.staff_id)
     if case.status == "READY_FOR_REVIEW":
         case.status = "AUDITOR_REVIEW"
+        db.add(AuditLog(case_id=case.case_id, actor=auditor.staff_id, action="REVIEW_STARTED",
+                        before_value={"status": "READY_FOR_REVIEW"},
+                        after_value={"status": "AUDITOR_REVIEW", "analysis_run_id": case.analysis_run_id}))
         db.commit()
     return {"acknowledged": True}
 
@@ -1252,9 +1203,19 @@ async def get_audit_history(
     action: str | None = Query(default=None, max_length=50),
     before_id: int | None = Query(default=None, ge=1, le=9223372036854775807),
     limit: int = Query(default=25, ge=1, le=100),
+    from_at: AwareDatetime | None = None,
+    to_at: AwareDatetime | None = None,
+    governance_only: bool = False,
 ):
     """Read saved audit events through the backend's existing DB connection."""
     query = select(AuditLog)
+    if from_at is not None:
+        query = query.where(AuditLog.created_at >= from_at)
+    if to_at is not None:
+        query = query.where(AuditLog.created_at <= to_at)
+    if governance_only:
+        from app.governance_views import SAFE_ACTIONS
+        query = query.where(AuditLog.action.in_(SAFE_ACTIONS))
     if case_id and case_id.strip():
         query = query.where(AuditLog.case_id == case_id.strip())
     if action and action.strip():
@@ -1275,8 +1236,8 @@ async def get_audit_history(
                 "case_id": row.case_id,
                 "actor": row.actor,
                 "action": row.action,
-                "before_value": row.before_value,
-                "after_value": row.after_value,
+                "before_value": _safe_audit_value(row.before_value) if governance_only else row.before_value,
+                "after_value": _safe_audit_value(row.after_value) if governance_only else row.after_value,
                 "created_at": (
                     row.created_at.replace(tzinfo=timezone.utc)
                     if row.created_at.tzinfo is None else row.created_at
@@ -1296,6 +1257,7 @@ async def list_auditors(
     db: Session = Depends(get_db),
 ):
     auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
+    active = active_case_counts(db)
     result = []
     for a in auditors:
         exp = float(a.exposure_minutes or 0)
@@ -1308,6 +1270,7 @@ async def list_auditors(
             "exposure_state": _exposure_state(exp, limit),
             "cooldown": _auditor_cooldown_payload(a),
             "cases_today": len(completed_today(db, a.auditor_id)),
+            "active_case_count": active.get(a.auditor_id, 0),
             # Same rule as the SOS summary: an SOS stays open until the Manager's check-in.
             "open_sos": a.cooldown_trigger == "SOS" and not a.cooldown_check_in_done and a.cooldown_ends_at is not None,
             "open_requests": open_request_counts(db, a.auditor_id),
@@ -1321,15 +1284,7 @@ async def get_sos_summary(
     db: Session = Depends(get_db),
 ):
     # Unresolved = SOS triggered but cooldown_check_in_done is still 0
-    sos_auditors = db.scalars(
-        select(Auditor)
-        .where(
-            Auditor.cooldown_trigger == "SOS",
-            Auditor.cooldown_check_in_done == 0,
-            Auditor.cooldown_ends_at.is_not(None),
-        )
-        .order_by(Auditor.cooldown_ends_at.desc())
-    ).all()
+    sos_auditors = unresolved_sos_auditors(db)
     if not sos_auditors:
         return {"unresolved_count": 0, "most_recent": None}
     most_recent = sos_auditors[0]
@@ -1804,22 +1759,6 @@ async def record_exceptional_access(
     return {"recorded": True}
 
 
-@app.post("/api/admin/reseed")
-async def reseed_db():
-    """Re-run the demo seed script. Wipes all data and re-inserts demo accounts and cases."""
-    import subprocess
-    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    result = subprocess.run(
-        ["python3", "-m", "scripts.seed_demo"],
-        capture_output=True,
-        text=True,
-        cwd=app_dir,
-    )
-    if result.returncode != 0:
-        raise HTTPException(status_code=500, detail=result.stderr[-2000:])
-    return {"ok": True, "output": result.stdout[-2000:]}
-
-
 @app.get("/api/manager/validation")
 async def get_validation_summary(
     _: StaffSession = Depends(get_current_manager),
@@ -1837,6 +1776,13 @@ async def get_validation_summary(
     }
 
 
+def _safe_audit_value(value):
+    from app.governance_views import safe_audit_value
+    return safe_audit_value(value)
+
+
+from app.governance_api import install_routes as install_governance_routes
+install_governance_routes(app, get_current_manager, require_internal_api_key)
 # ---------------------------------------------------------------------------
 # AI Chatbot ("AI buddy") — watsonx.ai backed
 # ---------------------------------------------------------------------------

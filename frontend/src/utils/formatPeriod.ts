@@ -5,12 +5,13 @@ function parseIsoDate(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** "1–30 Sep 2026", or "28 Aug – 3 Sep 2026" across months, or full dates across years. */
+/** "1–30 Sep 2026", "7 Oct 2026" for one day, "28 Aug – 3 Sep 2026" across months, or full dates across years. */
 export function formatPeriod(start: string, end: string): string {
   const s = parseIsoDate(start);
   const e = parseIsoDate(end);
   const day = (d: Date) => d.getDate();
   const month = (d: Date) => d.toLocaleDateString("en-AU", { month: "short" });
+  if (start === end) return `${day(s)} ${month(s)} ${s.getFullYear()}`;
   if (s.getFullYear() !== e.getFullYear()) {
     return `${day(s)} ${month(s)} ${s.getFullYear()} – ${day(e)} ${month(e)} ${e.getFullYear()}`;
   }
@@ -53,4 +54,10 @@ export function formatMinutes(total: number): string {
   const minutes = Math.round(total % 60);
   if (hours === 0) return `${minutes} min`;
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+}
+
+/** How long something has waited: "42 min", "5 h 12 min", or whole days after two days. */
+export function formatAge(minutes: number): string {
+  if (minutes < 48 * 60) return formatMinutes(minutes);
+  return `${Math.floor(minutes / (24 * 60))} days`;
 }

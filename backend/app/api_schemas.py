@@ -51,6 +51,7 @@ class MockAiResultRequest(BaseModel):
 
 
 class ResolutionRequest(BaseModel):
+    analysis_run_id: str | None = Field(default=None, max_length=36)
     final_outcome: FinalOutcome
     auditor_severity_score: int | None = Field(default=None, ge=0, le=100)
     auditor_comment: str | None = Field(default=None, max_length=5000)

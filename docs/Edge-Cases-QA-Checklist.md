@@ -46,7 +46,7 @@
 
 | # | Scenario | Expected behaviour | Result | Notes |
 |---|---|---|---|---|
-| 4.1 | Auditor reaches exposure limit mid-review | Case completes normally; no new assignment until limit clears |  | |
+| 4.1 | Auditor reaches exposure limit mid-review | Raw playback stops, entered progress is kept, and the case returns to the Manager with reason `EXPOSURE_CAP_REACHED`; it is never reassigned automatically. No new normal case that working day |  | Updated 8 Oct 2026 to the Sprint 3 rule (extras §2, aligned with AR-DF-02 / CV-07); was "case completes normally" |
 | 4.2 | Auditor in mandatory cooldown receives assignment attempt | Assignment blocked; cooldown not cancelled |  | |
 | 4.3 | Auditor under SOS protection receives assignment attempt | Assignment blocked |  | |
 | 4.4 | Cooldown timer expires while Auditor is on a different page | Next assignment available without needing refresh |  | |
@@ -65,7 +65,7 @@
 | 5.4 | Auditor submits resolve with no `final_outcome` field | Validation error returned; case not corrupted |  | |
 | 5.5 | Auditor submits `auditor_severity_score` identical to AI score | `is_override` recorded as `false` |  | |
 | 5.6 | Auditor submits `auditor_severity_score` different from AI | `is_override` recorded as `true`; both scores stored |  | |
-| 5.7 | Auditor declines a case | Case returned to queue; Auditor exposure not incremented |  | |
+| 5.7 | Auditor declines a case | Case routes to the Manager's Reassignment Queue (never auto-reassigned); the Manager decides. Auditor exposure not incremented by the decline itself |  | Updated 8 Oct 2026 to AR-DF-02 / CV-07; was "returned to queue" |
 | 5.8 | Auditor triggers SOS during review | SOS recorded; Manager notified; case handling paused |  | |
 
 ---
@@ -136,8 +136,55 @@
 
 ---
 
+## 12. CommunityHub Case Result Handoff
+
+Results: "Pass (automated)" names the test that proves it; "Not run" still needs a manual pass.
+
+| # | Scenario | Expected behaviour | Result | Notes |
+|---|---|---|---|---|
+| 12.1 | Auditor completes a case | Exactly one delivery is created (`DEL-<case>`), status PENDING; no Manager approval | Pass (automated) | `test_final_decision_queues_one_delivery_that_the_public_sees_only_once_delivered` |
+| 12.2 | CommunityHub endpoint unavailable | 3 automatic attempts, then NEEDS_ATTENTION in the Manager's exception queue | Pass (automated) | `test_failed_delivery_retries_automatically_then_waits_for_the_manager` |
+| 12.3 | Delivery fails | Moderation status stays COMPLETE; a failed delivery never reopens the case | Pass (automated) | same test |
+| 12.4 | Manager retries a failed delivery | Same `delivery_id` is reused (idempotency); a second retry after success adds no attempt | Pass (automated) | same test |
+| 12.5 | Retry or escalate without a note | Escalation without a note is refused (400) | Pass (automated) | `test_escalation_needs_a_note` |
+| 12.6 | Manager closes a case without reassignment | CommunityHub still receives `CLOSED_NO_REASSIGNMENT`, with no severity | Pass (automated) | `test_closed_without_reassignment_still_tells_the_customer` |
+| 12.7 | Reporter checks status before delivery succeeds | Status says Complete but never claims CommunityHub was notified | Pass (automated) | test in 12.1 (`public_delivery_confirmed`) |
+| 12.8 | CommunityHub answers 2xx without echoing the `delivery_id` | Treated as unverifiable and retried, not SUCCESS | Not testable yet | The CommunityHub endpoint is simulated; needs a real or stubbed HTTP receiver |
+| 12.9 | Delivery failure shown to the Auditor | Never shown: delivery is a Manager concern | Not run | Check `/auditor` and the review screen manually |
+
+---
+
+## 13. Manager Intelligence Dashboard & Evidence
+
+| # | Scenario | Expected behaviour | Result | Notes |
+|---|---|---|---|---|
+| 13.1 | Open cases vs Total − Completed | Open is the current backlog, including cases received before the period | Pass (automated) | `test_intelligence_kpis_follow_the_definitions` |
+| 13.2 | Open-case stages | Each open case is in exactly one stage; stages add up to Open | Pass (automated) | `test_open_breakdown_is_exclusive_and_sums_to_open` |
+| 13.3 | Support requests | Break and talk requests are both counted, with a per-kind breakdown; nobody is named in the payload | Pass (automated) | `test_attention_counts_support_requests_of_both_kinds`, `test_intelligence_never_names_an_auditor` |
+| 13.4 | Fewer than 3 completed cases | Median decision time isn't stated | Pass (automated) | `test_timing_and_delivery_figures` |
+| 13.5 | Pending / retrying deliveries | Not counted as failures in the success rate | Pass (automated) | same test |
+| 13.6 | More than 200 contributing records | Evidence lists 200 case IDs and says the list was cut | Pass (automated) | `test_evidence_lists_at_most_two_hundred_case_ids` |
+| 13.7 | Auditor or client token on `/api/manager/intelligence` | 403 / 401; bad period 400; unknown organisation 404 | Pass (automated) | `test_intelligence_requires_a_manager_and_a_valid_period` |
+| 13.8 | New SOS while the dashboard is open | Appears within 30 seconds without a reload | Not run | Needs two sessions |
+| 13.9 | Period with no cases | Every widget shows an empty state, no errors | Not run | Use "Today" before any case is created |
+| 13.10 | Exactly one primary button | Most urgent action is primary; Generate is primary only when nothing is urgent | Pass (automated) | `ManagerPages.test.tsx` |
+| 13.11 | Accessibility | Dashboard and evidence dialog have no axe violations | Pass (automated) | `B2bPages.a11y.test.tsx` |
+
+---
+
+## 14. Client Service Report Evidence & Access
+
+| # | Scenario | Expected behaviour | Result | Notes |
+|---|---|---|---|---|
+| 14.1 | Report generated | Each figure is stored with its definition, source fields, count and case IDs | Pass (automated) | `test_report_snapshot_stores_evidence_for_each_figure` |
+| 14.2 | New cases after release | Released v1 is byte-identical; regenerating makes v2 | Pass (automated) | `test_released_report_evidence_never_changes` |
+| 14.3 | Client views or lists a report | Definitions and counts, never contributing case IDs | Pass (automated) | `test_client_report_keeps_definitions_but_never_lists_case_ids` |
+| 14.4 | Client opens a draft, another organisation's or a missing report | All look identical ("not found") and each is logged as DENIED | Pass (automated) | `test_client_sees_only_released_reports_for_their_organisation` |
+
+---
+
 ## Notes
 
 - Concurrent scenarios (5.1, 6.5, 7.x) require two separate browser sessions or API clients to test properly.
 - Items in section 10 should be re-tested any time a new role or route is added.
-- This checklist covers core RCS flows only. CommunityHub Handoff edge cases (delivery failure, duplicate POST, idempotency) will be added when that feature is implemented.
+- Sections 12–14 cover the CommunityHub handoff, the Manager Intelligence Dashboard and client report evidence (added 8 Oct 2026).

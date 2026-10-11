@@ -19,7 +19,7 @@ export function Section({
   const Tag = as;
   const headingId = id ? `${id}-heading` : undefined;
   return (
-    <Tag className="rcs-section" aria-labelledby={title ? headingId : undefined}>
+    <Tag id={id} className="rcs-section" aria-labelledby={title ? headingId : undefined}>
       {(title || actions) && (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">

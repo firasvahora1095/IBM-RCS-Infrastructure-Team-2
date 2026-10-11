@@ -10,12 +10,24 @@ interface StaffQuery<T> {
   reload: () => void;
 }
 
+interface StaffQueryOptions {
+  /**
+   * Reloads quietly on this interval while the tab is visible, keeping the
+   * current data on screen, so a new SOS or cooldown shows up without a reload.
+   */
+  refreshMs?: number;
+}
+
 /**
  * Loads data for a staff page with the signed-in token. An expired session on
  * load sends the user to login (there is no unsaved work yet); any other
  * failure becomes a readable message. `key` reloads when it changes.
  */
-export function useStaffQuery<T>(load: (token: string) => Promise<T>, key: string = ""): StaffQuery<T> {
+export function useStaffQuery<T>(
+  load: (token: string) => Promise<T>,
+  key: string = "",
+  { refreshMs }: StaffQueryOptions = {},
+): StaffQuery<T> {
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
   const [data, setData] = useState<T | null>(null);
@@ -47,5 +59,14 @@ export function useStaffQuery<T>(load: (token: string) => Promise<T>, key: strin
   }, [token, key, version, handleSessionExpiry]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
+
+  useEffect(() => {
+    if (!refreshMs) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) setVersion((v) => v + 1);
+    }, refreshMs);
+    return () => window.clearInterval(id);
+  }, [refreshMs]);
+
   return { data, error, reload };
 }

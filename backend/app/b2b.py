@@ -17,14 +17,16 @@ simulated endpoint. Attempts that have fallen due run whenever deliveries are
 read, so progress is visible without a background worker.
 """
 
+from typing import Literal
+import os
 import random
 import re
 import statistics
 from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import Query, Response, APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -32,6 +34,8 @@ from app.api_schemas import StaffRole
 from app.auth import DUMMY_PASSWORD_HASH, SessionStore, StaffSession, session_store, verify_password
 from app.db import get_db
 from app.models import (
+    Auditor,
+    AuditLog,
     Case,
     CaseHistory,
     CaseSource,
@@ -45,6 +49,7 @@ from app.models import (
 )
 from app.rate_limit import InvalidLookupRateLimiter
 from app.severity import get_severity_tier
+from app.support import open_support_request_counts, unresolved_sos_auditors
 
 
 COMMUNITYHUB_ID = "COMMUNITYHUB"
@@ -326,6 +331,10 @@ def _find_organisation(db: Session, organisation_id: str) -> Organisation:
 def _records(db: Session) -> list[dict]:
     history = [
         {
+            "case_id": h.case_id,
+            "live": False,
+            "status": "COMPLETE",
+            "flag": None,
             "created": utc(h.created_at),
             "completed": utc(h.completed_at),
             "ai_tier": h.ai_tier,
@@ -337,6 +346,10 @@ def _records(db: Session) -> list[dict]:
     ]
     live = [
         {
+            "case_id": c.case_id,
+            "live": True,
+            "status": c.status,
+            "flag": c.manager_flag,
             "created": utc(c.created_at),
             "completed": utc(c.completed_at) if c.status == "COMPLETE" else None,
             "ai_tier": c.severity_tier,
@@ -350,8 +363,82 @@ def _records(db: Session) -> list[dict]:
     return history + live
 
 
-def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
-    """Aggregate figures for one period, calculated only from stored records."""
+# What each report figure counts, frozen into the report with its evidence
+# (Sprint 3 extras S6.2, S6.5). Same wording as the report sheet's definitions.
+REPORT_EVIDENCE = {
+    "cases_received": (
+        "Reports received",
+        "Reports submitted to RCS for this customer during the period.",
+        ["cases.created_at", "case_history.created_at", "organisation_id"],
+    ),
+    "cases_completed": (
+        "Cases completed",
+        "Cases with a final human decision recorded during the period.",
+        ["cases.status", "cases.completed_at", "case_history.completed_at", "organisation_id"],
+    ),
+    "open_at_end": (
+        "Open at end of period",
+        "Cases received on or before the last day of the period that weren't complete by then.",
+        ["cases.created_at", "cases.completed_at", "cases.status"],
+    ),
+    "outcomes": (
+        "Moderation outcomes",
+        "The Auditor's final outcome for each case completed in the period.",
+        ["cases.final_outcome", "case_history.outcome", "cases.completed_at"],
+    ),
+    "severity": (
+        "Final severity",
+        "The final severity after human review: the Auditor's rating where they changed it, "
+        "otherwise the AI rating they confirmed.",
+        ["cases.auditor_severity_score", "cases.severity_tier", "case_history.final_tier"],
+    ),
+    "overrides": (
+        "Severity changed after human review",
+        "Completed cases where the final human severity differs from the AI's initial severity, "
+        "out of decided cases that have both.",
+        ["cases.severity_tier", "cases.auditor_severity_score", "case_history.ai_tier", "case_history.final_tier"],
+    ),
+    "workflow": (
+        "Declined and reassigned",
+        "Completed cases that were declined by one reviewer and decided by another.",
+        ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
+    ),
+    "delivery": (
+        "Delivery to CommunityHub",
+        "Results sent to CommunityHub for cases completed in the period, by delivery status.",
+        ["deliveries.delivery_status", "deliveries.completed_at", "deliveries.organisation_id"],
+    ),
+}
+
+
+def evidence_entry(
+    title: str,
+    definition: str,
+    source_fields: list[str],
+    ids: list[str],
+    now: datetime,
+    *,
+    eligible: int | None = None,
+    included: int | None = None,
+) -> dict:
+    """How a figure was calculated: the definition, the fields read and the records counted."""
+    ordered = sorted(ids)
+    return {
+        "title": title,
+        "definition": definition,
+        "source_fields": source_fields,
+        "records_included": len(ordered) if included is None else included,
+        "records_eligible": eligible,
+        "calculated_at": iso(now),
+        "case_ids": ordered[:EVIDENCE_CASE_ID_CAP],
+        "case_ids_truncated": len(ordered) > EVIDENCE_CASE_ID_CAP,
+    }
+
+
+def compute_metrics(db: Session, period_start: str, period_end: str, now: datetime | None = None) -> dict:
+    """Aggregate figures for one period, calculated only from stored records, with the
+    evidence behind each one so a report snapshot keeps how it was calculated."""
+    now = now or datetime.now(timezone.utc)
     start, end = period_bounds(period_start, period_end)
     records = _records(db)
 
@@ -365,7 +452,15 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
         if r["final_tier"] in severity:
             severity[r["final_tier"]] += 1
     comparable = [r for r in decided if r["ai_tier"] and r["final_tier"]]
-    overrides = sum(1 for r in comparable if r["ai_tier"] != r["final_tier"])
+    overridden = [r for r in comparable if r["ai_tier"] != r["final_tier"]]
+    overrides = len(overridden)
+    received = [r for r in records if in_period(r["created"])]
+    open_at_end = [
+        r
+        for r in records
+        if r["created"] is not None and r["created"] <= end and (r["completed"] is None or r["completed"] > end)
+    ]
+    declined = [r for r in completed if r["declined"]]
     minutes = [
         (r["completed"] - r["created"]).total_seconds() / 60
         for r in completed
@@ -374,16 +469,15 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
     deliveries = [
         d for d in db.scalars(select(Delivery)).all() if in_period(utc(d.completed_at))
     ]
+    def evidence(key: str, rows: list, **counts) -> dict:
+        title, definition, fields = REPORT_EVIDENCE[key]
+        ids = [r["case_id"] if isinstance(r, dict) else r.case_id for r in rows]
+        return evidence_entry(title, definition, fields, ids, now, **counts)
+
     return {
-        "cases_received": sum(1 for r in records if in_period(r["created"])),
+        "cases_received": len(received),
         "cases_completed": len(completed),
-        "open_at_end": sum(
-            1
-            for r in records
-            if r["created"] is not None
-            and r["created"] <= end
-            and (r["completed"] is None or r["completed"] > end)
-        ),
+        "open_at_end": len(open_at_end),
         "violation_count": sum(1 for r in decided if r["outcome"] == "POLICY_VIOLATION_FOUND"),
         "no_violation_count": sum(1 for r in decided if r["outcome"] == "NO_VIOLATION_FOUND"),
         "severity_breakdown": severity,
@@ -392,8 +486,295 @@ def compute_metrics(db: Session, period_start: str, period_end: str) -> dict:
         ),
         "override_count": overrides,
         "override_rate": overrides / len(comparable) if comparable else 0,
-        "declined_reassigned": sum(1 for r in completed if r["declined"]),
+        "declined_reassigned": len(declined),
         "delivery": delivery_health(deliveries),
+        "evidence": {
+            "cases_received": evidence("cases_received", received),
+            "cases_completed": evidence("cases_completed", completed),
+            "open_at_end": evidence("open_at_end", open_at_end),
+            "outcomes": evidence("outcomes", decided),
+            "severity": evidence("severity", [r for r in decided if r["final_tier"] in TIERS]),
+            "overrides": evidence("overrides", overridden, eligible=len(comparable)),
+            "workflow": evidence("workflow", declined),
+            "delivery": evidence("delivery", deliveries),
+        },
+    }
+
+
+# ---- Manager intelligence (Sprint 3 extras S1) ----------------------------
+#
+# Every dashboard figure comes with its evidence: the definition, the stored
+# fields it reads and the records it counted, so a value never appears from
+# thin air. Mirrors frontend/src/services/mock/intelligence.ts.
+
+EVIDENCE_CASE_ID_CAP = 200
+OPEN_BUCKETS = ("SUBMITTED", "AI_PROCESSING", "READY_FOR_REVIEW", "AUDITOR_REVIEW", "MANAGER_ACTION")
+# A case with one of these flags is waiting for the Manager, not an Auditor.
+MANAGER_FLAGS = {"DECLINED", "CAP_REACHED", "SOS"}
+MAX_FAILED_LISTED = 5
+
+DEFINITIONS = {
+    "total_cases": "Reports received by RCS during the selected period.",
+    "completed": "Cases that reached Complete during the selected period.",
+    "open_cases": (
+        "Cases that haven't reached Complete yet, including cases received before the period. "
+        "This is the current backlog, so it isn't Total minus Completed."
+    ),
+    "needs_manager_action": (
+        "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases "
+        "interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic "
+        "retries, and support requests (a break to approve or a request to talk) waiting for a reply. "
+        "SOS and support requests concern people, so they are counted here and named only in each Auditor's record."
+    ),
+    "case_flow": (
+        "Current open cases by workflow stage. A case waiting for a Manager decision counts only there. "
+        "Median decision time is the middle value of time from report to final decision for cases completed "
+        "in the period."
+    ),
+    "outcomes": "The Auditor's final outcome for each case decided during the period.",
+    "severity": (
+        "The final severity after human review for cases decided during the period: the Auditor's rating "
+        "where they changed it, otherwise the AI rating they confirmed."
+    ),
+    "override_rate": (
+        "Decided cases in the period where the final Auditor severity differs from the original AI severity, "
+        "divided by all decided cases that have both. Operational disagreement, not model accuracy."
+    ),
+    "delivery_success_rate": (
+        "Results for cases completed in the period that CommunityHub acknowledged, divided by those that were "
+        "acknowledged or failed after automatic retries. Pending and retrying results aren't counted as failures."
+    ),
+    "protection": (
+        "Each Auditor's exposure today against their own limit, cooldown and the cases they are carrying. "
+        "Ordered by protection need, never by productivity."
+    ),
+}
+
+SOURCE_FIELDS = {
+    "total_cases": ["cases.created_at", "case_history.created_at", "organisation_id"],
+    "completed": ["cases.status", "cases.completed_at", "case_history.completed_at", "organisation_id"],
+    "open_cases": ["cases.status", "cases.manager_flag"],
+    "needs_manager_action": [
+        "auditors.cooldown_trigger",
+        "auditors.cooldown_check_in_done",
+        "cases.manager_flag",
+        "deliveries.delivery_status",
+        "wellbeing_requests.kind",
+        "wellbeing_requests.status",
+    ],
+    "case_flow": ["cases.status", "cases.manager_flag", "cases.created_at", "cases.completed_at"],
+    "outcomes": ["cases.final_outcome", "cases.completed_at", "case_history.outcome"],
+    "severity": ["cases.auditor_severity_score", "cases.severity_tier", "case_history.final_tier"],
+    "override_rate": [
+        "cases.severity_tier",
+        "cases.auditor_severity_score",
+        "case_history.ai_tier",
+        "case_history.final_tier",
+        "cases.completed_at",
+    ],
+    "delivery_success_rate": ["deliveries.delivery_status", "deliveries.completed_at", "deliveries.organisation_id"],
+    "protection": [
+        "auditors.exposure_minutes",
+        "auditors.exposure_limit_minutes",
+        "auditors.cooldown_ends_at",
+        "cases.assigned_auditor_id",
+    ],
+}
+
+TITLES = {
+    "total_cases": "Total cases",
+    "completed": "Completed",
+    "open_cases": "Open cases",
+    "needs_manager_action": "Needs manager action",
+    "case_flow": "Case flow",
+    "outcomes": "Moderation outcomes",
+    "severity": "Final severity",
+    "override_rate": "AI–Auditor override rate",
+    "delivery_success_rate": "Delivery success rate",
+    "protection": "Auditor protection",
+}
+
+
+def provenance() -> str:
+    """Every deployment of this prototype is seeded, so figures are demo data unless switched off."""
+    return "LIVE" if os.getenv("RCS_DEMO_DATA", "1") == "0" else "DEMO"
+
+
+def _evidence(key: str, ids: list[str], now: datetime, *, eligible: int | None = None, included: int | None = None) -> dict:
+    return evidence_entry(
+        TITLES[key], DEFINITIONS[key], SOURCE_FIELDS[key], ids, now, eligible=eligible, included=included
+    )
+
+
+def _open_bucket(record: dict) -> str:
+    if record["flag"] in MANAGER_FLAGS:
+        return "MANAGER_ACTION"
+    return record["status"] if record["status"] in OPEN_BUCKETS else "SUBMITTED"
+
+
+def compute_intelligence(db: Session, org: Organisation, period_start: str, period_end: str, now: datetime) -> dict:
+    """The Manager Intelligence Dashboard: six widgets and the evidence behind each figure."""
+    start, end = period_bounds(period_start, period_end)
+
+    def in_period(moment: datetime | None) -> bool:
+        return moment is not None and start <= moment <= end
+
+    records = _records(db)
+    received = [r for r in records if in_period(r["created"])]
+    completed = [r for r in records if in_period(r["completed"])]
+    open_live = [r for r in records if r["live"] and r["status"] != "COMPLETE"]
+
+    breakdown = {bucket: 0 for bucket in OPEN_BUCKETS}
+    for r in open_live:
+        breakdown[_open_bucket(r)] += 1
+
+    # Needs attention: only items that need the Manager to act.
+    declined = [r for r in open_live if r["flag"] == "DECLINED"]
+    capped = [r for r in open_live if r["flag"] == "CAP_REACHED"]
+    deliveries = list(
+        db.scalars(select(Delivery).where(Delivery.organisation_id == org.organisation_id)).all()
+    )
+    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION"]
+    support = open_support_request_counts(db)
+    attention = [
+        {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
+        {"kind": "SUPPORT_REQUEST", "count": support["break_requests"] + support["talk_requests"]},
+        {"kind": "REASSIGNMENT", "count": len(declined)},
+        {"kind": "CAP_INTERRUPTED", "count": len(capped)},
+        {"kind": "FAILED_HANDOFF", "count": len(failed)},
+    ]
+    needs_action = sum(item["count"] for item in attention)
+
+    # Timing
+    minutes = [
+        (r["completed"] - r["created"]).total_seconds() / 60
+        for r in completed
+        if r["created"] is not None and r["completed"] >= r["created"]
+    ]
+    oldest = min((r for r in open_live if r["created"] is not None), key=lambda r: r["created"], default=None)
+
+    # Outcomes and AI–Auditor comparison, over cases decided in the period
+    decided = [r for r in completed if r["outcome"] in DECIDED_OUTCOMES]
+    severity = {tier: 0 for tier in TIERS}
+    for r in decided:
+        if r["final_tier"] in severity:
+            severity[r["final_tier"]] += 1
+    comparable = [r for r in decided if r["ai_tier"] in TIERS and r["final_tier"] in TIERS]
+    matrix = {ai: {final: 0 for final in TIERS} for ai in TIERS}
+    for r in comparable:
+        matrix[r["ai_tier"]][r["final_tier"]] += 1
+    overridden = [r for r in comparable if r["ai_tier"] != r["final_tier"]]
+    transitions = sorted(
+        (
+            {"from": ai, "to": final, "count": matrix[ai][final]}
+            for ai in TIERS
+            for final in TIERS
+            if ai != final and matrix[ai][final] > 0
+        ),
+        key=lambda t: (-t["count"], t["from"], t["to"]),
+    )
+
+    # Delivery health for results of cases completed in the period
+    period_deliveries = [d for d in deliveries if in_period(utc(d.completed_at))]
+    health = delivery_health(period_deliveries)
+    finished = health["success"] + health["needs_attention"]
+    failed_attempts = [
+        datetime.fromisoformat(a["at"])
+        for d in deliveries
+        for a in (d.attempts or [])
+        if a.get("result") == "FAILED" and a.get("at")
+    ]
+
+    def last_attempt(d: Delivery) -> str | None:
+        attempts = d.attempts or []
+        return attempts[-1]["at"] if attempts else None
+
+    failed_rows = sorted(
+        (
+            {
+                "delivery_id": d.delivery_id,
+                "case_id": d.case_id,
+                "attempts": len(d.attempts or []),
+                "reason": d.failure_reason,
+                "last_attempt_at": last_attempt(d),
+            }
+            for d in failed
+        ),
+        key=lambda row: row["last_attempt_at"] or "",
+        reverse=True,
+    )[:MAX_FAILED_LISTED]
+
+    auditor_count = len(db.scalars(select(Auditor).where(Auditor.role == "auditor")).all())
+
+    def ids(rows: list[dict]) -> list[str]:
+        return [r["case_id"] for r in rows]
+
+    return {
+        "organisation_id": org.organisation_id,
+        "organisation_name": org.name,
+        "period_start": period_start,
+        "period_end": period_end,
+        "calculated_at": iso(now),
+        "provenance": provenance(),
+        "kpis": {
+            "total_cases": len(received),
+            "completed": len(completed),
+            "open_cases": len(open_live),
+            "needs_manager_action": needs_action,
+        },
+        "open_breakdown": breakdown,
+        "attention": attention,
+        "support_requests": support,
+        "flow": {
+            "median_decision_minutes": (
+                round(statistics.median(minutes)) if len(minutes) >= MIN_CASES_FOR_MEDIAN else None
+            ),
+            "oldest_unresolved_minutes": (
+                round((now - oldest["created"]).total_seconds() / 60) if oldest else None
+            ),
+            "oldest_unresolved_case_id": oldest["case_id"] if oldest else None,
+        },
+        "outcomes": {
+            "violation": sum(1 for r in decided if r["outcome"] == "POLICY_VIOLATION_FOUND"),
+            "no_violation": sum(1 for r in decided if r["outcome"] == "NO_VIOLATION_FOUND"),
+            "severity": severity,
+            "open_client_cases": len(open_live),
+        },
+        "comparison": {
+            "eligible": len(comparable),
+            "overrides": len(overridden),
+            "override_rate": len(overridden) / len(comparable) if comparable else 0,
+            "matrix": matrix,
+            "top_transition": transitions[0] if transitions else None,
+        },
+        "delivery": {
+            "health": health,
+            "success_rate": health["success"] / finished if finished else None,
+            "last_failed_at": iso(max(failed_attempts)) if failed_attempts else None,
+            "failed": failed_rows,
+        },
+        "evidence": {
+            "total_cases": _evidence("total_cases", ids(received), now),
+            "completed": _evidence("completed", ids(completed), now),
+            "open_cases": _evidence("open_cases", ids(open_live), now),
+            "needs_manager_action": _evidence(
+                "needs_manager_action",
+                ids(declined) + ids(capped) + [d.case_id for d in failed],
+                now,
+                included=needs_action,
+            ),
+            "case_flow": _evidence("case_flow", ids(open_live), now),
+            "outcomes": _evidence("outcomes", ids(decided), now),
+            "severity": _evidence("severity", ids([r for r in decided if r["final_tier"] in TIERS]), now),
+            "override_rate": _evidence("override_rate", ids(overridden), now, eligible=len(comparable)),
+            "delivery_success_rate": _evidence(
+                "delivery_success_rate",
+                [d.case_id for d in period_deliveries if d.delivery_status == "SUCCESS"],
+                now,
+                eligible=finished,
+            ),
+            "protection": _evidence("protection", [], now, included=auditor_count),
+        },
     }
 
 
@@ -412,8 +793,20 @@ def _report_payload(db: Session, report: ServiceReport, *, for_client: bool = Fa
         # A client never sees staff names.
         "released_by": "RCS" if for_client else report.released_by,
         "manager_note": report.manager_note,
-        "metrics": report.metrics,
+        "metrics": _client_safe_metrics(report.metrics) if for_client else report.metrics,
     }
+
+
+def _client_safe_metrics(metrics: dict) -> dict:
+    """A client sees how each figure was calculated and how many records it covers, but
+    never the contributing case IDs (decision D6). The stored snapshot is untouched."""
+    safe = dict(metrics)
+    if isinstance(metrics.get("evidence"), dict):
+        safe["evidence"] = {
+            key: {**entry, "case_ids": [], "case_ids_truncated": False}
+            for key, entry in metrics["evidence"].items()
+        }
+    return safe
 
 
 def _find_report(db: Session, report_id: str) -> ServiceReport:
@@ -594,6 +987,37 @@ async def escalate_delivery(
 # ---- Manager: reports -----------------------------------------------------
 
 
+def validate_period(period_start: str, period_end: str) -> None:
+    """Both ends are yyyy-mm-dd dates and the period doesn't run backwards."""
+    try:
+        valid = bool(
+            ISO_DATE.match(period_start)
+            and ISO_DATE.match(period_end)
+            and date.fromisoformat(period_start) <= date.fromisoformat(period_end)
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=400, detail="Choose a valid reporting period.")
+
+
+@router.get("/api/manager/intelligence")
+async def get_intelligence(
+    organisation_id: str,
+    period_start: str,
+    period_end: str,
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    validate_period(period_start, period_end)
+    org = _find_organisation(db, organisation_id)
+    now = datetime.now(timezone.utc)
+    advance_deliveries(db, now)
+    result = compute_intelligence(db, org, period_start, period_end, now)
+    db.commit()  # keeps any delivery attempts that just fell due
+    return result
+
+
 @router.get("/api/manager/reports")
 async def list_reports(
     _: StaffSession = Depends(require_manager),
@@ -610,20 +1034,11 @@ async def generate_report(
     db: Session = Depends(get_db),
 ):
     start, end = payload.period_start, payload.period_end
-    try:
-        valid = bool(
-            ISO_DATE.match(start)
-            and ISO_DATE.match(end)
-            and date.fromisoformat(start) <= date.fromisoformat(end)
-        )
-    except ValueError:
-        valid = False
-    if not valid:
-        raise HTTPException(status_code=400, detail="Choose a valid reporting period.")
+    validate_period(start, end)
     org = _find_organisation(db, payload.organisation_id)
     now = datetime.now(timezone.utc)
     advance_deliveries(db, now)
-    metrics = compute_metrics(db, start, end)
+    metrics = compute_metrics(db, start, end, now)
     same_period = db.scalars(
         select(ServiceReport).where(
             ServiceReport.organisation_id == org.organisation_id,
@@ -727,23 +1142,68 @@ async def list_report_access(
 # ---- Manager: governance log ---------------------------------------------
 
 
-def _override_patterns(db: Session) -> tuple[list[dict], int]:
-    pairs = [(h.ai_tier, h.final_tier) for h in db.scalars(select(CaseHistory)).all()]
-    pairs += [
-        (c.severity_tier, final_tier_of(c))
-        for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all()
-        if c.severity_tier and final_tier_of(c)
-    ]
-    pairs = [(a, f) for a, f in pairs if a and f]
+MAX_COMPARISONS = 200
+
+
+def comparison_rows(db: Session) -> list[dict]:
+    """AI vs Auditor, one row per decided case, newest decision first (Validation & Audit, section B).
+
+    Cases a Manager closed without a decision are left out: there is no human
+    severity to compare. Older cases keep tiers only; scores are never invented.
+    No Auditor is named: a difference isn't a verdict on anyone.
+    """
+    rows: list[dict] = []
+    for h in db.scalars(select(CaseHistory)).all():
+        if h.ai_tier and h.final_tier:
+            rows.append({
+                "case_id": h.case_id,
+                "ai_tier": h.ai_tier,
+                "final_tier": h.final_tier,
+                "override": h.ai_tier != h.final_tier,
+                "ai_score": None,
+                "auditor_score": None,
+                "score_delta": None,
+                "override_reason": None,
+                "decided_at": iso(h.completed_at),
+                "provenance": "legacy",
+            })
+    for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all():
+        final_tier = final_tier_of(c)
+        if c.final_outcome not in DECIDED_OUTCOMES or not c.severity_tier or not final_tier:
+            continue
+        override = c.severity_tier != final_tier or (c.auditor_severity_score is not None and c.effective_severity_score is not None and c.auditor_severity_score != c.effective_severity_score)
+        ai_score = c.effective_severity_score
+        auditor_score = c.auditor_severity_score if c.auditor_severity_score is not None else ai_score if c.ai_auditor_comparison or db.scalar(select(AuditLog.audit_log_id).where(AuditLog.case_id == c.case_id, AuditLog.action == "CASE_RESOLVED").limit(1)) else None
+        snapshot = c.ai_auditor_comparison
+        rows.append({
+            "case_id": c.case_id,
+            "ai_tier": snapshot["ai_tier"] if snapshot else c.severity_tier,
+            "final_tier": snapshot["auditor_tier"] if snapshot else final_tier,
+            "override": snapshot["override"] if snapshot else override,
+            "ai_score": snapshot["ai_score"] if snapshot else ai_score,
+            "auditor_score": snapshot["auditor_score"] if snapshot else auditor_score,
+            "score_delta": snapshot["score_delta"] if snapshot else (auditor_score - ai_score) if ai_score is not None and auditor_score is not None else None,
+            "override_reason": snapshot["override_reason"] if snapshot else c.auditor_comment if override else None,
+            "decided_at": snapshot["compared_at"] if snapshot else iso(c.completed_at),
+            "analysis_run_id": snapshot.get("run_id") if snapshot else None,
+            "provenance": "live" if snapshot and snapshot.get("run_id") else "legacy",
+            "auditor_score_provenance": snapshot.get("auditor_score_provenance") if snapshot else "UNAVAILABLE" if auditor_score is None else "LEGACY_ACCEPTED_AI" if c.auditor_severity_score is None else "EXPLICIT",
+        })
+    return sorted(rows, key=lambda r: r["decided_at"] or "", reverse=True)
+
+
+def _override_patterns(db: Session) -> tuple[list[dict], int, list[dict]]:
+    rows = comparison_rows(db)
     counts: dict[tuple[str, str], int] = {}
-    for ai_tier, final_tier in pairs:
-        if ai_tier != final_tier:
-            counts[(ai_tier, final_tier)] = counts.get((ai_tier, final_tier), 0) + 1
+    for r in rows:
+        if r["override"]:
+            key = (r["ai_tier"], r["final_tier"])
+            counts[key] = counts.get(key, 0) + 1
     patterns = [
         {"from": ai_tier, "to": final_tier, "count": count}
         for (ai_tier, final_tier), count in sorted(counts.items(), key=lambda item: -item[1])
     ]
-    return patterns, len(pairs)
+    return patterns, len(rows), rows[:MAX_COMPARISONS]
 
 
 def _average(values: list[float]) -> float:
@@ -752,42 +1212,27 @@ def _average(values: list[float]) -> float:
 
 @router.get("/api/manager/governance")
 async def get_governance_summary(
+    response: Response,
     _: StaffSession = Depends(require_manager),
     db: Session = Depends(get_db),
+    case_id: str | None = Query(default=None, max_length=20),
+    context: Literal["live", "test", "demo"] = "live",
+    leakage: Literal["NOT_CHECKED", "NOT_DETECTED", "DETECTED"] | None = None,
+    from_at: AwareDatetime | None = None,
+    to_at: AwareDatetime | None = None,
+    before: str | None = Query(default=None, max_length=36),
+    limit: int = Query(default=25, ge=1, le=100),
+    ai_tier: Literal["S1", "S2", "S3", "S4"] | None = None,
+    auditor_tier: Literal["S1", "S2", "S3", "S4"] | None = None,
+    override: bool | None = None,
+    comparison_offset: int = Query(default=0, ge=0),
 ):
-    rows = db.scalars(select(GovernanceLogEntry).order_by(GovernanceLogEntry.at.desc())).all()
-    ok = [r for r in rows if r.success]
-    patterns, compared = _override_patterns(db)
-    return {
-        "is_placeholder": True,
-        "rows": [
-            {
-                "entry_id": r.entry_id,
-                "case_id": r.case_id,
-                "at": iso(r.at),
-                "model_id": r.model_id,
-                "model_version": r.model_version,
-                "prompt_version": r.prompt_version,
-                "success": bool(r.success),
-                "prompt_leakage": r.prompt_leakage,
-                "source_attribution": r.source_attribution,
-                "accumulated_score": r.accumulated_score,
-                "tokens_in": r.tokens_in,
-                "tokens_out": r.tokens_out,
-                "reasoning": r.reasoning,
-            }
-            for r in rows
-        ],
-        "averages": {
-            "prompt_leakage": _average([r.prompt_leakage for r in ok]),
-            "source_attribution": _average([r.source_attribution for r in ok]),
-            "accumulated_score": _average([r.accumulated_score for r in ok]),
-        },
-        "total_calls": len(rows),
-        "failed_calls": len(rows) - len(ok),
-        "override_patterns": patterns,
-        "compared_cases": compared,
-    }
+    from app.governance_views import summary
+    response.headers["Cache-Control"] = "no-store"
+    return summary(db, comparison_rows(db), case_id=case_id, context=context, leakage=leakage,
+                   from_at=from_at, to_at=to_at, before=before, limit=limit,
+                   ai_tier=ai_tier, auditor_tier=auditor_tier, override=override,
+                   comparison_offset=comparison_offset)
 
 
 # ---- CommunityHub authorised user ----------------------------------------

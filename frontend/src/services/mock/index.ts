@@ -353,6 +353,10 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
     exposure_state: exposureState(staff),
     cooldown: inCooldown(staff) ? staff.cooldown : null,
     cases_today: completedToday(db, staff.staff_id).length,
+    // The cases they are carrying; cases handed to the Manager aren't theirs to work on.
+    active_case_count: db.cases.filter(
+      (c) => c.assigned_auditor === staff.staff_id && c.status !== "COMPLETE" && c.manager_flag === null,
+    ).length,
     open_sos: db.sosEvents.some((e) => e.auditor_id === staff.staff_id && !e.resolved_at),
     open_requests: {
       break_requests: db.wellbeingRequests.filter(

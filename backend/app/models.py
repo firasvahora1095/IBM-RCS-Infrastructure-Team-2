@@ -141,6 +141,8 @@ class Case(Base):
         server_default=func.now(),
     )
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    analysis_run_id = Column(String(36), nullable=True)
+    ai_auditor_comparison = Column(JSON_DOCUMENT, nullable=True)
 
 
 class AuditLog(Base):
@@ -316,24 +318,65 @@ class ClientUser(Base):
     role = Column(String(20), nullable=False, server_default="REPORTS")
 
 
+class AnalysisRun(Base):
+    """Immutable identity and versioned assessment for one analysis attempt."""
+    __tablename__ = "analysis_runs"
+    run_id = Column(String(36), primary_key=True)
+    case_id = Column(String(20), ForeignKey("cases.case_id", ondelete="RESTRICT"), nullable=True, index=True)
+    context = Column(String(10), nullable=False)
+    subject_reference = Column(String(100), nullable=False)
+    status = Column(String(30), nullable=False, server_default="STARTED")
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    assessment = Column(JSON_DOCUMENT, nullable=True)
+    accumulated_score = Column(Integer, nullable=True)
+    output_reference = Column(Text, nullable=True)
+    failure_stage = Column(String(50), nullable=True)
+    error_type = Column(String(100), nullable=True)
+    __table_args__ = (CheckConstraint("accumulated_score IS NULL OR accumulated_score BETWEEN 0 AND 100", name="ck_run_score"),)
+
+
 class GovernanceLogEntry(Base):
-    """One logged watsonx.ai call in the simplified governance log."""
-
+    """A durable SDK invocation; legacy demo metrics never become real findings."""
     __tablename__ = "governance_log"
-
-    entry_id = Column(String(20), primary_key=True)
-    case_id = Column(String(20), nullable=False)
-    at = Column(DateTime(timezone=True), nullable=False)
+    entry_id = Column(String(36), primary_key=True)
+    case_id = Column(String(20), nullable=True, index=True)
+    run_id = Column(String(36), ForeignKey("analysis_runs.run_id", ondelete="RESTRICT"), nullable=True, index=True)
+    schema_version = Column(Integer, nullable=False, server_default="2")
+    context = Column(String(10), nullable=False, server_default="live")
+    at = Column(DateTime(timezone=True), nullable=False, index=True)
+    received_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
     model_id = Column(String(100), nullable=False)
-    model_version = Column(String(30), nullable=False)
+    returned_model_id = Column(String(100), nullable=True)
+    model_version = Column(String(100), nullable=True)
     prompt_version = Column(String(50), nullable=False)
-    success = Column(Integer, nullable=False)
-    prompt_leakage = Column(Float, nullable=False)
-    source_attribution = Column(Float, nullable=False)
-    accumulated_score = Column(Float, nullable=False)
-    tokens_in = Column(Integer, nullable=False)
-    tokens_out = Column(Integer, nullable=False)
+    prompt_hash = Column(String(64), nullable=True)
+    success = Column(Integer, nullable=True)
+    outcome = Column(String(30), nullable=False, server_default="STARTED")
+    validation_status = Column(String(30), nullable=False, server_default="NOT_CHECKED")
+    error_type = Column(String(100), nullable=True)
+    frame_num = Column(String(50), nullable=True)
+    source_timestamp = Column(Float, nullable=True)
+    provider_request_id = Column(String(200), nullable=True)
+    receipt_digest = Column(String(64), nullable=True)
+    prompt_leakage_status = Column(String(20), nullable=False, server_default="NOT_CHECKED")
+    prompt_leakage_evidence = Column(JSON_DOCUMENT, nullable=True)
+    leakage_rule_version = Column(String(50), nullable=True)
+    checked_at = Column(DateTime(timezone=True), nullable=True)
+    source_attribution = Column(JSON_DOCUMENT, nullable=True)
+    accumulated_score = Column(Integer, nullable=True)
+    tokens_in = Column(Integer, nullable=True)
+    tokens_out = Column(Integer, nullable=True)
     reasoning = Column(Text, nullable=True)
+    legacy_prompt_leakage = Column(Float, nullable=True)
+    legacy_source_attribution = Column(Float, nullable=True)
+    legacy_accumulated_score = Column(Float, nullable=True)
+    __table_args__ = (
+        CheckConstraint("context IN ('live','test','demo')", name="ck_governance_context"),
+        CheckConstraint("outcome IN ('STARTED','RECEIVED','FAILED','OUTCOME_UNKNOWN','LEGACY_DEMO')", name="ck_governance_outcome"),
+        CheckConstraint("prompt_leakage_status IN ('NOT_CHECKED','NOT_DETECTED','DETECTED')", name="ck_governance_leakage"),
+    )
 
 
 class WellbeingRequest(Base):

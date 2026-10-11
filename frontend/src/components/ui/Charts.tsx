@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link as RouterLink } from "react-router-dom";
 
 /**
  * Hand-built, token-coloured charts (no chart dependency, matching the
@@ -46,6 +47,8 @@ export interface Segment {
   color: string;
   /** Adds a stripe so adjacent segments differ by pattern as well as colour. */
   striped?: boolean;
+  /** Makes the legend entry a link, e.g. to the matching filtered list. */
+  to?: string;
 }
 
 /** A single 100% stacked bar with a text legend that carries every value. */
@@ -88,7 +91,13 @@ export function SegmentedBar({ segments, label, height = 12 }: { segments: Segme
                     : undefined,
                 }}
               />
-              <span>{s.label}</span>
+              {s.to ? (
+                <RouterLink to={s.to} className="cds--link" aria-label={`${s.label}: ${s.value}`}>
+                  {s.label}
+                </RouterLink>
+              ) : (
+                <span>{s.label}</span>
+              )}
               <span className="rcs-legend-value">{s.value}</span>
             </li>
           ))}

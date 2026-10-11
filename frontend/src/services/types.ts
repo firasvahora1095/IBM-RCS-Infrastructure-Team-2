@@ -112,6 +112,7 @@ export interface TranscriptLine {
 
 /** Response from GET /api/auditor/cases/{case_id}. */
 export interface AuditorCaseDetail {
+  analysis_run_id?: string | null;
   case_id: string;
   status: InternalCaseStatus;
   watson_severity_score: number | null; // raw model score — audit trail only, never shown as "the" score
@@ -180,7 +181,8 @@ export interface CooldownState {
 }
 
 /** AR-DF-03 structured decline reasons, in the adopted order. None is ever pre-selected. */
-export type DeclineReason = "MORE_SEVERE_THAN_AI" | "NEAR_EXPOSURE_LIMIT" | "PERSONAL_TRIGGER" | "OTHER" | "EXPOSURE_CAP_REACHED";
+export type DeclineReason =
+  "MORE_SEVERE_THAN_AI" | "NEAR_EXPOSURE_LIMIT" | "PERSONAL_TRIGGER" | "OTHER" | "EXPOSURE_CAP_REACHED";
 
 /**
  * Exposure measured in the Review Workspace since the last report. Only active
@@ -207,6 +209,8 @@ export interface AuditorOverviewRow {
   exposure_state: ExposureState;
   cooldown: CooldownState | null;
   cases_today: number;
+  /** Open cases the Auditor is carrying; cases handed to the Manager aren't counted. */
+  active_case_count: number;
   /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
   open_sos?: boolean;
   /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
@@ -371,6 +375,9 @@ export interface AuditLogQuery {
   action?: string;
   before_id?: number;
   limit?: number;
+  from_at?: string;
+  to_at?: string;
+  governance_only?: boolean;
 }
 
 // ---- B2B: customer integration, case result handoff, client reports ----
@@ -500,6 +507,121 @@ export interface ReportMetrics {
   override_rate: number;
   declined_reassigned: number;
   delivery: DeliveryHealth;
+  /**
+   * How each figure was calculated, frozen with the snapshot (Sprint 3 extras §6.2, §6.5).
+   * Optional: versions generated before evidence was recorded don't have it. A client
+   * receives the definitions and counts, never the case IDs.
+   */
+  evidence?: Record<ReportEvidenceKey, MetricEvidence>;
+}
+
+export type ReportEvidenceKey =
+  | "cases_received"
+  | "cases_completed"
+  | "open_at_end"
+  | "outcomes"
+  | "severity"
+  | "overrides"
+  | "workflow"
+  | "delivery";
+
+// ---- Manager Intelligence Dashboard (Sprint 3 extras §1) ----
+
+/** Period presets on the dashboard; each becomes an inclusive yyyy-mm-dd range. */
+export type PeriodKey = "today" | "this-week" | "this-month" | "last-month";
+
+/** DEMO while the deployment runs on seeded data (MR-OV-08: never passed off as real results). */
+export type Provenance = "DEMO" | "LIVE";
+
+/** Current open cases by stage. A case waiting for a Manager decision counts only under MANAGER_ACTION. */
+export type OpenBucket = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "MANAGER_ACTION";
+
+/** Items that need the Manager to act. A support request is a break to approve or a request to talk. */
+export type AttentionKind = "SOS" | "SUPPORT_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
+
+export type EvidenceKey =
+  | "total_cases"
+  | "completed"
+  | "open_cases"
+  | "needs_manager_action"
+  | "case_flow"
+  | "outcomes"
+  | "severity"
+  | "override_rate"
+  | "delivery_success_rate"
+  | "protection";
+
+/** Where a figure came from ("How is this calculated?"), so no value appears from thin air (§1.4). */
+export interface MetricEvidence {
+  title: string;
+  definition: string;
+  source_fields: string[];
+  records_included: number;
+  /** The denominator where it differs, e.g. 23 included of 172 eligible. */
+  records_eligible: number | null;
+  calculated_at: string;
+  /** Contributing case IDs, capped at 200. */
+  case_ids: string[];
+  case_ids_truncated: boolean;
+}
+
+export interface IntelligenceQuery {
+  organisationId: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface FailedDeliveryRow {
+  delivery_id: string;
+  case_id: string;
+  attempts: number;
+  reason: string | null;
+  last_attempt_at: string | null;
+}
+
+export interface ManagerIntelligence {
+  organisation_id: string;
+  organisation_name: string;
+  period_start: string;
+  period_end: string;
+  calculated_at: string;
+  provenance: Provenance;
+  kpis: { total_cases: number; completed: number; open_cases: number; needs_manager_action: number };
+  open_breakdown: Record<OpenBucket, number>;
+  /** Always the five kinds, in priority order; a count may be 0. */
+  attention: { kind: AttentionKind; count: number }[];
+  /** Which support requests are waiting, so the Manager knows whether to approve a break or talk. Counted, never attributed. */
+  support_requests: { break_requests: number; talk_requests: number };
+  flow: {
+    median_decision_minutes: number | null;
+    oldest_unresolved_minutes: number | null;
+    oldest_unresolved_case_id: string | null;
+  };
+  outcomes: {
+    violation: number;
+    no_violation: number;
+    severity: Record<SeverityTier, number>;
+    open_client_cases: number;
+  };
+  comparison: {
+    eligible: number;
+    overrides: number;
+    /** 0–1 */
+    override_rate: number;
+    /** matrix[aiTier][finalTier] */
+    matrix: Record<SeverityTier, Record<SeverityTier, number>>;
+    top_transition: { from: SeverityTier; to: SeverityTier; count: number } | null;
+  };
+  delivery: {
+    /** For results of cases completed in the period. */
+    health: DeliveryHealth;
+    /** 0–1; null until a result has been acknowledged or has failed. */
+    success_rate: number | null;
+    last_failed_at: string | null;
+    /** Results waiting for the Manager now, newest first, at most five. */
+    failed: FailedDeliveryRow[];
+  };
+  evidence: Record<EvidenceKey, MetricEvidence>;
 }
 
 export type ReportStatus = "DRAFT" | "RELEASED";
@@ -541,30 +663,111 @@ export interface GovernanceLogRow {
   case_id: string;
   at: string;
   model_id: string;
-  model_version: string;
+  model_version: string | null;
   prompt_version: string;
-  success: boolean;
+  success: boolean | null;
+  schema_version?: number;
+  context?: "live" | "test" | "demo";
+  run_id?: string | null;
+  outcome?: string;
+  validation_status?: string;
+  prompt_leakage_status?: "NOT_CHECKED" | "NOT_DETECTED" | "DETECTED";
+  received_at?: string | null;
+  checked_at?: string | null;
+  leakage_rule_version?: string | null;
+  prompt_leakage_evidence?: { rule: string; matched_text_hash: string } | null;
+  error_type?: string | null;
+  frame_num?: string | null;
+  source_timestamp?: number | null;
   /** 0–1, higher is better (less leakage). */
-  prompt_leakage: number;
+  prompt_leakage?: number;
   /** 0–1, higher is better. */
-  source_attribution: number;
+  source_attribution: number | GovernanceSource[];
+  /** Legacy demo metric; live case severity is 0–100. */
   /** 0–1, the combined evaluation score. */
-  accumulated_score: number;
-  tokens_in: number;
-  tokens_out: number;
-  reasoning: string | null;
+  accumulated_score: number | null;
+  tokens_in: number | null;
+  tokens_out: number | null;
+  reasoning?: string | null;
+}
+
+export interface GovernanceSource {
+  source_type: string;
+  frame_num?: string;
+  start_timestamp?: number;
+  end_timestamp?: number;
+  analysis_output_reference?: string;
+  model_id?: string;
+  model_version?: string | null;
+  prompt_version?: string;
+}
+export interface GovernanceQuery {
+  case_id?: string;
+  context?: "live" | "test" | "demo";
+  leakage?: string;
+  from_at?: string;
+  to_at?: string;
+  before?: string;
+  limit?: number;
+  ai_tier?: string;
+  auditor_tier?: string;
+  override?: boolean;
+  comparison_offset?: number;
+}
+export interface GovernanceCase {
+  case_id: string;
+  comparison: unknown;
+  runs: {
+    run_id: string;
+    status: string;
+    started_at: string;
+    completed_at: string | null;
+    accumulated_score: number | null;
+    highest_frame: string | null;
+    severity_tier: SeverityTier | null;
+    failure_stage: string | null;
+  }[];
 }
 
 /** Combined Validation & Audit-Log screen data (B2B spec S10). */
 export interface GovernanceSummary {
   is_placeholder: boolean;
   rows: GovernanceLogRow[];
-  averages: { prompt_leakage: number; source_attribution: number; accumulated_score: number };
+  averages: { prompt_leakage: number | null; source_attribution: number | null; accumulated_score: number | null };
+  context?: string;
+  next_before?: string | null;
+  unknown_calls?: number;
+  next_comparison_offset?: number | null;
   total_calls: number;
   failed_calls: number;
   /** AI tier → final Auditor tier, aggregate only; never per Auditor. */
   override_patterns: { from: SeverityTier; to: SeverityTier; count: number }[];
+  /** Decided cases with both an AI and a final severity; the same set `comparisons` lists. */
   compared_cases: number;
+  /** One row per compared case, newest decision first, at most 200 (Validation & Audit, section B). */
+  comparisons: ComparisonRow[];
+}
+
+/**
+ * The AI's first severity against the Auditor's final severity for one case.
+ * Never names an Auditor, and never says either side was wrong: a difference
+ * is a reason to look closer, not a verdict.
+ */
+export interface ComparisonRow {
+  provenance?: "live" | "legacy";
+  case_id: string;
+  ai_tier: SeverityTier;
+  final_tier: SeverityTier;
+  /** The final tier differs from the AI's. */
+  override: boolean;
+  /** Null for older cases that kept tiers only; scores are never invented. */
+  ai_score: number | null;
+  auditor_score: number | null;
+  /** Auditor score minus AI score. */
+  score_delta: number | null;
+  /** The Auditor's comment, only where they changed the severity. */
+  override_reason: string | null;
+  decided_at: string;
 }
 
 /** Response from the client sign-in (COMMUNITYHUB_CLIENT role, B2B spec S11). */
@@ -642,6 +845,7 @@ export interface DataService {
     finalOutcome: FinalOutcome,
     auditorSeverityScore?: number,
     auditorComment?: string,
+    analysisRunId?: string,
   ): Promise<ResolveCaseResponse>;
   getManagerDashboard(token: string): Promise<ManagerDashboardResponse>;
   getMyWellbeing(token: string): Promise<AuditorWellbeing>;
@@ -732,7 +936,10 @@ export interface DataService {
   /** The Manager approves client communication, never individual cases. */
   releaseReport(reportId: string, token: string): Promise<ServiceReport>;
   listReportAccess(reportId: string, token: string): Promise<ReportAccessEntry[]>;
-  getGovernanceSummary(token: string): Promise<GovernanceSummary>;
+  getGovernanceSummary(token: string, query?: GovernanceQuery): Promise<GovernanceSummary>;
+  getGovernanceCase(caseId: string, token: string): Promise<GovernanceCase>;
+  /** Manager Intelligence Dashboard: every widget and the evidence behind each figure (Sprint 3 extras §1). */
+  getManagerIntelligence(token: string, query: IntelligenceQuery): Promise<ManagerIntelligence>;
 
   // B2B — CommunityHub authorised user (released, own-organisation reports only)
   clientLogin(userId: string, password: string): Promise<ClientLoginResponse>;

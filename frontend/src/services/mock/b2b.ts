@@ -1,6 +1,7 @@
 import { ApiError } from "../types";
 import type {
   CaseResult,
+  ComparisonRow,
   ClientAccount,
   ClientRole,
   ClientLoginResponse,
@@ -11,7 +12,11 @@ import type {
   DataService,
   Delivery,
   GovernanceSummary,
+  GovernanceQuery,
+  GovernanceCase,
   IntegrationTestResult,
+  IntelligenceQuery,
+  ManagerIntelligence,
   ReportAccessEntry,
   ServiceReport,
   SeverityTier,
@@ -25,6 +30,7 @@ import {
   reportIdFor,
 } from "./b2bSeed";
 import { computeMetrics, deliveryHealth, finalTierOf } from "./reportMetrics";
+import { computeIntelligence } from "./intelligence";
 import { readDb, updateDb, type MockCase, type MockDb, type MockDelivery } from "./store";
 
 /**
@@ -210,8 +216,27 @@ function findReport(db: MockDb, reportId: string): Mutable<ServiceReport> {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** What a client is allowed to see of a released report: no staff names. */
+/**
+ * What a client receives: staff names become "RCS", and the evidence keeps each
+ * figure's definition and record count but never the contributing case IDs (D6).
+ */
 function forClient(r: ServiceReport): ServiceReport {
-  return { ...r, released_by: "RCS" };
+  const evidence = r.metrics.evidence;
+  return {
+    ...r,
+    released_by: "RCS",
+    metrics: evidence
+      ? {
+          ...r.metrics,
+          evidence: Object.fromEntries(
+            Object.entries(evidence).map(([key, entry]) => [
+              key,
+              { ...entry, case_ids: [] as string[], case_ids_truncated: false },
+            ]),
+          ) as unknown as typeof evidence,
+        }
+      : r.metrics,
+  };
 }
 
 /**
@@ -298,17 +323,57 @@ function findMessage(db: MockDb, messageId: string): ClientMessage {
 
 // ---- Governance ----
 
-function overridePatterns(db: MockDb): { patterns: GovernanceSummary["override_patterns"]; compared: number } {
-  const pairs: [SeverityTier, SeverityTier][] = [
-    ...db.caseHistory.map((h) => [h.ai_tier, h.final_tier] as [SeverityTier, SeverityTier]),
-    ...db.cases
-      .filter((c) => c.status === "COMPLETE" && c.severity_tier && finalTierOf(c))
-      .map((c) => [c.severity_tier!, finalTierOf(c)!] as [SeverityTier, SeverityTier]),
-  ];
+const MAX_COMPARISONS = 200;
+
+/**
+ * AI vs Auditor, one row per decided case, newest first. Mirrors
+ * comparison_rows in backend/app/b2b.py: cases a Manager closed without a
+ * decision are left out, older cases keep tiers only, and no Auditor is named.
+ */
+function comparisonRows(db: MockDb): ComparisonRow[] {
+  const fromHistory: ComparisonRow[] = db.caseHistory.map((h) => ({
+    case_id: h.case_id,
+    ai_tier: h.ai_tier,
+    final_tier: h.final_tier,
+    override: h.ai_tier !== h.final_tier,
+    ai_score: null,
+    auditor_score: null,
+    score_delta: null,
+    override_reason: null,
+    decided_at: h.completed_at,
+  }));
+  const fromLive: ComparisonRow[] = [];
+  for (const c of db.cases) {
+    const finalTier = finalTierOf(c);
+    const decided = c.final_outcome === "POLICY_VIOLATION_FOUND" || c.final_outcome === "NO_VIOLATION_FOUND";
+    if (c.status !== "COMPLETE" || !decided || !c.severity_tier || !finalTier || !c.completed_at) continue;
+    const override = c.severity_tier !== finalTier;
+    const aiScore = c.effective_severity_score;
+    const auditorScore = c.auditor_severity_score ?? aiScore;
+    fromLive.push({
+      case_id: c.case_id,
+      ai_tier: c.severity_tier,
+      final_tier: finalTier,
+      override,
+      ai_score: aiScore,
+      auditor_score: auditorScore,
+      score_delta: aiScore !== null && auditorScore !== null ? auditorScore - aiScore : null,
+      override_reason: override ? c.auditor_comment : null,
+      decided_at: c.completed_at,
+    });
+  }
+  return [...fromHistory, ...fromLive].sort((a, b) => Date.parse(b.decided_at) - Date.parse(a.decided_at));
+}
+
+function overridePatterns(db: MockDb): {
+  patterns: GovernanceSummary["override_patterns"];
+  compared: number;
+  comparisons: ComparisonRow[];
+} {
+  const rows = comparisonRows(db);
   const counts = new Map<string, number>();
-  for (const [from, to] of pairs) {
-    if (from === to) continue;
-    counts.set(`${from}>${to}`, (counts.get(`${from}>${to}`) ?? 0) + 1);
+  for (const r of rows) {
+    if (r.override) counts.set(`${r.ai_tier}>${r.final_tier}`, (counts.get(`${r.ai_tier}>${r.final_tier}`) ?? 0) + 1);
   }
   const patterns = [...counts.entries()]
     .map(([key, count]) => {
@@ -316,7 +381,7 @@ function overridePatterns(db: MockDb): { patterns: GovernanceSummary["override_p
       return { from, to, count };
     })
     .sort((a, b) => b.count - a.count);
-  return { patterns, compared: pairs.length };
+  return { patterns, compared: rows.length, comparisons: rows.slice(0, MAX_COMPARISONS) };
 }
 
 function average(values: number[]): number {
@@ -338,6 +403,8 @@ export const b2bMockOps: Pick<
   | "releaseReport"
   | "listReportAccess"
   | "getGovernanceSummary"
+  | "getGovernanceCase"
+  | "getManagerIntelligence"
   | "clientLogin"
   | "clientListReports"
   | "clientGetReport"
@@ -492,14 +559,17 @@ export const b2bMockOps: Pick<
         throw new ApiError("Customer not found", 404);
       }
       advanceDeliveries(db);
+      // One moment for the whole snapshot: its evidence was calculated when it was generated.
+      const generatedAt = Date.now();
       const metrics = computeMetrics(
         { history: db.caseHistory, cases: db.cases, deliveries: db.deliveries },
         periodStart,
         periodEnd,
+        generatedAt,
       );
       const samePeriod = db.reports.filter((r) => r.period_start === periodStart && r.period_end === periodEnd);
       const existingDraft = samePeriod.find((r) => r.status === "DRAFT");
-      const now = new Date().toISOString();
+      const now = new Date(generatedAt).toISOString();
       if (existingDraft) {
         // Regenerating a draft refreshes its figures; the Manager's note stays.
         Object.assign(existingDraft, { metrics, generated_at: now });
@@ -573,26 +643,77 @@ export const b2bMockOps: Pick<
     });
   },
 
-  async getGovernanceSummary(token: string): Promise<GovernanceSummary> {
+  async getGovernanceCase(caseId: string, token: string): Promise<GovernanceCase> {
     await delay();
     return updateDb((db) => {
       requireManager(db, token);
-      const rows = [...db.governanceLog].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+      return { case_id: caseId, comparison: null, runs: [] };
+    });
+  },
+
+  async getGovernanceSummary(token: string, query: GovernanceQuery = {}): Promise<GovernanceSummary> {
+    await delay();
+    return updateDb((db) => {
+      requireManager(db, token);
+      const rows = [...db.governanceLog]
+        .filter((r) => !query.case_id || r.case_id === query.case_id)
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       const ok = rows.filter((r) => r.success);
-      const { patterns, compared } = overridePatterns(db);
+      const { patterns, compared, comparisons } = overridePatterns(db);
       return {
         is_placeholder: true,
         rows,
         averages: {
-          prompt_leakage: average(ok.map((r) => r.prompt_leakage)),
-          source_attribution: average(ok.map((r) => r.source_attribution)),
-          accumulated_score: average(ok.map((r) => r.accumulated_score)),
+          prompt_leakage: average(ok.map((r) => r.prompt_leakage ?? 0)),
+          source_attribution: average(
+            ok.map((r) => (typeof r.source_attribution === "number" ? r.source_attribution : 0)),
+          ),
+          accumulated_score: average(ok.map((r) => r.accumulated_score ?? 0)),
         },
         total_calls: rows.length,
         failed_calls: rows.length - ok.length,
         override_patterns: patterns,
         compared_cases: compared,
+        comparisons,
       };
+    });
+  },
+
+  async getManagerIntelligence(token: string, query: IntelligenceQuery): Promise<ManagerIntelligence> {
+    await delay();
+    const { organisationId, periodStart, periodEnd } = query;
+    if (!ISO_DATE.test(periodStart) || !ISO_DATE.test(periodEnd) || periodStart > periodEnd) {
+      throw new ApiError("Choose a valid reporting period.", 400);
+    }
+    return updateDb((db) => {
+      requireManager(db, token);
+      if (organisationId.toUpperCase() !== db.organisation.organisation_id) {
+        throw new ApiError("Customer not found", 404);
+      }
+      advanceDeliveries(db);
+      const now = Date.now();
+      return computeIntelligence(
+        {
+          history: db.caseHistory,
+          cases: db.cases,
+          deliveries: db.deliveries,
+          // Counted, never named: the dashboard shows how many need the Manager, not who.
+          openSosAuditors: new Set(db.sosEvents.filter((e) => !e.resolved_at).map((e) => e.auditor_id)).size,
+          openSupportRequests: {
+            break_requests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
+              .length,
+            talk_requests: db.wellbeingRequests.filter((r) => r.kind === "TALK_TO_MANAGER" && r.status === "OPEN")
+              .length,
+          },
+          auditorCount: db.staff.filter((s) => s.role === "auditor").length,
+          organisation: db.organisation,
+          // The mock data source is always synthetic (MR-OV-08).
+          provenance: "DEMO",
+        },
+        periodStart,
+        periodEnd,
+        now,
+      );
     });
   },
 

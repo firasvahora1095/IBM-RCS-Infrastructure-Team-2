@@ -149,15 +149,16 @@ def _governance_log(now: datetime, case_ids: list[str], rng: random.Random) -> l
         attribution = 0.72 + rng.random() * 0.24
         entries.append(GovernanceLogEntry(
             entry_id=f"GOV-{1000 + i}",
+            context="demo", schema_version=1, outcome="LEGACY_DEMO",
             case_id=case_id,
             at=now - timedelta(minutes=(len(recent) - i) * 47),
             model_id="watsonx.ai multimodal vision model",
             model_version="2026-09",
             prompt_version="frame-severity v2" if i < 10 else "frame-severity v3",
             success=1 if success else 0,
-            prompt_leakage=round(leakage, 2) if success else 0,
-            source_attribution=round(attribution, 2) if success else 0,
-            accumulated_score=round((leakage + attribution) / 2, 2) if success else 0,
+            legacy_prompt_leakage=round(leakage, 2) if success else 0,
+            legacy_source_attribution=round(attribution, 2) if success else 0,
+            legacy_accumulated_score=round((leakage + attribution) / 2, 2) if success else 0,
             tokens_in=1800 + round(rng.random() * 1400),
             tokens_out=220 + round(rng.random() * 260) if success else 0,
             reasoning=(
@@ -258,6 +259,9 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
     draft_start, draft_end = month_period(today, -1)
     previous_month_first = date.fromisoformat(draft_start)
     released_at = datetime(previous_month_first.year, previous_month_first.month, 2, 10, 41, tzinfo=timezone.utc)
+    # A snapshot's evidence is calculated when the report is generated, never later.
+    released_generated_at = released_at - timedelta(minutes=50)
+    draft_generated_at = now - timedelta(hours=2)
 
     released = ServiceReport(
         report_id=report_id_for(released_start, released_end, 1),
@@ -266,14 +270,14 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         period_end=released_end,
         status="RELEASED",
         version=1,
-        generated_at=released_at - timedelta(minutes=50),
+        generated_at=released_generated_at,
         released_at=released_at,
         released_by="manager-01",
         manager_note=(
             "Volumes were steady across the month. A small number of results needed an "
             "automatic retry before CommunityHub received them; all were delivered."
         ),
-        metrics=compute_metrics(db, released_start, released_end),
+        metrics=compute_metrics(db, released_start, released_end, released_generated_at),
     )
     draft = ServiceReport(
         report_id=report_id_for(draft_start, draft_end, 1),
@@ -282,8 +286,8 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         period_end=draft_end,
         status="DRAFT",
         version=1,
-        generated_at=now - timedelta(hours=2),
-        metrics=compute_metrics(db, draft_start, draft_end),
+        generated_at=draft_generated_at,
+        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at),
     )
     db.add_all([released, draft])
     db.add_all([

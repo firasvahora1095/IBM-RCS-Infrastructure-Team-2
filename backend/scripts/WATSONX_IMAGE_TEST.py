@@ -15,6 +15,7 @@ from ibm_watsonx_ai.wml_client_error import ApiRequestFailure
 from dotenv import load_dotenv
 
 from app.watsonx_image import analyse_image
+from app.governance_recorder import CallContext, GovernanceRecorder
 
 REPO_PATH = Path(__file__).resolve().parents[2]
 
@@ -59,10 +60,13 @@ def test_watsonx_image():
 
     try:
         with image_path.open("rb") as image_file:
+            recorder = GovernanceRecorder()
+            run_id = recorder.start_run("image-smoke-test", context="test")
             result = analyse_image(
                 image_file,
                 content_type,
-                TEST_PROMPT
+                TEST_PROMPT,
+                recorder=recorder, context=CallContext(run_id, "test", "image-smoke-test"),
             )
     except ApiRequestFailure as error:
         print(
