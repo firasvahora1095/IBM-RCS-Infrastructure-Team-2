@@ -171,8 +171,8 @@ export function AuditorDashboardPage() {
           {c.case_id}
         </TableCell>
         <TableCell style={cellStyle}>
-          {c.severity_tier ? (
-            <SeverityTag tier={c.severity_tier} />
+          {(c.final_severity_tier ?? c.severity_tier) ? (
+            <SeverityTag tier={(c.final_severity_tier ?? c.severity_tier)!} />
           ) : c.status === "SUBMITTED" || c.status === "AI_PROCESSING" ? (
             <span className="cds--visually-hidden">No severity yet</span>
           ) : (
@@ -442,7 +442,7 @@ export function AuditorDashboardPage() {
                           <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
                             {c.case_id}
                           </TableCell>
-                          <TableCell>{c.severity_tier ? <SeverityTag tier={c.severity_tier} /> : "Unknown"}</TableCell>
+                          <TableCell>{(c.final_severity_tier ?? c.severity_tier) ? <SeverityTag tier={(c.final_severity_tier ?? c.severity_tier)!} /> : "Unknown"}</TableCell>
                           <TableCell style={{ color: "var(--cds-text-secondary)" }}>Complete</TableCell>
                         </TableRow>
                       ))}
