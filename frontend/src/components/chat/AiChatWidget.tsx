@@ -10,23 +10,41 @@ interface Message {
 const SUGGESTED: Record<string, string[]> = {
   manager: [
     "What needs my attention right now?",
-    "How many cases are open today?",
-    "What does SOS mean?",
+    "How many open SOS alerts are there?",
+    "How many cases are awaiting reassignment?",
+    "What does a failed delivery mean?",
   ],
   auditor: [
-    "How many cases do I have?",
     "What is my exposure today?",
-    "What happens if I decline a case?",
+    "What happens when I reach my exposure limit?",
+    "What is the difference between SOS and a wellbeing check-in?",
+    "What happens if I disagree with the AI severity?",
   ],
 };
+
+const STORAGE_KEY = "rcs_ai_buddy_messages";
 
 export function AiChatWidget() {
   const { token, role } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as Message[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,6 +171,29 @@ export function AiChatWidget() {
               </div>
             )}
 
+            {messages.length > 0 && showSuggestions && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { send(s); setShowSuggestions(false); }}
+                    style={{
+                      textAlign: "left",
+                      background: "var(--cds-layer-02, #fff)",
+                      border: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
+                      borderRadius: 4,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      color: "var(--cds-text-primary)",
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -201,6 +242,24 @@ export function AiChatWidget() {
               background: "var(--cds-layer-01, #f4f4f4)",
             }}
           >
+            {messages.length > 0 && (
+              <button
+                onClick={() => setShowSuggestions((v) => !v)}
+                title="Suggested questions"
+                style={{
+                  background: showSuggestions ? "var(--cds-interactive, #0f62fe)" : "var(--cds-layer-02, #fff)",
+                  color: showSuggestions ? "#fff" : "var(--cds-text-secondary)",
+                  border: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
+                  borderRadius: 4,
+                  padding: "6px 8px",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}
+              >
+                ?
+              </button>
+            )}
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
