@@ -759,9 +759,9 @@ export function AuditorCaseDetailPage() {
                 ? "AI's original rating: unavailable (AI analysis failed)"
                 : `AI's original rating: ${tierText(aiScore)} (CVI ${aiScore}/100)`}
             </p>
-            <p className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               Your final rating: {auditorScore} / 100 <SeverityTag tier={scoreToTier(auditorScore)} />
-            </p>
+            </div>
             <p>Comment attached: {comment.trim() !== "" ? "yes" : "no"}</p>
             <p>Final case outcome selected: {mapOutcomeToDisplay(confirmation.final_outcome)?.title ?? "Recorded"}</p>
           </section>

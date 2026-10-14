@@ -72,6 +72,17 @@ from app.orchestrate import (
     build_assignment_orchestrator,
 )
 from app.rate_limit import status_lookup_limiter
+from app.severity import get_severity_tier as _get_severity_tier
+
+
+def _final_severity_tier(case: "Case") -> str | None:  # type: ignore[name-defined]
+    """Return Auditor tier if overridden, otherwise AI tier."""
+    if case.auditor_severity_score is not None:
+        try:
+            return _get_severity_tier(int(case.auditor_severity_score))
+        except (ValueError, TypeError):
+            pass
+    return case.severity_tier
 from app.request_logging import install_access_log_redaction, redact_case_ids
 from app.storage import VideoRangeError, delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
@@ -541,6 +552,7 @@ async def list_auditor_cases(
             "case_id": case.case_id,
             "status": case.status,
             "severity_tier": case.severity_tier,
+            "final_severity_tier": _final_severity_tier(case),
         }
         for case in assigned_cases
     ]
@@ -579,6 +591,7 @@ async def get_auditor_case_detail(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities,
@@ -1325,6 +1338,7 @@ async def get_auditor_detail(
             {
                 "case_id": c.case_id,
                 "severity_tier": c.severity_tier,
+                "final_severity_tier": _final_severity_tier(c),
                 "completed_at": c.completed_at.isoformat() if c.completed_at else None,
                 "final_outcome": c.final_outcome,
             }
@@ -1379,6 +1393,7 @@ async def get_case_oversight(
             "case_id": c.case_id,
             "auditor_name": auditor_names.get(c.assigned_auditor_id) if c.assigned_auditor_id else None,
             "severity_tier": c.severity_tier,
+            "final_severity_tier": _final_severity_tier(c),
             "status": c.status,
             "manager_flag": c.manager_flag,
             "sos_alert_id": None,
@@ -1569,6 +1584,7 @@ async def get_manager_case_review(
         "status": case.status,
         "manager_flag": case.manager_flag,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "effective_severity_score": case.effective_severity_score,
         "narrative_summary": case.narrative_summary,
         "auditor_severity_score": case.auditor_severity_score,
@@ -1687,6 +1703,7 @@ async def get_case_exceptional_access(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities or [],
