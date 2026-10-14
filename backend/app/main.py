@@ -1912,6 +1912,7 @@ async def ai_chat(
     session: StaffSession = Depends(get_current_session),
     db: Session = Depends(get_db),
 ):
+    import re
     from app.chat import chat
 
     context: dict = {}
@@ -1932,10 +1933,18 @@ async def ai_chat(
                 Case.status != "COMPLETE",
             )
         ) or 0
+        from app.support import unresolved_sos_auditors
+        open_sos = len(unresolved_sos_auditors(db))
+        from app.models import Delivery
+        failed_deliveries = db.scalar(
+            select(func.count()).select_from(Delivery).where(Delivery.delivery_status == "NEEDS_ATTENTION")
+        ) or 0
         context = {
             "open cases": open_cases,
             "completed today": completed_today_count,
             "cases awaiting reassignment": pending_declined,
+            "open SOS alerts": open_sos,
+            "failed deliveries": failed_deliveries,
             "auditor count": len(auditors),
             "auditors at exposure limit": sum(
                 1 for a in auditors
@@ -1956,6 +1965,22 @@ async def ai_chat(
                 "your exposure today": f"{round(auditor.exposure_minutes or 0)} / {auditor.exposure_limit_minutes or 120} min",
                 "your active cases": len(active_cases),
                 "active case IDs": ", ".join(c.case_id for c in active_cases) or "none",
+            }
+
+    # Level 3: compact case lookup when a case ID is mentioned
+    case_id_match = re.search(r'\b[A-Z0-9]{8,16}\b', body.message)
+    if case_id_match:
+        looked_up = db.get(Case, case_id_match.group())
+        if looked_up:
+            context["case lookup"] = {
+                "case_id": looked_up.case_id,
+                "status": looked_up.status,
+                "ai_severity": looked_up.severity_tier or "not yet assessed",
+                "final_auditor_severity": (
+                    f"S{looked_up.auditor_severity_score}" if looked_up.auditor_severity_score else "not yet set"
+                ),
+                "assigned_auditor": looked_up.assigned_auditor_id or "unassigned",
+                "final_outcome": looked_up.final_outcome or "not yet set",
             }
 
     try:
