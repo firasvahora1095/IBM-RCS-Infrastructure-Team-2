@@ -80,6 +80,7 @@ export interface AuditorCaseListItem {
   case_id: string;
   status: InternalCaseStatus;
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   // Optional — UI needs (Figma 10:6 "Assigned" column):
   assigned_at?: string | null; // ISO 8601
 }
@@ -118,7 +119,7 @@ export interface AuditorCaseDetail {
   watson_severity_score: number | null; // raw model score — audit trail only, never shown as "the" score
   effective_severity_score: number | null; // post-floor score — THIS is what the Auditor sees
   severity_tier: SeverityTier | null;
-  final_severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   narrative_summary: string | null;
   incident_timeline: IncidentTimelineEntry[] | null;
   // Optional — UI needs (Figma 18:26, 20:35):
@@ -248,7 +249,7 @@ export interface AuditorDetail extends AuditorOverviewRow {
   recent_cases: {
     case_id: string;
     severity_tier: SeverityTier | null;
-    final_severity_tier: SeverityTier | null;
+    final_severity_tier?: SeverityTier | null;
     completed_at: string;
     final_outcome?: CaseOutcome | null;
   }[];
@@ -264,7 +265,7 @@ export interface ManagerCaseRow {
   case_id: string;
   auditor_name: string | null;
   severity_tier: SeverityTier | null;
-  final_severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   status: InternalCaseStatus;
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */

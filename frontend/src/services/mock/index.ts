@@ -442,6 +442,7 @@ function caseDetailFor(c: MockCase): AuditorCaseDetail {
     watson_severity_score: c.watson_severity_score,
     effective_severity_score: c.effective_severity_score,
     severity_tier: c.severity_tier,
+    final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
     narrative_summary: c.narrative_summary,
     incident_timeline: c.incident_timeline,
     video_duration_seconds: c.duration_seconds,
