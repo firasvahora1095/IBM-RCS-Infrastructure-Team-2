@@ -109,6 +109,7 @@ export function useAuth() {
   const logout = useCallback(() => {
     clearStaffSession();
     setSession(null);
+    localStorage.removeItem("rcs_ai_buddy_messages");
   }, []);
 
   return {
