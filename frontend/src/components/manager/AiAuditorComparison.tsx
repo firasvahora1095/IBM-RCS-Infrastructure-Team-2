@@ -207,9 +207,11 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
         </StatusTag>
       </TableCell>
       <TableCell style={mono}>{delta(row.score_delta)}</TableCell>
-      <TableCell style={{ maxInlineSize: 280 }}>
+      <TableCell>
         {row.override_reason ? (
-          <span style={{ fontSize: 14, lineHeight: "20px" }}>{row.override_reason}</span>
+          <div style={{ width: 200, overflowX: "auto", fontSize: 14, lineHeight: "20px", whiteSpace: "nowrap" }}>
+            {row.override_reason}
+          </div>
         ) : (
           <span style={{ color: "var(--cds-text-secondary)" }}>—</span>
         )}

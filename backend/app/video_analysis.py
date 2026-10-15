@@ -230,11 +230,17 @@ def _build_incident_timeline(
 def _format_summary_time(start: float, end: float) -> str:
     """Round only the narrative's timestamps; retain precise timeline data."""
 
+    def _fmt(s: int) -> str:
+        if s < 60:
+            return f"{s} seconds"
+        m, sec = divmod(s, 60)
+        return f"{m} min {sec} sec" if sec else f"{m} min"
+
     rounded_start = int(float(start) + 0.5)
     rounded_end = int(float(end) + 0.5)
     if rounded_start == rounded_end:
-        return f"at approximately {rounded_start} seconds"
-    return f"around {rounded_start}–{rounded_end} seconds"
+        return f"at approximately {_fmt(rounded_start)}"
+    return f"around {_fmt(rounded_start)}–{_fmt(rounded_end)}"
 
 
 def _summary_observation(frame: dict[str, Any], word_limit: int) -> str:
