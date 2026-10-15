@@ -77,7 +77,7 @@ a4 = Auditor(
     auditor_id="auditor-04",
     login_hash=hash_password("test123"),
     role="auditor",
-    exposure_minutes=120.0,
+    exposure_minutes=119.0,
     exposure_last_reset_at=now,
     active_case_count=0,
 )

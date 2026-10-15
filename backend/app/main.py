@@ -1730,7 +1730,31 @@ async def get_reassignment_context(
     candidates = db.scalars(
         select(Auditor).where(Auditor.role == "auditor")
     ).all()
+    now = datetime.now(timezone.utc)
     declining_auditor = db.get(Auditor, case.assigned_auditor_id) if case.assigned_auditor_id else None
+
+    sos_auditor_ids = set(
+        db.scalars(
+            select(Case.assigned_auditor_id).where(
+                Case.assigned_auditor_id.is_not(None),
+                Case.manager_flag == "SOS",
+            )
+        ).all()
+    )
+
+    def _is_available(a: "Auditor") -> bool:
+        if float(a.exposure_minutes or 0) >= int(a.exposure_limit_minutes or 120):
+            return False
+        ends_at = a.cooldown_ends_at
+        if ends_at is not None:
+            if ends_at.tzinfo is None:
+                ends_at = ends_at.replace(tzinfo=timezone.utc)
+            if ends_at > now:
+                return False
+        if a.auditor_id in sos_auditor_ids:
+            return False
+        return True
+
     return {
         "case_id": case.case_id,
         "declining_auditor": {
@@ -1744,7 +1768,7 @@ async def get_reassignment_context(
                 "name": a.auditor_id,
                 "headroom_minutes": int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0),
                 "limited_headroom": (int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0)) < 30,
-                "available": float(a.exposure_minutes or 0) < int(a.exposure_limit_minutes or 120),
+                "available": _is_available(a),
             }
             for a in candidates
             if a.auditor_id != case.assigned_auditor_id
@@ -1765,6 +1789,23 @@ async def reassign_case(
     target = db.get(Auditor, auditor_id)
     if target is None or target.role != "auditor":
         raise HTTPException(status_code=404, detail="Auditor not found")
+    now = datetime.now(timezone.utc)
+    if float(target.exposure_minutes or 0) >= int(target.exposure_limit_minutes or 120):
+        raise HTTPException(status_code=409, detail="Auditor has reached their daily exposure limit")
+    cooldown_ends = target.cooldown_ends_at
+    if cooldown_ends is not None:
+        if cooldown_ends.tzinfo is None:
+            cooldown_ends = cooldown_ends.replace(tzinfo=timezone.utc)
+        if cooldown_ends > now:
+            raise HTTPException(status_code=409, detail="Auditor is in mandatory cooldown")
+    active_sos = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor_id,
+            Case.manager_flag == "SOS",
+        )
+    ).first()
+    if active_sos is not None:
+        raise HTTPException(status_code=409, detail="Auditor has an active SOS alert")
     before = {"assigned_auditor_id": case.assigned_auditor_id, "status": case.status}
     case.assigned_auditor_id = auditor_id
     case.status = "READY_FOR_REVIEW"
