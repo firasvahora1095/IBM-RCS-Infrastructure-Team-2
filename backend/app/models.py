@@ -1,5 +1,6 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -143,6 +144,8 @@ class Case(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
     analysis_run_id = Column(String(36), nullable=True)
     ai_auditor_comparison = Column(JSON_DOCUMENT, nullable=True)
+    is_validation_case = Column(Boolean, nullable=False, server_default="false")
+    ground_truth_tier = Column(String(2), nullable=True)
 
 
 class AuditLog(Base):

@@ -1939,17 +1939,44 @@ async def record_exceptional_access(
 @app.get("/api/manager/validation")
 async def get_validation_summary(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    from app.severity import get_severity_tier as _get_tier
+    val_cases = db.scalars(
+        select(Case).where(Case.is_validation_case == True, Case.severity_tier.is_not(None))
+    ).all()
+
+    total = len(val_cases)
+    if total == 0:
+        return {"is_placeholder": True, "tiers": [], "match_rate_pct": 0.0, "validation_set_size": 0}
+
+    tier_order = ["S1", "S2", "S3", "S4"]
+    ai_counts = {t: 0 for t in tier_order}
+    gt_counts = {t: 0 for t in tier_order}
+    matches = 0
+
+    for c in val_cases:
+        ai_tier = c.severity_tier
+        gt_tier = c.ground_truth_tier
+        if ai_tier in ai_counts:
+            ai_counts[ai_tier] += 1
+        if gt_tier in gt_counts:
+            gt_counts[gt_tier] += 1
+        if ai_tier == gt_tier:
+            matches += 1
+
     return {
-        "is_placeholder": True,
+        "is_placeholder": False,
         "tiers": [
-            {"tier": "S1", "ai_predicted_pct": 62.0, "ground_truth_pct": 58.0},
-            {"tier": "S2", "ai_predicted_pct": 21.0, "ground_truth_pct": 24.0},
-            {"tier": "S3", "ai_predicted_pct": 11.0, "ground_truth_pct": 13.0},
-            {"tier": "S4", "ai_predicted_pct": 6.0, "ground_truth_pct": 5.0},
+            {
+                "tier": t,
+                "ai_predicted_pct": round(ai_counts[t] / total * 100, 1),
+                "ground_truth_pct": round(gt_counts[t] / total * 100, 1),
+            }
+            for t in tier_order
         ],
-        "match_rate_pct": 84.0,
-        "validation_set_size": 0,
+        "match_rate_pct": round(matches / total * 100, 1),
+        "validation_set_size": total,
     }
 
 
