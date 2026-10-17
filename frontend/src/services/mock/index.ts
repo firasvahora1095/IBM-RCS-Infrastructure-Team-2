@@ -38,6 +38,9 @@ import type {
   WellbeingRequestRecord,
   AuditLogHistory,
   AuditLogQuery,
+  BuddyCaseSummary,
+  BuddyReply,
+  BuddyTurn,
 } from "../types";
 import {
   readDb,
@@ -49,6 +52,8 @@ import {
   type MockWellbeingRequest,
 } from "./store";
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
+import { findCaseId, mockBuddyReply, type BuddyLiveFigures } from "./buddy";
+import { managerStatusLabel } from "../../design-tokens/managerLabels";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -332,6 +337,60 @@ function startOfToday(): number {
 }
 
 /** The Auditor's cases completed today, newest first. The one source for every "cases today" figure. */
+const BUDDY_OUTCOME: Record<string, string> = {
+  NO_VIOLATION_FOUND: "No Violation Found",
+  POLICY_VIOLATION_FOUND: "Violation Found",
+  CLOSED_NO_REASSIGNMENT: "Closed without reassignment",
+};
+
+/** The compact case summary the Buddy may show: an Auditor only for their own case, a Manager for any. */
+function buddyCaseSummary(db: MockDb, role: "auditor" | "manager", staffId: string, caseId: string): BuddyCaseSummary | null {
+  const c = db.cases.find((x) => x.case_id === caseId);
+  if (!c) return null;
+  if (role === "auditor" && c.assigned_auditor !== staffId) return null;
+  const summary: BuddyCaseSummary = {
+    case_id: c.case_id,
+    status: managerStatusLabel(c.status, c.manager_flag),
+    ai_severity: c.severity_tier,
+    final_auditor_severity: c.auditor_severity_score === null ? null : scoreToTier(c.auditor_severity_score),
+    final_outcome: c.final_outcome ? (BUDDY_OUTCOME[c.final_outcome] ?? null) : null,
+  };
+  if (role === "manager") {
+    summary.assigned_auditor = c.assigned_auditor;
+    summary.delivery_status = db.deliveries.find((d) => d.case_id === c.case_id)?.delivery_status ?? null;
+  }
+  return summary;
+}
+
+function buddyLiveFigures(db: MockDb, role: "auditor" | "manager", staffId: string): BuddyLiveFigures {
+  if (role === "auditor") {
+    const me = staffById(db, staffId);
+    const open = db.cases.filter(
+      (c) => c.assigned_auditor === staffId && !c.manager_flag && (c.status === "READY_FOR_REVIEW" || c.status === "AUDITOR_REVIEW"),
+    );
+    const cd = me.cooldown;
+    const left = cd ? Math.ceil((Date.parse(cd.ends_at) - Date.now()) / 60_000) : 0;
+    return {
+      exposureMinutes: exposureMinutes(me),
+      exposureLimit: me.exposure_limit_minutes,
+      cooldownMinutesLeft: left > 0 ? left : null,
+      readyForReview: open.filter((c) => c.status === "READY_FOR_REVIEW").length,
+      openCases: open.length,
+    };
+  }
+  const openRequests = db.wellbeingRequests.filter((r) => r.status === "OPEN");
+  return {
+    awaitingReassignment: db.cases.filter(
+      (c) => (c.manager_flag === "DECLINED" || c.manager_flag === "CAP_REACHED") && c.status !== "COMPLETE",
+    ).length,
+    failedDeliveries: db.deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION").length,
+    openSos: db.sosEvents.filter((e) => !e.resolved_at).length,
+    breakRequests: openRequests.filter((r) => r.kind === "BREAK_REQUEST").length,
+    talkRequests: openRequests.filter((r) => r.kind === "TALK_TO_MANAGER").length,
+    openCasesAll: db.cases.filter((c) => c.status !== "COMPLETE").length,
+  };
+}
+
 function completedToday(db: MockDb, staffId: string): MockCase[] {
   const since = startOfToday();
   return db.cases
@@ -838,6 +897,17 @@ export const mockDataService: DataService = {
       auditors: db.staff.filter((s) => s.role === "auditor").map((s) => ({ auditor_id: s.staff_id })),
       pending_declined_cases: db.cases.filter((c) => c.manager_flag === "DECLINED" || c.manager_flag === "CAP_REACHED").length,
     };
+  },
+
+  async aiChat(message: string, token: string, _history: BuddyTurn[] = []): Promise<BuddyReply> {
+    await delay();
+    return updateDb((db) => {
+      const session = db.sessions[token];
+      if (!session) throw new ApiError("Not authenticated", 401);
+      const id = findCaseId(message);
+      const summary = id ? buddyCaseSummary(db, session.role, session.staffId, id) : null;
+      return mockBuddyReply(message, session.role, buddyLiveFigures(db, session.role, session.staffId), { id, summary });
+    });
   },
 
   async getMyWellbeing(token: string): Promise<AuditorWellbeing> {

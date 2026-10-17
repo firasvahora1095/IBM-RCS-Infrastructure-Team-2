@@ -4,8 +4,6 @@ import { ManagerTopNav } from "../shell/ManagerTopNav";
 import { SosAlertBanner } from "../notifications/SosAlertBanner";
 import { StaffPage } from "./StaffPage";
 import { useSosSummary } from "../../hooks/useSosSummary";
-import { AiChatWidget } from "../chat/AiChatWidget";
-import { isMockData } from "../../services";
 
 interface ManagerLayoutProps {
   children: ReactNode;
@@ -37,7 +35,6 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
       <StaffPage clearHeader={false} maxWidth={maxWidth}>
         {children}
       </StaffPage>
-      {!isMockData && <AiChatWidget />}
     </>
   );
 }
