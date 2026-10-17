@@ -829,6 +829,41 @@ export interface ClientMessageInput {
  * synthetic demo data) and `api` (the real backend, connected by Firas)
  * implement this interface, so pages never know which one they're using.
  */
+// ---- AI Buddy ----
+
+/** One earlier message, sent back so a follow-up question makes sense. */
+export interface BuddyTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+/** The compact case summary the Buddy may show. Manager-only fields are absent for an Auditor. */
+export interface BuddyCaseSummary {
+  case_id: string;
+  status: string;
+  ai_severity: string | null;
+  final_auditor_severity: string | null;
+  final_outcome: string | null;
+  assigned_auditor?: string | null;
+  delivery_status?: string | null;
+}
+
+/** A place to go next. Chosen by fixed rules on the server, never written by the model. */
+export interface BuddyLink {
+  label: string;
+  to: string;
+}
+
+export interface BuddyReply {
+  reply: string;
+  /** ISO time the live figures were read; null when the answer used none. */
+  live_as_of: string | null;
+  case: BuddyCaseSummary | null;
+  links: BuddyLink[];
+  /** True when the Buddy had no verified information and used the fixed fallback wording. */
+  fallback: boolean;
+}
+
 export interface DataService {
   /** `source` is optional context (B2B spec S2); it never blocks submission or handoff. */
   createReport(videoFile: File, source?: ReportSource): Promise<CreateReportResponse>;
@@ -841,6 +876,8 @@ export interface DataService {
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
+  /** Read-only guidance for staff. Never changes anything. */
+  aiChat(message: string, token: string, history?: BuddyTurn[]): Promise<BuddyReply>;
   getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
   getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail>;
   resolveCase(
