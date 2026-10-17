@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { secondaryText } from "../../components/manager/managerStyles";
 import { listSosAlerts } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
@@ -22,7 +23,7 @@ export function ManagerSosInboxPage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>SOS Inbox</h1>
+      <PageHeader title="SOS Inbox" subtitle="Open an alert to see the context, then acknowledge and log your follow-up." />
       <LoadState error={error} loading={!data && !error} what="SOS alerts" />
       {data && data.length === 0 && <p style={secondaryText}>No SOS alerts have been raised.</p>}
       {data && data.length > 0 && (

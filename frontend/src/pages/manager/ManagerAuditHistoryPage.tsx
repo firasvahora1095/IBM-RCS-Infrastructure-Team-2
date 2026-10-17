@@ -13,8 +13,9 @@ import {
   TextInput,
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { getAuditHistory } from "../../services";
@@ -64,8 +65,7 @@ export function ManagerAuditHistoryPage() {
   return (
     <ManagerLayout showNav={false}>
       <ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: "Audit history" }]} />
-      <h1 style={pageTitle}>Audit history</h1>
-      <p style={secondaryText}>Browse saved audit events. Expand an entry to see the values recorded.</p>
+      <PageHeader title="Audit history" subtitle="Browse saved audit events. Expand an entry to see the values recorded." />
       <form
         className="flex flex-wrap items-end gap-4"
         style={{ marginTop: 24, marginBottom: 24 }}

@@ -140,6 +140,45 @@ Locked requirements are **not** changed: RT-01 outcome labels and RT-02 status l
 
 Not changing: the SOS deliberate step; RT-01 and RT-02 labels; the Auditor and public screens; any backend.
 
-## 7. After
+## 7. After (built)
 
-*(Filled in once built.)*
+Measured on the local build (mock data source), 1440×900.
+
+| Task | Before | After | How |
+|---|---|---|---|
+| Approve a break request | 2 | **1** | "Approve" in the Overview row |
+| Mark a talk request followed up | 2 | **1** | "Mark followed up" in the row |
+| Retry a failed delivery | 3 | **1** | "Retry" in the row; if it fails again the row stays and says so |
+| Reassign a declined case | 5 | **1** (suggested Auditor); **3** for someone else | "Reassign to <name>" in the row; the decision page preselects the same Auditor |
+| SOS | 3 | 3, kept on purpose | Open alert → Acknowledge → log follow-up |
+| Return to the Overview | 1 | **0** | actions stay on the page; the decision page returns with an inline confirmation instead of an interstitial |
+
+What changed:
+
+- **One header and one button hierarchy.** Every Manager page uses the shared `PageHeader`. The Overview has one primary button, and only when nothing is waiting (Generate Report).
+- **Calm SOS banner.** A tinted one-liner with a red edge and an icon, not a solid red bar. The link text is unchanged.
+- **Five tabs:** Overview · Cases · Deliveries · Reports · Insights. Sub-pages keep their owning tab highlighted. Routes are unchanged; `/manager/insights` is new.
+- **Overview in four blocks:** header, three quiet figures, "Needs you" inbox, Auditors table. The seven widgets moved to Insights. One "Evidence" control per section replaces six "View evidence" links.
+- **Reassignment decision:** one list (not a list plus a dropdown). The suggested Auditor is the first available one, so the fallback reviewer is last, as agreed.
+- **Wording:** BA §11.1 applied to attention rows, exposure states, availability, delivery states, AI Override, "Generate Report" and section titles. RT-01/RT-02 are untouched.
+
+Checks: Lighthouse accessibility 100 on `/manager` and `/manager/insights`; axe and keyboard tests cover the inbox actions and the reassignment list.
+
+Still open: §11.1's case-status labels conflict with RT-02 and are left for the BA. Three Auditors show "Unavailable (SOS)" next to the banner and inbox rows; that is the one remaining repeat of an SOS and is deliberate, because it is the only place that shows which Auditors are protected.
+
+### Where things sit, and why
+
+Each placement follows one rule, so a control is in the same place on every Manager page.
+
+| Element | Position | Reason |
+|---|---|---|
+| Page title, then one-line subtitle | Top left | Readers start at the top left and scan down; the title says where they are |
+| Page controls (Period) and the page's primary button | Top right of the page header, primary last, all on one bottom edge | Design systems put a header's actions in a dedicated top-right slot ([Avonni](https://docs.avonnicomponents.com/dynamic-components/components/card), [ServiceNow Horizon](https://horizon.servicenow.com/patterns/cards/card-patterns)); the most important action is the last, nearest the edge the eye ends on |
+| One primary button per page | Generate Report (Overview) | A filled button means "the main thing"; two compete. Inbox row actions are secondary (outline) |
+| Section title and its "Evidence" control | Title left, Evidence far right of the same row | A control for a section belongs to its header, in the same corner every time, so it is found without searching |
+| Evidence on a figure tile | Top right corner of the tile | Same corner rule, applied to the smaller container |
+| Section description | Under the title row, full width | Proximity: it explains the title, and it must not push the control onto another line |
+| Figures | One grid, label above value, columns shared across rows | Values that start on the same line compare at a glance |
+| Row action in the inbox | Far right of its row; the secondary link (Open Auditor, Choose someone else) after it | The row reads left to right: what, who, then what to do |
+
+The sources are design-system documentation (card header action slots), not eye-tracking studies, so this supports the convention but does not prove it. The consistency rule is the reason that matters most.

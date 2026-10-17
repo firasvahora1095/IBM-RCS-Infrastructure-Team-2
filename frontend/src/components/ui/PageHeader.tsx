@@ -31,7 +31,8 @@ export function PageHeader({ title, eyebrow, subtitle, breadcrumb, actions, meta
           </div>
           {subtitle && <p className="rcs-page-subtitle">{subtitle}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+        {/* items-end: a labelled control (a Dropdown) and buttons share one bottom edge. */}
+        {actions && <div className="flex flex-wrap items-end gap-3">{actions}</div>}
       </div>
     </header>
   );

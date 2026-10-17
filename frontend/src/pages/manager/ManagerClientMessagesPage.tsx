@@ -1,8 +1,9 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { secondaryText } from "../../components/manager/managerStyles";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { listClientMessages } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -25,23 +26,23 @@ export function ManagerClientMessagesPage() {
 
   return (
     <ManagerLayout>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 style={pageTitle}>Client messages</h1>
-          <p style={secondaryText}>
-            {data
-              ? waiting === 0
-                ? "Everything has been answered."
-                : `${waiting} waiting for a reply. Clients are told RCS replies within one working day.`
-              : "Questions from CommunityHub users."}
-          </p>
-        </div>
-        {oldestWaiting && (
-          <Button onClick={() => navigate(`/manager/messages/${encodeURIComponent(oldestWaiting.message_id)}`)}>
-            Answer oldest waiting
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Client messages"
+        subtitle={
+          data
+            ? waiting === 0
+              ? "Everything has been answered."
+              : `${waiting} waiting for a reply. Clients are told RCS replies within one working day.`
+            : "Questions from CommunityHub users."
+        }
+        actions={
+          oldestWaiting && (
+            <Button onClick={() => navigate(`/manager/messages/${encodeURIComponent(oldestWaiting.message_id)}`)}>
+              Answer oldest waiting
+            </Button>
+          )
+        }
+      />
       <LoadState error={error} loading={!data && !error} what="Client messages" />
       {data && data.length > 0 && (
         <Layer>

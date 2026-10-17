@@ -15,8 +15,9 @@ import {
   TableRow,
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { getCaseOversight, makeCaseAvailable } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
@@ -82,7 +83,7 @@ export function ManagerCaseOversightPage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Consolidated Case Oversight</h1>
+      <PageHeader title="Cases" subtitle="Every case across all Auditors. Search, or filter by status." />
       <div className="flex flex-wrap items-end gap-4">
         <div style={{ width: "100%", maxWidth: 320 }}>
           <Search

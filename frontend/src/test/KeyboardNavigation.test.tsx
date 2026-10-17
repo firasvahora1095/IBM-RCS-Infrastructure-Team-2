@@ -282,18 +282,9 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((l) => l.textContent);
-    expect(names).toEqual([
-      "Dashboard",
-      "Case Oversight",
-      "SOS Inbox",
-      "Reassignment Queue",
-      "Deliveries",
-      "Reports",
-      "Client messages",
-      "Validation",
-    ]);
+    expect(names).toEqual(["Overview", "Cases", "Deliveries", "Reports", "Insights"]);
     const order: string[] = [];
-    await tabTo(user, within(nav).getByRole("link", { name: "Dashboard" }));
+    await tabTo(user, within(nav).getByRole("link", { name: "Overview" }));
     for (let i = 0; i < names.length; i++) {
       order.push(document.activeElement?.textContent ?? "");
       await user.tab();
@@ -317,20 +308,34 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     expect(await screen.findByText(/This SOS alert is now resolved\./)).toBeInTheDocument();
   });
 
-  it("Manager reassignment: the Auditor dropdown opens and selects with the keyboard", async () => {
+  it("Manager Overview: an inbox row is approved with the keyboard, without leaving the page", async () => {
+    const user = userEvent.setup();
+    await signIn("manager-1");
+    renderAt("/manager");
+
+    await tabTo(user, await screen.findByRole("button", { name: /^Approve, break request from Reese Patel/ }));
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /^Approve, break request from Reese Patel/ })).toBeNull(),
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
+  });
+
+  it("Manager reassignment: the Auditor list selects with the keyboard and confirms back on the Overview", async () => {
     const user = userEvent.setup();
     await signIn("manager-1");
     renderAt("/manager/cases/AR-2026-00398/reassign");
 
-    const combo = await screen.findByRole("combobox", { name: /Reassign to another Auditor/ });
-    await tabTo(user, combo);
+    // The suggested Auditor is already selected; arrow keys move within the radio group.
+    await screen.findByText("Reassign to");
+    const radios = await screen.findAllByRole("radio");
+    const first = radios.find((r) => (r as HTMLInputElement).checked)!;
+    await tabTo(user, first);
+    await user.keyboard("{ArrowDown}");
+    const confirm = screen.getByRole("button", { name: /^Reassign to / });
+    await tabTo(user, confirm);
     await user.keyboard("{Enter}");
-    await screen.findByRole("option", { name: /Jordan Lee — \d+ min headroom/ });
-    await user.keyboard("{ArrowDown}{Enter}");
-    await waitFor(() => expect(combo).toHaveTextContent(/Jordan Lee/));
-
-    await tabTo(user, screen.getByRole("button", { name: "Confirm reassignment" }));
-    await user.keyboard("{Enter}");
-    expect(await screen.findByRole("heading", { name: "Reassignment confirmed — AR-2026-00398" })).toBeInTheDocument();
+    expect(await screen.findByText(/Reassigned AR-2026-00398 to /)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
   });
 });

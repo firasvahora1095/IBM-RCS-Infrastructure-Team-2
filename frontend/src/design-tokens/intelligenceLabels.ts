@@ -1,4 +1,4 @@
-import type { AttentionKind, AuditorOverviewRow, InternalCaseStatus, OpenBucket } from "../services/types";
+import type { AuditorOverviewRow, InternalCaseStatus, OpenBucket } from "../services/types";
 import type { StatusTone } from "./statusTones";
 
 /**
@@ -16,10 +16,12 @@ export const PROVENANCE_BADGE_TITLE =
 export type Availability = "AVAILABLE" | "COOLDOWN" | "NO_NEW_CASES" | "SOS_PROTECTION";
 
 export const AVAILABILITY_LABEL: Record<Availability, string> = {
+  // BA §11.1: Available, Cooldown, Unavailable. The reason follows in brackets, so the one place
+  // that shows an open SOS for an Auditor still says so.
   AVAILABLE: "Available",
-  COOLDOWN: "In cooldown",
-  NO_NEW_CASES: "No new cases today",
-  SOS_PROTECTION: "SOS protection",
+  COOLDOWN: "Cooldown",
+  NO_NEW_CASES: "Unavailable (limit)",
+  SOS_PROTECTION: "Unavailable (SOS)",
 };
 
 export const AVAILABILITY_TONE: Record<Availability, StatusTone> = {
@@ -48,47 +50,6 @@ export function protectionNeed(row: AuditorOverviewRow): number {
   const asked = (row.open_requests?.break_requests ?? 0) + (row.open_requests?.talk_requests ?? 0) > 0;
   return (row.open_sos ? 10 : 0) + (asked ? 5 : 0) + ratio;
 }
-
-export interface AttentionWording {
-  label: string;
-  /** Shown beside the count when it's above zero. */
-  status: string;
-  tone: StatusTone;
-  /** Where the Manager acts on it. */
-  to: string;
-}
-
-/** Needs Attention rows, in priority order: only items waiting for the Manager. */
-export const ATTENTION: Record<AttentionKind, AttentionWording> = {
-  SOS: { label: "Open SOS", status: "Act now", tone: "error", to: "/manager/sos" },
-  SUPPORT_REQUEST: { label: "Support requests", status: "Waiting for you", tone: "warning", to: "/manager" },
-  REASSIGNMENT: {
-    label: "Reassignment decisions",
-    status: "Decision needed",
-    tone: "warning",
-    to: "/manager/reassignment",
-  },
-  CAP_INTERRUPTED: {
-    label: "Exposure-cap interrupted cases",
-    status: "Decision needed",
-    tone: "warning",
-    to: "/manager/reassignment",
-  },
-  FAILED_HANDOFF: {
-    label: "Failed CommunityHub handoffs",
-    status: "Retry or escalate",
-    tone: "error",
-    to: "/manager/deliveries?status=needs-attention",
-  },
-};
-
-export const ATTENTION_ORDER: readonly AttentionKind[] = [
-  "SOS",
-  "SUPPORT_REQUEST",
-  "REASSIGNMENT",
-  "CAP_INTERRUPTED",
-  "FAILED_HANDOFF",
-];
 
 /** Case Oversight wording (RT-02 staff labels), plus the Manager-decision stage. */
 export const OPEN_BUCKET_LABEL: Record<OpenBucket, string> = {

@@ -11,9 +11,10 @@ import {
   TableRow,
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
 import { Figure, LoadState } from "../../components/manager/ManagerBits";
-import { mono, pageTitle } from "../../components/manager/managerStyles";
+import { mono } from "../../components/manager/managerStyles";
 import { Section } from "../../components/ui/Blocks";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { getGovernanceSummary, getValidationSummary, getGovernanceCase, getAuditHistory } from "../../services";
@@ -50,11 +51,10 @@ export function ManagerValidationPage() {
   return (
     <ManagerLayout>
       <div className="flex flex-col gap-2">
-        <h1 style={pageTitle}>Validation &amp; Audit</h1>
-        <p className="rcs-page-subtitle">
-          Is the AI trustworthy, and can every result be traced? Three separate views on one screen: they are never
-          mixed.
-        </p>
+        <PageHeader
+          title="Validation & Audit"
+          subtitle="Is the AI trustworthy, and can every result be traced? Three separate views on one screen: they are never mixed."
+        />
         <nav aria-label="On this page" className="flex flex-wrap gap-x-6 gap-y-1">
           <a className="cds--link" href="#validation">
             AI vs ground truth

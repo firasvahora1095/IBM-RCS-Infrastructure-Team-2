@@ -1,8 +1,9 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeclinedCases } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -22,7 +23,7 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Reassignment Queue</h1>
+      <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (

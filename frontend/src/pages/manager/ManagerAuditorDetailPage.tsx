@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification, NumberInput } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { ExposureStateTag, Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { formatClockTime, mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { formatClockTime, mono, secondaryText } from "../../components/manager/managerStyles";
 import { ExposureBar } from "../../components/exposure/ExposureBar";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { StatusTag } from "../../components/ui/StatusTag";
@@ -116,14 +117,18 @@ export function ManagerAuditorDetailPage() {
       <LoadState error={error} loading={!data && !error} what="this Auditor" />
       {data && (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 style={pageTitle}>{data.display_name}</h1>
-            <ExposureStateTag state={data.exposure_state} />
-            {openRequests > 0 && (
-              <StatusTag tone="info">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
-            )}
-            {data.pattern_flagged && <StatusTag tone="neutral">Pattern flagged — private</StatusTag>}
-          </div>
+          <PageHeader
+            title={data.display_name}
+            meta={
+              <>
+                <ExposureStateTag state={data.exposure_state} />
+                {openRequests > 0 && (
+                  <StatusTag tone="info">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
+                )}
+                {data.pattern_flagged && <StatusTag tone="neutral">Pattern flagged — private</StatusTag>}
+              </>
+            }
+          />
 
           {/* Today at a glance */}
           <Panel title="Today">

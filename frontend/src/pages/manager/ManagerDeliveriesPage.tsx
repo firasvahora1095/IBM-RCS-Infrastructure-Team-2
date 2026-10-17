@@ -95,7 +95,7 @@ export function ManagerDeliveriesPage() {
           <Grid className="rcs-grid" condensed>
             <Column sm={2} md={2} lg={4}>
               <StatTile
-                label="Needs attention"
+                label="Failed"
                 value={counts.attention}
                 tone={counts.attention ? "error" : "neutral"}
                 helper={counts.attention ? "Failed after automatic retries" : "All clear"}
@@ -113,7 +113,7 @@ export function ManagerDeliveriesPage() {
             </Column>
             <Column sm={2} md={2} lg={4}>
               <StatTile
-                label="Successful"
+                label="Delivered"
                 value={counts.success}
                 helper="Received by CommunityHub"
               />

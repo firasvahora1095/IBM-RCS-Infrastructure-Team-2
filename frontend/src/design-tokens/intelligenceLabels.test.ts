@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION, availabilityOf, OPEN_BUCKET_LABEL } from "./intelligenceLabels";
-import type { AttentionKind, AuditorOverviewRow, CooldownState } from "../services/types";
+import { availabilityOf, AVAILABILITY_LABEL, OPEN_BUCKET_LABEL } from "./intelligenceLabels";
+import type { AuditorOverviewRow, CooldownState } from "../services/types";
 
 const base: AuditorOverviewRow = {
   auditor_id: "auditor-1",
@@ -44,13 +44,17 @@ describe("availabilityOf", () => {
   });
 });
 
-describe("attention wording", () => {
-  it("covers every kind", () => {
-    const kinds: AttentionKind[] = ["SOS", "SUPPORT_REQUEST", "REASSIGNMENT", "CAP_INTERRUPTED", "FAILED_HANDOFF"];
-    for (const kind of kinds) expect(ATTENTION[kind].label).toBeTruthy();
-  });
-
+describe("open bucket wording", () => {
   it("every open bucket has a label", () => {
     expect(Object.keys(OPEN_BUCKET_LABEL)).toHaveLength(5);
+  });
+});
+
+describe("availability wording (BA extra-features §11.1)", () => {
+  it("uses Available, Cooldown and Unavailable, naming the reason for Unavailable", () => {
+    expect(AVAILABILITY_LABEL.AVAILABLE).toBe("Available");
+    expect(AVAILABILITY_LABEL.COOLDOWN).toBe("Cooldown");
+    expect(AVAILABILITY_LABEL.NO_NEW_CASES).toBe("Unavailable (limit)");
+    expect(AVAILABILITY_LABEL.SOS_PROTECTION).toBe("Unavailable (SOS)");
   });
 });

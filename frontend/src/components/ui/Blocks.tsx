@@ -21,18 +21,18 @@ export function Section({
   return (
     <Tag id={id} className="rcs-section" aria-labelledby={title ? headingId : undefined}>
       {(title || actions) && (
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            {title && (
-              <h2 id={headingId} className="rcs-section-title">
-                {title}
-              </h2>
-            )}
-            {description && <p className="rcs-helper">{description}</p>}
-          </div>
-          {actions}
+        // The title and its controls share one row, controls at the far end, so a control sits
+        // in the same place on every section. The description reads under the pair.
+        <div className="rcs-section-head">
+          {title && (
+            <h2 id={headingId} className="rcs-section-title">
+              {title}
+            </h2>
+          )}
+          {actions && <div className="rcs-section-actions">{actions}</div>}
         </div>
       )}
+      {description && <p className="rcs-helper">{description}</p>}
       {children}
     </Tag>
   );

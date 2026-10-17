@@ -29,13 +29,13 @@ function renderAt(path: string) {
 }
 
 const HEADINGS: Record<string, string> = {
-  "/manager": "Manager Intelligence Dashboard",
-  "/manager/cases": "Consolidated Case Oversight",
+  "/manager": "Overview",
+  "/manager/cases": "Cases",
   "/manager/sos": "SOS Inbox",
   "/manager/reassignment": "Reassignment Queue",
   "/manager/deliveries": "Deliveries",
   "/manager/reports": "Client reports",
-  "/manager/validation": "Validation & Audit",
+  "/manager/insights": "Insights",
 };
 
 describe("Manager screens", () => {
@@ -133,53 +133,124 @@ describe("Manager screens", () => {
     renderAt("/manager");
     const table = await screen.findByRole("table", { name: "Auditor protection and availability" });
     const samRow = within(table).getByRole("link", { name: "Sam Nguyen" }).closest("tr")!;
-    expect(within(samRow).getByText("At limit")).toBeInTheDocument();
+    expect(within(samRow).getByText("At Limit")).toBeInTheDocument();
     const reeseRow = within(table).getByRole("link", { name: "Reese Patel" }).closest("tr")!;
-    expect(within(reeseRow).getByText("Approaching")).toBeInTheDocument();
+    expect(within(reeseRow).getByText("Approaching Limit")).toBeInTheDocument();
     expect(within(reeseRow).getByText("Check-in pending")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: /SOS alert — 3 SOS alerts need follow-up/ })).toBeInTheDocument();
   });
 
   describe("Manager Intelligence Dashboard (Sprint 3 extras §1)", () => {
-    it("shows the KPI strip from stored records, with the demo badge (MR-OV-08)", async () => {
+    it("shows three quiet figures from stored records, with the demo badge (MR-OV-08)", async () => {
       renderAt("/manager");
-      const strip = await screen.findByRole("region", { name: "Operations at a glance" });
-      for (const label of ["Total cases", "Completed", "Open cases", "Needs manager action"]) {
+      const strip = await screen.findByRole("region", { name: "Figures for the period" });
+      for (const label of ["Open cases", "Completed", "Delivery success"]) {
         expect(within(strip).getByText(label)).toBeInTheDocument();
       }
-      expect(screen.getByText("DEMO / PLACEHOLDER DATA")).toBeInTheDocument();
+      // Quiet: figures carry no links or buttons of their own.
+      expect(within(strip).queryAllByRole("link")).toHaveLength(0);
+      expect(within(strip).queryAllByRole("button")).toHaveLength(0);
+      // The header badge labels demo data; the page does not repeat it.
+      expect(screen.getByText("Demo data")).toBeInTheDocument();
+      expect(screen.queryByText("DEMO / PLACEHOLDER DATA")).not.toBeInTheDocument();
       // Open cases is the live backlog: every non-complete case, whenever it arrived.
       const open = readDb().cases.filter((c) => c.status !== "COMPLETE").length;
       await waitFor(() => expect(within(strip).getByText(String(open))).toBeInTheDocument());
     });
 
-    it("has exactly one primary button: the most urgent action, else Generate (D4)", async () => {
-      renderAt("/manager");
-      const urgent = await screen.findByRole("button", { name: "Follow up 3 SOS alerts" });
-      const primaries = () => document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)");
-      expect(urgent).toHaveClass("cds--btn--primary");
-      expect(primaries()).toHaveLength(1);
-      expect(screen.getByRole("button", { name: "Generate Client Service Report" })).toHaveClass("cds--btn--tertiary");
-    });
-
-    it("lists only Manager decisions in Needs Attention, each linked to where it's handled", async () => {
+    it("has exactly one primary button, Generate Report, and no inbox row is primary (D4)", async () => {
       renderAt("/manager");
       const list = await screen.findByRole("list", { name: "Items that need you" });
-      expect(within(list).getByRole("link", { name: /^Open SOS/ })).toHaveAttribute("href", "/manager/sos");
-      expect(within(list).getByRole("link", { name: /^Failed CommunityHub handoffs/ })).toHaveAttribute(
-        "href",
-        "/manager/deliveries?status=needs-attention",
-      );
-      expect(within(list).getByRole("link", { name: /^Reassignment decisions/ })).toHaveAttribute(
-        "href",
-        "/manager/reassignment",
-      );
-      // Break and talk requests share one row that says which replies are waiting.
+      expect(list).toBeInTheDocument();
+      const primaries = () => document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)");
+      expect(screen.getByRole("button", { name: "Generate Report" })).toHaveClass("cds--btn--primary");
+      expect(primaries()).toHaveLength(1);
+      expect(screen.queryByRole("button", { name: /Follow up \d+ SOS/ })).not.toBeInTheDocument();
+    });
+
+    it("keeps Generate Report as the one primary action when nothing needs the Manager", async () => {
+      updateDb((db) => {
+        const now = new Date().toISOString();
+        for (const sos of db.sosEvents) sos.resolved_at = sos.resolved_at ?? now;
+        for (const w of db.wellbeingRequests) w.status = w.kind === "BREAK_REQUEST" ? "APPROVED" : "FOLLOWED_UP";
+        for (const c of db.cases) {
+          if (c.manager_flag) c.manager_flag = null;
+        }
+        for (const d of db.deliveries) if (d.delivery_status === "NEEDS_ATTENTION") d.delivery_status = "SUCCESS";
+      });
+      renderAt("/manager");
+      expect(await screen.findByText("Nothing needs you")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Generate Report" })).toHaveClass("cds--btn--primary");
+      expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(1);
+    });
+
+    it("lists Manager decisions as an inbox, each row naming what it is and where to go (BA 11.1)", async () => {
+      updateDb((db) => {
+        db.deliveries[0].delivery_status = "NEEDS_ATTENTION";
+      });
+      renderAt("/manager");
+      const list = await screen.findByRole("list", { name: "Items that need you" });
+      // SOS opens its context first: acknowledging is a deliberate step.
+      expect(within(list).getAllByText("SOS Alert")).toHaveLength(3);
+      expect(within(list).getAllByRole("button", { name: "Open alert" }).length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Break Request").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Talk Request").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Reassignment").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Delivery Failed").length).toBeGreaterThan(0);
+    });
+
+    it("approves a break request in the row, with no page change (one click)", async () => {
+      renderAt("/manager");
+      const approve = await screen.findByRole("button", { name: /^Approve, break request from Reese Patel/ });
+      fireEvent.click(approve);
+      await waitFor(() => expect(screen.queryByRole("button", { name: /^Approve, break request from Reese/ })).toBeNull());
+      expect(await screen.findByText("Approved the break request from Reese Patel.", { selector: "p[role=status]" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
       expect(
-        within(list)
-          .getByRole("link", { name: /^Support requests/ })
-          .getAttribute("href"),
-      ).toMatch(/^\/manager\/auditors\//);
+        readDb().wellbeingRequests.filter((w) => w.kind === "BREAK_REQUEST" && w.status === "APPROVED").length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("marks a talk request followed up in the row", async () => {
+      renderAt("/manager");
+      fireEvent.click(await screen.findByRole("button", { name: /^Mark followed up, talk request from Reese Patel/ }));
+      await waitFor(() =>
+        expect(readDb().wellbeingRequests.some((w) => w.kind === "TALK_TO_MANAGER" && w.status === "FOLLOWED_UP")).toBe(true),
+      );
+    });
+
+    it("reassigns a declined case to the suggested Auditor in one click", async () => {
+      renderAt("/manager");
+      const reassign = await screen.findByRole("button", { name: /^Reassign to .+, case AR-2026-00398/ });
+      fireEvent.click(reassign);
+      await waitFor(() =>
+        expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).not.toBeNull(),
+      );
+      await waitFor(() => expect(screen.queryByRole("button", { name: /case AR-2026-00398/ })).toBeNull());
+    });
+
+    it("retries a failed delivery in the row and clears it once CommunityHub accepts it", async () => {
+      updateDb((db) => {
+        db.organisation.status = "READY";
+      });
+      renderAt("/manager");
+      const [retry] = await screen.findAllByRole("button", { name: /^Retry, delivery for case/ });
+      const name = retry.getAttribute("aria-label")!;
+      const caseId = name.replace("Retry, delivery for case ", "");
+      fireEvent.click(retry);
+      await waitFor(() => expect(screen.queryByRole("button", { name })).not.toBeInTheDocument());
+      expect(readDb().deliveries.find((d) => d.case_id === caseId)!.delivery_status).toBe("SUCCESS");
+    });
+
+    it("keeps a failed delivery in the inbox, and says so, when the retry fails again", async () => {
+      updateDb((db) => {
+        db.organisation.status = "ERROR";
+      });
+      renderAt("/manager");
+      const retry = await screen.findAllByRole("button", { name: /^Retry, delivery for case/ });
+      fireEvent.click(retry[0]);
+      expect(await screen.findByText(/Still failing/)).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /^Retry, delivery for case/ })).toHaveLength(retry.length);
     });
 
     it("shows who asked for support with one quiet tag, and no rankings or scores (MR-SOS-07)", async () => {
@@ -192,23 +263,32 @@ describe("Manager screens", () => {
       expect(document.body.textContent).not.toMatch(/leaderboard|ranking|performance score|fastest/i);
     });
 
-    it("opens the evidence behind a figure, with its definition and source fields (§1.4)", async () => {
-      renderAt("/manager");
-      const strip = await screen.findByRole("region", { name: "Operations at a glance" });
-      const [totalEvidence] = await within(strip).findAllByRole("button", { name: "View evidence" });
+    it("opens the evidence behind a section, with its definition and source fields (§1.4)", async () => {
+      renderAt("/manager/insights");
+      const strip = await screen.findByRole("region", { name: "Figures for the period" });
+      const [totalEvidence] = await within(strip).findAllByRole("button", { name: "Evidence" });
       fireEvent.click(totalEvidence);
       expect(await screen.findByText("Reports received by RCS during the selected period.")).toBeInTheDocument();
       expect(screen.getByText("cases.created_at")).toBeInTheDocument();
       expect(screen.getByRole("table", { name: "Contributing cases" })).toBeInTheDocument();
     });
 
-    it("the KPI jump links point at sections that exist", async () => {
-      renderAt("/manager");
-      const strip = await screen.findByRole("region", { name: "Operations at a glance" });
-      for (const link of within(strip).getAllByRole("link")) {
-        const target = link.getAttribute("href")!.slice(1);
-        expect(document.getElementById(target), `#${target} has no section`).not.toBeNull();
+    it("Insights holds the analytics that left the Overview", async () => {
+      renderAt("/manager/insights");
+      for (const title of ["Case flow", "Client outcomes", "AI and Auditor decisions", "Delivery Health"]) {
+        expect(await screen.findByRole("heading", { level: 2, name: title })).toBeInTheDocument();
       }
+      expect(screen.getByRole("button", { name: "Validation & Audit" })).toBeInTheDocument();
+    });
+
+    it("the Overview no longer repeats the analytics or the evidence link six times", async () => {
+      renderAt("/manager");
+      await screen.findByRole("list", { name: "Items that need you" });
+      for (const title of ["Case flow", "Client outcomes", "Delivery Health"]) {
+        expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
+      }
+      expect(screen.queryByRole("button", { name: "View evidence" })).not.toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Evidence" })).toHaveLength(2);
     });
 
     it("keeps the chosen period in the URL", async () => {
@@ -260,16 +340,17 @@ describe("Manager screens", () => {
     expect(await screen.findByText("Near my exposure limit")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue to reassignment decision" }));
 
+    fireEvent.click(await screen.findByRole("button", { name: "No reassignment needed" }));
     const confirmNone = await screen.findByRole("button", { name: "Confirm no reassignment" });
     expect(confirmNone).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("No reassignment needed"), {
+    fireEvent.change(screen.getByLabelText(/Note for the audit trail/), {
       target: { value: "Severity matches the content; no further context needed." },
     });
     fireEvent.click(confirmNone);
 
-    expect(
-      await screen.findByRole("heading", { name: "No reassignment confirmed — AR-2026-00398" }),
-    ).toBeInTheDocument();
+    // The Manager is taken straight back to the Overview, where the confirmation shows.
+    expect(await screen.findByText("Closed AR-2026-00398 with no reassignment.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
     const status = await mockDataService.getStatus("AR-2026-00398");
     expect(status).toMatchObject({ status: "Complete", final_outcome: "CLOSED_NO_REASSIGNMENT" });
   });
@@ -279,12 +360,23 @@ describe("Manager screens", () => {
       db.demo.nextReassignTargetUnavailable = true;
     });
     renderAt("/manager/cases/AR-2026-00398/reassign");
-    fireEvent.click(await screen.findByRole("combobox", { name: /Reassign to another Auditor/ }));
-    fireEvent.click(await screen.findByText(/Jordan Lee — \d+ min headroom/));
-    fireEvent.click(screen.getByRole("button", { name: "Confirm reassignment" }));
+    fireEvent.click(await screen.findByLabelText(/Jordan Lee/));
+    fireEvent.click(screen.getByRole("button", { name: "Reassign to Jordan Lee" }));
 
     expect(await screen.findByText("This Auditor is no longer available — please choose another.")).toBeInTheDocument();
     expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
+  });
+
+  it("preselects the suggested Auditor so reassigning is one click, then returns to the Overview", async () => {
+    renderAt("/manager/cases/AR-2026-00398/reassign");
+    const confirm = await screen.findByRole("button", { name: /^Reassign to / });
+    const suggestedName = confirm.textContent!.replace("Reassign to ", "");
+    expect(screen.getByLabelText(new RegExp(`${suggestedName}.*Suggested`))).toBeChecked();
+    // One list, not a list plus a dropdown.
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    fireEvent.click(confirm);
+    expect(await screen.findByText(new RegExp(`Reassigned AR-2026-00398 to ${suggestedName}\\.`))).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
   });
 
   it("saves an exposure limit, and keeps the entered value with a retry when saving fails (MR-OV-04)", async () => {

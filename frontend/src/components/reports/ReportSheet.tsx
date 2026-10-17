@@ -217,7 +217,7 @@ export function ReportSheet({
           <SegmentedBar
             label="Delivery health"
             segments={[
-              { key: "ok", label: "Successful", value: m.delivery.success, color: "var(--cds-support-success)" },
+              { key: "ok", label: "Delivered", value: m.delivery.success, color: "var(--cds-support-success)" },
               {
                 key: "retry",
                 label: "Pending or retrying",
@@ -226,7 +226,7 @@ export function ReportSheet({
               },
               {
                 key: "na",
-                label: "Needs attention",
+                label: "Failed",
                 value: m.delivery.needs_attention,
                 color: "var(--cds-support-error)",
               },

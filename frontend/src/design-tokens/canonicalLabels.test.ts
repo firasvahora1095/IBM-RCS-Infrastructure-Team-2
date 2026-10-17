@@ -91,8 +91,14 @@ describe("AR-DF-03 decline reasons (docs/ba/ba-requirements-sprint2-final.md, AR
 });
 
 describe("Manager labels (Manager Figma prototype 0qMhTLDlozGkcdqcgbwyse)", () => {
-  it("uses the Oversight Dashboard exposure states (78:69)", () => {
-    expect(EXPOSURE_STATE_LABEL).toEqual({ UNDER: "Under", APPROACHING: "Approaching", AT_LIMIT: "At limit" });
+  // Figma 78:69 says Under / Approaching / At limit. The BA's UI wording standard
+  // (docs/ba/extra-features.md §11.1) names the state in full; it is the later, signed-off source.
+  it("uses the BA standard exposure states (extra-features §11.1, from Oversight Dashboard 78:69)", () => {
+    expect(EXPOSURE_STATE_LABEL).toEqual({
+      UNDER: "Under Limit",
+      APPROACHING: "Approaching Limit",
+      AT_LIMIT: "At Limit",
+    });
   });
 
   it("uses the SOS Inbox status column wording (103:151)", () => {

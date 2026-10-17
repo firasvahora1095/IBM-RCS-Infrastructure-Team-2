@@ -1,7 +1,9 @@
 import type { DeliveredOutcome, DeliveryStatus } from "../services/types";
 
 /**
- * Case result handoff wording (docs/ux/b2b-end-to-end-flow-spec.md §7).
+ * Case result handoff wording (docs/ux/b2b-end-to-end-flow-spec.md §7), with the
+ * BA standard labels for delivery state: Delivered, Pending, Retrying, Failed
+ * (docs/ba/extra-features.md §11.1).
  * Pinned by deliveryLabels.test.ts so the Manager screens never drift.
  *
  * Moderation status and delivery status are always shown as two separate
@@ -9,10 +11,10 @@ import type { DeliveredOutcome, DeliveryStatus } from "../services/types";
  * attention (Sprint 3 extras §5).
  */
 export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
-  SUCCESS: "Successful",
+  SUCCESS: "Delivered",
   PENDING: "Pending",
   RETRYING: "Retrying",
-  NEEDS_ATTENTION: "Needs attention",
+  NEEDS_ATTENTION: "Failed",
 };
 
 /** The machine-readable outcome value as it travels in the payload, shown in plain words for staff. */

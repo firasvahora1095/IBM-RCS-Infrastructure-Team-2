@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { ContentWarningModal } from "../../components/review/ContentWarningModal";
 import { ReviewWorkspace } from "../../components/review/ReviewWorkspace";
 import { PROTECTED_VIEWER_SETTINGS, type ViewerSettings } from "../../components/review/viewerSettings";
@@ -116,7 +117,7 @@ export function ManagerExceptionalAccessPage() {
 
       {data && step === "summary" && (
         <>
-          <h1 style={pageTitle}>AI Analysis Summary</h1>
+          <PageHeader title="AI Analysis Summary" />
           <div className="flex flex-wrap items-center gap-3">
             {data.severity_tier && <SeverityTag tier={data.severity_tier} />}
             {data.effective_severity_score !== null && (

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, RadioButton, RadioButtonGroup, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { pageTitle } from "../../components/manager/managerStyles";
 import { getSosAlert, logSosFollowUp } from "../../services";
 import { ApiError, type SosFollowUpOutcome } from "../../services/types";
 import { SOS_FOLLOW_UP_OPTIONS } from "../../design-tokens/managerLabels";
@@ -60,7 +60,7 @@ export function ManagerSosFollowUpPage() {
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
       <ManagerBreadcrumb trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: `${name} — Follow-up` }]} />
-      <h1 style={pageTitle}>Log follow-up — {name}</h1>
+      <PageHeader title={`Log follow-up — ${name}`} />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && logged && (
         <Panel maxWidth={560}>

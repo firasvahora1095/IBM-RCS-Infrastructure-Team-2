@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button, InlineNotification, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
-import { pageTitle } from "../../components/manager/managerStyles";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { MessageThread } from "../../components/messages/MessageThread";
 import { getClientMessage, replyClientMessage } from "../../services";
@@ -51,10 +51,10 @@ export function ManagerClientMessagePage() {
       <LoadState error={error} loading={!data && !error} what="this message" />
       {data && (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 style={pageTitle}>{data.display_name}</h1>
-            <StatusTag tone={MESSAGE_TONE[data.status]}>{MANAGER_MESSAGE_STATUS_LABEL[data.status]}</StatusTag>
-          </div>
+          <PageHeader
+            title={data.display_name}
+            meta={<StatusTag tone={MESSAGE_TONE[data.status]}>{MANAGER_MESSAGE_STATUS_LABEL[data.status]}</StatusTag>}
+          />
           <div style={{ maxWidth: 880 }} className="flex flex-col gap-6">
             <MessageThread
               message={data}

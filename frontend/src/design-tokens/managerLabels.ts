@@ -8,11 +8,15 @@ import type {
 } from "../services/types";
 import { mapStatusToStaffLabel } from "./statusLabels";
 
-/** MR-OV-05 exposure states, as the Manager Figma dashboard labels them (78:69). */
+/**
+ * MR-OV-05 exposure states. The Figma dashboard (78:69) says Under, Approaching,
+ * At limit; the BA's standard (docs/ba/extra-features.md §11.1) names the state
+ * outright, so the word "limit" is never left to the column heading.
+ */
 export const EXPOSURE_STATE_LABEL: Record<ExposureState, string> = {
-  UNDER: "Under",
-  APPROACHING: "Approaching",
-  AT_LIMIT: "At limit",
+  UNDER: "Under Limit",
+  APPROACHING: "Approaching Limit",
+  AT_LIMIT: "At Limit",
 };
 
 /** SOS Inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
