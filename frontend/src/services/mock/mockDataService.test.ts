@@ -175,9 +175,9 @@ describe("mock data source", () => {
     // S3 case: 15 minutes, no mandatory check-in.
     const s3 = await mock.resolveCase("AR-2026-00417", token, "POLICY_VIOLATION_FOUND");
     expect(s3.cooldown).toMatchObject({ trigger: "S3", requires_check_in: false });
-    // S4 by the AI: 30 minutes, also by time alone. Only an SOS needs a manager check-in (b6a710c).
+    // S4 by the AI: 30 minutes plus check-in.
     const s4 = await mock.resolveCase("AR-2026-00420", token, "POLICY_VIOLATION_FOUND");
-    expect(s4.cooldown).toMatchObject({ trigger: "S4", requires_check_in: false });
+    expect(s4.cooldown).toMatchObject({ trigger: "S4", requires_check_in: true });
   });
 
   it("gives an S2 case a cooldown only after sustained exposure", async () => {
