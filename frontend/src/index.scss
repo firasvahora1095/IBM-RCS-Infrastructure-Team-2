@@ -18,11 +18,15 @@
 // values, but our inline token styles would resolve to nothing on white
 // pages. The Theme component still overrides them per zone.
 @use "@carbon/react/scss/theme";
+@use "@carbon/colors";
 @use "./styles/b2b-kit";
 @use "./styles/site";
 
 :root {
   @include theme.theme();
+  // Solid green for tags that carry white text. Carbon's Green 50 (the success token) is only 3.3:1 with white,
+  // which fails WCAG AA at tag size; Green 60 is about 5:1. Taken from Carbon's palette, not typed in.
+  --rcs-success-strong: #{colors.$green-60};
 }
 
 // The Review Workspace scrubber spans its whole column (Figma 20:54). Carbon's

@@ -10,12 +10,12 @@ const BASE: CSSProperties = { margin: 0, alignSelf: "flex-start", whiteSpace: "n
 
 /**
  * Figma foundation Tag fills (Info, Success, Warning, Error, and the S1 gray),
- * on Carbon's Tag with the Carbon status tokens, as SeverityTag does. One
- * deliberate deviation: Success uses dark text, because white on the success
- * green is 3.3:1 and fails WCAG AA for tag-size text (dark text is 5.4:1).
+ * on Carbon's Tag with the Carbon status tokens, as SeverityTag does. Success is
+ * white text on Carbon's Green 60 (about 5:1, passes WCAG AA). The success token
+ * itself, Green 50, would be only 3.3:1 with white, so it is not used under text.
  */
 const TONE: Record<StatusTone, CSSProperties> = {
-  success: { backgroundColor: "var(--cds-support-success)", color: "var(--cds-text-primary)" },
+  success: { backgroundColor: "var(--rcs-success-strong)", color: "var(--cds-text-on-color)" },
   info: { backgroundColor: "var(--cds-support-info)", color: "var(--cds-text-on-color)" },
   warning: { backgroundColor: "var(--cds-support-warning)", color: "var(--cds-text-primary)" },
   error: { backgroundColor: "var(--cds-support-error)", color: "var(--cds-text-on-color)" },
