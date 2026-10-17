@@ -49,3 +49,13 @@
 * [06 - IBM-RCS Infrastructure_Sprint3_Week1_Team_Meeting_Agenda](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week1/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week1_Team_Meeting_Agenda.docx?d=wac17dd8b70c64e1e92f6c3876bf48763&csf=1&web=1&e=nsK5HF)
 * [06 - IBM-RCS Infrastructure_Sprint3_Week1_Team_Meeting_Minutes](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week1/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week1_Team_Meeting_Minutes.docx?d=w0a08603a0f8c4cc1b0e9cd6da649a6a5&csf=1&web=1&e=GJnCee)
 * [06 - IBM-RCS Infrastructure_Sprint3_Week1_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week1/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week1_Team_Meeting_Recording.mp4?d=w655f72b1b97a49398f1724d68859847a&csf=1&web=1&e=JGXBbd)
+
+
+# Sprint 3 - Week 2 Meetings & Documentation
+* [06 - IBM-RCS Infrastructure_Sprint3_Week2_Team_Meeting_Agenda](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week2_Team_Meeting_Agenda.docx?d=w92741685297d486d8b347254036b9da3&csf=1&web=1&e=HOecTW)
+* [06 - IBM-RCS Infrastructure_Sprint3_Week2_Team_Meeting_Minutes](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week2_Team_Meeting_Minutes.docx?d=w8220b01094ec449db113174ee84a3314&csf=1&web=1&e=QSLRXK)
+* [06 - IBM-RCS Infrastructure_Sprint3_Week2_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week2_Team_Meeting_Recording.mp4?d=w0af2e969bea44cb5ae2231a1a7a53f8c&csf=1&web=1&e=W1SkNb)
+
+# Final Presentation Slides & Handover Documentation
+* [06 - IBM-RCS Infrastructure_Final_Presentation_Slides](https://rmiteduau-my.sharepoint.com/:p:/g/personal/s4083552_rmit_edu_vn/IQBS3CUy8LlVQo3tsGE3qVsOAY0hYEUh8gfzDVEOLw3JZpA?e=mQvnyk)
+* [06 - IBM-RCS Infrastructure_Handover](https://rmiteduau-my.sharepoint.com/:w:/g/personal/s4083552_rmit_edu_vn/IQCSyypTA3FnSK6KkCuudtr1AYlkdOevifyQdHkz7X716-U?e=guoUjI)
