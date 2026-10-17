@@ -1997,80 +1997,37 @@ async def ai_chat(
     session: StaffSession = Depends(get_current_session),
     db: Session = Depends(get_db),
 ):
-    import re
     from app.chat import chat
+    from app.chat_context import build_context, model_context, no_verified_info, safety_addendum
 
-    context: dict = {}
+    ctx = build_context(db, session.role, session.staff_id, body.message)
 
-    if session.role == "manager":
-        now = datetime.now(timezone.utc)
-        auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
-        open_cases = db.scalar(select(func.count()).select_from(Case).where(Case.status != "COMPLETE")) or 0
-        completed_today_count = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.status == "COMPLETE",
-                Case.completed_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-        ) or 0
-        pending_declined = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.manager_flag.in_(["DECLINED", "CAP_REACHED"]),
-                Case.status != "COMPLETE",
-            )
-        ) or 0
-        from app.support import unresolved_sos_auditors
-        open_sos = len(unresolved_sos_auditors(db))
-        from app.models import Delivery
-        failed_deliveries = db.scalar(
-            select(func.count()).select_from(Delivery).where(Delivery.delivery_status == "NEEDS_ATTENTION")
-        ) or 0
-        context = {
-            "open cases": open_cases,
-            "completed today": completed_today_count,
-            "cases awaiting reassignment": pending_declined,
-            "open SOS alerts": open_sos,
-            "failed deliveries": failed_deliveries,
-            "auditor count": len(auditors),
-            "auditors at exposure limit": sum(
-                1 for a in auditors
-                if (a.exposure_minutes or 0) >= (a.exposure_limit_minutes or 120)
-            ),
+    def payload(reply: str, fallback: bool = False) -> dict:
+        return {
+            "reply": reply,
+            "live_as_of": ctx.live_as_of if ctx.live else None,
+            "case": ctx.case,
+            "links": ctx.links,
+            "fallback": fallback,
         }
 
-    elif session.role == "auditor":
-        auditor = db.get(Auditor, session.staff_id)
-        if auditor:
-            active_cases = db.scalars(
-                select(Case).where(
-                    Case.assigned_auditor_id == session.staff_id,
-                    Case.status.in_(["READY_FOR_REVIEW", "AUDITOR_REVIEW"]),
-                )
-            ).all()
-            context = {
-                "your exposure today": f"{round(auditor.exposure_minutes or 0)} / {auditor.exposure_limit_minutes or 120} min",
-                "your active cases": len(active_cases),
-                "active case IDs": ", ".join(c.case_id for c in active_cases) or "none",
-            }
-
-    # Level 3: compact case lookup when a case ID is mentioned
-    case_id_match = re.search(r'\b[A-Z0-9]{8,16}\b', body.message)
-    if case_id_match:
-        looked_up = db.get(Case, case_id_match.group())
-        if looked_up:
-            context["case lookup"] = {
-                "case_id": looked_up.case_id,
-                "status": looked_up.status,
-                "ai_severity": looked_up.severity_tier or "not yet assessed",
-                "final_auditor_severity": (
-                    f"S{looked_up.auditor_severity_score}" if looked_up.auditor_severity_score else "not yet set"
-                ),
-                "assigned_auditor": looked_up.assigned_auditor_id or "unassigned",
-                "final_outcome": looked_up.final_outcome or "not yet set",
-            }
+    # A case ID that isn't visible to this person gets fixed wording, with no model call,
+    # so the Buddy can't guess at a case it hasn't been given.
+    if ctx.case_unavailable:
+        return payload(no_verified_info(session.role), fallback=True)
 
     try:
-        reply = await run_in_threadpool(chat, body.message, session.role, context)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        reply = await run_in_threadpool(
+            chat,
+            body.message,
+            session.role,
+            model_context(ctx),
+            [turn.model_dump() for turn in body.history],
+            ctx.live_as_of,
+        )
+    except RuntimeError:
+        logger.exception("AI Buddy request failed")
+        raise HTTPException(status_code=503, detail="AI Buddy is unavailable right now.")
 
-    return {"reply": reply}
+    addendum = safety_addendum(session.role, ctx)
+    return payload(f"{reply}\n\n{addendum}" if addendum else reply)
