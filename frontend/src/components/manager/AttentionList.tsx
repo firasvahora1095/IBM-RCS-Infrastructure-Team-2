@@ -35,7 +35,6 @@ export function AttentionList({ items, targets = {}, details = {} }: AttentionLi
               to={to}
               className="rcs-attention-row"
               data-urgent={urgent ? wording.tone : undefined}
-              aria-label={`${wording.label}: ${count}. ${urgent ? status : "All clear"}.`}
             >
               <Icon aria-hidden="true" className="rcs-attention-icon" size={16} />
               <span className="rcs-attention-label">{wording.label}</span>

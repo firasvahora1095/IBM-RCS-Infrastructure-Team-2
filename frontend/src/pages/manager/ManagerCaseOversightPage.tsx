@@ -223,7 +223,7 @@ function CaseRow({
             kind="tertiary"
             size="sm"
             disabled={busy}
-            aria-label={`Make case ${row.case_id} available to Auditors`}
+            aria-label={`Make available, case ${row.case_id}`}
             onClick={() => onMakeAvailable(row.case_id)}
           >
             Make available

@@ -46,7 +46,6 @@ export function FlowHubPage() {
                   to={stage.to}
                   className="rcs-stat-tile"
                   style={{ blockSize: "100%", gap: "0.75rem" }}
-                  aria-label={`Stage ${stage.n}: ${stage.title}. ${stage.body}`}
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="rcs-mono" style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>

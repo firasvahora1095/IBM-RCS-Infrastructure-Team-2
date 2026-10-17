@@ -13,7 +13,7 @@ export function CommunityHubHeader() {
     <>
     <header className="ch-header">
       <div className="ch-header-inner">
-        <RouterLink className="ch-brand" to="/communityhub" aria-label="CommunityHub home">
+        <RouterLink className="ch-brand" to="/communityhub">
           <span className="ch-logo" aria-hidden="true">
             ch
           </span>
