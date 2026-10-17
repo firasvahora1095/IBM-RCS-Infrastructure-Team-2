@@ -7,6 +7,11 @@ import app.storage as storage
 from app.storage import stream_video_from_storage
 
 
+def read_all(body) -> bytes:
+    """The streamed body is a chunk iterator (it closes the file itself), so read it as the server does."""
+    return b"".join(body)
+
+
 def test_local_storage_full_file_with_no_range(tmp_path: Path) -> None:
     video = tmp_path / "clip.mp4"
     video.write_bytes(b"0123456789")
@@ -15,7 +20,7 @@ def test_local_storage_full_file_with_no_range(tmp_path: Path) -> None:
         str(video)
     )
 
-    assert body.read() == b"0123456789"
+    assert read_all(body) == b"0123456789"
     assert media_type == "video/mp4"
     assert content_length == 10
     assert is_partial is False
@@ -30,7 +35,7 @@ def test_local_storage_start_anchored_range(tmp_path: Path) -> None:
         str(video), byte_range="bytes=2-5"
     )
 
-    assert body.read() == b"2345"
+    assert read_all(body) == b"2345"
     assert content_length == 4
     assert is_partial is True
     assert content_range == "bytes 2-5/10"
@@ -47,7 +52,7 @@ def test_local_storage_suffix_range_returns_the_tail(tmp_path: Path) -> None:
         str(video), byte_range="bytes=-4"
     )
 
-    assert body.read() == b"6789"
+    assert read_all(body) == b"6789"
     assert content_length == 4
     assert is_partial is True
     assert content_range == "bytes 6-9/10"
@@ -85,7 +90,7 @@ def test_cos_storage_suffix_range_is_converted_before_reaching_cos(
         "cos://evidence-bucket/cases/CASE-1/source.mp4", byte_range="bytes=-65536"
     )
 
-    assert body.read() == b"tail-bytes"
+    assert read_all(body) == b"tail-bytes"
     assert media_type == "video/mp4"
     assert content_length == 65536
     assert is_partial is True
@@ -116,7 +121,7 @@ def test_cos_storage_normal_range_is_not_retried(
         "cos://evidence-bucket/cases/CASE-1/source.mp4", byte_range="bytes=0-3"
     )
 
-    assert body.read() == b"abcd"
+    assert read_all(body) == b"abcd"
     assert is_partial is True
     assert content_range == "bytes 0-3/100"
     assert len(calls) == 1
