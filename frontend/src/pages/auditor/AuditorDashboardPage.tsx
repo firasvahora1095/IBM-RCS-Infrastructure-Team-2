@@ -95,7 +95,7 @@ export function AuditorDashboardPage() {
   }, [token, handleSessionExpiry]);
 
   const cooldown = wellbeing?.cooldown ?? null;
-  // A cooldown lasts until its end time; SOS also requires a Manager check-in before returning.
+  // A cooldown lasts until its end time and, for S4/SOS, until the Manager check-in is recorded.
   const inCooldown =
     cooldown !== null &&
     (Date.parse(cooldown.ends_at) > pageOpenedAt || (cooldown.requires_check_in && !cooldown.check_in_completed_at));
@@ -298,7 +298,7 @@ export function AuditorDashboardPage() {
                   <p className="rcs-helper">
                     {cooldownCause}
                     {waitingForCheckIn
-                      ? ". Your manager will check in with you before new cases resume."
+                      ? ". Your manager will check in before new cases resume."
                       : ". No new harmful-content case is assigned until it ends."}
                   </p>
                   <div>

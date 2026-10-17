@@ -318,7 +318,7 @@ function cooldownForResolvedCase(
     );
     if (!sustained && !repeated) return null;
   }
-  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], false);
+  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], tier === "S4");
 }
 
 /** Screen 1c placeholder limit: "Max size: 10MB (placeholder) — to be confirmed with Dev." */
@@ -539,7 +539,7 @@ function findSos(db: MockDb, alertId: string): MockSosEvent {
 /**
  * AR-WB-06/07 and AR-AI-11: one path for every unexpected-exposure event. The
  * alert is logged with what raised it, the case goes to the Manager, and the
- * SOS cooldown applies (AR-WB-12) — 30 minutes plus a mandatory Manager check-in.
+ * S4 protocol applies (AR-WB-12) — 30 minutes plus a mandatory check-in.
  */
 function raiseSos(db: MockDb, token: string, caseId: string, trigger: SosTrigger): { cooldown: CooldownState } {
   const session = requireSession(db, token, "auditor");
