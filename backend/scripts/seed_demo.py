@@ -88,7 +88,17 @@ m1 = Auditor(
     role="manager",
 )
 
-db.add_all([a1, a2, a3, a4, m1])
+# The fallback reviewer (extra-features 1.6). Not part of the weighted pool.
+sa1 = Auditor(
+    auditor_id="superadmin-01",
+    login_hash=hash_password("test123"),
+    role="auditor",
+    is_super_admin=True,
+    exposure_minutes=0.0,
+    exposure_last_reset_at=now,
+)
+
+db.add_all([a1, a2, a3, a4, m1, sa1])
 db.commit()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -297,7 +307,42 @@ c7 = Case(
     video_storage_path="/tmp/ibm-rcs-uploads/demo-declined.mp4",
 )
 
-db.add_all([c1, c2, c3, c4, c5, c6, c7])
+# FALLBACK DEMO: two cases no standard Auditor owns. The first waits in the Super Admin's
+# queue; the second has been made available for eligible Auditors to claim.
+fb1 = Case(
+    case_id=generate_case_id(),
+    status="READY_FOR_REVIEW",
+    assigned_auditor_id=None,
+    case_visibility="SUPER_ADMIN_ONLY",
+    watson_severity_score=48,
+    effective_severity_score=48,
+    severity_tier="S2",
+    narrative_summary="Demo case waiting in the fallback queue. No standard Auditor was eligible when it arrived.",
+    incident_timeline=timeline([(10, 25, "S2", "Verbal confrontation")]),
+    flagged_entities=entities([("Verbal resistance", 10.0, 25.0)]),
+    transcript=transcript_sample,
+    audio_intensity=audio_sample,
+    video_duration_seconds=60.0,
+    video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-1.mp4",
+)
+fb2 = Case(
+    case_id=generate_case_id(),
+    status="READY_FOR_REVIEW",
+    assigned_auditor_id=None,
+    case_visibility="AVAILABLE_TO_AUDITORS",
+    watson_severity_score=22,
+    effective_severity_score=22,
+    severity_tier="S1",
+    narrative_summary="Demo case released to eligible Auditors to claim.",
+    incident_timeline=timeline([(5, 5, "S1", "Routine interaction")]),
+    flagged_entities=entities([("Vehicle", 0.0, 40.0)]),
+    transcript=transcript_sample,
+    audio_intensity=audio_sample,
+    video_duration_seconds=45.0,
+    video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-2.mp4",
+)
+
+db.add_all([c1, c2, c3, c4, c5, c6, c7, fb1, fb2])
 db.commit()
 
 # ── Validation set (10 manually reviewed clips, team ground truth) ───────────

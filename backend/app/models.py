@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.sql import func
+from sqlalchemy.sql import expression, func
 
 
 Base = declarative_base()
@@ -47,6 +47,10 @@ class Auditor(Base):
     cooldown_trigger = Column(String(10), nullable=True)
     cooldown_check_in_done = Column(Integer, nullable=False, server_default="0")
     exposure_last_reset_at = Column(DateTime(timezone=True), nullable=True)
+    # The fallback reviewer (Sprint 3, extra-features 1.6): sees every open case's queue
+    # metadata and can take a case no standard Auditor could be given. Still an Auditor
+    # for wellbeing: exposure limit and cooldown apply, and the session role stays "auditor".
+    is_super_admin = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -135,6 +139,10 @@ class Case(Base):
     auditor_comment = Column(Text, nullable=True)
     final_outcome = Column(String(50), nullable=True)
     manager_flag = Column(String(15), nullable=True)
+    # Who may see the case in a queue, kept apart from who owns it (assigned_auditor_id):
+    # ASSIGNED_ONLY (default), SUPER_ADMIN_ONLY (no standard Auditor could take it) or
+    # AVAILABLE_TO_AUDITORS (released to eligible Auditors to claim, metadata only).
+    case_visibility = Column(String(25), nullable=False, server_default="ASSIGNED_ONLY")
 
     created_at = Column(
         DateTime(timezone=True),
