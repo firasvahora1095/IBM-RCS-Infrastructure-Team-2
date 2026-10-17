@@ -53,9 +53,9 @@ Not enough verified information:
 
 | | |
 |---|---|
-| State | Built by Dev on `feature/ai-chatbot` (PR #71, on `test`, **not on `main` yet**): floating button, 360px panel, role-based suggested questions, watsonx.ai backed |
+| State | Rebuilt as a Carbon side panel on `feat/ai-buddy-panel` (backend on `feat/ai-buddy-backend`), replacing the floating window. See [`ai-buddy-handoff.md`](ai-buddy-handoff.md) |
 | Must not (BA §11) | Decide outcomes or severity, diagnose wellbeing, replace SOS, reassign, approve breaks, change limits, remove posts, release reports |
-| Gaps between this wireframe and the built widget | (1) the system prompt has no "must not" rules or safe-fallback wording; (2) no action links such as "Open my exposure"; (3) built with hard-coded colours and plain elements, not Carbon components; (4) no focus management, keyboard close or `aria-live` for new answers; (5) the BA wants a side panel or drawer, the build is a floating window |
+| Gaps between this wireframe and the first build | All five closed: (1) the prompt now has never-do rules and the safe fallback; (2) links go to the right screen, chosen by fixed rules; (3) Carbon components and tokens only; (4) focus, Escape and a polite live region; (5) side panel. Still open: an NVDA pass and a measured contrast check |
 | Risk | Wrong or invented answers. Mitigation: grounded context only, safe fallback, and the "preliminary" label |
 
 ---

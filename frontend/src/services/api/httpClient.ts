@@ -8,6 +8,8 @@ import type {
   AuditorWellbeing,
   AvailableCases,
   FallbackCaseRow,
+  BuddyReply,
+  BuddyTurn,
   CaseResult,
   ClientAccount,
   ClientLoginResponse,
@@ -749,13 +751,13 @@ export async function clientRecordPlatformAction(
 
 // ---- AI Chatbot ----
 
-export async function aiChat(message: string, token: string): Promise<{ reply: string }> {
+export async function aiChat(message: string, token: string, history: BuddyTurn[] = []): Promise<BuddyReply> {
   const r = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
     headers: jsonBearer(token),
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history }),
   });
-  return parseJsonOrThrow<{ reply: string }>(r);
+  return parseJsonOrThrow<BuddyReply>(r);
 }
 
 export async function listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]> {

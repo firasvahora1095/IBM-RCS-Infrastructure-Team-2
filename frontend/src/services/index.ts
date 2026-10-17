@@ -39,6 +39,9 @@ export const requestStatusUpdates = delegate("requestStatusUpdates");
 // Staff sign-in
 export const staffLogin = delegate("staffLogin");
 
+// AI Buddy
+export const aiChat = delegate("aiChat");
+
 // Auditor review
 export const getAuditorCases = delegate("getAuditorCases");
 

@@ -247,3 +247,155 @@
   font-size: 1.75rem;
   line-height: 2.25rem;
 }
+
+// AI Buddy drawer (components/chat/AiBuddy). A right-hand panel under the 48px
+// header. On wide screens the page makes room for it instead of sitting
+// underneath, so the Buddy can never cover a control the reviewer needs, most
+// importantly SOS on the Review Workspace. On narrower screens it takes the
+// full width and the reviewer closes it to carry on.
+$rcs-buddy-width: 25rem;
+
+.rcs-buddy {
+  position: fixed;
+  inset-block: 3rem 0;
+  inset-inline-end: 0;
+  z-index: 7000;
+  display: flex;
+  flex-direction: column;
+  inline-size: min(#{$rcs-buddy-width}, 100vw);
+  background-color: var(--cds-layer-01);
+  border-inline-start: 1px solid var(--cds-border-subtle-01);
+  color: var(--cds-text-primary);
+}
+
+.rcs-buddy__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  background-color: var(--cds-layer-02);
+}
+
+.rcs-buddy__title {
+  margin: 0;
+  font-size: var(--cds-heading-compact-01-font-size, 0.875rem);
+  font-weight: 600;
+  line-height: 1.28;
+  margin-inline-end: auto;
+}
+
+.rcs-buddy__log {
+  flex: 1;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rcs-buddy__msg {
+  max-inline-size: 92%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.rcs-buddy__msg--user {
+  align-self: flex-end;
+  background-color: var(--cds-layer-accent-01);
+}
+.rcs-buddy__msg--buddy {
+  align-self: flex-start;
+  background-color: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+
+.rcs-buddy__caption {
+  margin-block-start: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.33;
+  color: var(--cds-text-secondary);
+}
+
+.rcs-buddy__case {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  white-space: normal;
+  dt {
+    color: var(--cds-text-secondary);
+  }
+  dd {
+    margin: 0;
+  }
+}
+
+.rcs-buddy__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-block-start: 0.75rem;
+  white-space: normal;
+}
+
+.rcs-buddy__foot {
+  padding: 0.75rem 1rem 1rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  background-color: var(--cds-layer-02);
+}
+
+.rcs-buddy__input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.rcs-buddy__input-row > :first-child {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.rcs-buddy__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+.rcs-buddy__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  .cds--btn {
+    max-inline-size: none;
+    inline-size: 100%;
+    justify-content: flex-start;
+    text-align: start;
+  }
+}
+
+@media (min-width: 66rem) {
+  html[data-ai-buddy="open"] #root {
+    padding-inline-end: $rcs-buddy-width;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rcs-buddy {
+    animation: rcs-buddy-in 110ms ease-out;
+  }
+  @keyframes rcs-buddy-in {
+    from {
+      transform: translateX(1rem);
+      opacity: 0;
+    }
+  }
+}

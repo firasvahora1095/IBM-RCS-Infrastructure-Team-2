@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { staffLogin } from "../services";
 import { clearAllDraftResolutions } from "./useDraftResolution";
+import { clearBuddyConversation } from "../components/chat/useBuddyConversation";
 
 const TOKEN_KEY = "rcs_staff_token";
 const ROLE_KEY = "rcs_staff_role";
@@ -53,6 +54,8 @@ export function readStaffSession(): StaffSession | null {
 }
 
 function clearStaffSession(): void {
+  // The Buddy conversation belongs to the person who signed in, not to whoever signs in next.
+  clearBuddyConversation();
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
   sessionStorage.removeItem(STAFF_ID_KEY);
@@ -122,7 +125,6 @@ export function useAuth() {
   const logout = useCallback(() => {
     clearStaffSession();
     setSession(null);
-    localStorage.removeItem("rcs_ai_buddy_messages");
   }, []);
 
   return {

@@ -1,6 +1,7 @@
 """Request payloads and controlled values for the Week 1 API."""
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -97,5 +98,12 @@ class SetExposureLimitRequest(BaseModel):
     minutes: int = Field(ge=0, le=1440)
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(min_length=1, max_length=1500)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    # Earlier turns of this conversation, oldest first, so follow-up questions make sense.
+    history: list[ChatTurn] = Field(default_factory=list, max_length=12)

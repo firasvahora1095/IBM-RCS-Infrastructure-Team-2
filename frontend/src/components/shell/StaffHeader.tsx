@@ -6,6 +6,7 @@ import { DemoDataBadge } from "./DemoDataBadge";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
+import { AiBuddy } from "../chat/AiBuddy";
 
 const ROLE_LABEL: Record<StaffRole, string> = {
   auditor: "Auditor",
@@ -86,6 +87,7 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               {label}: {staffId}
             </span>
           )}
+          <AiBuddy />
           <DemoScenarioMenu role={role} />
           <button
             type="button"

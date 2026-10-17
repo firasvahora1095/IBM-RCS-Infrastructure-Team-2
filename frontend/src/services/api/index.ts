@@ -18,6 +18,7 @@ export const apiDataService: DataService = {
   createReport: http.createReport,
   getStatus: http.getStatus,
   staffLogin: http.staffLogin,
+  aiChat: http.aiChat,
   getAuditorCases: http.getAuditorCases,
   getAllOpenCases: http.getAllOpenCases,
   getAvailableCases: http.getAvailableCases,
