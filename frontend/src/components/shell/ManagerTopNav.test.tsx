@@ -12,7 +12,7 @@ function renderAt(path: string) {
 }
 
 describe("ManagerTopNav (Task 103)", () => {
-  it("links the five sections to real routes", () => {
+  it("links the six sections to real routes", () => {
     renderAt("/manager");
     const expected: [string, string][] = [
       ["Overview", "/manager"],
@@ -20,11 +20,12 @@ describe("ManagerTopNav (Task 103)", () => {
       ["Deliveries", "/manager/deliveries"],
       ["Reports", "/manager/reports"],
       ["Insights", "/manager/insights"],
+      ["Validation", "/manager/validation"],
     ];
     for (const [label, href] of expected) {
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
-    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getAllByRole("link")).toHaveLength(6);
     expect(screen.queryByText(/Sprint 3/)).not.toBeInTheDocument();
   });
 
@@ -41,8 +42,8 @@ describe("ManagerTopNav (Task 103)", () => {
     ["/manager/cases/AR-1/reassign", "Overview"],
     ["/manager/cases/AR-1/review", "Cases"],
     ["/manager/messages/MSG-1", "Deliveries"],
-    ["/manager/validation", "Insights"],
-    ["/manager/audit-logs", "Insights"],
+    ["/manager/validation", "Validation"],
+    ["/manager/audit-logs", "Validation"],
   ])("keeps the owning section highlighted on %s", (path, section) => {
     renderAt(path);
     expect(screen.getByRole("link", { name: section })).toHaveAttribute("aria-current", "page");

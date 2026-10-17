@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   Button,
   ComboBox,
+  DismissibleTag,
   Layer,
   Table,
   TableBody,
@@ -63,9 +64,16 @@ export function ManagerAuditHistoryPage() {
   }, [token, query, handleSessionExpiry]);
 
   return (
-    <ManagerLayout showNav={false}>
-      <ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: "Audit history" }]} />
-      <PageHeader title="Audit history" subtitle="Browse saved audit events. Expand an entry to see the values recorded." />
+    <ManagerLayout>
+      <ManagerBreadcrumb trail={[{ label: "Validation", to: "/manager/validation" }, { label: "Audit history" }]} />
+      <PageHeader
+        title={query.case_id ? `Audit trail for ${query.case_id}` : "Audit history"}
+        subtitle={
+          query.case_id
+            ? "Every change recorded for this case: who did what, and when."
+            : "Every change recorded across all cases: who did what, and when. Newest first."
+        }
+      />
       <form
         className="flex flex-wrap items-end gap-4"
         style={{ marginTop: 24, marginBottom: 24 }}
@@ -81,8 +89,8 @@ export function ManagerAuditHistoryPage() {
         <div style={{ flex: "1 1 220px", maxWidth: 320 }}>
           <TextInput
             id="audit-case-id"
-            labelText="Case ID (optional)"
-            placeholder="All cases"
+            labelText="Case ID"
+            placeholder="All cases, or e.g. AR-2026-00340"
             maxLength={20}
             value={caseId}
             onChange={(event) => setCaseId(event.target.value)}
@@ -98,11 +106,11 @@ export function ManagerAuditHistoryPage() {
             itemToString={(item) => (item ? item.label : "")}
             selectedItem={AUDIT_ACTIONS.find((a) => a.code === action) ?? null}
             onChange={({ selectedItem }) => setAction(selectedItem?.code ?? "")}
-            helperText="Type to filter, or open the list."
+            helperText="For example: created, reassigned, closed. Type to filter, or open the list."
           />
         </div>
         <Button type="submit" disabled={loading}>
-          Query audit logs
+          Show audit history
         </Button>
       </form>
       {loading && (
@@ -113,11 +121,43 @@ export function ManagerAuditHistoryPage() {
       <LoadState error={error} loading={loading} what="audit history" />
       {history && (
         <>
-          <p role="status" style={{ ...secondaryText, marginBottom: 16 }}>
-            {history.entries.length === 0
-              ? "No audit records match these filters."
-              : `Showing ${history.entries.length} stored audit entries, most recent first.`}
-          </p>
+          {/* What is being shown, and how to widen it: the filters are repeated as chips with one way to clear them. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span role="status" style={secondaryText}>
+              {history.entries.length === 0
+                ? "No audit records found."
+                : `${history.entries.length} ${history.entries.length === 1 ? "record" : "records"}, newest first.`}
+            </span>
+            {query.case_id && (
+              <DismissibleTag
+                type="gray"
+                text={`Case: ${query.case_id}`}
+                dismissTooltipLabel="Show all cases"
+                onClose={() => {
+                  setCaseId("");
+                  loadHistory({ ...query, case_id: undefined, before_id: undefined });
+                }}
+              />
+            )}
+            {query.action && (
+              <DismissibleTag
+                type="gray"
+                text={`Action: ${auditActionLabel(query.action)}`}
+                dismissTooltipLabel="Show all actions"
+                onClose={() => {
+                  setAction("");
+                  loadHistory({ ...query, action: undefined, before_id: undefined });
+                }}
+              />
+            )}
+          </div>
+          {history.entries.length === 0 && (
+            <p style={secondaryText}>
+              {query.case_id || query.action
+                ? "Nothing is recorded for these filters. Check the Case ID, or remove a filter above to widen the search."
+                : "Nothing has been recorded yet."}
+            </p>
+          )}
           {history.entries.length > 0 && (
             <Layer>
               <div style={{ overflowX: "auto" }}>

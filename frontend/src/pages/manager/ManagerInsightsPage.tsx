@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { Button, Column, Dropdown, Grid } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
@@ -27,7 +27,6 @@ import { PERIOD_OPTIONS } from "../../utils/periods";
  * not a queue. Every figure still has its evidence (Sprint 3 extras §1.4).
  */
 export function ManagerInsightsPage() {
-  const navigate = useNavigate();
   const { intel, data, periodKey, setPeriod, periodLabel } = useManagerIntelligence();
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
 
@@ -60,9 +59,6 @@ export function ManagerInsightsPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
-            <Button kind="tertiary" onClick={() => navigate("/manager/validation")}>
-              Validation &amp; Audit
-            </Button>
           </>
         }
       />

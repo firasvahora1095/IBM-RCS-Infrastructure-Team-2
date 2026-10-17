@@ -53,13 +53,18 @@ export function protectionNeed(row: AuditorOverviewRow): number {
   return (row.open_sos ? 10 : 0) + (asked ? 5 : 0) + ratio;
 }
 
-/** Case Oversight wording (RT-02 staff labels), plus the Manager-decision stage. */
+/**
+ * Case flow stages, in the BA's wording (extra-features §11.1). Two stages are
+ * both "Processing" in the standard, so the chart says which part: a case still
+ * queued, and one the AI is working on. Cases waiting on the Manager are
+ * Needs Reassignment or Blocked.
+ */
 export const OPEN_BUCKET_LABEL: Record<OpenBucket, string> = {
-  SUBMITTED: "Submitted / waiting",
-  AI_PROCESSING: "AI Processing",
+  SUBMITTED: "Processing (queued)",
+  AI_PROCESSING: "Processing (AI)",
   READY_FOR_REVIEW: "Ready for Review",
-  AUDITOR_REVIEW: "Auditor Review",
-  MANAGER_ACTION: "Manager action required",
+  AUDITOR_REVIEW: "In Review",
+  MANAGER_ACTION: "Needs Reassignment or Blocked",
 };
 
 export const OPEN_BUCKET_ORDER: readonly OpenBucket[] = [

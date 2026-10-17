@@ -88,8 +88,8 @@ export function ManagerCaseOversightPage() {
         <div style={{ width: "100%", maxWidth: 320 }}>
           <Search
             id="case-search"
-            labelText="Search cases or Auditors"
-            placeholder="Search cases or Auditors..."
+            labelText="Search by Case ID or Auditor name"
+            placeholder="Search by Case ID or Auditor name"
             size="lg"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -144,9 +144,8 @@ export function ManagerCaseOversightPage() {
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
                 <TableHeader>Auditor</TableHeader>
-                <TableHeader>S-tier</TableHeader>
+                <TableHeader>Severity</TableHeader>
                 <TableHeader>Status</TableHeader>
-                <TableHeader>Flag</TableHeader>
                 <TableHeader>Availability</TableHeader>
               </TableRow>
             </TableHead>
@@ -199,18 +198,19 @@ function CaseRow({
       </TableCell>
       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
       <TableCell>{(row.final_severity_tier ?? row.severity_tier) ? <SeverityTag tier={(row.final_severity_tier ?? row.severity_tier)!} size="sm" /> : "—"}</TableCell>
-      <TableCell style={{ color: "var(--cds-text-secondary)" }}>
-        {managerStatusLabel(row.status, row.manager_flag)}
-      </TableCell>
       <TableCell>
-        {row.manager_flag === "SOS" && (
-          <StatusTag tone="error" size="sm">SOS</StatusTag>
-        )}
-        {row.manager_flag === "DECLINED" && (
-          <StatusTag tone="warning" size="sm">Declined</StatusTag>
-        )}
-        {row.manager_flag === "CAP_REACHED" && (
-          <StatusTag tone="warning" size="sm">Cap reached</StatusTag>
+        {/* The status says it once: the old Flag column repeated Blocked and Needs Reassignment. Colour is for the two
+            states that need the Manager; everything else is plain text. */}
+        {row.manager_flag === "SOS" && row.status !== "COMPLETE" ? (
+          <StatusTag tone="error" size="sm">
+            {managerStatusLabel(row.status, row.manager_flag)}
+          </StatusTag>
+        ) : row.manager_flag && row.status !== "COMPLETE" ? (
+          <StatusTag tone="warning" size="sm">
+            {managerStatusLabel(row.status, row.manager_flag)}
+          </StatusTag>
+        ) : (
+          <span style={{ color: "var(--cds-text-secondary)" }}>{managerStatusLabel(row.status, row.manager_flag)}</span>
         )}
       </TableCell>
       <TableCell>

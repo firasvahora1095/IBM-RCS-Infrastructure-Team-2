@@ -22,9 +22,9 @@ export const NOT_IN_CLIENT_REPORT: readonly string[] = [
 export const RELEASE_CONFIRM_BODY =
   "CommunityHub's authorised users will be able to view and download it. You can't edit a released report; you can create a new version.";
 
-export const NO_SLA_NOTE = "No service-level target has been agreed, so none is shown.";
+export const NO_SLA_NOTE = "No service-level target is set for this period, so none is compared.";
 
-export const OVERRIDE_AGGREGATE_NOTE = "Aggregate only. Not an individual performance measure.";
+export const OVERRIDE_AGGREGATE_NOTE = "Aggregate figures only. Individual performance is not measured.";
 
 export const CLIENT_EMPTY = "No reports released yet. When RCS releases a report, it will appear here.";
 

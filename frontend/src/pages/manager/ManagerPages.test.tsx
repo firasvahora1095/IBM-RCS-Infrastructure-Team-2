@@ -279,7 +279,10 @@ describe("Manager screens", () => {
       for (const title of ["Case flow", "Client outcomes", "AI and Auditor decisions", "Delivery Health"]) {
         expect(await screen.findByRole("heading", { level: 2, name: title })).toBeInTheDocument();
       }
-      expect(screen.getByRole("button", { name: "Validation & Audit" })).toBeInTheDocument();
+      // Validation is a tab of its own, and Insights points to it from the accuracy note.
+      for (const link of screen.getAllByRole("link", { name: "Validation" })) {
+        expect(link).toHaveAttribute("href", "/manager/validation");
+      }
     });
 
     it("the Overview no longer repeats the analytics or the evidence link six times", async () => {
@@ -299,7 +302,7 @@ describe("Manager screens", () => {
 
     it("Case Oversight opens filtered to the stage chosen on the dashboard", async () => {
       renderAt("/manager/cases?stage=MANAGER_ACTION");
-      expect(await screen.findByText("Stage: Manager action required")).toBeInTheDocument();
+      expect(await screen.findByText("Stage: Needs Reassignment or Blocked")).toBeInTheDocument();
       const table = await screen.findByRole("table");
       const flagged = readDb().cases.filter((c) => c.manager_flag && c.status !== "COMPLETE").length;
       await waitFor(() => expect(within(table).getAllByRole("row")).toHaveLength(flagged + 1));

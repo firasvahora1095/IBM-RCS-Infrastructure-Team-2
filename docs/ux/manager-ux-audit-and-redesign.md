@@ -182,3 +182,19 @@ Each placement follows one rule, so a control is in the same place on every Mana
 | Row action in the inbox | Far right of its row; the secondary link (Open Auditor, Choose someone else) after it | The row reads left to right: what, who, then what to do |
 
 The sources are design-system documentation (card header action slots), not eye-tracking studies, so this supports the convention but does not prove it. The consistency rule is the reason that matters most.
+
+## 8. Decisions on the open items, with reasons
+
+| Item | Decision | Reason |
+|---|---|---|
+| Case-status wording (§11.1 against RT-02) | Manager screens use §11.1 (Processing, Ready for Review, In Review, Complete, Needs Reassignment, Blocked). RT-02's internal-to-public mapping and the Auditor wording are unchanged | RT-02's locked part is the public mapping, and it says staff screens "may use human-readable versions". §11.1 is later and written for this audience. Needs Reassignment and Blocked are derived from the case flag, not new statuses. Case flow shows "Processing (queued)" and "Processing (AI)" because the standard has one word for two stages |
+| Validation & Audit "hidden" | Its own tab (six tabs), and the audit history sits under it | It answers a separate question (can we trust the AI, can every result be traced) from analytics. Six tabs is within what a tab bar holds |
+| Flag column on Cases | Removed; the status says it once | With §11.1 wording, Blocked and Needs Reassignment repeated the flag |
+| Severity palette (green S1, etc.) | Not changed | Severity colours come from the Figma foundation and were measured for contrast. Green for S1 would say "safe" on harmful content, which is the wrong signal |
+| AI Buddy | Short chip labels (full question is the tooltip and what is sent), a placeholder, "You make the final call" copy. Input stays at the bottom; no "co-pilot for smarter decisions" | Chat input at the bottom is the convention and keeps the conversation and the input together. The boundary (it cannot change anything) is a real limit, so it is kept, but phrased as what the person owns. A co-pilot claim would overstate a preliminary feature |
+| Validation page | Filters behind one disclosure, three low-use audit columns moved into each row's details, failed calls marked, plain-language descriptions, a one-line failed-call summary | Fewer columns fit a laptop width without sideways scrolling; filters apply to two sections so they should not lead |
+| Audit history | Opens as "Audit trail for <case>", shows filter chips, a recovery message when empty, and "Show audit history" | The page already ran the query from the case link; it now says so |
+| S4 manager check-in | See the S4 section below | |
+
+### S4 check-in
+AR-WB-12 (mandatory) and the Sprint 1 Auditor notes both require a Manager/support check-in after an S4 case, as well as after an SOS. A recent change limited it to SOS with no requirement behind it. The safeguard exists for the most severe content, and the project ruled wellbeing priority over speed (CV-04), so the requirement wins: the check-in applies to S4 and SOS, and S3 expires by time. This is done on its own branch so the team can review it apart from the Manager work.

@@ -44,14 +44,35 @@ export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label:
 ];
 
 /**
- * Staff-facing status in Manager lists. RT-02's staff labels, plus "Manager
- * Review" for a declined or SOS case awaiting a Manager decision: RT-02 has
- * no internal state for that yet (flagged for the BA), so it is derived from
- * the case's flag rather than invented as a new status value.
+ * Case status on the Manager screens, in the BA's UI wording standard
+ * (docs/ba/extra-features.md §11.1): Processing, Ready for Review, In Review,
+ * Complete, Needs Reassignment, Blocked.
+ *
+ * Why this and not RT-02's staff column: RT-02 fixes the internal-to-PUBLIC
+ * mapping, which is unchanged, and says staff screens "may use human-readable
+ * versions of internal states". §11.1 is later (Sprint 3), written for exactly
+ * this audience, and names the two states a Manager acts on. So the Manager
+ * screens use §11.1; the Auditor screens and the public status keep RT-02.
+ *
+ * Needs Reassignment and Blocked are derived from the case's flag, not new
+ * status values: a declined case or one stopped at the exposure cap needs a new
+ * Auditor; a case with an open SOS is blocked until the Manager has followed up.
  */
 export function managerStatusLabel(status: InternalCaseStatus, managerFlag: "DECLINED" | "SOS" | "CAP_REACHED" | null): string {
-  if (managerFlag && status !== "COMPLETE") return "Manager Review";
-  return mapStatusToStaffLabel(status);
+  if (status === "COMPLETE") return "Complete";
+  if (managerFlag === "SOS") return "Blocked";
+  if (managerFlag) return "Needs Reassignment";
+  switch (status) {
+    case "SUBMITTED":
+    case "AI_PROCESSING":
+      return "Processing";
+    case "READY_FOR_REVIEW":
+      return "Ready for Review";
+    case "AUDITOR_REVIEW":
+      return "In Review";
+    default:
+      return mapStatusToStaffLabel(status);
+  }
 }
 
 /** Cooldown column text on the Oversight Dashboard (MR-OV-03). */

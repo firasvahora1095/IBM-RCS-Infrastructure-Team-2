@@ -1,15 +1,5 @@
 import { useState } from "react";
-import {
-  Button,
-  InlineNotification,
-  Layer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@carbon/react";
+import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
@@ -53,7 +43,7 @@ export function ManagerValidationPage() {
       <div className="flex flex-col gap-2">
         <PageHeader
           title="Validation & Audit"
-          subtitle="Is the AI trustworthy, and can every result be traced? Three separate views on one screen: they are never mixed."
+          subtitle="Can we trust the AI, and can every result be traced? Three separate views, never mixed."
         />
         <nav aria-label="On this page" className="flex flex-wrap gap-x-6 gap-y-1">
           <a className="cds--link" href="#validation">
@@ -82,23 +72,28 @@ export function ManagerValidationPage() {
       <Section
         id="validation"
         title="AI vs ground truth"
-        description="The AI's severity checked against manually labelled footage from the validation set. This isn't about live cases."
+        description="The AI's severity checked against footage a person labelled. This is not about live cases."
       >
         <LoadState error={error} loading={!data && !error} what="validation results" />
         {data && <GroundTruth data={data} />}
       </Section>
 
-      <GovernanceFilters
-        onApply={(next, auditAction) => {
-          setQuery({ ...next, limit: 25 });
-          setAction(auditAction);
-        }}
-      />
+      {/* Progressive disclosure: filters apply to the two sections below, so they stay out of the way until wanted. */}
+      <Accordion>
+        <AccordionItem title="Filter the comparison and the audit log">
+          <GovernanceFilters
+            onApply={(next, auditAction) => {
+              setQuery({ ...next, limit: 25 });
+              setAction(auditAction);
+            }}
+          />
+        </AccordionItem>
+      </Accordion>
 
       <Section
         id="ai-vs-auditor"
         title="AI vs Auditor"
-        description="Completed cases; legacy or demo provenance is labelled per row. A difference isn't a verdict on the AI or the Auditor; it points to cases worth a closer look. It isn't model accuracy."
+        description="Completed cases where the Auditor's final severity differs from the AI's. A difference isn't a verdict on either; it marks cases worth a look. It isn't the AI's accuracy."
       >
         <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
         {governance.data && <AiAuditorComparison data={governance.data} />}
@@ -122,7 +117,7 @@ export function ManagerValidationPage() {
       <Section
         id="audit-log"
         title="Audit log"
-        description="Recorded application model invocations, their response checks and source references. A received response may still fail validation or storage."
+        description="Every AI call RCS made, what was checked and where it came from. A response can still fail a check or fail to save."
       >
         <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
         {governance.data && <AuditLog data={governance.data} onSelectCase={setSelectedCase} />}
@@ -331,8 +326,15 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
   return (
     <>
       {data.is_placeholder && (
-        <p role="note">Placeholder / mock data — these legacy metrics are not real governance results.</p>
+        <p role="note" className="rcs-helper">
+          Placeholder / mock data — these legacy metrics are not real governance results.
+        </p>
       )}
+      <p className="rcs-body" role="status">
+        {data.failed_calls > 0
+          ? `${data.failed_calls} failed ${data.failed_calls === 1 ? "call needs" : "calls need"} a look. Failed rows are marked below.`
+          : "No failed calls in this view."}
+      </p>
       <dl className="rcs-figure-row">
         <Figure label="Model calls" value={data.total_calls} />
         <Figure label="Failed calls" value={data.failed_calls} />
@@ -352,9 +354,6 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
                 "Model / prompt",
                 "Provider outcome",
                 "Output check",
-                "Prompt leakage",
-                "Source attribution",
-                "Accumulated score",
                 "Details",
               ].map((h) => (
                 <TableHeader key={h}>{h}</TableHeader>
@@ -363,7 +362,11 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
           </TableHead>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.entry_id}>
+              <TableRow
+                key={row.entry_id}
+                // A call that did not come back clean carries the same red edge as other rows that need a look.
+                style={row.outcome && row.outcome !== "RECEIVED" ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
+              >
                 <TableCell>{formatShortDateTime(row.at)}</TableCell>
                 <TableCell style={mono}>{row.case_id || "Test invocation"}</TableCell>
                 <TableCell>
@@ -377,17 +380,6 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
                   </StatusTag>
                 </TableCell>
                 <TableCell>{row.validation_status ?? "Unavailable"}</TableCell>
-                <TableCell>{row.prompt_leakage_status ?? "NOT_CHECKED"}</TableCell>
-                <TableCell>
-                  {Array.isArray(row.source_attribution)
-                    ? `${row.source_attribution.length} references`
-                    : "Unavailable"}
-                </TableCell>
-                <TableCell>
-                  {row.schema_version === 2 && row.accumulated_score !== null
-                    ? `${row.accumulated_score} / 100`
-                    : "Unavailable"}
-                </TableCell>
                 <TableCell>
                   <CallDetails row={row} onSelectCase={onSelectCase} />
                 </TableCell>
@@ -411,6 +403,14 @@ function CallDetails({ row, onSelectCase }: { row: GovernanceLogRow; onSelectCas
     <details>
       <summary>View references</summary>
       <dl>
+        <dt>Prompt leakage check</dt>
+        <dd>{row.prompt_leakage_status ?? "NOT_CHECKED"}</dd>
+        <dt>Source attribution</dt>
+        <dd>{Array.isArray(row.source_attribution) ? `${row.source_attribution.length} references` : "Unavailable"}</dd>
+        <dt>Accumulated score</dt>
+        <dd>
+          {row.schema_version === 2 && row.accumulated_score !== null ? `${row.accumulated_score} / 100` : "Unavailable"}
+        </dd>
         <dt>Model version</dt>
         <dd>{row.model_version ?? "Unavailable"}</dd>
         <dt>Run</dt>

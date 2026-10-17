@@ -17,7 +17,7 @@ import {
 import { Chat, Close, Send } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
-import { CASE_LOOKUP_PROMPT, SUGGESTED_QUESTIONS } from "./buddyQuestions";
+import { CASE_LOOKUP_PROMPT, SUGGESTED_LABELS, SUGGESTED_QUESTIONS } from "./buddyQuestions";
 import { useBuddyConversation, type BuddyMessage } from "./useBuddyConversation";
 
 const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }[] = [
@@ -219,12 +219,13 @@ export function AiBuddy() {
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>How can I help?</p>
                   <p style={{ fontSize: 14, color: "var(--cds-text-secondary)", margin: "0.5rem 0 1rem" }}>
-                    Ask about RCS rules, your limits or a case. I can explain, but I can't change anything.
+                    I can explain RCS rules, your limits and your cases. You make the final call.
                   </p>
                   <div className="rcs-buddy__suggestions">
                     {SUGGESTED_QUESTIONS[role].map((question) => (
                       <Button
                         key={question}
+                        title={question === CASE_LOOKUP_PROMPT ? "Ask about a case by its ID" : question}
                         kind="tertiary"
                         size="md"
                         disabled={loading}
@@ -237,7 +238,7 @@ export function AiBuddy() {
                           }
                         }}
                       >
-                        {question}
+                        {SUGGESTED_LABELS[question] ?? question}
                       </Button>
                     ))}
                   </div>
@@ -284,6 +285,7 @@ export function AiBuddy() {
                   ref={inputRef}
                   id={`${panelId}-input`}
                   labelText="Ask a question"
+                  placeholder="Ask about a case or a rule…"
                   rows={2}
                   maxLength={2000}
                   value={draft}
@@ -303,7 +305,7 @@ export function AiBuddy() {
                 </IconButton>
               </div>
               <div className="rcs-buddy__meta">
-                <span>AI Buddy guides. People decide.</span>
+                <span>Your guide to RCS. You decide.</span>
                 <Button kind="ghost" size="sm" disabled={empty && !loading} onClick={clear}>
                   Clear conversation
                 </Button>
