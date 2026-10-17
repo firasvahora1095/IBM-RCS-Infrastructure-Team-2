@@ -147,7 +147,9 @@ def lookup_case(db: Session, role: str, staff_id: str, case_id: str) -> dict | N
         "status": staff_status(case),
         "ai_severity": case.severity_tier,
         "final_auditor_severity": _final_tier(case),
-        "assigned_auditor": case.assigned_auditor_id,
+        # A case with the Manager (declined, SOS, cap reached) never names who it came from: no
+        # per-Auditor scrutiny (MR-CR-04). The status already says it is with the Manager.
+        "assigned_auditor": None if case.manager_flag else case.assigned_auditor_id,
         "final_outcome": _OUTCOME_LABEL.get(case.final_outcome or "", None),
         "delivery_status": delivery.delivery_status if delivery else None,
     }
