@@ -457,7 +457,7 @@ export function RcsLandingPage() {
                   ["100%", "of moderation decisions made by trained human reviewers"],
                   ["120 min", "default daily exposure limit for each reviewer"],
                   ["3", "automatic delivery attempts before a manager steps in"],
-                  ["0", "reviewer wellbeing records in any client report"],
+                  ["0", "reviewer wellbeing records in any Client report"],
                 ].map(([value, label]) => (
                   <div key={label}>
                     <dt>{value}</dt>
