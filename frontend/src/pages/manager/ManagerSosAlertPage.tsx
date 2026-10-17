@@ -66,6 +66,32 @@ export function ManagerSosAlertPage() {
             style={{ maxWidth: "100%" }}
           />
 
+          {/* The order to work in, so the Manager is guided rather than shown one button. */}
+          <Panel title="What to do">
+            <ol className="flex flex-col gap-2" style={{ paddingInlineStart: "1.25rem", listStyle: "decimal", fontSize: 14 }}>
+              <li>Read the summary below. No footage is shown.</li>
+              <li>Acknowledge the alert, then speak with {data.auditor_name}.</li>
+              <li>Log what you did and how they are. That resolves the alert.</li>
+            </ol>
+            {(data.severity_tier === "S4" ||
+              data.severity_tier === "S3" ||
+              data.exposure_minutes_today >= 0.8 * data.exposure_limit_minutes) && (
+              <InlineNotification
+                kind="warning"
+                lowContrast
+                hideCloseButton
+                title={data.severity_tier === "S4" ? "Critical case." : "Higher risk."}
+                subtitle={`${data.severity_tier === "S4" ? "A check-in is mandatory. " : ""}Consider whether ${data.auditor_name} should stop their shift or have their remaining cases moved. Check for support requests on their record.`}
+                style={{ maxWidth: "100%" }}
+              />
+            )}
+            <div>
+              <Button kind="tertiary" size="sm" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
+                View {data.auditor_name}&apos;s record and support requests
+              </Button>
+            </div>
+          </Panel>
+
           <Panel>
             <h1 style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>{data.auditor_name}</h1>
             <dl className="flex flex-wrap gap-12">
@@ -123,17 +149,22 @@ export function ManagerSosAlertPage() {
             {data.status === "IN_PROGRESS" && <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>}
           </div>
 
-          <p style={{ ...secondaryText, fontSize: 12 }}>
-            Structured signals not enough to decide?
-            <br />
-            <RouterLink
-              className="cds--link"
-              style={{ fontSize: 12 }}
-              to={`/manager/cases/${encodeURIComponent(data.case_id)}/raw?from=${encodeURIComponent(`/manager/sos/${alertId}`)}`}
-            >
-              View raw content (exceptional access, same protections as an Auditor)
-            </RouterLink>
-          </p>
+          <Panel title="Exceptional access">
+            <p style={{ ...secondaryText, fontSize: 12 }}>
+              Only when the summary is not enough to decide. You get the same content warning as an Auditor, and the
+              access is recorded.
+            </p>
+            <div>
+              <Button
+                kind="tertiary"
+                size="sm"
+                as={RouterLink}
+                to={`/manager/cases/${encodeURIComponent(data.case_id)}/raw?from=${encodeURIComponent(`/manager/sos/${alertId}`)}`}
+              >
+                View raw content
+              </Button>
+            </div>
+          </Panel>
         </>
       )}
     </ManagerLayout>

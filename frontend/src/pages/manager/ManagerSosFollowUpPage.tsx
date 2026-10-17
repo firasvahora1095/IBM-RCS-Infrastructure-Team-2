@@ -84,6 +84,16 @@ export function ManagerSosFollowUpPage() {
       )}
       {data && !logged && (
         <Panel maxWidth={560}>
+          {(data.severity_tier === "S4" || data.trigger !== "AUDITOR_SOS") && (
+            <InlineNotification
+              kind="warning"
+              lowContrast
+              hideCloseButton
+              title={data.severity_tier === "S4" ? "Critical case: this is the mandatory check-in." : "This is the check-in."}
+              subtitle="Say how they are and what support you offered, not only that you spoke."
+              style={{ maxWidth: "100%" }}
+            />
+          )}
           <TextArea
             id="follow-up-notes"
             labelText="Follow-up notes"
