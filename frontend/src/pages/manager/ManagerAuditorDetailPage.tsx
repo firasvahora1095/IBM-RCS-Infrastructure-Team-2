@@ -14,7 +14,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
 import { cooldownSummary, SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
-import { WELLBEING_TONE } from "../../design-tokens/statusTones";
+import { WELLBEING_TONE, SOS_TONE } from "../../design-tokens/statusTones";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 
@@ -114,8 +114,7 @@ export function ManagerAuditorDetailPage() {
   return (
     <ManagerLayout>
       {sessionModal}
-      {/* The page title already names the Auditor, so the trail only says where to go back to. */}
-      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }]} />
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: data?.display_name ?? auditorId }]} />
       <LoadState error={error} loading={!data && !error} what="this Auditor" />
       {data && (
         <>
@@ -125,11 +124,11 @@ export function ManagerAuditorDetailPage() {
               <>
                 <ExposureStateTag state={data.exposure_state} />
                 {openRequests > 0 && (
-                  <StatusTag tone="info">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
+                  <StatusTag tone="request">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
                 )}
                 {data.pattern_flagged && (
                   <span title="A private marker that this Auditor's recent exposure is worth a check-in. Only the Manager sees it.">
-                    <StatusTag tone="neutral">Pattern flagged — private</StatusTag>
+                    <StatusTag tone="neutral">Pattern flagged</StatusTag>
                   </span>
                 )}
               </>
@@ -170,8 +169,8 @@ export function ManagerAuditorDetailPage() {
                       <span className="rcs-helper">{formatClockTime(r.created_at)}</span>
                     </div>
                     {r.reason && <p style={{ fontSize: 14 }}>&ldquo;{r.reason}&rdquo;</p>}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>
+                    <div className="rcs-align-row">
+                      {r.status !== "OPEN" && <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>}
                       {r.status === "OPEN" && (
                         <Button
                           kind="tertiary"
@@ -231,7 +230,7 @@ export function ManagerAuditorDetailPage() {
                   </p>
                   <ul className="flex flex-col gap-3">
                     {data.recent_cases.map((c) => (
-                      <li key={c.case_id} className="flex flex-wrap items-center gap-4">
+                      <li key={c.case_id} className="rcs-align-row" style={{ columnGap: "1rem" }}>
                         <span style={{ ...mono, fontSize: 12, width: 120 }}>{c.case_id}</span>
                         {c.severity_tier ? <SeverityTag tier={c.severity_tier} size="sm" /> : <span>—</span>}
                         {c.final_outcome && (
@@ -253,7 +252,7 @@ export function ManagerAuditorDetailPage() {
               ) : (
                 <ul className="flex flex-col gap-3">
                   {data.sos_history!.map((e) => (
-                    <li key={e.id} className="flex flex-wrap items-center gap-4">
+                    <li key={e.id} className="rcs-align-row" style={{ columnGap: "1rem" }}>
                       <RouterLink className="cds--link" to={`/manager/sos/${encodeURIComponent(e.id)}`}>
                         {new Date(e.triggered_at).toLocaleString([], {
                           weekday: "short",
@@ -261,7 +260,7 @@ export function ManagerAuditorDetailPage() {
                           minute: "2-digit",
                         })}
                       </RouterLink>
-                      <StatusTag tone={e.status === "RESOLVED" ? "success" : e.status === "IN_PROGRESS" ? "warning" : "error"}>
+                      <StatusTag tone={SOS_TONE[e.status]}>
                         {SOS_STATUS_LABEL[e.status]}
                       </StatusTag>
                     </li>
@@ -312,7 +311,7 @@ export function ManagerAuditorDetailPage() {
                       }}
                     />
                   </div>
-                  <Button kind="secondary" disabled={saveState === "saving"} onClick={saveLimit}>
+                  <Button kind="tertiary" disabled={saveState === "saving"} onClick={saveLimit}>
                     {saveState === "saving" ? "Saving…" : saveState === "failed" ? "Save limit (retry)" : "Save limit"}
                   </Button>
                 </div>

@@ -198,7 +198,7 @@ export function ManagerDeliveryDetailPage() {
                       Retry delivery
                     </Button>
                   )}
-                  <Button kind="secondary" onClick={() => setEscalating(true)}>
+                  <Button kind="tertiary" onClick={() => setEscalating(true)}>
                     Escalate issue
                   </Button>
                 </div>

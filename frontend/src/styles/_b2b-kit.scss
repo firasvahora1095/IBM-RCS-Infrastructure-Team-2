@@ -372,7 +372,11 @@ a.rcs-stat-tile .rcs-stat-helper {
   li {
     display: grid;
     grid-template-columns: 10rem 6rem 6.5rem minmax(0, 1fr) auto;
-    align-items: baseline;
+    align-items: center;
+    // Tags are self-start by default; on this row they share the centre line with the text beside them.
+    > * {
+      align-self: center !important;
+    }
     gap: 0.25rem 1rem;
     padding: 0.625rem 1rem 0.625rem 0.75rem;
     border-block-end: 1px solid var(--cds-border-subtle-01);
@@ -675,4 +679,58 @@ html {
   @include breakpoint.breakpoint(lg) {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+// A row of tags, text and buttons: everything on one centre line. Tags are self-start inside a flex
+// column elsewhere, so inside a row they are centred explicitly.
+.rcs-align-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  > * {
+    align-self: center !important;
+  }
+}
+
+.rcs-inbox-row--open {
+  cursor: pointer;
+  transition: background-color motion.$duration-fast-02 motion.motion(standard, productive);
+  &:hover:not([data-urgent]) {
+    background-color: var(--cds-layer-hover-01);
+  }
+}
+
+// Second row of the Manager nav: the work queues, quieter than the main bar.
+.rcs-subnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem 0.375rem;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  &:hover {
+    color: var(--cds-text-primary);
+  }
+  &[data-active] {
+    color: var(--cds-text-primary);
+    font-weight: 600;
+    border-block-end-color: var(--cds-border-interactive);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+}
+.rcs-subnav-count {
+  min-inline-size: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: 0.625rem;
+  background-color: var(--cds-support-error);
+  color: var(--cds-text-on-color);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-align: center;
 }

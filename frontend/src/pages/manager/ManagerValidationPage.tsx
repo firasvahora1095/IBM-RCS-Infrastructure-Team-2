@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem } from "@carbon/react";
+import { useSearchParams } from "react-router-dom";
+import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem, Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
@@ -11,6 +12,13 @@ import { getGovernanceSummary, getValidationSummary, getGovernanceCase, getAudit
 import type { GovernanceSummary, GovernanceQuery, GovernanceLogRow, ValidationSummary } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { formatShortDateTime } from "../../utils/formatPeriod";
+
+/** The three views, in the order shown. AI vs Auditor is the landing view: it is the one used most. */
+const VIEWS = [
+  { key: "ai-vs-auditor", label: "AI vs Auditor" },
+  { key: "ai-vs-ground-truth", label: "AI vs ground truth" },
+  { key: "audit-log", label: "Audit log" },
+] as const;
 
 const AI_COLOUR = "var(--cds-support-info)";
 const TRUTH_COLOUR = "var(--cds-support-success)";
@@ -38,25 +46,29 @@ export function ManagerValidationPage() {
   const [action, setAction] = useState("");
   const governance = useStaffQuery((token) => getGovernanceSummary(token, query), JSON.stringify(query));
 
+  const [params, setParams] = useSearchParams();
+  const view = VIEWS.find((v) => v.key === params.get("view")) ?? VIEWS[0];
+
+  const filters = (
+    // Progressive disclosure: the filters apply to the comparison and the audit log, so they sit inside those views.
+    <Accordion>
+      <AccordionItem title="Filters">
+        <GovernanceFilters
+          onApply={(next, auditAction) => {
+            setQuery({ ...next, limit: 25 });
+            setAction(auditAction);
+          }}
+        />
+      </AccordionItem>
+    </Accordion>
+  );
+
   return (
     <ManagerLayout>
-      <div className="flex flex-col gap-2">
-        <PageHeader
-          title="Validation & Audit"
-          subtitle="Can we trust the AI, and can every result be traced? Three separate views, never mixed."
-        />
-        <nav aria-label="On this page" className="flex flex-wrap gap-x-6 gap-y-1">
-          <a className="cds--link" href="#validation">
-            AI vs ground truth
-          </a>
-          <a className="cds--link" href="#ai-vs-auditor">
-            AI vs Auditor
-          </a>
-          <a className="cds--link" href="#audit-log">
-            Audit log
-          </a>
-        </nav>
-      </div>
+      <PageHeader
+        title="Validation & Audit"
+        subtitle="Can we trust the AI, and can every result be traced? Pick a view; each one shows only its own information."
+      />
 
       {data?.is_placeholder && (
         <InlineNotification
@@ -69,73 +81,62 @@ export function ManagerValidationPage() {
         />
       )}
 
-      <Section
-        id="validation"
-        title="AI vs ground truth"
-        description="The AI's severity checked against footage a person labelled. This is not about live cases."
+      <Tabs
+        selectedIndex={VIEWS.indexOf(view)}
+        onChange={({ selectedIndex }) => setParams({ view: VIEWS[selectedIndex].key }, { replace: true })}
       >
-        <LoadState error={error} loading={!data && !error} what="validation results" />
-        {data && <GroundTruth data={data} />}
-      </Section>
-
-      {/* Progressive disclosure: filters apply to the two sections below, so they stay out of the way until wanted. */}
-      <Accordion>
-        <AccordionItem title="Filter the comparison and the audit log">
-          <GovernanceFilters
-            onApply={(next, auditAction) => {
-              setQuery({ ...next, limit: 25 });
-              setAction(auditAction);
-            }}
-          />
-        </AccordionItem>
-      </Accordion>
-
-      <Section
-        id="ai-vs-auditor"
-        title="AI vs Auditor"
-        description="Completed cases where the Auditor's final severity differs from the AI's. A difference isn't a verdict on either; it marks cases worth a look. It isn't the AI's accuracy."
-      >
-        <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
-        {governance.data && <AiAuditorComparison data={governance.data} />}
-        {governance.data?.next_comparison_offset != null && (
-          <Button
-            kind="ghost"
-            onClick={() =>
-              setQuery({ ...query, comparison_offset: governance.data?.next_comparison_offset ?? undefined })
-            }
-          >
-            Older comparisons
-          </Button>
-        )}
-        {query.comparison_offset && (
-          <Button kind="ghost" onClick={() => setQuery({ ...query, comparison_offset: undefined })}>
-            Newest comparisons
-          </Button>
-        )}
-      </Section>
-
-      <Section
-        id="audit-log"
-        title="Audit log"
-        description="Every AI call RCS made, what was checked and where it came from. A response can still fail a check or fail to save."
-      >
-        <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
-        {governance.data && <AuditLog data={governance.data} onSelectCase={setSelectedCase} />}
-        {governance.data?.next_before && (
-          <Button
-            kind="ghost"
-            onClick={() => setQuery({ ...query, before: governance.data?.next_before ?? undefined })}
-          >
-            Older calls
-          </Button>
-        )}
-        {query.before && (
-          <Button kind="ghost" onClick={() => setQuery({ ...query, before: undefined })}>
-            Newest calls
-          </Button>
-        )}
-      </Section>
-      <CaseGovernance caseId={selectedCase} query={query} action={action} />
+        <TabList aria-label="Validation and audit views" contained>
+          {VIEWS.map((v) => (
+            <Tab key={v.key}>{v.label}</Tab>
+          ))}
+        </TabList>
+        <TabPanels>
+          <TabPanel>
+            <Section id="ai-vs-auditor" description="Completed cases where the Auditor's final severity differs from the AI's. A difference isn't a verdict on either; it marks cases worth a look. It isn't the AI's accuracy.">
+              {filters}
+              <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
+              {governance.data && <AiAuditorComparison data={governance.data} />}
+              {governance.data?.next_comparison_offset != null && (
+                <Button
+                  kind="ghost"
+                  onClick={() => setQuery({ ...query, comparison_offset: governance.data?.next_comparison_offset ?? undefined })}
+                >
+                  Older comparisons
+                </Button>
+              )}
+              {query.comparison_offset && (
+                <Button kind="ghost" onClick={() => setQuery({ ...query, comparison_offset: undefined })}>
+                  Newest comparisons
+                </Button>
+              )}
+            </Section>
+          </TabPanel>
+          <TabPanel>
+            <Section id="validation" description="The AI's severity checked against footage a person labelled. This is not about live cases.">
+              <LoadState error={error} loading={!data && !error} what="validation results" />
+              {data && <GroundTruth data={data} />}
+            </Section>
+          </TabPanel>
+          <TabPanel>
+            <Section id="audit-log" description="Every AI call RCS made, what was checked and where it came from. A response can still fail a check or fail to save.">
+              {filters}
+              <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
+              {governance.data && <AuditLog data={governance.data} onSelectCase={setSelectedCase} />}
+              {governance.data?.next_before && (
+                <Button kind="ghost" onClick={() => setQuery({ ...query, before: governance.data?.next_before ?? undefined })}>
+                  Older calls
+                </Button>
+              )}
+              {query.before && (
+                <Button kind="ghost" onClick={() => setQuery({ ...query, before: undefined })}>
+                  Newest calls
+                </Button>
+              )}
+              <CaseGovernance caseId={selectedCase} query={query} action={action} />
+            </Section>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </ManagerLayout>
   );
 }
@@ -375,7 +376,7 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
                   {row.prompt_version}
                 </TableCell>
                 <TableCell>
-                  <StatusTag tone={row.outcome === "RECEIVED" ? "success" : "neutral"} size="sm">
+                  <StatusTag tone={row.outcome === "RECEIVED" ? "success" : row.outcome ? "error" : "neutral"} size="sm">
                     {row.outcome ?? "Legacy demo"}
                   </StatusTag>
                 </TableCell>

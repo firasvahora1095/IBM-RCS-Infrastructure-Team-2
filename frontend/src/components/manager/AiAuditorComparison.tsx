@@ -201,8 +201,8 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
         </div>
       </TableCell>
       <TableCell>
-        {/* Text in both states, so the result never rests on colour. A difference isn't an error, so it isn't red. */}
-        <StatusTag tone={row.override ? "info" : "neutral"} size="sm">
+        {/* Text in both states, so the result never rests on colour. A difference is worth a look but isn't an error, so it is yellow, not red. */}
+        <StatusTag tone={row.override ? "warning" : "neutral"} size="sm">
           {row.override ? RESULT_LABEL.override : RESULT_LABEL.match}
         </StatusTag>
       </TableCell>

@@ -59,7 +59,14 @@ export function ManagerSosFollowUpPage() {
   return (
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: `${name} — Follow-up` }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Overview", to: "/manager" },
+          { label: "SOS Inbox", to: "/manager/sos" },
+          { label: name, to: `/manager/sos/${encodeURIComponent(alertId)}` },
+          { label: "Follow-up" },
+        ]}
+      />
       <PageHeader title={`Log follow-up — ${name}`} />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && logged && (

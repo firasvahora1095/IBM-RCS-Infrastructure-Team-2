@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { StaffHeader } from "../shell/StaffHeader";
 import { ManagerTopNav } from "../shell/ManagerTopNav";
+import { ManagerSubNav } from "../shell/ManagerSubNav";
 import { SosAlertBanner } from "../notifications/SosAlertBanner";
 import { StaffPage } from "./StaffPage";
 import { useSosSummary } from "../../hooks/useSosSummary";
@@ -31,6 +32,7 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
       <div style={{ paddingTop: 48 }}>
         {showSosBanner && <SosAlertBanner summary={sos} />}
         {showNav && <ManagerTopNav />}
+        {showNav && <ManagerSubNav sosCount={sos?.unresolved_count ?? 0} />}
       </div>
       <StaffPage clearHeader={false} maxWidth={maxWidth}>
         {children}

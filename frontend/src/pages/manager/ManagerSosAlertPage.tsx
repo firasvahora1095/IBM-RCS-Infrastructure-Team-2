@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification } from "@carbon/react";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { RawContentAccess } from "../../components/manager/RawContentAccess";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { secondaryText } from "../../components/manager/managerStyles";
 import { acknowledgeSosAlert, getSosAlert } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
@@ -52,11 +53,15 @@ export function ManagerSosAlertPage() {
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
       <ManagerBreadcrumb
-        trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
+        trail={[{ label: "Overview", to: "/manager" }, { label: "SOS Inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
       />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && (
         <>
+          <PageHeader
+            title={data.auditor_name}
+            subtitle="Take a moment first. The summary below is text only, and no footage is shown."
+          />
           <InlineNotification
             kind={data.status === "RESOLVED" ? "info" : "error"}
             lowContrast={data.status !== "UNACKNOWLEDGED"}
@@ -93,7 +98,6 @@ export function ManagerSosAlertPage() {
           </Panel>
 
           <Panel>
-            <h1 style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>{data.auditor_name}</h1>
             <dl className="flex flex-wrap gap-12">
               <Figure
                 label="Today's exposure"
@@ -149,22 +153,7 @@ export function ManagerSosAlertPage() {
             {data.status === "IN_PROGRESS" && <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>}
           </div>
 
-          <Panel title="Exceptional access">
-            <p style={{ ...secondaryText, fontSize: 12 }}>
-              Only when the summary is not enough to decide. You get the same content warning as an Auditor, and the
-              access is recorded.
-            </p>
-            <div>
-              <Button
-                kind="tertiary"
-                size="sm"
-                as={RouterLink}
-                to={`/manager/cases/${encodeURIComponent(data.case_id)}/raw?from=${encodeURIComponent(`/manager/sos/${alertId}`)}`}
-              >
-                View raw content
-              </Button>
-            </div>
-          </Panel>
+          <RawContentAccess caseId={data.case_id} returnTo={`/manager/sos/${alertId}`} />
         </>
       )}
     </ManagerLayout>

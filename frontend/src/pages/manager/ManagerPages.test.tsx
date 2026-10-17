@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, beforeEach } from "vitest";
 import { AppRoutes } from "../../App";
@@ -57,20 +57,23 @@ describe("Manager screens", () => {
   );
 
   describe("Validation & Audit (one screen, three separate views)", () => {
-    it("shows the ground-truth check, the AI vs Auditor comparison and the audit log together, with no tabs", async () => {
+    it("has one tab per view and shows only the chosen one, landing on AI vs Auditor", async () => {
       renderAt("/manager/validation");
-      for (const name of ["AI vs ground truth", "AI vs Auditor", "Audit log"]) {
-        expect(await screen.findByRole("heading", { level: 2, name })).toBeInTheDocument();
-      }
-      expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-      // The comparison and the three client-required audit fields are on screen at the same moment.
+      const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
+      const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
+      expect(names).toEqual(["AI vs Auditor", "AI vs ground truth", "Audit log"]);
+      expect(within(tabs).getByRole("tab", { name: "AI vs Auditor" })).toHaveAttribute("aria-selected", "true");
       expect(
         await screen.findByRole("table", { name: /AI severity against final Auditor severity/ }),
-      ).toBeInTheDocument();
+      ).toBeVisible();
+      // The other views are not on screen until chosen.
+      expect(screen.queryByRole("table", { name: "watsonx.ai call log" })).not.toBeInTheDocument();
+      fireEvent.click(within(tabs).getByRole("tab", { name: "Audit log" }));
+      const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
+      // The three client-required audit fields are in each call's details.
       for (const field of [/Accumulated score/, /Prompt leakage/, /Source attribution/]) {
-        expect(screen.getAllByText(field).length).toBeGreaterThan(0);
+        expect(within(log).getAllByText(field).length).toBeGreaterThan(0);
       }
-      expect(screen.getByRole("table", { name: "watsonx.ai call log" })).toBeInTheDocument();
     });
 
     it("names every result in words and never calls the AI or an Auditor wrong", async () => {
@@ -106,13 +109,16 @@ describe("Manager screens", () => {
     });
 
     it("labels old demo calls without inventing real outcomes, and shows the chart's values", async () => {
-      renderAt("/manager/validation");
+      renderAt("/manager/validation?view=audit-log");
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
       fireEvent.click(await screen.findByRole("button", { name: /^Show all \d+ calls$/ }));
       await waitFor(() => expect(within(log).queryAllByText("Legacy demo").length).toBeGreaterThan(0));
       expect(within(log).getAllByText("Unavailable").length).toBeGreaterThan(0);
       // Each bar's value is printed beside it, so the chart never rests on colour or pattern.
-      const validation = document.getElementById("validation")!;
+      cleanup();
+      renderAt("/manager/validation?view=ai-vs-ground-truth");
+      const validation = await waitFor(() => document.getElementById("validation")!);
+      await within(validation).findAllByText(/^\d+(\.\d+)?%$/);
       expect(within(validation).getAllByText(/^\d+(\.\d+)?%$/).length).toBeGreaterThanOrEqual(8);
     });
 
@@ -123,7 +129,7 @@ describe("Manager screens", () => {
   });
 
   it("labels the validation data as a placeholder everywhere it appears (Task 96, MR-OV-08)", async () => {
-    renderAt("/manager/validation");
+    renderAt("/manager/validation?view=ai-vs-ground-truth");
     expect(await screen.findByText("Placeholder / mock data — not real validation results.")).toBeInTheDocument();
     expect(screen.getByText("Match rate (illustrative)")).toBeInTheDocument();
     expect(screen.getByText(/All values illustrative placeholder data\./)).toBeInTheDocument();
@@ -133,9 +139,9 @@ describe("Manager screens", () => {
     renderAt("/manager");
     const table = await screen.findByRole("table", { name: "Auditor protection and availability" });
     const samRow = within(table).getByRole("link", { name: "Sam Nguyen" }).closest("tr")!;
-    expect(within(samRow).getByText("At Limit")).toBeInTheDocument();
+    expect(within(samRow).getByText("Limit reached")).toBeInTheDocument();
     const reeseRow = within(table).getByRole("link", { name: "Reese Patel" }).closest("tr")!;
-    expect(within(reeseRow).getByText("Approaching Limit")).toBeInTheDocument();
+    expect(within(reeseRow).getByText("Near limit")).toBeInTheDocument();
     expect(within(reeseRow).getByText("Check-in pending")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: /SOS alert — 3 SOS alerts need follow-up/ })).toBeInTheDocument();
   });
@@ -213,12 +219,16 @@ describe("Manager screens", () => {
       ).toBeGreaterThan(0);
     });
 
-    it("marks a talk request followed up in the row", async () => {
+    it("opens a talk request instead of dismissing it, so it is read before it is marked followed up", async () => {
       renderAt("/manager");
-      fireEvent.click(await screen.findByRole("button", { name: /^Follow up, talk request from Reese Patel/ }));
-      await waitFor(() =>
-        expect(readDb().wellbeingRequests.some((w) => w.kind === "TALK_TO_MANAGER" && w.status === "FOLLOWED_UP")).toBe(true),
-      );
+      const row = (await screen.findByText("Talk Request")).closest("li")!;
+      expect(within(row).queryByRole("button", { name: /^Follow/ })).not.toBeInTheDocument();
+      fireEvent.click(within(row).getByRole("button", { name: "View request" }));
+      expect(await screen.findByRole("heading", { level: 1, name: "Reese Patel" })).toBeInTheDocument();
+      const done = () => readDb().wellbeingRequests.filter((w) => w.kind === "TALK_TO_MANAGER" && w.status === "FOLLOWED_UP").length;
+      const before = done();
+      fireEvent.click(await screen.findByRole("button", { name: "Mark as followed up" }));
+      await waitFor(() => expect(done()).toBe(before + 1));
     });
 
     it("never reassigns from the list: Review opens the decision with the suggested Auditor selected", async () => {
@@ -232,10 +242,10 @@ describe("Manager screens", () => {
       expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
     });
 
-    it("keeps the SOS Inbox, Reassignment Queue and Client messages one click from the Overview", async () => {
+    it("keeps the SOS Inbox, Reassignment Queue and Client messages one click away, in a row under Overview", async () => {
       renderAt("/manager");
-      const links = await screen.findByRole("navigation", { name: "More work queues" });
-      expect(within(links).getByRole("link", { name: "SOS Inbox" })).toHaveAttribute("href", "/manager/sos");
+      const links = await screen.findByRole("navigation", { name: "Work queues" });
+      expect(within(links).getByRole("link", { name: /^SOS Inbox/ })).toHaveAttribute("href", "/manager/sos");
       expect(within(links).getByRole("link", { name: "Reassignment Queue" })).toHaveAttribute("href", "/manager/reassignment");
       expect(within(links).getByRole("link", { name: "Client messages" })).toHaveAttribute("href", "/manager/messages");
     });
@@ -313,9 +323,33 @@ describe("Manager screens", () => {
     it("Case Oversight opens filtered to the stage chosen on the dashboard", async () => {
       renderAt("/manager/cases?stage=MANAGER_ACTION");
       expect(await screen.findByText("Stage: Needs Reassignment or Blocked")).toBeInTheDocument();
-      const table = await screen.findByRole("table");
+      const table = await screen.findByRole("table", { name: "Cases that need you" });
       const flagged = readDb().cases.filter((c) => c.manager_flag && c.status !== "COMPLETE").length;
       await waitFor(() => expect(within(table).getAllByRole("row")).toHaveLength(flagged + 1));
+    });
+
+    it("puts what needs the Manager first, most severe first, and leaves the rest below", async () => {
+      renderAt("/manager/cases");
+      const needs = await screen.findByRole("table", { name: "Cases that need you" });
+      const all = screen.getByRole("table", { name: "All cases" });
+      // Blocked (an open SOS) comes before Needs Reassignment.
+      const tags = within(needs).getAllByText(/^(Blocked|Needs Reassignment|Held back)$/).map((n) => n.textContent);
+      const firstReassign = tags.indexOf("Needs Reassignment");
+      if (firstReassign > -1) expect(tags.slice(firstReassign)).not.toContain("Blocked");
+      // Nothing that needs the Manager is repeated in the long list.
+      expect(within(all).queryByText("Blocked")).not.toBeInTheDocument();
+      expect(within(all).queryByText("Needs Reassignment")).not.toBeInTheDocument();
+    });
+
+    it("offers Release to Auditors only for a case held back from them", async () => {
+      updateDb((db) => {
+        const c = db.cases.find((x) => x.status !== "COMPLETE" && !x.manager_flag && x.assigned_auditor === null);
+        if (c) c.case_visibility = "SUPER_ADMIN_ONLY";
+      });
+      renderAt("/manager/cases");
+      await screen.findByRole("table", { name: "All cases" });
+      const held = readDb().cases.filter((c) => c.case_visibility === "SUPER_ADMIN_ONLY" && c.assigned_auditor === null && c.status !== "COMPLETE" && !c.manager_flag);
+      await waitFor(() => expect(screen.queryAllByRole("button", { name: /^Release to Auditors, case / })).toHaveLength(held.length));
     });
   });
 
@@ -418,7 +452,7 @@ describe("Manager screens", () => {
 
   it("approves a break request from the Auditor record (MR-SOS-07)", async () => {
     renderAt("/manager/auditors/auditor-4");
-    expect(await screen.findByText("Pattern flagged — private")).toBeInTheDocument();
+    expect(await screen.findByText("Pattern flagged")).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Approve break" }));
     expect(await screen.findByText("Break approved")).toBeInTheDocument();
   });

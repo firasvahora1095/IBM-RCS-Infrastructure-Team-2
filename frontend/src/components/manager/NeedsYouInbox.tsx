@@ -11,7 +11,6 @@ import {
   listClientMessages,
   listDeclinedCases,
   listSosAlerts,
-  markWellbeingFollowedUp,
   retryDelivery,
 } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
@@ -19,7 +18,7 @@ import type { AuditorOverviewRow, ManagerIntelligence } from "../../services/typ
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import { StatusTag } from "../ui/StatusTag";
 import { deliveryFailureKind } from "../../design-tokens/deliveryLabels";
-import type { StatusTone } from "../../design-tokens/statusTones";
+import { SOS_TONE, type StatusTone } from "../../design-tokens/statusTones";
 
 /** The inbox shows this many rows; the rest sit behind "Show all". */
 const VISIBLE_ROWS = 10;
@@ -135,7 +134,10 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           subject: names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "),
           detail: `${openSos.length > 1 ? "Latest " : ""}${formatRelativeTime(openSos[0].triggered_at)}`,
           urgent: true,
-          status: { label: unacknowledged ? "Unacknowledged" : "In progress", tone: unacknowledged ? "error" : "warning" },
+          status: {
+            label: unacknowledged ? "Unacknowledged" : "In progress",
+            tone: SOS_TONE[unacknowledged ? "UNACKNOWLEDGED" : "IN_PROGRESS"],
+          },
           open:
             openSos.length === 1
               ? { label: "Open alert", to: `/manager/sos/${encodeURIComponent(openSos[0].id)}` }
@@ -150,7 +152,6 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
             kind: isBreak ? "Break Request" : "Talk Request",
             subject: detail.display_name,
             detail: formatRelativeTime(request.created_at),
-            status: { label: "Waiting", tone: "warning" },
             act: isBreak
               ? {
                   label: "Approve",
@@ -160,15 +161,8 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                     return { message: `Approved the break request from ${detail.display_name}.` };
                   },
                 }
-              : {
-                  label: "Follow up",
-                  ariaLabel: `Follow up, talk request from ${detail.display_name}`,
-                  run: async () => {
-                    await markWellbeingFollowedUp(request.id, token);
-                    return { message: `Marked the talk request from ${detail.display_name} as followed up.` };
-                  },
-                },
-            open: { label: "Details", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
+              : undefined, // A talk request is answered by talking: it opens, and is marked done on the record.
+            open: { label: isBreak ? "Details" : "View request", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
           });
         }
       }
@@ -183,7 +177,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           subject: c.case_id,
           // The suggested Auditor is named in the row but not on the button, so every button reads the same.
           detail: best ? `${c.auditor_name} · Suggested: ${best.name}` : c.auditor_name,
-          status: { label: capped ? "Limit reached" : "Declined", tone: "warning" },
+          status: { label: capped ? "Limit reached" : "Declined", tone: "neutral" },
           // Reassigning moves a case onto a person, so it is never done from the list: the button opens the
           // decision with the suggested Auditor already selected, and one more click confirms it.
           open: {
@@ -201,7 +195,6 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           kind: "Client Message",
           subject: `${waitingMessages.length} waiting`,
           detail: `Oldest ${formatRelativeTime(waitingMessages[0].created_at)}`,
-          status: { label: "Waiting", tone: "warning" },
           open: { label: "Open messages", to: "/manager/messages" },
         });
       }
@@ -298,7 +291,14 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           )}
           <ul className="rcs-inbox" aria-label="Items that need you">
             {shown.map((row) => (
-              <li key={row.key} className="rcs-inbox-row" data-urgent={row.urgent ? "error" : undefined}>
+              // The whole row opens the detail for mouse users; the buttons and links inside keep their own job, and
+              // keyboard users reach the same place through the row's button or Details link.
+              <li
+                key={row.key}
+                className={`rcs-inbox-row ${row.open ? "rcs-inbox-row--open" : ""}`}
+                data-urgent={row.urgent ? "error" : undefined}
+                onClick={() => row.open && navigate(row.open.to)}
+              >
                 <span className="rcs-inbox-kind">
                   {row.urgent && <WarningFilled aria-hidden="true" size={16} className="rcs-inbox-kind-icon" />}
                   {row.kind}
@@ -320,7 +320,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                   )}
                 </span>
                 {/* One visible action per row; anything else is one step away in the menu. */}
-                <span className="rcs-inbox-actions">
+                <span className="rcs-inbox-actions" onClick={(e) => e.stopPropagation()}>
                   {row.act ? (
                     <Button
                       kind="tertiary"
@@ -352,18 +352,6 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           </ul>
         </>
       )}
-      <nav aria-label="More work queues" className="rcs-inbox-links">
-        <span className="rcs-helper">Go to</span>
-        <RouterLink className="cds--link" to="/manager/sos">
-          SOS Inbox
-        </RouterLink>
-        <RouterLink className="cds--link" to="/manager/reassignment">
-          Reassignment Queue
-        </RouterLink>
-        <RouterLink className="cds--link" to="/manager/messages">
-          Client messages
-        </RouterLink>
-      </nav>
       {pending.length > VISIBLE_ROWS && (
         <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
           {showAll ? "Show fewer" : `Show all ${pending.length}`}

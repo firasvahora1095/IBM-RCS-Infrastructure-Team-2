@@ -27,6 +27,36 @@
   // Solid green for tags that carry white text. Carbon's Green 50 (the success token) is only 3.3:1 with white,
   // which fails WCAG AA at tag size; Green 60 is about 5:1. Taken from Carbon's palette, not typed in.
   --rcs-success-strong: #{colors.$green-60};
+
+  // The RCS tag palette (docs/ux/tag-colour-system.md). Every pair is a Carbon palette value and passes WCAG AA for
+  // tag text (checked in design-tokens/tagPalette.test.ts). Status uses six families, each one meaning:
+  // red = critical, yellow = caution, blue = in progress, green = done, teal = a request for you, gray = routine.
+  --rcs-tag-error-bg: #{colors.$red-60};
+  --rcs-tag-error-fg: #{colors.$white};
+  --rcs-tag-warning-bg: #{colors.$yellow-20};
+  --rcs-tag-warning-fg: #{colors.$gray-100};
+  --rcs-tag-info-bg: #{colors.$blue-20};
+  --rcs-tag-info-fg: #{colors.$blue-80};
+  --rcs-tag-success-bg: #{colors.$green-60};
+  --rcs-tag-success-fg: #{colors.$white};
+  --rcs-tag-request-bg: #{colors.$teal-20};
+  --rcs-tag-request-fg: #{colors.$teal-80};
+  --rcs-tag-neutral-bg: #{colors.$gray-20};
+  --rcs-tag-neutral-fg: #{colors.$gray-100};
+  // Severity is an ordered scale, so it is one hue (purple) that darkens as it gets worse. No status uses purple,
+  // so a severity tag can never be mistaken for a status. Bars use the same ramp.
+  --rcs-sev-1-bg: #{colors.$gray-20};
+  --rcs-sev-1-fg: #{colors.$gray-100};
+  --rcs-sev-1-bar: #{colors.$gray-50};
+  --rcs-sev-2-bg: #{colors.$purple-30};
+  --rcs-sev-2-fg: #{colors.$purple-90};
+  --rcs-sev-2-bar: #{colors.$purple-40};
+  --rcs-sev-3-bg: #{colors.$purple-60};
+  --rcs-sev-3-fg: #{colors.$white};
+  --rcs-sev-3-bar: #{colors.$purple-60};
+  --rcs-sev-4-bg: #{colors.$purple-90};
+  --rcs-sev-4-fg: #{colors.$white};
+  --rcs-sev-4-bar: #{colors.$purple-90};
 }
 
 // The Review Workspace scrubber spans its whole column (Figma 20:54). Carbon's

@@ -2,27 +2,11 @@ import { describe, it, expect } from "vitest";
 import { getSeverityInfo, scoreToTier } from "./severity";
 
 describe("getSeverityInfo", () => {
-  it("returns the label and Carbon status-token colours for each real tier", () => {
-    expect(getSeverityInfo("S1")).toMatchObject({
-      label: "Low",
-      background: "var(--cds-tag-background-gray)",
-      text: "var(--cds-text-primary)",
-    });
-    expect(getSeverityInfo("S2")).toMatchObject({
-      label: "Moderate",
-      background: "var(--cds-support-caution-minor)",
-      text: "var(--cds-text-primary)",
-    });
-    expect(getSeverityInfo("S3")).toMatchObject({
-      label: "High",
-      background: "var(--cds-support-caution-major)",
-      text: "var(--cds-text-primary)",
-    });
-    expect(getSeverityInfo("S4")).toMatchObject({
-      label: "Critical",
-      background: "var(--cds-support-error)",
-      text: "var(--cds-text-on-color)",
-    });
+  it("returns the label and the purple severity ramp for each real tier", () => {
+    expect(getSeverityInfo("S1")).toMatchObject({ label: "Low", background: "var(--rcs-sev-1-bg)", text: "var(--rcs-sev-1-fg)" });
+    expect(getSeverityInfo("S2")).toMatchObject({ label: "Moderate", background: "var(--rcs-sev-2-bg)", text: "var(--rcs-sev-2-fg)" });
+    expect(getSeverityInfo("S3")).toMatchObject({ label: "High", background: "var(--rcs-sev-3-bg)", text: "var(--rcs-sev-3-fg)" });
+    expect(getSeverityInfo("S4")).toMatchObject({ label: "Critical", background: "var(--rcs-sev-4-bg)", text: "var(--rcs-sev-4-fg)" });
   });
 
   it("throws on an unknown tier instead of failing silently", () => {

@@ -1,5 +1,5 @@
 import type { ClientMessageStatus, ClientMessageTopic } from "../services/types";
-import type { StatusTone } from "./statusTones";
+import { CLIENT_MESSAGE_TONE, type StatusTone } from "./statusTones";
 
 export const MESSAGE_TOPIC_LABEL: Record<ClientMessageTopic, string> = {
   REPORT_QUESTION: "A question about a report",
@@ -22,11 +22,7 @@ export const MANAGER_MESSAGE_STATUS_LABEL: Record<ClientMessageStatus, string> =
   ANSWERED: "Answered",
 };
 
-export const MESSAGE_TONE: Record<ClientMessageStatus, StatusTone> = {
-  SENT: "info",
-  SEEN: "warning",
-  ANSWERED: "success",
-};
+export const MESSAGE_TONE: Record<ClientMessageStatus, StatusTone> = CLIENT_MESSAGE_TONE;
 
 /** Said wherever a client contacts RCS, so they know what to expect. */
 export const MESSAGE_RESPONSE_PROMISE = "RCS replies within one working day. Urgent safety concerns should still go through your platform's own processes.";

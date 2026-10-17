@@ -78,6 +78,7 @@ export function ManagerExceptionalAccessPage() {
   }
 
   const trail = [
+    ...(returnTo === "/manager" ? [] : [{ label: "Overview", to: "/manager" }]),
     { label: returnLabel.replace("Return to ", "").replace(/^./, (c) => c.toUpperCase()), to: returnTo },
     { label: `Case ${caseId} (exceptional access)` },
   ];

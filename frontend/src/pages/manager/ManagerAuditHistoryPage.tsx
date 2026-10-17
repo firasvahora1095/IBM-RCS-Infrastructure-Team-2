@@ -65,7 +65,13 @@ export function ManagerAuditHistoryPage() {
 
   return (
     <ManagerLayout>
-      <ManagerBreadcrumb trail={[{ label: "Validation", to: "/manager/validation" }, { label: "Audit history" }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Validation", to: "/manager/validation" },
+          { label: "Audit history", to: query.case_id ? "/manager/audit-logs" : undefined },
+          ...(query.case_id ? [{ label: query.case_id }] : []),
+        ]}
+      />
       <PageHeader
         title={query.case_id ? `Audit trail for ${query.case_id}` : "Audit history"}
         subtitle={

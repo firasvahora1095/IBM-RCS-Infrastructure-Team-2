@@ -14,9 +14,9 @@ import { mapStatusToStaffLabel } from "./statusLabels";
  * outright, so the word "limit" is never left to the column heading.
  */
 export const EXPOSURE_STATE_LABEL: Record<ExposureState, string> = {
-  UNDER: "Under Limit",
-  APPROACHING: "Approaching Limit",
-  AT_LIMIT: "At Limit",
+  UNDER: "Within limit",
+  APPROACHING: "Near limit",
+  AT_LIMIT: "Limit reached",
 };
 
 /** SOS Inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */

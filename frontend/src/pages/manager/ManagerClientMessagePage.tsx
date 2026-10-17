@@ -53,7 +53,13 @@ export function ManagerClientMessagePage() {
   return (
     <ManagerLayout showNav={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "Client messages", to: "/manager/messages" }, { label: messageId }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Overview", to: "/manager" },
+          { label: "Client messages", to: "/manager/messages" },
+          { label: data?.display_name ?? messageId },
+        ]}
+      />
       <LoadState error={error} loading={!data && !error} what="this message" />
       {data && (
         <>

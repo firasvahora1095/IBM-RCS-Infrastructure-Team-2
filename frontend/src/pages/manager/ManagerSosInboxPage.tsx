@@ -3,7 +3,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
-import { LoadState } from "../../components/manager/ManagerBits";
+import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { secondaryText } from "../../components/manager/managerStyles";
 import { listSosAlerts } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -23,6 +23,7 @@ export function ManagerSosInboxPage() {
 
   return (
     <ManagerLayout>
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "SOS Inbox" }]} />
       <PageHeader title="SOS Inbox" subtitle="Most urgent first. Review an alert to see the context; you acknowledge it from there, then log your follow-up." />
       <LoadState error={error} loading={!data && !error} what="SOS alerts" />
       {data && data.length === 0 && <p style={secondaryText}>No SOS alerts have been raised.</p>}

@@ -95,9 +95,9 @@ describe("Manager labels (Manager Figma prototype 0qMhTLDlozGkcdqcgbwyse)", () =
   // (docs/ba/extra-features.md §11.1) names the state in full; it is the later, signed-off source.
   it("uses the BA standard exposure states (extra-features §11.1, from Oversight Dashboard 78:69)", () => {
     expect(EXPOSURE_STATE_LABEL).toEqual({
-      UNDER: "Under Limit",
-      APPROACHING: "Approaching Limit",
-      AT_LIMIT: "At Limit",
+      UNDER: "Within limit",
+      APPROACHING: "Near limit",
+      AT_LIMIT: "Limit reached",
     });
   });
 

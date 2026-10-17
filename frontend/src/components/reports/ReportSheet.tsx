@@ -161,7 +161,7 @@ export function ReportSheet({
               label: `${t} · ${info.label}`,
               value: m.severity_breakdown[t],
               // S1's tag fill is too light to read as a bar on the track.
-              color: t === "S1" ? "var(--cds-icon-secondary)" : info.background,
+              color: info.bar,
             };
           })}
         />
