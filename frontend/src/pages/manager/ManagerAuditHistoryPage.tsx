@@ -162,8 +162,8 @@ export function ManagerAuditHistoryPage() {
           {history.entries.length === 0 && (
             <p style={secondaryText}>
               {query.case_id || query.action
-                ? "Nothing is recorded for these filters. Check the Case ID, or remove a filter above to widen the search."
-                : "Nothing has been recorded yet."}
+                ? "No records match these filters. Check the Case ID or remove a filter."
+                : "No records have been saved yet."}
             </p>
           )}
           {history.entries.length > 0 && (

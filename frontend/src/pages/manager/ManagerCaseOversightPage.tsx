@@ -28,6 +28,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 import { caseStatusTone } from "../../design-tokens/statusTones";
 import { StatusTag } from "../../components/ui/StatusTag";
+import { TablePagination, usePagination } from "../../components/ui/TablePagination";
 import { isOpenBucket, OPEN_BUCKET_LABEL, openBucketOf } from "../../design-tokens/intelligenceLabels";
 
 const ALL_STATUSES = "All statuses";
@@ -49,7 +50,7 @@ function attentionOf(row: ManagerCaseRow): Attention {
   if (row.manager_flag) return { kind: "reassign", label: "Needs Reassignment", action: "Review" };
   // Held back: no Auditor, and still visible only to the Super Admin Auditor.
   if (row.auditor_name === null && row.case_visibility === "SUPER_ADMIN_ONLY")
-    return { kind: "held", label: "Held back", action: "Release to Auditors" };
+    return { kind: "held", label: "Awaiting release", action: "Release to Auditors" };
   return null;
 }
 const ATTENTION_RANK = { blocked: 0, reassign: 1, held: 2 } as const;
@@ -140,6 +141,8 @@ export function ManagerCaseOversightPage() {
       }
     });
 
+  const paged = usePagination(others, `${query}|${statusFilter}|${stage}|${sortKey}`);
+
   return (
     <ManagerLayout>
       <PageHeader title="Cases" subtitle="Every case across all Auditors. What needs you comes first." />
@@ -229,7 +232,7 @@ export function ManagerCaseOversightPage() {
                       <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
                       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
                       <TableCell>
-                        <StatusTag tone={caseStatusTone(need.label === "Held back" ? "Held back" : need.label)} size="sm">
+                        <StatusTag tone={caseStatusTone(need.label)} size="sm">
                           {need.label}
                         </StatusTag>
                       </TableCell>
@@ -287,7 +290,7 @@ export function ManagerCaseOversightPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {others.map((row) => {
+                {paged.rows.map((row) => {
                   const label = managerStatusLabel(row.status, row.manager_flag);
                   return (
                     <TableRow key={row.case_id}>
@@ -307,6 +310,7 @@ export function ManagerCaseOversightPage() {
               </TableBody>
             </Table>
             {others.length === 0 && <p style={{ ...secondaryText, padding: 16 }}>No other cases match your search.</p>}
+            <TablePagination paged={paged} />
           </Layer>
         </Section>
       )}

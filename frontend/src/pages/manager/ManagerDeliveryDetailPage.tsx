@@ -187,8 +187,8 @@ export function ManagerDeliveryDetailPage() {
                   <p className="rcs-helper">Escalated {formatShortDateTime(data.escalated_at)}.</p>
                 )}
                 <p className="rcs-body">
-                  Retry first: a timeout or a 503 is usually CommunityHub being briefly unavailable. If it fails again,
-                  escalate it with a note for the integration owner.
+                  Recommended: retry the delivery first. A timeout or a 503 error usually indicates a temporary
+                  CommunityHub outage. If the retry fails, escalate with a note for the integration owner.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   {retrying ? (

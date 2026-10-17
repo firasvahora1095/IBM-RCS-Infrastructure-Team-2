@@ -76,11 +76,11 @@ export function ManagerClientMessagePage() {
             {data.topic === "DELIVERY_ISSUE" && (
               <section className="rcs-section" aria-labelledby="related-heading">
                 <h2 id="related-heading" className="rcs-section-title">
-                  Check the delivery first
+                  Review the delivery first
                 </h2>
                 <p className="rcs-body">
-                  A question about a result that has not arrived is answered from Deliveries. Retry or escalate it
-                  there, then come back and tell them what you found.
+                  Questions about a missing result are resolved from Deliveries. Retry or escalate the delivery, then
+                  reply with your findings.
                 </p>
                 <div>
                   <Button kind="tertiary" as={RouterLink} to="/manager/deliveries?status=needs-attention">

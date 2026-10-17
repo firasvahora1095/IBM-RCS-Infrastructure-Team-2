@@ -83,6 +83,7 @@
 }
 .rcs-player-bar {
   gap: 0.5rem;
+  overflow-x: clip;
   // Never wider than its column: the timeline gives up width first, so the
   // reviewer never has to scroll sideways mid-review.
   inline-size: 100%;
@@ -175,7 +176,11 @@
   min-block-size: 10rem;
 }
 .rcs-player-volume {
-  flex: 0 0 4rem;
+  // Room for the slider thumb, which overhangs the track by half its width at 0% and 100%; without it the thumb
+  // pushed the page sideways at full volume.
+  flex: 0 0 4.75rem;
+  min-inline-size: 0;
+  padding-inline: 0.5rem;
   // On narrow screens mute alone controls sound, so the bar still fits.
   @media (max-width: 671px) {
     display: none;
@@ -432,4 +437,11 @@ $rcs-buddy-width: 25rem;
       opacity: 0;
     }
   }
+}
+
+// A last guard: nothing on a page may make it scroll sideways. `clip` (not `hidden`) does not create a scroll
+// container, so sticky headers keep working.
+html,
+body {
+  overflow-x: clip;
 }

@@ -61,19 +61,21 @@ describe("Manager screens", () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
       const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
-      expect(names).toEqual(["AI vs Auditor", "AI vs ground truth", "Audit log"]);
-      expect(within(tabs).getByRole("tab", { name: "AI vs Auditor" })).toHaveAttribute("aria-selected", "true");
+      expect(names).toEqual(["Auditor overrides", "AI accuracy test", "AI call log"]);
+      expect(within(tabs).getByRole("tab", { name: "Auditor overrides" })).toHaveAttribute("aria-selected", "true");
       expect(
         await screen.findByRole("table", { name: /AI severity against final Auditor severity/ }),
       ).toBeVisible();
       // The other views are not on screen until chosen.
       expect(screen.queryByRole("table", { name: "watsonx.ai call log" })).not.toBeInTheDocument();
-      fireEvent.click(within(tabs).getByRole("tab", { name: "Audit log" }));
+      fireEvent.click(within(tabs).getByRole("tab", { name: "AI call log" }));
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
-      // The three client-required audit fields are in each call's details.
+      // The three client-required audit fields are in each call's details, opened from its row.
+      fireEvent.click(within(log).getAllByRole("button", { name: /^Show details for the call/ })[0]);
       for (const field of [/Accumulated score/, /Prompt leakage/, /Source attribution/]) {
-        expect(within(log).getAllByText(field).length).toBeGreaterThan(0);
+        expect(await within(log).findAllByText(field)).not.toHaveLength(0);
       }
+      expect(within(log).getByRole("button", { name: "Open case history" })).toBeInTheDocument();
     });
 
     it("names every result in words and never calls the AI or an Auditor wrong", async () => {
@@ -111,9 +113,11 @@ describe("Manager screens", () => {
     it("labels old demo calls without inventing real outcomes, and shows the chart's values", async () => {
       renderAt("/manager/validation?view=audit-log");
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
-      fireEvent.click(await screen.findByRole("button", { name: /^Show all \d+ calls$/ }));
       await waitFor(() => expect(within(log).queryAllByText("Legacy demo").length).toBeGreaterThan(0));
-      expect(within(log).getAllByText("Unavailable").length).toBeGreaterThan(0);
+      fireEvent.click(within(log).getAllByRole("button", { name: /^Show details for the call/ })[0]);
+      expect((await within(log).findAllByText("Not recorded")).length).toBeGreaterThan(0);
+      // Long lists page like Deliveries, rather than a button that shows everything.
+      expect((await screen.findAllByText(/items per page/i)).length).toBeGreaterThan(0);
       // Each bar's value is printed beside it, so the chart never rests on colour or pattern.
       cleanup();
       renderAt("/manager/validation?view=ai-vs-ground-truth");
@@ -186,7 +190,7 @@ describe("Manager screens", () => {
         for (const m of db.clientMessages) m.status = "ANSWERED";
       });
       renderAt("/manager");
-      expect(await screen.findByText("Nothing needs you")).toBeInTheDocument();
+      expect(await screen.findByText("Nothing needs your attention")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Generate Report" })).toHaveClass("cds--btn--primary");
       expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(1);
     });
@@ -296,7 +300,7 @@ describe("Manager screens", () => {
 
     it("Insights holds the analytics that left the Overview", async () => {
       renderAt("/manager/insights");
-      for (const title of ["Case flow", "Client outcomes", "AI and Auditor decisions", "Delivery Health"]) {
+      for (const title of ["Case flow", "Client outcomes", "Auditor overrides", "Delivery Health"]) {
         expect(await screen.findByRole("heading", { level: 2, name: title })).toBeInTheDocument();
       }
       // Validation is a tab of its own, and Insights points to it from the accuracy note.

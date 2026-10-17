@@ -276,7 +276,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
         <div className="rcs-inbox-empty">
           <CheckmarkFilled aria-hidden="true" size={20} style={{ fill: "var(--rcs-success-strong)" }} />
           <div>
-            <p className="rcs-inbox-empty-title">Nothing needs you</p>
+            <p className="rcs-inbox-empty-title">Nothing needs your attention</p>
             <p className="rcs-helper">
               {announce || "No SOS alerts, requests, reassignments or failed deliveries are waiting."}
             </p>

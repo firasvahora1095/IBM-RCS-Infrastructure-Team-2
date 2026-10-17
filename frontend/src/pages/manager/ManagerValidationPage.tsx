@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem, Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
+import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem, Tab, TabList, TabPanel, TabPanels, Tabs, Select, SelectItem, TextInput, Modal, TableExpandHeader, TableExpandRow, TableExpandedRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
 import { Figure, LoadState } from "../../components/manager/ManagerBits";
 import { mono } from "../../components/manager/managerStyles";
-import { Section } from "../../components/ui/Blocks";
+import { KeyValueList, Section } from "../../components/ui/Blocks";
+import { auditActionLabel } from "../../design-tokens/auditActions";
 import { StatusTag } from "../../components/ui/StatusTag";
+import { TablePagination, usePagination } from "../../components/ui/TablePagination";
 import { getGovernanceSummary, getValidationSummary, getGovernanceCase, getAuditHistory } from "../../services";
 import type { GovernanceSummary, GovernanceQuery, GovernanceLogRow, ValidationSummary } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -15,10 +17,40 @@ import { formatShortDateTime } from "../../utils/formatPeriod";
 
 /** The three views, in the order shown. AI vs Auditor is the landing view: it is the one used most. */
 const VIEWS = [
-  { key: "ai-vs-auditor", label: "AI vs Auditor" },
-  { key: "ai-vs-ground-truth", label: "AI vs ground truth" },
-  { key: "audit-log", label: "Audit log" },
+  { key: "ai-vs-auditor", label: "Auditor overrides" },
+  { key: "ai-vs-ground-truth", label: "AI accuracy test" },
+  { key: "audit-log", label: "AI call log" },
 ] as const;
+type ViewKey = (typeof VIEWS)[number]["key"];
+
+/** What each view is for, in words a first-time reader can act on. Shown at the top of its tab. */
+const PURPOSE: Record<ViewKey, { shows: string; use: string }> = {
+  "ai-vs-auditor": {
+    shows: "Completed cases in which an Auditor's final severity differs from the AI's initial rating.",
+    use: "Use this view to identify where reviewers and the AI disagree. A difference does not indicate an error by either, and it is not a measure of the AI's accuracy.",
+  },
+  "ai-vs-ground-truth": {
+    shows: "How closely the AI's severity ratings match a reference set of footage that reviewers labelled in advance.",
+    use: "Use this view to assess whether the AI's ratings can be relied upon. It does not include live cases.",
+  },
+  "audit-log": {
+    shows: "Each request RCS sent to the AI model, the checks applied to its response, and the sources it drew on.",
+    use: "Use this view to trace how a result was produced or to investigate a failed request.",
+  },
+};
+
+function Purpose({ view }: { view: ViewKey }) {
+  return (
+    <span className="rcs-purpose">
+      <span>
+        <strong>Scope.</strong> {PURPOSE[view].shows}
+      </span>
+      <span>
+        <strong>Purpose.</strong> {PURPOSE[view].use}
+      </span>
+    </span>
+  );
+}
 
 const AI_COLOUR = "var(--cds-support-info)";
 const TRUTH_COLOUR = "var(--cds-support-success)";
@@ -54,6 +86,7 @@ export function ManagerValidationPage() {
     <Accordion>
       <AccordionItem title="Filters">
         <GovernanceFilters
+          view={view.key}
           onApply={(next, auditAction) => {
             setQuery({ ...next, limit: 25 });
             setAction(auditAction);
@@ -67,7 +100,7 @@ export function ManagerValidationPage() {
     <ManagerLayout>
       <PageHeader
         title="Validation & Audit"
-        subtitle="Can we trust the AI, and can every result be traced? Pick a view; each one shows only its own information."
+        subtitle="Assess the reliability of the AI and trace how each result was produced. Select a view."
       />
 
       {data?.is_placeholder && (
@@ -92,7 +125,7 @@ export function ManagerValidationPage() {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <Section id="ai-vs-auditor" description="Completed cases where the Auditor's final severity differs from the AI's. A difference isn't a verdict on either; it marks cases worth a look. It isn't the AI's accuracy.">
+            <Section id="ai-vs-auditor" description={<Purpose view="ai-vs-auditor" />}>
               {filters}
               <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
               {governance.data && <AiAuditorComparison data={governance.data} />}
@@ -112,13 +145,13 @@ export function ManagerValidationPage() {
             </Section>
           </TabPanel>
           <TabPanel>
-            <Section id="validation" description="The AI's severity checked against footage a person labelled. This is not about live cases.">
+            <Section id="validation" description={<Purpose view="ai-vs-ground-truth" />}>
               <LoadState error={error} loading={!data && !error} what="validation results" />
               {data && <GroundTruth data={data} />}
             </Section>
           </TabPanel>
           <TabPanel>
-            <Section id="audit-log" description="Every AI call RCS made, what was checked and where it came from. A response can still fail a check or fail to save.">
+            <Section id="audit-log" description={<Purpose view="audit-log" />}>
               {filters}
               <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
               {governance.data && <AuditLog data={governance.data} onSelectCase={setSelectedCase} />}
@@ -132,7 +165,7 @@ export function ManagerValidationPage() {
                   Newest calls
                 </Button>
               )}
-              <CaseGovernance caseId={selectedCase} query={query} action={action} />
+              <CaseGovernance caseId={selectedCase} query={query} action={action} onClose={() => setSelectedCase("")} />
             </Section>
           </TabPanel>
         </TabPanels>
@@ -223,10 +256,22 @@ function DistributionChart({ data }: { data: ValidationSummary }) {
   );
 }
 
-function GovernanceFilters({ onApply }: { onApply: (query: GovernanceQuery, action: string) => void }) {
+/**
+ * Filters for the two views that use them, grouped so the page does not open on a wall of fields: when and which
+ * data first (every view), then, for the audit log only, what to look for. Every field is the same height and sits on
+ * the same grid; Apply and Clear are together underneath.
+ */
+function GovernanceFilters({
+  view,
+  onApply,
+}: {
+  view: ViewKey;
+  onApply: (query: GovernanceQuery, action: string) => void;
+}) {
+  const isLog = view === "audit-log";
   return (
     <form
-      className="flex flex-wrap items-end gap-4"
+      className="rcs-filters"
       onSubmit={(event) => {
         event.preventDefault();
         const values = new FormData(event.currentTarget);
@@ -239,91 +284,59 @@ function GovernanceFilters({ onApply }: { onApply: (query: GovernanceQuery, acti
             to_at: date("to"),
             context: (value("context") ?? "live") as GovernanceQuery["context"],
             leakage: value("leakage"),
-            ai_tier: value("ai"),
-            auditor_tier: value("auditor"),
-            override: value("override") === undefined ? undefined : value("override") === "true",
           },
           value("action") ?? "",
         );
       }}
     >
-      <label>
-        Case ID
-        <input className="cds--text-input" name="case" maxLength={20} />
-      </label>
-      <label>
-        From
-        <input className="cds--text-input" name="from" type="datetime-local" />
-      </label>
-      <label>
-        To
-        <input className="cds--text-input" name="to" type="datetime-local" />
-      </label>
-      <label>
-        Context
-        <select className="cds--select-input" name="context">
-          <option value="live">Live calls</option>
-          <option value="test">Test calls</option>
-          <option value="demo">Legacy demo</option>
-        </select>
-      </label>
-      <label>
-        Prompt leakage
-        <select className="cds--select-input" name="leakage">
-          <option value="">All</option>
-          {["NOT_CHECKED", "NOT_DETECTED", "DETECTED"].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </label>
-      {[
-        ["ai", "AI tier"],
-        ["auditor", "Auditor tier"],
-      ].map(([name, label]) => (
-        <label key={name}>
-          {label}
-          <select className="cds--select-input" name={name}>
-            <option value="">All</option>
-            {["S1", "S2", "S3", "S4"].map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </label>
-      ))}
-      <label>
-        Override
-        <select className="cds--select-input" name="override">
-          <option value="">All</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-      </label>
-      <label>
-        Timeline action
-        <select className="cds--select-input" name="action">
-          <option value="">All governance events</option>
-          {[
-            "CASE_CREATED",
-            "CASE_ASSIGNED",
-            "AI_ANALYSIS_STARTED",
-            "AI_ANALYSIS_COMPLETED",
-            "AI_ANALYSIS_FAILED",
-            "CASE_RESOLVED",
-          ].map((a) => (
-            <option key={a}>{a}</option>
-          ))}
-        </select>
-      </label>
-      <Button type="submit" size="sm">
-        Apply filters
-      </Button>
+      <fieldset className="rcs-filter-group">
+        <legend>When and which data</legend>
+        <div className="rcs-filter-row">
+          <TextInput id={`${view}-from`} name="from" type="datetime-local" labelText="From" size="md" />
+          <TextInput id={`${view}-to`} name="to" type="datetime-local" labelText="To" size="md" />
+          <Select id={`${view}-context`} name="context" labelText="Data" size="md" defaultValue="live">
+            <SelectItem value="live" text="Live calls" />
+            <SelectItem value="test" text="Test calls" />
+            <SelectItem value="demo" text="Legacy demo" />
+          </Select>
+        </div>
+      </fieldset>
+      {isLog && (
+        <fieldset className="rcs-filter-group">
+          <legend>What to look for</legend>
+          <div className="rcs-filter-row">
+            <TextInput id="log-case" name="case" labelText="Case ID" size="md" maxLength={20} placeholder="e.g. AR-2026-00340" />
+            <Select id="log-leakage" name="leakage" labelText="Prompt leakage check" size="md" defaultValue="">
+              <SelectItem value="" text="All" />
+              {["NOT_CHECKED", "NOT_DETECTED", "DETECTED"].map((v) => (
+                <SelectItem key={v} value={v} text={v.replace("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())} />
+              ))}
+            </Select>
+            <Select id="log-action" name="action" labelText="Timeline action" size="md" defaultValue="">
+              <SelectItem value="" text="All events" />
+              {["CASE_CREATED", "CASE_ASSIGNED", "AI_ANALYSIS_STARTED", "AI_ANALYSIS_COMPLETED", "AI_ANALYSIS_FAILED", "CASE_RESOLVED"].map((v) => (
+                <SelectItem key={v} value={v} text={v.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())} />
+              ))}
+            </Select>
+          </div>
+        </fieldset>
+      )}
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" kind="tertiary" size="md">
+          Apply filters
+        </Button>
+        <Button type="reset" kind="ghost" size="md" onClick={() => onApply({ limit: 25 }, "")}>
+          Clear
+        </Button>
+      </div>
     </form>
   );
 }
 
 function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCase: (id: string) => void }) {
-  const [showAll, setShowAll] = useState(false);
-  const rows = showAll ? data.rows : data.rows.slice(0, 8);
+  const paged = usePagination(data.rows, String(data.rows.length));
+  const rows = paged.rows;
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   return (
     <>
       {data.is_placeholder && (
@@ -333,132 +346,144 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
       )}
       <p className="rcs-body" role="status">
         {data.failed_calls > 0
-          ? `${data.failed_calls} failed ${data.failed_calls === 1 ? "call needs" : "calls need"} a look. Failed rows are marked below.`
-          : "No failed calls in this view."}
+          ? `${data.failed_calls} failed ${data.failed_calls === 1 ? "request" : "requests"}. Failed rows are marked.`
+          : "No failed requests in this view."}
       </p>
       <dl className="rcs-figure-row">
-        <Figure label="Model calls" value={data.total_calls} />
-        <Figure label="Failed calls" value={data.failed_calls} />
-        <Figure label="Pending / unknown" value={data.unknown_calls ?? 0} />
+        <Figure label="Requests" value={data.total_calls} />
+        <Figure label="Failed requests" value={data.failed_calls} />
+        <Figure label="Pending or unknown" value={data.unknown_calls ?? 0} />
       </dl>
       <p className="rcs-helper">
-        Accumulated score is the case's highest effective severity, 0–100. Prompt leakage is a local rule check, not a
-        guarantee. Source attribution links stored evidence.
+        Accumulated score is the case's highest effective severity, from 0 to 100. The prompt leakage check applies a
+        local rule and is not a guarantee. Source attribution links to the stored evidence.
       </p>
       <Layer>
         <Table aria-label="watsonx.ai call log">
           <TableHead>
             <TableRow>
-              {[
-                "Time",
-                "Case",
-                "Model / prompt",
-                "Provider outcome",
-                "Output check",
-                "Details",
-              ].map((h) => (
+              <TableExpandHeader aria-label="Expand to see details" />
+              {["Time", "Case", "Model", "Outcome", "Output check"].map((h) => (
                 <TableHeader key={h}>{h}</TableHeader>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.entry_id}
-                // A call that did not come back clean carries the same red edge as other rows that need a look.
-                style={row.outcome && row.outcome !== "RECEIVED" ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
-              >
-                <TableCell>{formatShortDateTime(row.at)}</TableCell>
-                <TableCell style={mono}>{row.case_id || "Test invocation"}</TableCell>
-                <TableCell>
-                  {row.model_id}
-                  <br />
-                  {row.prompt_version}
-                </TableCell>
-                <TableCell>
-                  <StatusTag tone={row.outcome === "RECEIVED" ? "success" : row.outcome ? "error" : "neutral"} size="sm">
-                    {row.outcome ?? "Legacy demo"}
-                  </StatusTag>
-                </TableCell>
-                <TableCell>{row.validation_status ?? "Unavailable"}</TableCell>
-                <TableCell>
-                  <CallDetails row={row} onSelectCase={onSelectCase} />
-                </TableCell>
-              </TableRow>
-            ))}
+            {rows.flatMap((row) => {
+              const open = expanded.has(row.entry_id);
+              const failed = row.outcome && row.outcome !== "RECEIVED";
+              return [
+                <TableExpandRow
+                  key={row.entry_id}
+                  isExpanded={open}
+                  aria-label={`Show details for the call at ${formatShortDateTime(row.at)}`}
+                  onExpand={() =>
+                    setExpanded((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(row.entry_id)) next.delete(row.entry_id);
+                      else next.add(row.entry_id);
+                      return next;
+                    })
+                  }
+                  // A call that did not come back clean carries the same red edge as other rows that need a look.
+                  style={failed ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
+                >
+                  <TableCell>{formatShortDateTime(row.at)}</TableCell>
+                  <TableCell style={mono}>{row.case_id || "Test call"}</TableCell>
+                  <TableCell>
+                    {row.model_id}
+                    <span className="rcs-helper" style={{ display: "block" }}>
+                      {row.prompt_version}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <StatusTag tone={row.outcome === "RECEIVED" ? "success" : row.outcome ? "error" : "neutral"} size="sm">
+                      {row.outcome === "RECEIVED" ? "Received" : row.outcome ? "Failed" : "Legacy demo"}
+                    </StatusTag>
+                  </TableCell>
+                  <TableCell>{row.validation_status ?? "Not recorded"}</TableCell>
+                </TableExpandRow>,
+                open && (
+                  <TableExpandedRow key={`${row.entry_id}-details`} colSpan={6}>
+                    <CallDetails row={row} onSelectCase={onSelectCase} />
+                  </TableExpandedRow>
+                ),
+              ];
+            })}
           </TableBody>
         </Table>
       </Layer>
       {!rows.length && <p>No invocations match these filters.</p>}
-      {data.rows.length > 8 && (
-        <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? "Show fewer" : `Show all ${data.rows.length} calls`}
-        </Button>
-      )}
+      <TablePagination paged={paged} />
     </>
   );
 }
 
+const LEAKAGE_LABEL: Record<string, string> = {
+  NOT_CHECKED: "Not checked",
+  NOT_DETECTED: "Nothing detected",
+  DETECTED: "Detected",
+};
+const NOT_RECORDED = "Not recorded";
+
+/** What one AI call recorded, grouped so a Manager can read it: the checks, then the request itself. */
 function CallDetails({ row, onSelectCase }: { row: GovernanceLogRow; onSelectCase: (id: string) => void }) {
+  const sources = Array.isArray(row.source_attribution) ? row.source_attribution : null;
   return (
-    <details>
-      <summary>View references</summary>
-      <dl>
-        <dt>Prompt leakage check</dt>
-        <dd>{row.prompt_leakage_status ?? "NOT_CHECKED"}</dd>
-        <dt>Source attribution</dt>
-        <dd>{Array.isArray(row.source_attribution) ? `${row.source_attribution.length} references` : "Unavailable"}</dd>
-        <dt>Accumulated score</dt>
-        <dd>
-          {row.schema_version === 2 && row.accumulated_score !== null ? `${row.accumulated_score} / 100` : "Unavailable"}
-        </dd>
-        <dt>Model version</dt>
-        <dd>{row.model_version ?? "Unavailable"}</dd>
-        <dt>Run</dt>
-        <dd>{row.run_id ?? "Unavailable"}</dd>
-        <dt>AI response received</dt>
-        <dd>{row.received_at ? formatShortDateTime(row.received_at) : "Unavailable"}</dd>
-        <dt>Leakage checked</dt>
-        <dd>{row.checked_at ? formatShortDateTime(row.checked_at) : "Not checked"}</dd>
-        <dt>Check rule</dt>
-        <dd>{row.leakage_rule_version ?? "Unavailable"}</dd>
-        <dt>Tokens in / out</dt>
-        <dd>
-          {row.tokens_in ?? "Unavailable"} / {row.tokens_out ?? "Unavailable"}
-        </dd>
-        {row.error_type && (
-          <>
-            <dt>Processing issue</dt>
-            <dd>{row.error_type}</dd>
-          </>
-        )}
-      </dl>
-      {row.prompt_leakage_evidence && (
-        <p>
-          Rule: {row.prompt_leakage_evidence.rule}. Evidence hash: {row.prompt_leakage_evidence.matched_text_hash}
-        </p>
-      )}
-      {Array.isArray(row.source_attribution) && (
-        <ul>
-          {row.source_attribution.map((source, i) => (
-            <li key={i}>
-              {source.source_type} {source.frame_num ?? ""} at {source.start_timestamp ?? "Unavailable"} seconds
-              <br />
-              <code>{source.analysis_output_reference ?? "Reference unavailable"}</code>
-            </li>
-          ))}
-        </ul>
+    <div className="rcs-call-details">
+      <section aria-label="Checks on the response">
+        <h4 className="rcs-subheading">Checks on the response</h4>
+        <KeyValueList
+          items={[
+            { label: "Prompt leakage check", value: LEAKAGE_LABEL[row.prompt_leakage_status ?? "NOT_CHECKED"] ?? row.prompt_leakage_status },
+            { label: "Source attribution", value: sources ? `${sources.length} ${sources.length === 1 ? "reference" : "references"}` : NOT_RECORDED },
+            {
+              label: "Accumulated score",
+              value: row.schema_version === 2 && row.accumulated_score !== null ? `${row.accumulated_score} / 100` : NOT_RECORDED,
+            },
+            { label: "Checked at", value: row.checked_at ? formatShortDateTime(row.checked_at) : "Not checked" },
+            ...(row.error_type ? [{ label: "Issue", value: row.error_type }] : []),
+          ]}
+        />
+      </section>
+      <section aria-label="The request">
+        <h4 className="rcs-subheading">The request</h4>
+        <KeyValueList
+          mono={["Run"]}
+          items={[
+            { label: "Model version", value: row.model_version ?? NOT_RECORDED },
+            { label: "Run", value: row.run_id ?? NOT_RECORDED },
+            { label: "Response received", value: row.received_at ? formatShortDateTime(row.received_at) : NOT_RECORDED },
+            { label: "Tokens in / out", value: `${row.tokens_in ?? NOT_RECORDED} / ${row.tokens_out ?? NOT_RECORDED}` },
+          ]}
+        />
+      </section>
+      {sources && sources.length > 0 && (
+        <section aria-label="Sources" className="rcs-call-details-wide">
+          <h4 className="rcs-subheading">Sources</h4>
+          <ul className="flex flex-col gap-1">
+            {sources.map((source, i) => (
+              <li key={i} className="rcs-helper">
+                {source.source_type} {source.frame_num ?? ""} at {source.start_timestamp ?? NOT_RECORDED} seconds ·{" "}
+                <code>{source.analysis_output_reference ?? "no reference"}</code>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {row.case_id && (
-        <Button kind="ghost" size="sm" onClick={() => onSelectCase(row.case_id)}>
-          View case governance and timeline
-        </Button>
+        <div className="rcs-call-details-wide">
+          <Button kind="tertiary" size="sm" onClick={() => onSelectCase(row.case_id)}>
+            Open case history
+          </Button>
+        </div>
       )}
-    </details>
+    </div>
   );
 }
 
-function CaseGovernance({ caseId, query, action }: { caseId: string; query: GovernanceQuery; action: string }) {
+/** The saved AI runs and the timeline of one case, in a panel over the log so the Manager keeps their place in it. */
+function CaseGovernance({ caseId, query, action, onClose }: { caseId: string; query: GovernanceQuery; action: string; onClose: () => void }) {
   const info = useStaffQuery((token) => (caseId ? getGovernanceCase(caseId, token) : Promise.resolve(null)), caseId);
   const [before, setBefore] = useState<number | undefined>();
   const timeline = useStaffQuery(
@@ -476,37 +501,56 @@ function CaseGovernance({ caseId, query, action }: { caseId: string; query: Gove
         : Promise.resolve(null),
     JSON.stringify([caseId, query.from_at, query.to_at, action, before]),
   );
-  if (!caseId)
-    return <p className="rcs-helper">Select a call's case to inspect saved runs and the governance timeline.</p>;
   return (
-    <Section
-      title={`Case governance — ${caseId}`}
-      description="Saved assessments and case events. Evidence references open as metadata; source footage requires protected case access."
+    <Modal
+      passiveModal
+      open={Boolean(caseId)}
+      modalHeading={`Case history · ${caseId}`}
+      modalLabel="Validation and audit"
+      onRequestClose={onClose}
+      size="md"
     >
-      <LoadState loading={!info.data && !info.error} error={info.error} what="case governance" />
-      {info.data?.runs.map((run) => (
-        <p key={run.run_id}>
-          <code>{run.run_id}</code> — {run.status}; accumulated score: {run.accumulated_score ?? "Unavailable"}; tier:{" "}
-          {run.severity_tier ?? "Unavailable"}; highest evidence: {run.highest_frame ?? "Unavailable"}
-        </p>
-      ))}
-      <LoadState loading={!timeline.data && !timeline.error} error={timeline.error} what="audit timeline" />
-      {timeline.data?.entries.map((entry) => (
-        <details key={entry.audit_log_id}>
-          <summary>
-            {formatShortDateTime(entry.created_at)} — {entry.action} — {entry.actor}
-          </summary>
-          <p>Before</p>
-          <pre>{JSON.stringify(entry.before_value, null, 2)}</pre>
-          <p>After</p>
-          <pre>{JSON.stringify(entry.after_value, null, 2)}</pre>
-        </details>
-      ))}
-      {timeline.data?.next_before_id && (
-        <Button kind="ghost" size="sm" onClick={() => setBefore(timeline.data?.next_before_id ?? undefined)}>
-          Older events
-        </Button>
-      )}
-    </Section>
+      <div className="flex flex-col gap-6">
+        <section aria-label="Saved AI runs" className="flex flex-col gap-2">
+          <h3 className="rcs-section-title">AI runs</h3>
+          <LoadState loading={!info.data && !info.error} error={info.error} what="the AI runs" />
+          {info.data && info.data.runs.length === 0 && <p className="rcs-helper">No AI runs are saved for this case.</p>}
+          {info.data?.runs.map((run) => (
+            <KeyValueList
+              key={run.run_id}
+              mono={["Run"]}
+              items={[
+                { label: "Run", value: run.run_id },
+                { label: "Status", value: run.status },
+                { label: "Accumulated score", value: run.accumulated_score ?? NOT_RECORDED },
+                { label: "Severity", value: run.severity_tier ?? NOT_RECORDED },
+              ]}
+            />
+          ))}
+        </section>
+        <section aria-label="Timeline" className="flex flex-col gap-2">
+          <h3 className="rcs-section-title">Timeline</h3>
+          <p className="rcs-helper">Recorded events for this case, newest first. Source footage needs protected case access.</p>
+          <LoadState loading={!timeline.data && !timeline.error} error={timeline.error} what="the timeline" />
+          {timeline.data && timeline.data.entries.length === 0 && <p className="rcs-helper">No events recorded.</p>}
+          <ul className="flex flex-col">
+            {timeline.data?.entries.map((entry) => (
+              <li key={entry.audit_log_id} className="rcs-timeline-event">
+                <span className="rcs-helper">{formatShortDateTime(entry.created_at)}</span>
+                <span>{auditActionLabel(entry.action)}</span>
+                <span className="rcs-helper">{entry.actor}</span>
+              </li>
+            ))}
+          </ul>
+          {timeline.data?.next_before_id && (
+            <div>
+              <Button kind="tertiary" size="sm" onClick={() => setBefore(timeline.data?.next_before_id ?? undefined)}>
+                Show older events
+              </Button>
+            </div>
+          )}
+        </section>
+      </div>
+    </Modal>
   );
 }

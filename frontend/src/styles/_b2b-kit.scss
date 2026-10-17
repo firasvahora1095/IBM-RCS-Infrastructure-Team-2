@@ -734,3 +734,85 @@ html {
   line-height: 1.25rem;
   text-align: center;
 }
+
+// Filters: groups with a legend, every field the same height on one grid.
+.rcs-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.rcs-filter-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  legend {
+    @include type.type-style("label-01");
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    padding: 0;
+    margin-block-end: 0.5rem;
+  }
+}
+.rcs-filter-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint-down(md) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+// Purpose lines at the top of a view: what it shows, and what it is for.
+.rcs-purpose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-inline-size: 72ch;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+  strong {
+    color: var(--cds-text-primary);
+    font-weight: 600;
+  }
+}
+
+// An expanded AI call: two readable groups side by side, sources and the action underneath.
+.rcs-call-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+  padding-block: 0.5rem;
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.rcs-call-details-wide {
+  grid-column: 1 / -1;
+}
+// The case history panel: time, event, who, on one aligned line.
+.rcs-timeline-event {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  padding-block: 0.5rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include type.type-style("body-compact-01");
+}
+
+// Four facts in an even row, wrapping on narrow screens.
+.rcs-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1.5rem;
+  margin: 0;
+}
+// Running text at a width that is comfortable to read.
+.rcs-readable {
+  max-inline-size: 72ch;
+  @include type.type-style("body-02");
+  white-space: pre-line;
+}

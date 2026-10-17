@@ -77,7 +77,7 @@ export function caseStatusTone(label: string): StatusTone {
     case "Blocked":
       return "error";
     case "Needs Reassignment":
-    case "Held back":
+    case "Awaiting release":
       return "warning";
     case "In Review":
     case "Processing":

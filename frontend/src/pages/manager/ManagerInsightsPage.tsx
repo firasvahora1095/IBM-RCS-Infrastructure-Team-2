@@ -109,7 +109,7 @@ export function ManagerInsightsPage() {
         <Column sm={4} md={8} lg={16}>
           <Section
             id="comparison"
-            title="AI and Auditor decisions"
+            title="Auditor overrides"
             description={
               <>
                 {COMPARISON_NOTE} Model accuracy is on{" "}
