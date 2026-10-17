@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { Button, InlineNotification, PasswordInput, TextInput } from "@carbon/react";
+import { Link as RouterLink, Navigate, useLocation } from "react-router-dom";
+import { Button, InlineNotification, Link, PasswordInput, TextInput } from "@carbon/react";
 import { clientHome, useClientAuth } from "../../hooks/useClientAuth";
 import { ApiError } from "../../services/types";
 import { isMockData } from "../../services";
@@ -130,6 +130,9 @@ export function ClientLoginPage() {
         <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
           Accounts are set up by RCS for your organisation. There&apos;s no self-sign-up.
         </p>
+        <Link as={RouterLink} to="/rcs" style={{ fontSize: 14 }}>
+          Back to RCS
+        </Link>
       </form>
     </main>
   );

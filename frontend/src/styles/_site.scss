@@ -964,3 +964,44 @@
   line-height: 1.25rem;
   list-style: decimal;
 }
+
+
+// Landing page: the problem and the team (Emily, 8 Oct: a clear problem statement and who built it).
+.rcs-problem-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1rem;
+  li {
+    padding-inline-start: 1rem;
+    border-inline-start: 3px solid var(--cds-border-strong-01);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+}
+
+.rcs-team {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    background-color: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle-01);
+  }
+}
+.rcs-team-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.rcs-team-role {
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
