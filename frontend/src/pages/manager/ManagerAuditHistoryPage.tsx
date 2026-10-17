@@ -76,7 +76,7 @@ export function ManagerAuditHistoryPage() {
       />
       <form
         className="flex flex-wrap items-end gap-4"
-        style={{ marginTop: 24, marginBottom: 24 }}
+        style={{ marginTop: 8 }}
         onSubmit={(event) => {
           event.preventDefault();
           loadHistory({
@@ -90,6 +90,7 @@ export function ManagerAuditHistoryPage() {
           <TextInput
             id="audit-case-id"
             labelText="Case ID"
+            size="lg"
             placeholder="All cases, or e.g. AR-2026-00340"
             maxLength={20}
             value={caseId}
@@ -101,18 +102,19 @@ export function ManagerAuditHistoryPage() {
           <ComboBox
             id="audit-action"
             titleText="Action"
+            size="lg"
             placeholder="All actions"
             items={[...AUDIT_ACTIONS]}
             itemToString={(item) => (item ? item.label : "")}
             selectedItem={AUDIT_ACTIONS.find((a) => a.code === action) ?? null}
             onChange={({ selectedItem }) => setAction(selectedItem?.code ?? "")}
-            helperText="For example: created, reassigned, closed. Type to filter, or open the list."
           />
         </div>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" size="lg" disabled={loading}>
           Show audit history
         </Button>
       </form>
+      <p className="rcs-helper">Action examples: created, reassigned, closed. Type in the Action box to filter.</p>
       {loading && (
         <p role="status" style={secondaryText}>
           Loading audit history…
