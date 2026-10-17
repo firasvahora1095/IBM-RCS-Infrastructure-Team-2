@@ -177,6 +177,7 @@ describe("Manager screens", () => {
           if (c.manager_flag) c.manager_flag = null;
         }
         for (const d of db.deliveries) if (d.delivery_status === "NEEDS_ATTENTION") d.delivery_status = "SUCCESS";
+        for (const m of db.clientMessages) m.status = "ANSWERED";
       });
       renderAt("/manager");
       expect(await screen.findByText("Nothing needs you")).toBeInTheDocument();
@@ -220,14 +221,23 @@ describe("Manager screens", () => {
       );
     });
 
-    it("reassigns a declined case to the suggested Auditor in one click", async () => {
+    it("never reassigns from the list: Review opens the decision with the suggested Auditor selected", async () => {
       renderAt("/manager");
-      const reassign = await screen.findByRole("button", { name: /^Reassign to .+, case AR-2026-00398/ });
-      fireEvent.click(reassign);
-      await waitFor(() =>
-        expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).not.toBeNull(),
-      );
-      await waitFor(() => expect(screen.queryByRole("button", { name: /case AR-2026-00398/ })).toBeNull());
+      const row = (await screen.findByText("AR-2026-00398")).closest("li")!;
+      expect(within(row).getByText(/Suggested: /)).toBeInTheDocument();
+      expect(within(row).queryByRole("button", { name: /^Reassign/ })).not.toBeInTheDocument();
+      fireEvent.click(within(row).getByRole("button", { name: "Review" }));
+      expect(await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
+      // Nothing moved until the Manager confirms on that page.
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
+    });
+
+    it("keeps the SOS Inbox, Reassignment Queue and Client messages one click from the Overview", async () => {
+      renderAt("/manager");
+      const links = await screen.findByRole("navigation", { name: "More work queues" });
+      expect(within(links).getByRole("link", { name: "SOS Inbox" })).toHaveAttribute("href", "/manager/sos");
+      expect(within(links).getByRole("link", { name: "Reassignment Queue" })).toHaveAttribute("href", "/manager/reassignment");
+      expect(within(links).getByRole("link", { name: "Client messages" })).toHaveAttribute("href", "/manager/messages");
     });
 
     it("retries a failed delivery in the row and clears it once CommunityHub accepts it", async () => {
@@ -311,7 +321,7 @@ describe("Manager screens", () => {
 
   it("acknowledges an SOS and logs the follow-up, which completes the Auditor check-in (MR-SOS-04/06)", async () => {
     renderAt("/manager/sos");
-    fireEvent.click(await screen.findByRole("button", { name: /Acknowledge Marcus Webb.s SOS alert/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Review Marcus Webb.s SOS alert/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Acknowledge" }));
 
     expect(await screen.findByRole("heading", { name: "Log follow-up — Marcus Webb" })).toBeInTheDocument();

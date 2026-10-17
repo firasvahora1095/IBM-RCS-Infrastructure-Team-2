@@ -569,7 +569,7 @@ html {
   // kind | who | state and detail | action: every row on the same four columns, so the eye
   // runs straight down each one instead of zigzagging.
   display: grid;
-  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) 13.5rem;
+  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) 17rem;
   align-items: center;
   gap: 1rem;
   min-block-size: 3.5rem;
@@ -584,7 +584,7 @@ html {
     border-block-end: 0;
   }
   @include breakpoint.breakpoint-down(lg) {
-    grid-template-columns: 8.5rem minmax(0, 1fr) 13.5rem;
+    grid-template-columns: 8.5rem minmax(0, 1fr) 17rem;
     .rcs-inbox-detail {
       grid-column: 2 / -1;
       grid-row: 2;
@@ -610,6 +610,18 @@ html {
   max-inline-size: 11rem;
   justify-content: center;
   padding-inline: 0.75rem;
+}
+.rcs-inbox-details {
+  inline-size: 4rem;
+  text-align: center;
+  @include type.type-style("body-compact-01");
+}
+.rcs-inbox-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  padding-block-start: 0.25rem;
 }
 .rcs-inbox-more {
   inline-size: 2rem;

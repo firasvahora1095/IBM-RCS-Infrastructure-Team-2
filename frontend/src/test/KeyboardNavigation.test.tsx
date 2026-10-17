@@ -294,7 +294,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     // SOS: acknowledge from the inbox, then log the follow-up.
     renderAt("/manager/sos");
-    await tabTo(user, await screen.findByRole("button", { name: /Acknowledge Marcus Webb.s SOS alert/ }));
+    await tabTo(user, await screen.findByRole("button", { name: /Review Marcus Webb.s SOS alert/ }));
     await user.keyboard("{Enter}");
     await tabTo(user, await screen.findByRole("button", { name: "Acknowledge" }));
     await user.keyboard("{Enter}");

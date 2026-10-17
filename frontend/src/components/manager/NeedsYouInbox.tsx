@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, InlineLoading, OverflowMenu, OverflowMenuItem } from "@carbon/react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Button, InlineLoading } from "@carbon/react";
 import { CheckmarkFilled, WarningFilled } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
@@ -8,10 +8,10 @@ import {
   approveBreakRequest,
   getAuditorDetail,
   getReassignmentContext,
+  listClientMessages,
   listDeclinedCases,
   listSosAlerts,
   markWellbeingFollowedUp,
-  reassignCase,
   retryDelivery,
 } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
@@ -26,7 +26,14 @@ const VISIBLE_ROWS = 10;
 /** Suggested Auditors are looked up for this many declined cases, so loading stays light. */
 const SUGGESTED_LOOKUPS = 6;
 
-type InboxKind = "SOS Alert" | "Break Request" | "Talk Request" | "Reassignment" | "Exposure Limit" | "Delivery Failed";
+type InboxKind =
+  | "SOS Alert"
+  | "Break Request"
+  | "Talk Request"
+  | "Reassignment"
+  | "Exposure Limit"
+  | "Delivery Failed"
+  | "Client Message";
 
 /** What an action did. `stillOpen` keeps the row in the inbox, with the message shown on it. */
 interface ActionResult {
@@ -103,9 +110,10 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
     if (!ready || !token) return;
     let cancelled = false;
     (async () => {
-      const [sos, declined, details] = await Promise.all([
+      const [sos, declined, messages, details] = await Promise.all([
         listSosAlerts(token),
         listDeclinedCases(token),
+        listClientMessages(token),
         Promise.all(requesters.map((r) => getAuditorDetail(r.auditor_id, token))),
       ]);
       const suggestions = await Promise.all(
@@ -160,7 +168,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                     return { message: `Marked the talk request from ${detail.display_name} as followed up.` };
                   },
                 },
-            open: { label: "Open Auditor", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
+            open: { label: "Details", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
           });
         }
       }
@@ -176,22 +184,27 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           // The suggested Auditor is named in the row but not on the button, so every button reads the same.
           detail: best ? `${c.auditor_name} · Suggested: ${best.name}` : c.auditor_name,
           status: { label: capped ? "Limit reached" : "Declined", tone: "warning" },
-          act: best
-            ? {
-                label: "Reassign",
-                ariaLabel: `Reassign to ${best.name}, case ${c.case_id}`,
-                run: async () => {
-                  await reassignCase(c.case_id, token, best.auditor_id);
-                  return { message: `Reassigned ${c.case_id} to ${best.name}.` };
-                },
-              }
-            : undefined,
+          // Reassigning moves a case onto a person, so it is never done from the list: the button opens the
+          // decision with the suggested Auditor already selected, and one more click confirms it.
           open: {
-            label: best ? "Choose someone else" : "Choose an Auditor",
+            label: "Review",
             to: `/manager/cases/${encodeURIComponent(c.case_id)}/reassign`,
           },
         });
       });
+      const waitingMessages = messages
+        .filter((m) => m.status !== "ANSWERED")
+        .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      if (waitingMessages.length > 0) {
+        next.push({
+          key: "messages",
+          kind: "Client Message",
+          subject: `${waitingMessages.length} waiting`,
+          detail: `Oldest ${formatRelativeTime(waitingMessages[0].created_at)}`,
+          status: { label: "Waiting", tone: "warning" },
+          open: { label: "Open messages", to: "/manager/messages" },
+        });
+      }
       for (const d of failed ?? []) {
         next.push({
           key: `del-${d.delivery_id}`,
@@ -210,7 +223,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                 : { message: `Delivered the result for ${d.case_id}.` };
             },
           },
-          open: { label: "View delivery", to: `/manager/deliveries/${encodeURIComponent(d.delivery_id)}` },
+          open: { label: "Details", to: `/manager/deliveries/${encodeURIComponent(d.delivery_id)}` },
         });
       }
       if (!cancelled) {
@@ -325,19 +338,13 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                       </Button>
                     )
                   )}
-                  <span className="rcs-inbox-more">
-                  {row.act && (row.open || row.more?.length) && (
-                    <OverflowMenu
-                      size="sm"
-                      flipped
-                      aria-label={`More actions, ${row.subject}`}
-                      iconDescription={`More actions, ${row.subject}`}
-                    >
-                      {[...(row.open ? [row.open] : []), ...(row.more ?? [])].map((item) => (
-                        <OverflowMenuItem key={item.to} itemText={item.label} onClick={() => navigate(item.to)} />
-                      ))}
-                    </OverflowMenu>
-                  )}
+                  {/* A reserved slot, so every action button ends on the same edge whether or not a row has details. */}
+                  <span className="rcs-inbox-details">
+                    {row.act && row.open && (
+                      <RouterLink className="cds--link" to={row.open.to}>
+                        {row.open.label}
+                      </RouterLink>
+                    )}
                   </span>
                 </span>
               </li>
@@ -345,6 +352,18 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           </ul>
         </>
       )}
+      <nav aria-label="More work queues" className="rcs-inbox-links">
+        <span className="rcs-helper">Go to</span>
+        <RouterLink className="cds--link" to="/manager/sos">
+          SOS Inbox
+        </RouterLink>
+        <RouterLink className="cds--link" to="/manager/reassignment">
+          Reassignment Queue
+        </RouterLink>
+        <RouterLink className="cds--link" to="/manager/messages">
+          Client messages
+        </RouterLink>
+      </nav>
       {pending.length > VISIBLE_ROWS && (
         <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
           {showAll ? "Show fewer" : `Show all ${pending.length}`}

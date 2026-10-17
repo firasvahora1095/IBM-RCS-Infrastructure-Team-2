@@ -377,6 +377,8 @@ export interface ReassignmentContext {
     headroom_minutes: number;
     /** Under 30 minutes of headroom. */
     limited_headroom: boolean;
+    /** The Super Admin Auditor: picked only when no one else can take the case. */
+    fallback_reviewer?: boolean;
     /** False when at their limit or in a cooldown; such Auditors can't be chosen. */
     available: boolean;
   }[];

@@ -23,7 +23,7 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined. Pick who takes each one." />
+      <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (
@@ -33,7 +33,7 @@ export function ManagerDeclinedQueuePage() {
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
                 <TableHeader>Auditor</TableHeader>
-                <TableHeader>S-tier</TableHeader>
+                <TableHeader>Severity</TableHeader>
                 <TableHeader>Decline reason</TableHeader>
                 <TableHeader>Time declined</TableHeader>
                 <TableHeader>
@@ -42,7 +42,14 @@ export function ManagerDeclinedQueuePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((row) => (
+              {/* Most severe first, then oldest: the order to decide in. */}
+              {[...data]
+                .sort(
+                  (a, b) =>
+                    (b.severity_tier ?? "").localeCompare(a.severity_tier ?? "") ||
+                    Date.parse(a.declined_at) - Date.parse(b.declined_at),
+                )
+                .map((row) => (
                 <TableRow key={row.case_id}>
                   <TableCell>
                     <RouterLink

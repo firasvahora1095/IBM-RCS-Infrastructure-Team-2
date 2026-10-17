@@ -1398,6 +1398,7 @@ export const mockDataService: DataService = {
               name: st.display_name,
               headroom_minutes: headroom,
               limited_headroom: headroom < LIMITED_HEADROOM_MINUTES,
+              fallback_reviewer: st.is_super_admin === true,
               available: headroom > 0 && !inCooldown(st),
             };
           })

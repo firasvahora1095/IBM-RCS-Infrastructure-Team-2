@@ -142,6 +142,7 @@ export function ManagerReassignmentPage() {
                 labelText={
                   <>
                     {c.name} <span style={{ ...mono, fontSize: 13 }}>{c.headroom_minutes} min headroom</span>
+                    {c.fallback_reviewer && " · Fallback reviewer"}
                     {c.auditor_id === suggested?.auditor_id && " · Suggested"}
                     {!c.available ? " · Unavailable" : c.limited_headroom ? " · Limited headroom" : ""}
                   </>
@@ -156,7 +157,7 @@ export function ManagerReassignmentPage() {
             <Button disabled={!target || pending !== null} onClick={confirmReassignment}>
               {pending === "reassign" ? "Reassigning…" : target ? `Reassign to ${target.name}` : "Reassign"}
             </Button>
-            <Button kind="ghost" onClick={() => setShowNoReassign((v) => !v)} aria-expanded={showNoReassign}>
+            <Button kind="tertiary" onClick={() => setShowNoReassign((v) => !v)} aria-expanded={showNoReassign}>
               No reassignment needed
             </Button>
           </div>

@@ -306,7 +306,7 @@ export function ManagerAuditorDetailPage() {
                   </Button>
                 </div>
                 <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  The 120-minute testing cap applies unless you change it here. A lower limit takes effect for the next
+                  The current limit is {data.exposure_limit_minutes} minutes. A lower limit takes effect for the next
                   assignment.
                 </p>
               </Panel>

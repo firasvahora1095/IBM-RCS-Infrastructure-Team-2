@@ -38,7 +38,7 @@ export function ManagerClientMessagesPage() {
         actions={
           oldestWaiting && (
             <Button onClick={() => navigate(`/manager/messages/${encodeURIComponent(oldestWaiting.message_id)}`)}>
-              Answer oldest waiting
+              Answer oldest: {oldestWaiting.display_name}
             </Button>
           )
         }
