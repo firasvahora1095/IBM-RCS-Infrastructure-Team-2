@@ -6,6 +6,8 @@ import type {
   AuditorDetail,
   AuditorOverviewRow,
   AuditorWellbeing,
+  AvailableCases,
+  FallbackCaseRow,
   CaseResult,
   ClientAccount,
   ClientLoginResponse,
@@ -769,4 +771,40 @@ export async function getGovernanceCase(caseId: string, token: string): Promise<
     cache: "no-store",
   });
   return parseJsonOrThrow<GovernanceCase>(r);
+}
+
+// ---- Fallback queue (Super Admin, extra-features 1.6) ----
+
+export async function getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/all-cases`, { headers: bearer(token), cache: "no-store" });
+  return parseJsonOrThrow<FallbackCaseRow[]>(r);
+}
+
+export async function getAvailableCases(token: string): Promise<AvailableCases> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/available-cases`, { headers: bearer(token), cache: "no-store" });
+  return parseJsonOrThrow<AvailableCases>(r);
+}
+
+export async function takeCase(caseId: string, token: string): Promise<{ taken: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/take`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ taken: true }>(r);
+}
+
+export async function claimCase(caseId: string, token: string): Promise<{ claimed: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/claim`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ claimed: true }>(r);
+}
+
+export async function makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/cases/${encodeURIComponent(caseId)}/make-available`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ available: true }>(r);
 }

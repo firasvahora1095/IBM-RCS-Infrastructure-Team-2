@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import {
+  Button,
   DismissibleTag,
   Dropdown,
+  InlineNotification,
   Layer,
   Search,
   Table,
@@ -16,9 +18,11 @@ import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { getCaseOversight } from "../../services";
+import { getCaseOversight, makeCaseAvailable } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { useAuth } from "../../hooks/useAuth";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { isOpenBucket, OPEN_BUCKET_LABEL, openBucketOf } from "../../design-tokens/intelligenceLabels";
@@ -33,7 +37,28 @@ const ALL_STATUSES = "All statuses";
  * they progress to Complete without Manager approval (MR-CR-06).
  */
 export function ManagerCaseOversightPage() {
-  const { data, error } = useStaffQuery(getCaseOversight);
+  const { data, error, reload } = useStaffQuery(getCaseOversight);
+  const { token } = useAuth();
+  const [releasing, setReleasing] = useState<string | null>(null);
+  const [releaseNotice, setReleaseNotice] = useState<string | null>(null);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+
+  // A case with no Auditor can be released so eligible Auditors may claim it (extra-features 1.6).
+  async function makeAvailable(caseId: string) {
+    if (!token) return;
+    setReleasing(caseId);
+    setReleaseNotice(null);
+    setReleaseError(null);
+    try {
+      await makeCaseAvailable(caseId, token);
+      setReleaseNotice(`${caseId} is now available to eligible Auditors.`);
+      reload();
+    } catch (err) {
+      setReleaseError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+    } finally {
+      setReleasing(null);
+    }
+  }
   // The dashboard opens this list on a stage (?stage=) or a case (?search=).
   const [params, setParams] = useSearchParams();
   const rawStage = params.get("stage");
@@ -96,6 +121,20 @@ export function ManagerCaseOversightPage() {
           />
         </div>
       )}
+      {releaseNotice && (
+        <InlineNotification kind="success" lowContrast hideCloseButton title="Done." subtitle={releaseNotice} style={{ maxWidth: "100%" }} />
+      )}
+      {releaseError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="That didn't work."
+          subtitle={releaseError}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       <LoadState error={error} loading={!data && !error} what="cases" />
       {data && (
         <Layer>
@@ -107,11 +146,12 @@ export function ManagerCaseOversightPage() {
                 <TableHeader>S-tier</TableHeader>
                 <TableHeader>Status</TableHeader>
                 <TableHeader>Flag</TableHeader>
+                <TableHeader>Availability</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.map((c) => (
-                <CaseRow key={c.case_id} row={c} />
+                <CaseRow key={c.case_id} row={c} busy={releasing !== null} onMakeAvailable={makeAvailable} />
               ))}
             </TableBody>
           </Table>
@@ -122,7 +162,16 @@ export function ManagerCaseOversightPage() {
   );
 }
 
-function CaseRow({ row }: { row: ManagerCaseRow }) {
+function CaseRow({
+  row,
+  busy,
+  onMakeAvailable,
+}: {
+  row: ManagerCaseRow;
+  busy: boolean;
+  onMakeAvailable: (caseId: string) => void;
+}) {
+  const unowned = row.auditor_name === null && row.manager_flag === null && row.status !== "COMPLETE";
   const flagged = row.manager_flag !== null;
   const href =
     row.manager_flag === "SOS" && row.sos_alert_id
@@ -161,6 +210,24 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
         )}
         {row.manager_flag === "CAP_REACHED" && (
           <StatusTag tone="warning" size="sm">Cap reached</StatusTag>
+        )}
+      </TableCell>
+      <TableCell>
+        {unowned && row.case_visibility === "AVAILABLE_TO_AUDITORS" && (
+          <StatusTag tone="info" size="sm">
+            Available to Auditors
+          </StatusTag>
+        )}
+        {unowned && row.case_visibility === "SUPER_ADMIN_ONLY" && (
+          <Button
+            kind="tertiary"
+            size="sm"
+            disabled={busy}
+            aria-label={`Make case ${row.case_id} available to Auditors`}
+            onClick={() => onMakeAvailable(row.case_id)}
+          >
+            Make available
+          </Button>
         )}
       </TableCell>
     </TableRow>

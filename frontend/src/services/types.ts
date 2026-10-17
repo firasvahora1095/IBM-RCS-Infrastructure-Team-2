@@ -73,6 +73,40 @@ export interface PublicStatusResponse {
 export interface StaffLoginResponse {
   token: string;
   role: StaffRole;
+  /** The fallback reviewer (Sprint 3). Still an Auditor; the server re-checks this on every call. */
+  is_super_admin?: boolean;
+}
+
+/** Who may see a case in a queue, kept apart from who owns it. */
+export type CaseVisibility = "ASSIGNED_ONLY" | "SUPER_ADMIN_ONLY" | "AVAILABLE_TO_AUDITORS";
+
+/** One open case in the Super Admin's fallback queue: queue metadata only. */
+export interface FallbackCaseRow {
+  case_id: string;
+  status: InternalCaseStatus;
+  severity_tier: SeverityTier | null;
+  final_severity_tier: SeverityTier | null;
+  assigned_auditor_id: string | null;
+  case_visibility: CaseVisibility;
+  manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** When the system will place this case by itself, so the Super Admin need not act. Null if it never will. */
+  auto_release_at: string | null;
+}
+
+/** A case released to standard Auditors to claim. No thumbnail, reporter detail or notes. */
+export interface AvailableCase {
+  case_id: string;
+  severity_tier: SeverityTier | null;
+  status: InternalCaseStatus;
+  /** AI analysis has finished, so it can be opened once claimed. */
+  ready: boolean;
+}
+
+export interface AvailableCases {
+  /** False while the caller is in cooldown, at their limit or has an open SOS. */
+  can_claim: boolean;
+  reason: string | null;
+  cases: AvailableCase[];
 }
 
 /** One row from GET /api/auditor/cases — note `status` here IS the internal value. */
@@ -268,6 +302,8 @@ export interface ManagerCaseRow {
   final_severity_tier?: SeverityTier | null;
   status: InternalCaseStatus;
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** Who may see the case in a queue. A case with no Auditor can be released to Auditors from here. */
+  case_visibility?: CaseVisibility;
   /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */
   sos_alert_id: string | null;
 }
@@ -841,6 +877,16 @@ export interface DataService {
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
+  /** Super Admin: every open case, queue metadata only (extra-features 1.6). */
+  getAllOpenCases(token: string): Promise<FallbackCaseRow[]>;
+  /** Cases released to standard Auditors to claim, and whether the caller can claim now. */
+  getAvailableCases(token: string): Promise<AvailableCases>;
+  /** Super Admin takes a case no one owns. A wellbeing block applies to them too. */
+  takeCase(caseId: string, token: string): Promise<{ taken: true }>;
+  /** A standard Auditor claims a released case, if eligible right now. */
+  claimCase(caseId: string, token: string): Promise<{ claimed: true }>;
+  /** Super Admin or Manager releases an unowned case to eligible Auditors. */
+  makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }>;
   getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
   getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail>;
   resolveCase(

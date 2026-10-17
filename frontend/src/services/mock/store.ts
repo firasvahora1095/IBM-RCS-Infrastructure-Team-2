@@ -22,6 +22,7 @@ import type {
   SeverityTier,
   StaffRole,
   TranscriptLine,
+  CaseVisibility,
 } from "../types";
 import { createSeedDb, MOCK_DB_VERSION } from "./seed";
 
@@ -67,6 +68,13 @@ export interface MockCase {
    * a flag alongside the status — flagged for the BA.
    */
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** Who may see the case in a queue, apart from who owns it. Missing means ASSIGNED_ONLY. */
+  case_visibility?: CaseVisibility;
+  /**
+   * When the system parked this case in the fallback queue. Only a case with this set is placed
+   * automatically; hand-seeded demo cases leave it empty so they stay put.
+   */
+  fallback_queued_at?: string | null;
   decline: { reason: DeclineReason; other_text: string | null; declined_by: string; declined_at: string } | null;
 }
 
@@ -82,6 +90,8 @@ export interface MockStaff {
   cases_reviewed_today: number;
   /** A private wellbeing pattern marker, visible to the Manager only (Figma 86:150). */
   pattern_flagged: boolean;
+  /** The fallback reviewer (extra-features 1.6): sees every open case's queue metadata, not part of the weighted pool. */
+  is_super_admin?: boolean;
   last_assigned_at: string | null;
   cooldown: CooldownState | null;
 }
