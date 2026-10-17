@@ -15,10 +15,10 @@ import type { GovernanceSummary, GovernanceQuery, GovernanceLogRow, ValidationSu
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { formatShortDateTime } from "../../utils/formatPeriod";
 
-/** The three views, in the order shown. AI vs Auditor is the landing view: it is the one used most. */
+/** The three views, in the order shown. AI accuracy test is the landing view: it answers the first question, whether the AI can be relied on. */
 const VIEWS = [
-  { key: "ai-vs-auditor", label: "Auditor overrides" },
   { key: "ai-vs-ground-truth", label: "AI accuracy test" },
+  { key: "ai-vs-auditor", label: "Auditor overrides" },
   { key: "audit-log", label: "AI call log" },
 ] as const;
 type ViewKey = (typeof VIEWS)[number]["key"];

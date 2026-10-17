@@ -61,13 +61,12 @@ describe("Manager screens", () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
       const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
-      expect(names).toEqual(["Auditor overrides", "AI accuracy test", "AI call log"]);
-      expect(within(tabs).getByRole("tab", { name: "Auditor overrides" })).toHaveAttribute("aria-selected", "true");
-      expect(
-        await screen.findByRole("table", { name: /AI severity against final Auditor severity/ }),
-      ).toBeVisible();
+      expect(names).toEqual(["AI accuracy test", "Auditor overrides", "AI call log"]);
+      expect(within(tabs).getByRole("tab", { name: "AI accuracy test" })).toHaveAttribute("aria-selected", "true");
+      expect(await screen.findByText("Match rate (illustrative)")).toBeVisible();
       // The other views are not on screen until chosen.
       expect(screen.queryByRole("table", { name: "watsonx.ai call log" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("table", { name: /AI severity against final Auditor severity/ })).not.toBeInTheDocument();
       fireEvent.click(within(tabs).getByRole("tab", { name: "AI call log" }));
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
       // The three client-required audit fields are in each call's details, opened from its row.
@@ -79,7 +78,7 @@ describe("Manager screens", () => {
     });
 
     it("names every result in words and never calls the AI or an Auditor wrong", async () => {
-      renderAt("/manager/validation");
+      renderAt("/manager/validation?view=ai-vs-auditor");
       const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
       const results = within(table).getAllByText(/^AI (Override|Match)$/);
       expect(results.length).toBeGreaterThan(0);
@@ -87,7 +86,7 @@ describe("Manager screens", () => {
     });
 
     it("filters the comparison by result and keeps Auditors unnamed", async () => {
-      renderAt("/manager/validation");
+      renderAt("/manager/validation?view=ai-vs-auditor");
       const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
       expect(within(table).queryByText(/Reese|Marcus|Sam Nguyen|auditor-/)).not.toBeInTheDocument();
       // jsdom has no scrollIntoView; Carbon's dropdown calls it when the menu opens.
@@ -104,7 +103,7 @@ describe("Manager screens", () => {
     });
 
     it("opens a case's audit trail from its row", async () => {
-      renderAt("/manager/validation");
+      renderAt("/manager/validation?view=ai-vs-auditor");
       const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
       const [link] = within(table).getAllByRole("link", { name: /^View audit trail for / });
       expect(link.getAttribute("href")).toMatch(/^\/manager\/audit-logs\?case=/);
