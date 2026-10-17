@@ -51,11 +51,16 @@ export function ManagerDeclinedQueuePage() {
                     Date.parse(a.declined_at) - Date.parse(b.declined_at),
                 )
                 .map((row) => (
-                <TableRow key={row.case_id}>
+                <TableRow
+                  key={row.case_id}
+                  onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                  style={{ cursor: "pointer" }}
+                >
                   <TableCell>
                     <RouterLink
                       to={`/manager/cases/${encodeURIComponent(row.case_id)}/review`}
                       className="cds--link"
+                      onClick={(e) => e.stopPropagation()}
                       style={{ ...mono, fontSize: 12 }}
                     >
                       {row.case_id}
@@ -70,7 +75,10 @@ export function ManagerDeclinedQueuePage() {
                       kind="tertiary"
                       size="sm"
                       aria-label={`Reassign case ${row.case_id}`}
-                      onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`);
+                      }}
                     >
                       Reassign
                     </Button>

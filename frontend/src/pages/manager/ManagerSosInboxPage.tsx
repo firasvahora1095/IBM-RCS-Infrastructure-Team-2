@@ -49,7 +49,7 @@ export function ManagerSosInboxPage() {
                 const unacknowledged = alert.status === "UNACKNOWLEDGED";
                 const detailUrl = `/manager/sos/${encodeURIComponent(alert.id)}`;
                 return (
-                  <TableRow key={alert.id}>
+                  <TableRow key={alert.id} onClick={() => navigate(detailUrl)} style={{ cursor: "pointer" }}>
                     <TableCell
                       style={{
                         fontWeight: unacknowledged ? 600 : 400,
@@ -66,13 +66,16 @@ export function ManagerSosInboxPage() {
                         <Button
                           kind="tertiary"
                           size="sm"
-                          onClick={() => navigate(detailUrl)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(detailUrl);
+                          }}
                           aria-label={`Review ${alert.auditor_name}'s SOS alert`}
                         >
                           Review alert
                         </Button>
                       ) : (
-                        <RouterLink to={detailUrl} className="cds--link">
+                        <RouterLink to={detailUrl} className="cds--link" onClick={(e) => e.stopPropagation()}>
                           {SOS_STATUS_LABEL[alert.status] ?? "Open alert"}
                         </RouterLink>
                       )}

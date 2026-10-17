@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Dropdown,
   Layer,
@@ -177,8 +177,12 @@ function FilterDropdown({
 }
 
 function ComparisonTableRow({ row }: { row: ComparisonRow }) {
+  const navigate = useNavigate();
   return (
-    <TableRow>
+    <TableRow
+      onClick={() => navigate(`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`)}
+      style={{ cursor: "pointer" }}
+    >
       <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
       <TableCell>
         <div className="flex flex-wrap items-center gap-2">
@@ -215,6 +219,7 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
           className="cds--link"
           to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
           aria-label={`View audit trail for ${row.case_id}`}
+          onClick={(e) => e.stopPropagation()}
         >
           Audit trail
         </RouterLink>

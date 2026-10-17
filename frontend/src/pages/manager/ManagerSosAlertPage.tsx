@@ -88,18 +88,18 @@ export function ManagerSosAlertPage() {
 
           {/* The one next step, with its one button. */}
           <Section id="next-step" title="Next step" description={nextStepText(data.status, data.auditor_name)}>
-            {data.status === "UNACKNOWLEDGED" && (
-              <div>
+            {/* The step and the way to more context side by side: the dark button acts, the outlined one only looks. */}
+            <div className="flex flex-wrap items-center gap-3">
+              {data.status === "UNACKNOWLEDGED" && (
                 <Button disabled={isAcknowledging} onClick={acknowledge}>
                   {isAcknowledging ? "Acknowledging…" : "Acknowledge"}
                 </Button>
-              </div>
-            )}
-            {data.status === "IN_PROGRESS" && (
-              <div>
-                <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>
-              </div>
-            )}
+              )}
+              {data.status === "IN_PROGRESS" && <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>}
+              <Button kind="tertiary" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
+                Auditor record
+              </Button>
+            </div>
             {data.status === "RESOLVED" && data.follow_up_notes && (
               <p className="rcs-body">
                 <strong>Follow-up logged:</strong> {data.follow_up_notes}
@@ -118,11 +118,6 @@ export function ManagerSosAlertPage() {
                   style={{ maxWidth: "100%" }}
                 />
               )}
-            <div>
-              <Button kind="tertiary" size="sm" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
-                View {data.auditor_name}&apos;s record and support requests
-              </Button>
-            </div>
           </Section>
 
           <Section id="at-a-glance" title="At a glance">
