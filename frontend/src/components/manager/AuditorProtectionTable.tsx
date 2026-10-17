@@ -25,7 +25,7 @@ const AVAILABILITY_RANK: Record<Availability, number> = {
 const HEADERS = [
   { key: "auditor", header: "Auditor", sortable: true },
   { key: "exposure", header: "Exposure today", sortable: true },
-  { key: "state", header: "State", sortable: true },
+  { key: "state", header: "Daily limit", sortable: true },
   { key: "cooldown", header: "Cooldown", sortable: false },
   { key: "active", header: "Active cases", sortable: true },
   { key: "availability", header: "Availability", sortable: true },

@@ -3,31 +3,26 @@ import type { SeverityTier } from "../services/types";
 /**
  * S1–S4 is a TEAM-DEFINED severity scale, not a stock Carbon concept (see
  * the Auditor/Manager Figma Foundations pages and docs/ba/severity-scale.md).
- * Its colours come straight from Carbon theme tokens, following Carbon’s
- * status-indicator palette (caution minor / caution major / error), so the
- * UI stays on IBM’s own values wherever Figma and Carbon differ.
- *
- * Each tier carries its own text colour: dark text on the lighter fills,
- * text-on-color (white) on S4’s error red, which is the only pairing that
- * passes WCAG AA contrast there.
+ * It is an ordered scale, so it is drawn as one hue (Carbon purple) that
+ * darkens as severity rises, with S1 in neutral gray. No status colour uses
+ * purple, so a severity tag is never mistaken for a status (the old
+ * yellow/orange/red ramp collided with Approaching Limit, Waiting and
+ * Critical). Each tier carries its own text colour and passes WCAG AA.
  */
 export interface SeverityInfo {
   tier: SeverityTier;
   label: string;
   background: string;
   text: string;
+  /** The same ramp for a chart bar, where the light tag fills would vanish on the track. */
+  bar: string;
 }
 
 const SEVERITY_TABLE: Record<SeverityTier, SeverityInfo> = {
-  S1: { tier: "S1", label: "Low", background: "var(--cds-tag-background-gray)", text: "var(--cds-text-primary)" },
-  S2: {
-    tier: "S2",
-    label: "Moderate",
-    background: "var(--cds-support-caution-minor)",
-    text: "var(--cds-text-primary)",
-  },
-  S3: { tier: "S3", label: "High", background: "var(--cds-support-caution-major)", text: "var(--cds-text-primary)" },
-  S4: { tier: "S4", label: "Critical", background: "var(--cds-support-error)", text: "var(--cds-text-on-color)" },
+  S1: { tier: "S1", label: "Low", background: "var(--rcs-sev-1-bg)", text: "var(--rcs-sev-1-fg)", bar: "var(--rcs-sev-1-bar)" },
+  S2: { tier: "S2", label: "Moderate", background: "var(--rcs-sev-2-bg)", text: "var(--rcs-sev-2-fg)", bar: "var(--rcs-sev-2-bar)" },
+  S3: { tier: "S3", label: "High", background: "var(--rcs-sev-3-bg)", text: "var(--rcs-sev-3-fg)", bar: "var(--rcs-sev-3-bar)" },
+  S4: { tier: "S4", label: "Critical", background: "var(--rcs-sev-4-bg)", text: "var(--rcs-sev-4-fg)", bar: "var(--rcs-sev-4-bar)" },
 };
 
 /** Look up the display info for a severity tier. Throws on an invalid tier

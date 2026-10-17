@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button,
   Grid,
@@ -50,6 +50,7 @@ const HEADERS = [
  * need no Manager action at all.
  */
 export function ManagerDeliveriesPage() {
+  const navigate = useNavigate();
   const { data, error } = useStaffQuery(listDeliveries);
   const [params, setParams] = useSearchParams();
   const [now] = useState(() => Date.now());
@@ -84,14 +85,9 @@ export function ManagerDeliveriesPage() {
         title="Deliveries"
         subtitle="Completed case results are sent to CommunityHub automatically. You only need to act when a delivery keeps failing."
         actions={
-          <>
-            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/messages">
-              Client messages
-            </Button>
-            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
-              CommunityHub connection
-            </Button>
-          </>
+          <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
+            CommunityHub connection
+          </Button>
         }
       />
       <LoadState error={error} loading={!data && !error} what="deliveries" />
@@ -182,13 +178,18 @@ export function ManagerDeliveriesPage() {
                       return (
                         <TableRow
                           key={d.delivery_id}
-                          style={attention ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
+                          onClick={() => navigate(`/manager/deliveries/${encodeURIComponent(d.delivery_id)}`)}
+                          style={{
+                            cursor: "pointer",
+                            ...(attention ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : {}),
+                          }}
                         >
                           <TableCell>
                             <RouterLink
                               className="cds--link rcs-mono"
                               to={`/manager/deliveries/${encodeURIComponent(d.delivery_id)}`}
                               aria-label={`Delivery for case ${d.case_id}`}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {d.case_id}
                             </RouterLink>

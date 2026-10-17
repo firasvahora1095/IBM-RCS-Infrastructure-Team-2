@@ -2,7 +2,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
-import { LoadState } from "../../components/manager/ManagerBits";
+import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { secondaryText } from "../../components/manager/managerStyles";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { listClientMessages } from "../../services";
@@ -26,6 +26,7 @@ export function ManagerClientMessagesPage() {
 
   return (
     <ManagerLayout>
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Client messages" }]} />
       <PageHeader
         title="Client messages"
         subtitle={
@@ -38,7 +39,7 @@ export function ManagerClientMessagesPage() {
         actions={
           oldestWaiting && (
             <Button onClick={() => navigate(`/manager/messages/${encodeURIComponent(oldestWaiting.message_id)}`)}>
-              Answer oldest: {oldestWaiting.display_name}
+              Reply next
             </Button>
           )
         }

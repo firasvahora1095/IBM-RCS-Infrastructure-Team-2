@@ -102,7 +102,7 @@ export function Outcomes({ data }: { data: ManagerIntelligence }) {
             label: `${tier} · ${info.label}`,
             value: outcomes.severity[tier],
             // S1's tag fill is too light to read as a bar on the track.
-            color: tier === "S1" ? "var(--cds-icon-secondary)" : info.background,
+            color: info.bar,
           };
         })}
       />

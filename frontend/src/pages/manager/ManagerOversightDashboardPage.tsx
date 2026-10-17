@@ -151,7 +151,7 @@ export function ManagerOversightDashboardPage() {
       <Section
         id="needs-attention"
         title="Needs you"
-        description="Act here. Open an item only when you want the detail."
+        description="Resolve items here, or open one for the full detail."
         actions={evidenceButton("needs_manager_action")}
       >
         <NeedsYouInbox intelligence={data} overview={overview.data} onChanged={refresh} />

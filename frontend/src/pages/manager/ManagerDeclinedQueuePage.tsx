@@ -2,7 +2,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
-import { LoadState } from "../../components/manager/ManagerBits";
+import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeclinedCases } from "../../services";
@@ -23,6 +23,7 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment Queue" }]} />
       <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
@@ -50,11 +51,16 @@ export function ManagerDeclinedQueuePage() {
                     Date.parse(a.declined_at) - Date.parse(b.declined_at),
                 )
                 .map((row) => (
-                <TableRow key={row.case_id}>
+                <TableRow
+                  key={row.case_id}
+                  onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                  style={{ cursor: "pointer" }}
+                >
                   <TableCell>
                     <RouterLink
                       to={`/manager/cases/${encodeURIComponent(row.case_id)}/review`}
                       className="cds--link"
+                      onClick={(e) => e.stopPropagation()}
                       style={{ ...mono, fontSize: 12 }}
                     >
                       {row.case_id}
@@ -69,7 +75,10 @@ export function ManagerDeclinedQueuePage() {
                       kind="tertiary"
                       size="sm"
                       aria-label={`Reassign case ${row.case_id}`}
-                      onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`);
+                      }}
                     >
                       Reassign
                     </Button>

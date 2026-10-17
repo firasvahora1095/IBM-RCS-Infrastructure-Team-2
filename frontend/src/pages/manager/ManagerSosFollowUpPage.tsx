@@ -59,7 +59,14 @@ export function ManagerSosFollowUpPage() {
   return (
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: `${name} — Follow-up` }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Overview", to: "/manager" },
+          { label: "SOS Inbox", to: "/manager/sos" },
+          { label: name, to: `/manager/sos/${encodeURIComponent(alertId)}` },
+          { label: "Follow-up" },
+        ]}
+      />
       <PageHeader title={`Log follow-up — ${name}`} />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && logged && (
@@ -84,6 +91,16 @@ export function ManagerSosFollowUpPage() {
       )}
       {data && !logged && (
         <Panel maxWidth={560}>
+          {(data.severity_tier === "S4" || data.trigger !== "AUDITOR_SOS") && (
+            <InlineNotification
+              kind="warning"
+              lowContrast
+              hideCloseButton
+              title={data.severity_tier === "S4" ? "Critical case: this is the mandatory check-in." : "This is the check-in."}
+              subtitle="Say how they are and what support you offered, not only that you spoke."
+              style={{ maxWidth: "100%" }}
+            />
+          )}
           <TextArea
             id="follow-up-notes"
             labelText="Follow-up notes"

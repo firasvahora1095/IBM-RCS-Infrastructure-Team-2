@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
-  Button,
   Dropdown,
   Layer,
   Search,
@@ -15,6 +14,7 @@ import {
 import type { ComparisonRow, GovernanceSummary, SeverityTier } from "../../services/types";
 import { SeverityTag } from "../severity/SeverityTag";
 import { StatusTag } from "../ui/StatusTag";
+import { TablePagination, usePagination } from "../ui/TablePagination";
 import { Figure } from "./ManagerBits";
 import { mono, secondaryText } from "./managerStyles";
 import { formatShortDateTime } from "../../utils/formatPeriod";
@@ -22,7 +22,6 @@ import { formatShortDateTime } from "../../utils/formatPeriod";
 const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
 const ALL = "All";
 const RESULT_FILTERS = [ALL, "AI Override", "AI Match"] as const;
-const SHOWN_AT_FIRST = 8;
 
 /** The labels the BA standard uses (extra-features §11.1). "AI wrong" and "Auditor wrong" are never used. */
 const RESULT_LABEL = { override: "AI Override", match: "AI Match" } as const;
@@ -40,7 +39,6 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
   const [result, setResult] = useState<(typeof RESULT_FILTERS)[number]>(ALL);
   const [aiTier, setAiTier] = useState<string>(ALL);
   const [finalTier, setFinalTier] = useState<string>(ALL);
-  const [showAll, setShowAll] = useState(false);
 
   const overrides = data.override_patterns.reduce((sum, p) => sum + p.count, 0);
   const rate = data.compared_cases ? Math.round((overrides / data.compared_cases) * 1000) / 10 : 0;
@@ -59,7 +57,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
       }),
     [data.comparisons, query, result, aiTier, finalTier],
   );
-  const visible = showAll ? rows : rows.slice(0, SHOWN_AT_FIRST);
+  const paged = usePagination(rows, `${query}|${result}|${aiTier}|${finalTier}`);
 
   return (
     <>
@@ -69,8 +67,8 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
       </p>
       <dl className="rcs-figure-row">
         <Figure label="Cases compared" value={data.compared_cases} />
-        <Figure label="AI Override" value={overrides} />
-        <Figure label="AI Override" value={`${rate}%`} />
+        <Figure label="Overridden by an Auditor" value={overrides} />
+        <Figure label="Override rate" value={`${rate}%`} />
         <Figure label="Most common change" value={top ? `${top.from} → ${top.to}` : "None yet"} />
       </dl>
 
@@ -131,7 +129,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {visible.map((r) => (
+              {paged.rows.map((r) => (
                 <ComparisonTableRow key={r.case_id} row={r} />
               ))}
             </TableBody>
@@ -139,13 +137,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
         </Layer>
       )}
 
-      {rows.length > SHOWN_AT_FIRST && (
-        <div>
-          <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Show fewer" : `Show all ${rows.length} cases`}
-          </Button>
-        </div>
-      )}
+      <TablePagination paged={paged} />
       {data.compared_cases > data.comparisons.length && (
         <p className="rcs-helper">
           Showing the {data.comparisons.length} most recent of {data.compared_cases} compared cases.
@@ -185,8 +177,12 @@ function FilterDropdown({
 }
 
 function ComparisonTableRow({ row }: { row: ComparisonRow }) {
+  const navigate = useNavigate();
   return (
-    <TableRow>
+    <TableRow
+      onClick={() => navigate(`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`)}
+      style={{ cursor: "pointer" }}
+    >
       <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
       <TableCell>
         <div className="flex flex-wrap items-center gap-2">
@@ -201,8 +197,8 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
         </div>
       </TableCell>
       <TableCell>
-        {/* Text in both states, so the result never rests on colour. A difference isn't an error, so it isn't red. */}
-        <StatusTag tone={row.override ? "info" : "neutral"} size="sm">
+        {/* Text in both states, so the result never rests on colour. A difference is worth a look but isn't an error, so it is yellow, not red. */}
+        <StatusTag tone={row.override ? "warning" : "neutral"} size="sm">
           {row.override ? RESULT_LABEL.override : RESULT_LABEL.match}
         </StatusTag>
       </TableCell>
@@ -223,6 +219,7 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
           className="cds--link"
           to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
           aria-label={`View audit trail for ${row.case_id}`}
+          onClick={(e) => e.stopPropagation()}
         >
           Audit trail
         </RouterLink>

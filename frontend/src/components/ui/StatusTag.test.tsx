@@ -24,8 +24,8 @@ describe("success tag", () => {
   it("is white text on a solid green", () => {
     render(<StatusTag tone="success">Available</StatusTag>);
     const tag = screen.getByText("Available").closest(".cds--tag") as HTMLElement;
-    expect(tag.style.backgroundColor).toBe("var(--rcs-success-strong)");
-    expect(tag.style.color).toBe("var(--cds-text-on-color)");
+    expect(tag.style.backgroundColor).toBe("var(--rcs-tag-success-bg)");
+    expect(tag.style.color).toBe("var(--rcs-tag-success-fg)");
   });
 
   it("passes WCAG AA for tag-size text, which the success token Green 50 would not", () => {

@@ -24,7 +24,7 @@ export const AVAILABILITY_LABEL: Record<Availability, string> = {
   SOS_PROTECTION: "Unavailable (SOS)",
 };
 
-// Red belongs to the State column's "At Limit" and to the SOS row in "Needs you". Availability stays
+// Red belongs to the Limit column's "Limit reached" and to the SOS row in "Needs you". Availability stays
 // calm (blue or grey) so the two columns never compete for the same warm colours.
 export const AVAILABILITY_TONE: Record<Availability, StatusTone> = {
   AVAILABLE: "success",

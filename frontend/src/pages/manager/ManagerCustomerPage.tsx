@@ -61,7 +61,7 @@ export function ManagerCustomerPage() {
   return (
     <ManagerLayout>
       <PageHeader
-        breadcrumb={<ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: "CommunityHub" }]} />}
+        breadcrumb={<ManagerBreadcrumb trail={[{ label: "Deliveries", to: "/manager/deliveries" }, { label: "CommunityHub connection" }]} />}
         title="CommunityHub"
         subtitle={data?.description ?? "Social platform"}
       />

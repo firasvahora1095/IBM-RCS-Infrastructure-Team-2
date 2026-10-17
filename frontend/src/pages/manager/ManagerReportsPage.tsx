@@ -124,9 +124,17 @@ export function ManagerReportsPage() {
               </TableHead>
               <TableBody>
                 {data.map((r) => (
-                  <TableRow key={r.report_id}>
+                  <TableRow
+                    key={r.report_id}
+                    onClick={() => navigate(`/manager/reports/${encodeURIComponent(r.report_id)}`)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <TableCell>
-                      <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(r.report_id)}`}>
+                      <RouterLink
+                        className="cds--link"
+                        to={`/manager/reports/${encodeURIComponent(r.report_id)}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {formatPeriod(r.period_start, r.period_end)}
                       </RouterLink>
                     </TableCell>
