@@ -306,8 +306,9 @@ a.rcs-stat-tile .rcs-stat-helper {
   th {
     @include type.type-style("label-01");
     color: var(--cds-text-secondary);
-    font-weight: 400;
+    font-weight: 600;
     padding: 0.25rem 0.5rem;
+    background-color: var(--cds-layer-01);
   }
   thead th {
     text-align: center;
@@ -370,7 +371,7 @@ a.rcs-stat-tile .rcs-stat-helper {
   border-block-start: 1px solid var(--cds-border-subtle-01);
   li {
     display: grid;
-    grid-template-columns: 10rem 6rem minmax(0, 1fr) auto;
+    grid-template-columns: 10rem 6rem 6.5rem minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 0.25rem 1rem;
     padding: 0.625rem 1rem 0.625rem 0.75rem;
@@ -568,7 +569,7 @@ html {
   // kind | who | state and detail | action: every row on the same four columns, so the eye
   // runs straight down each one instead of zigzagging.
   display: grid;
-  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) auto;
+  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) 13.5rem;
   align-items: center;
   gap: 1rem;
   min-block-size: 3.5rem;
@@ -578,9 +579,12 @@ html {
   &[data-urgent="error"] {
     box-shadow: inset 3px 0 0 var(--cds-support-error);
     background-color: var(--cds-notification-background-error);
+    // Set apart from the routine rows below it, like a banner above a list.
+    margin-block-end: 0.75rem;
+    border-block-end: 0;
   }
   @include breakpoint.breakpoint-down(lg) {
-    grid-template-columns: 8.5rem minmax(0, 1fr) auto;
+    grid-template-columns: 8.5rem minmax(0, 1fr) 13.5rem;
     .rcs-inbox-detail {
       grid-column: 2 / -1;
       grid-row: 2;
@@ -594,6 +598,23 @@ html {
       grid-row: auto;
     }
   }
+}
+.rcs-inbox-kind-icon {
+  fill: var(--cds-support-error);
+  margin-inline-end: 0.375rem;
+  vertical-align: text-bottom;
+}
+// Every row's action sits in the same column and the same width, so the edges line up.
+.rcs-inbox-actions .cds--btn {
+  inline-size: 11rem;
+  max-inline-size: 11rem;
+  justify-content: center;
+  padding-inline: 0.75rem;
+}
+.rcs-inbox-more {
+  inline-size: 2rem;
+  display: inline-flex;
+  justify-content: center;
 }
 .rcs-inbox-kind {
   @include type.type-style("label-01");

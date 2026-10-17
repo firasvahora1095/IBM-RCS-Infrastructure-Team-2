@@ -99,7 +99,7 @@ export function isOpenBucket(value: string | null): value is OpenBucket {
 }
 
 export const COMPARISON_NOTE =
-  "Operational disagreement between the AI's first severity and the Auditor's final severity. It isn't model accuracy, and it doesn't mean either one was wrong.";
+  "How often the Auditor's final severity differs from the AI's first one. A difference doesn't mean either was wrong, and it isn't a measure of the AI's accuracy.";
 
 export const EVIDENCE_RULE =
   "Dashboard analytics summarise verified RCS records; they don't replace the underlying evidence.";

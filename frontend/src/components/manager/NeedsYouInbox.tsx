@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, InlineLoading, OverflowMenu, OverflowMenuItem } from "@carbon/react";
-import { CheckmarkFilled } from "@carbon/icons-react";
+import { CheckmarkFilled, WarningFilled } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import {
@@ -18,6 +18,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorOverviewRow, ManagerIntelligence } from "../../services/types";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import { StatusTag } from "../ui/StatusTag";
+import { deliveryFailureKind } from "../../design-tokens/deliveryLabels";
 import type { StatusTone } from "../../design-tokens/statusTones";
 
 /** The inbox shows this many rows; the rest sit behind "Show all". */
@@ -141,7 +142,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
             kind: isBreak ? "Break Request" : "Talk Request",
             subject: detail.display_name,
             detail: formatRelativeTime(request.created_at),
-            status: { label: "Waiting", tone: "neutral" },
+            status: { label: "Waiting", tone: "warning" },
             act: isBreak
               ? {
                   label: "Approve",
@@ -152,8 +153,8 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                   },
                 }
               : {
-                  label: "Mark followed up",
-                  ariaLabel: `Mark followed up, talk request from ${detail.display_name}`,
+                  label: "Follow up",
+                  ariaLabel: `Follow up, talk request from ${detail.display_name}`,
                   run: async () => {
                     await markWellbeingFollowedUp(request.id, token);
                     return { message: `Marked the talk request from ${detail.display_name} as followed up.` };
@@ -172,11 +173,12 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           key: `case-${c.case_id}`,
           kind: capped ? "Exposure Limit" : "Reassignment",
           subject: c.case_id,
-          detail: c.auditor_name,
-          status: { label: capped ? "Limit reached" : "Declined", tone: "neutral" },
+          // The suggested Auditor is named in the row but not on the button, so every button reads the same.
+          detail: best ? `${c.auditor_name} · Suggested: ${best.name}` : c.auditor_name,
+          status: { label: capped ? "Limit reached" : "Declined", tone: "warning" },
           act: best
             ? {
-                label: `Reassign to ${best.name}`,
+                label: "Reassign",
                 ariaLabel: `Reassign to ${best.name}, case ${c.case_id}`,
                 run: async () => {
                   await reassignCase(c.case_id, token, best.auditor_id);
@@ -196,6 +198,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           kind: "Delivery Failed",
           subject: d.case_id,
           detail: `${d.attempts} attempts${d.reason ? ` · ${d.reason}` : ""}`,
+          status: { label: deliveryFailureKind(d.reason), tone: "error" },
           act: {
             label: "Retry",
             ariaLabel: `Retry, delivery for case ${d.case_id}`,
@@ -283,7 +286,10 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           <ul className="rcs-inbox" aria-label="Items that need you">
             {shown.map((row) => (
               <li key={row.key} className="rcs-inbox-row" data-urgent={row.urgent ? "error" : undefined}>
-                <span className="rcs-inbox-kind">{row.kind}</span>
+                <span className="rcs-inbox-kind">
+                  {row.urgent && <WarningFilled aria-hidden="true" size={16} className="rcs-inbox-kind-icon" />}
+                  {row.kind}
+                </span>
                 <span className={`rcs-inbox-subject ${CASE_KINDS.includes(row.kind) ? "rcs-mono" : ""}`}>
                   {row.subject}
                 </span>
@@ -319,6 +325,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                       </Button>
                     )
                   )}
+                  <span className="rcs-inbox-more">
                   {row.act && (row.open || row.more?.length) && (
                     <OverflowMenu
                       size="sm"
@@ -331,6 +338,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                       ))}
                     </OverflowMenu>
                   )}
+                  </span>
                 </span>
               </li>
             ))}

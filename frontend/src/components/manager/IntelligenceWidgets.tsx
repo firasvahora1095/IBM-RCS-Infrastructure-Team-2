@@ -1,5 +1,7 @@
-import { Link as RouterLink } from "react-router-dom";
-import { SkeletonText } from "@carbon/react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Button, SkeletonText } from "@carbon/react";
+import { StatusTag } from "../ui/StatusTag";
+import { deliveryFailureKind } from "../../design-tokens/deliveryLabels";
 import { Figure } from "./ManagerBits";
 import { BarList, SegmentedBar } from "../ui/Charts";
 import { StatTile } from "../ui/StatTile";
@@ -81,7 +83,8 @@ export function Outcomes({ data }: { data: ManagerIntelligence }) {
         height={16}
         segments={[
           { key: "v", label: "Policy Violation Found", value: outcomes.violation, color: "var(--cds-support-error)" },
-          { key: "nv", label: "No Violation Found", value: outcomes.no_violation, color: "var(--cds-support-success)" },
+          // Only the finding that needs a look is coloured; "no violation" is the normal case, so it stays quiet.
+          { key: "nv", label: "No Violation Found", value: outcomes.no_violation, color: "var(--cds-border-strong-01)" },
         ]}
       />
       <p className="rcs-helper">
@@ -121,7 +124,7 @@ export function Comparison({ data }: { data: ManagerIntelligence }) {
         <StatTile
           label="AI Override"
           value={percent(comparison.override_rate)}
-          helper={`${comparison.overrides} of ${comparison.eligible} decided cases`}
+          helper={`The AI and the Auditor disagreed in ${comparison.overrides} of ${comparison.eligible} decided cases`}
         />
         <StatTile
           label="Most common change"
@@ -136,6 +139,7 @@ export function Comparison({ data }: { data: ManagerIntelligence }) {
 
 export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
   const { delivery } = data;
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col gap-6">
       {/* Counts read left to right in the order a result travels; the rate and last failure share the same columns. */}
@@ -143,7 +147,14 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
         <Figure label="Delivered" value={delivery.health.success} />
         <Figure label="Pending" value={delivery.health.pending} />
         <Figure label="Retrying" value={delivery.health.retrying} />
-        <Figure label="Failed" value={delivery.health.needs_attention} />
+        <Figure
+          label="Failed"
+          value={
+            <span style={{ color: delivery.health.needs_attention > 0 ? "var(--cds-text-error)" : undefined, fontWeight: 600 }}>
+              {delivery.health.needs_attention}
+            </span>
+          }
+        />
         <Figure
           label="Success rate"
           value={delivery.success_rate === null ? "No finished deliveries" : percent(delivery.success_rate)}
@@ -160,14 +171,18 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
               <li key={row.delivery_id}>
                 <span className="rcs-mono">{row.case_id}</span>
                 <span className="rcs-helper">{plural(row.attempts, "attempt", "attempts")}</span>
+                <StatusTag tone="error" size="sm">
+                  {deliveryFailureKind(row.reason)}
+                </StatusTag>
                 <span className="rcs-helper">{row.reason ?? ""}</span>
-                <RouterLink
-                  className="cds--link"
-                  to={`/manager/deliveries/${encodeURIComponent(row.delivery_id)}`}
+                <Button
+                  kind="ghost"
+                  size="sm"
                   aria-label={`View delivery for ${row.case_id}`}
+                  onClick={() => navigate(`/manager/deliveries/${encodeURIComponent(row.delivery_id)}`)}
                 >
                   View
-                </RouterLink>
+                </Button>
               </li>
             ))}
           </ul>

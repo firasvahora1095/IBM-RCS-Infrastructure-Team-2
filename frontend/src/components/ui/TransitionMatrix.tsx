@@ -16,7 +16,8 @@ export function TransitionMatrix({ matrix }: { matrix: Record<SeverityTier, Reco
   return (
     <table className="rcs-matrix">
       <caption className="rcs-helper">
-        AI severity (rows) against final Auditor severity (columns), decided cases
+        AI severity (rows) against final Auditor severity (columns), decided cases. Grey: they agreed. Blue: the
+        Auditor chose a different severity; the darker, the more cases.
       </caption>
       <thead>
         <tr>

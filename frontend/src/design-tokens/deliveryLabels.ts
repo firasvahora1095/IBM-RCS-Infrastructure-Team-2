@@ -54,3 +54,11 @@ export const CLIENT_ROLE_SCOPE: Record<"REPORTS" | "TRUST_SAFETY" | "ADMIN", str
   TRUST_SAFETY: "Case results, the moderation queue and messages",
   ADMIN: "Everything",
 };
+
+/** A short name for why a delivery failed, for a badge. The full reason stays beside it. */
+export function deliveryFailureKind(reason: string | null): string {
+  const text = (reason ?? "").toLowerCase();
+  if (text.includes("timeout") || text.includes("respond")) return "Timed out";
+  if (text.includes("unavailable") || text.includes("503")) return "Unavailable";
+  return "Failed";
+}

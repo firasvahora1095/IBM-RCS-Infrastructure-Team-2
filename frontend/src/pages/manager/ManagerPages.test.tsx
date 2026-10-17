@@ -214,7 +214,7 @@ describe("Manager screens", () => {
 
     it("marks a talk request followed up in the row", async () => {
       renderAt("/manager");
-      fireEvent.click(await screen.findByRole("button", { name: /^Mark followed up, talk request from Reese Patel/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Follow up, talk request from Reese Patel/ }));
       await waitFor(() =>
         expect(readDb().wellbeingRequests.some((w) => w.kind === "TALK_TO_MANAGER" && w.status === "FOLLOWED_UP")).toBe(true),
       );
