@@ -90,7 +90,7 @@ export const STAGES: Stage[] = [
     n: "10",
     title: "CommunityHub views the report",
     body: "An authorised CommunityHub user signs in to view and download it.",
-    persona: "CommunityHub client",
+    persona: "CommunityHub Client",
     to: "/client/reports",
     signIn: "ch-user-17",
   },

@@ -96,8 +96,8 @@ describe("FallbackQueueSection (Super Admin)", () => {
   it("offers Make available only while the case is Super Admin only", async () => {
     renderFallback();
     await screen.findByText("FREE-0001");
-    expect(screen.getByRole("button", { name: "Make case FREE-0001 available to Auditors" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Make case FREE-0002 available to Auditors" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make available, case FREE-0001" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Make available, case FREE-0002" })).not.toBeInTheDocument();
   });
 
   it("takes a case, confirms in words and tells the page to reload its own queue", async () => {
@@ -114,7 +114,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
     const release = vi.spyOn(services, "makeCaseAvailable").mockResolvedValue({ available: true });
     renderFallback();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Make case FREE-0001 available to Auditors" }));
+    await user.click(await screen.findByRole("button", { name: "Make available, case FREE-0001" }));
     expect(release).toHaveBeenCalledWith("FREE-0001", "t");
     expect(await screen.findByText(/FREE-0001 is now available to eligible Auditors/)).toBeInTheDocument();
   });

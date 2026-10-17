@@ -151,7 +151,7 @@ export function ManagerReportsPage() {
 
       <Modal
         open={open}
-        modalHeading="Generate a client report"
+        modalHeading="Generate a Client report"
         modalLabel="CommunityHub"
         primaryButtonText={generating ? "Generating…" : "Generate draft"}
         primaryButtonDisabled={generating}

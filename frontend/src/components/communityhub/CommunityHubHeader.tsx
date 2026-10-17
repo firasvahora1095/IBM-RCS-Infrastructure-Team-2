@@ -1,5 +1,6 @@
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { Add, Notification, Search } from "@carbon/icons-react";
+import { InlineNotification } from "@carbon/react";
 
 /**
  * The simulated CommunityHub's own header (its brand, not RCS's), shared by
@@ -9,9 +10,10 @@ export function CommunityHubHeader() {
   const { pathname } = useLocation();
   const onModeration = pathname.startsWith("/communityhub/moderation");
   return (
+    <>
     <header className="ch-header">
       <div className="ch-header-inner">
-        <RouterLink className="ch-brand" to="/communityhub" aria-label="CommunityHub home">
+        <RouterLink className="ch-brand" to="/communityhub">
           <span className="ch-logo" aria-hidden="true">
             ch
           </span>
@@ -46,5 +48,16 @@ export function CommunityHubHeader() {
         </div>
       </div>
     </header>
+    {/* Emily, 8 Oct: say clearly and professionally that CommunityHub is a mock. */}
+    <InlineNotification
+      kind="info"
+      lowContrast
+      hideCloseButton
+      statusIconDescription="Information"
+      title="CommunityHub is a simulation."
+      subtitle="It is modelled on platforms like Reddit. We couldn't get a real platform's API key, so we built this stand-in to show how RCS works inside a customer's product. Nothing here is a real platform, person or post."
+      style={{ maxInlineSize: "100%", marginBlock: 0 }}
+    />
+    </>
   );
 }

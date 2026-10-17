@@ -271,7 +271,7 @@ export function FallbackQueueSection({
                               kind="ghost"
                               size="sm"
                               disabled={busy !== null}
-                              aria-label={`Make case ${row.case_id} available to Auditors`}
+                              aria-label={`Make available, case ${row.case_id}`}
                               onClick={() => act(row, "release")}
                             >
                               Make available

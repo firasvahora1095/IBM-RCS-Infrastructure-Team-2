@@ -70,7 +70,6 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
           {role === "manager" && sosSummary && sosSummary.unresolved_count > 0 && (
             <RouterLink
               to="/manager/sos"
-              aria-label={`${sosSummary.unresolved_count} SOS ${sosSummary.unresolved_count === 1 ? "alert" : "alerts"}`}
               style={{ textDecoration: "none" }}
             >
               <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0, whiteSpace: "nowrap" }}>

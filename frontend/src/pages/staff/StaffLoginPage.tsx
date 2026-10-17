@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { TextInput, PasswordInput, Button, InlineNotification } from "@carbon/react";
+import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { TextInput, PasswordInput, Button, InlineNotification, Link } from "@carbon/react";
 import { useAuth, ROLE_HOME } from "../../hooks/useAuth";
 import { ApiError } from "../../services/types";
 import { isMockData } from "../../services";
@@ -142,6 +142,9 @@ export function StaffLoginPage() {
         >
           {isSubmitting ? "Logging in…" : "Log in"}
         </Button>
+        <Link as={RouterLink} to="/rcs" style={{ fontSize: 14 }}>
+          Back to RCS
+        </Link>
       </form>
     </main>
   );

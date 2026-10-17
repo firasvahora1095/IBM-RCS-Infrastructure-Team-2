@@ -22,7 +22,6 @@ export function SosAlertBanner({ summary }: { summary: SosSummary | null }) {
     <div role="region" aria-label="SOS alerts">
       <RouterLink
         to="/manager/sos"
-        aria-label={`SOS alert — ${label}. Open the SOS Inbox.`}
         className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 sm:px-8"
         style={{
           backgroundColor: "var(--cds-support-error)",

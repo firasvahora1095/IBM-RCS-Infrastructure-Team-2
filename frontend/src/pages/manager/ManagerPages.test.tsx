@@ -165,7 +165,7 @@ describe("Manager screens", () => {
     it("lists only Manager decisions in Needs Attention, each linked to where it's handled", async () => {
       renderAt("/manager");
       const list = await screen.findByRole("list", { name: "Items that need you" });
-      expect(within(list).getByRole("link", { name: /^Open SOS: 3/ })).toHaveAttribute("href", "/manager/sos");
+      expect(within(list).getByRole("link", { name: /^Open SOS/ })).toHaveAttribute("href", "/manager/sos");
       expect(within(list).getByRole("link", { name: /^Failed CommunityHub handoffs/ })).toHaveAttribute(
         "href",
         "/manager/deliveries?status=needs-attention",

@@ -24,11 +24,21 @@ import { StatusTag } from "../../components/ui/StatusTag";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
+  { id: "problem", label: "The problem" },
   { id: "how-it-works", label: "How it works" },
   { id: "wellbeing", label: "Reviewer wellbeing" },
   { id: "integration", label: "Integration" },
   { id: "reporting", label: "Reporting" },
+  { id: "team", label: "The team" },
   { id: "faq", label: "FAQ" },
+] as const;
+
+const TEAM = [
+  { name: "Hyuna Bae", role: "Project manager" },
+  { name: "Janataarah Begum", role: "Business analyst" },
+  { name: "Aleeya Ahmad", role: "UX design" },
+  { name: "Firas Vahora", role: "Developer" },
+  { name: "Aiden Brundell", role: "Developer" },
 ] as const;
 
 const REPORT_BUTTON = `<a href="https://report.rcs.example/communityhub?post={POST_URL}"
@@ -278,6 +288,29 @@ export function RcsLandingPage() {
           </section>
         </Theme>
 
+        <section id="problem" className="rcs-site-section" aria-labelledby="problem-title">
+          <Grid>
+            <Column sm={4} md={8} lg={10} className="flex flex-col gap-4">
+              <p className="rcs-eyebrow">The problem</p>
+              <h2 id="problem-title" className="rcs-site-h2">
+                The people who review harmful videos are exposed to them again and again.
+              </h2>
+              <p className="rcs-site-lede">
+                Reviewers watch footage of abuse and violence as a core part of the job, and the tools they use have
+                no built-in way to limit how much they see or to protect their wellbeing while they work.
+              </p>
+            </Column>
+            <Column sm={4} md={8} lg={{ span: 5, offset: 12 }} className="mt-6 lg:mt-0">
+              <p className="rcs-eyebrow">What RCS changes</p>
+              <ul className="rcs-problem-list">
+                <li>AI reads each video first, so a reviewer starts from a summary, not raw footage.</li>
+                <li>Exposure limits and cooldowns are enforced by the system, not left to willpower.</li>
+                <li>One press of SOS brings in a manager. Wellbeing always comes before speed.</li>
+              </ul>
+            </Column>
+          </Grid>
+        </section>
+
         <section aria-label="Technology" style={{ paddingBlock: "2rem", borderBlockEnd: "1px solid var(--cds-border-subtle-01)" }}>
           <Grid>
             <Column sm={4} md={8} lg={16}>
@@ -424,7 +457,7 @@ export function RcsLandingPage() {
                   ["100%", "of moderation decisions made by trained human reviewers"],
                   ["120 min", "default daily exposure limit for each reviewer"],
                   ["3", "automatic delivery attempts before a manager steps in"],
-                  ["0", "reviewer wellbeing records in any client report"],
+                  ["0", "reviewer wellbeing records in any Client report"],
                 ].map(([value, label]) => (
                   <div key={label}>
                     <dt>{value}</dt>
@@ -432,6 +465,31 @@ export function RcsLandingPage() {
                   </div>
                 ))}
               </dl>
+            </Column>
+          </Grid>
+        </section>
+
+        <section id="team" className="rcs-site-section" aria-labelledby="team-title" style={{ backgroundColor: "var(--cds-layer-01)" }}>
+          <Grid>
+            <Column sm={4} md={8} lg={10} className="flex flex-col gap-4">
+              <p className="rcs-eyebrow">The team</p>
+              <h2 id="team-title" className="rcs-site-h2">
+                Built by RMIT Team 2, with IBM.
+              </h2>
+              <p className="rcs-site-lede">
+                RCS is an IBM × RMIT capstone project. It is a prototype: every case, person and video in it is
+                synthetic.
+              </p>
+            </Column>
+            <Column sm={4} md={8} lg={16} className="mt-6">
+              <ul className="rcs-team">
+                {TEAM.map((member) => (
+                  <li key={member.name}>
+                    <span className="rcs-team-name">{member.name}</span>
+                    <span className="rcs-team-role">{member.role}</span>
+                  </li>
+                ))}
+              </ul>
             </Column>
           </Grid>
         </section>

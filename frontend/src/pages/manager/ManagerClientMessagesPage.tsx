@@ -42,7 +42,7 @@ export function ManagerClientMessagesPage() {
           </Button>
         )}
       </div>
-      <LoadState error={error} loading={!data && !error} what="client messages" />
+      <LoadState error={error} loading={!data && !error} what="Client messages" />
       {data && data.length > 0 && (
         <Layer>
           <Table aria-label="Client messages">
@@ -83,7 +83,7 @@ export function ManagerClientMessagesPage() {
           </Table>
         </Layer>
       )}
-      {data && data.length === 0 && <p style={secondaryText}>No client messages yet.</p>}
+      {data && data.length === 0 && <p style={secondaryText}>No Client messages yet.</p>}
     </ManagerLayout>
   );
 }

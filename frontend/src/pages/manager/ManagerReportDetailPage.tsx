@@ -218,7 +218,7 @@ export function ManagerReportDetailPage() {
               )}
 
               <Accordion>
-                <AccordionItem open title="Never included in a client report">
+                <AccordionItem open title="Never included in a Client report">
                   <ul className="flex flex-col gap-2" style={{ listStyle: "disc", paddingInlineStart: "1.25rem" }}>
                     {NOT_IN_CLIENT_REPORT.map((item) => (
                       <li key={item} className="rcs-body">

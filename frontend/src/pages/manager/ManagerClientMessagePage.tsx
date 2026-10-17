@@ -69,7 +69,7 @@ export function ManagerClientMessagePage() {
                 <TextArea
                   id="manager-reply"
                   labelText="Your reply"
-                  helperText="The client sees this signed by RCS. Share aggregate facts only: no Auditor names or case content."
+                  helperText="The Client sees this signed by RCS. Share aggregate facts only: no Auditor names or case content."
                   rows={6}
                   maxCount={MESSAGE_MAX_BODY}
                   enableCounter

@@ -20,9 +20,10 @@ export function TransitionMatrix({ matrix }: { matrix: Record<SeverityTier, Reco
       </caption>
       <thead>
         <tr>
-          <td className="rcs-matrix-corner" aria-hidden="true">
-            AI ↓ Final →
-          </td>
+          <th scope="col" className="rcs-matrix-corner">
+            <span aria-hidden="true">AI ↓ Final →</span>
+            <span className="cds--visually-hidden">AI severity down, final Auditor severity across</span>
+          </th>
           {TIERS.map((tier) => (
             <th key={tier} scope="col">
               <span className="cds--visually-hidden">Final </span>
