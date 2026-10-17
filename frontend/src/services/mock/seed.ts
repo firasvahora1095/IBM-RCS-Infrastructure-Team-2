@@ -99,7 +99,7 @@ function baseCase(now: number, overrides: Partial<MockCase> & Pick<MockCase, "ca
   };
 }
 
-/** An SOS follows the S4 protocol: 30 minutes plus a mandatory check-in (AR-WB-12). */
+/** SOS cooldown: 30 minutes plus a mandatory manager check-in (AR-WB-12). */
 function sosCooldown(now: number, triggeredMinutesAgo: number) {
   return {
     started_at: minutesAgo(now, triggeredMinutesAgo),

@@ -170,8 +170,8 @@ export function CooldownPage() {
             kind="warning"
             lowContrast
             hideCloseButton
-            title="Your manager will check in before this ends"
-            subtitle="This isn't something you need to trigger — this cooldown includes a mandatory check-in that your manager or support initiates."
+            title="A manager check-in is required before you return"
+            subtitle="Your SOS has been flagged. Your manager will check in with you before new cases resume."
             style={{ maxWidth: "100%" }}
           />
         )}
@@ -184,7 +184,7 @@ export function CooldownPage() {
               ? "Return to queue"
               : remainingMs > 0
                 ? `Return to queue (available in ${formatCountdown(remainingMs)})`
-                : "Return to queue (after your manager's check-in)"}
+                : "Return to queue (awaiting manager check-in)"}
           </Button>
           <Button kind="tertiary" onClick={stopShift}>
             Stop my shift

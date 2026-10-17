@@ -72,7 +72,7 @@ export const demoScenarios = {
         started_at: new Date(now).toISOString(),
         ends_at: new Date(now + minutes * 60_000).toISOString(),
         trigger,
-        requires_check_in: trigger === "S4",
+        requires_check_in: trigger === "SOS",
         check_in_completed_at: null,
       };
     });
