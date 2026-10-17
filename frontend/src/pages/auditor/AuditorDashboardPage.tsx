@@ -94,7 +94,7 @@ export function AuditorDashboardPage() {
   }, [token, handleSessionExpiry]);
 
   const cooldown = wellbeing?.cooldown ?? null;
-  // A cooldown lasts until its end time and, for S4/SOS, until the Manager check-in is recorded.
+  // A cooldown lasts until its end time; SOS also requires a Manager check-in before returning.
   const inCooldown =
     cooldown !== null &&
     (Date.parse(cooldown.ends_at) > pageOpenedAt || (cooldown.requires_check_in && !cooldown.check_in_completed_at));
@@ -171,8 +171,8 @@ export function AuditorDashboardPage() {
           {c.case_id}
         </TableCell>
         <TableCell style={cellStyle}>
-          {c.severity_tier ? (
-            <SeverityTag tier={c.severity_tier} />
+          {(c.final_severity_tier ?? c.severity_tier) ? (
+            <SeverityTag tier={(c.final_severity_tier ?? c.severity_tier)!} />
           ) : c.status === "SUBMITTED" || c.status === "AI_PROCESSING" ? (
             <span className="cds--visually-hidden">No severity yet</span>
           ) : (
@@ -280,7 +280,7 @@ export function AuditorDashboardPage() {
                   <p className="rcs-helper">
                     {cooldownCause}
                     {waitingForCheckIn
-                      ? ". Your manager will check in before new cases resume."
+                      ? ". Your manager will check in with you before new cases resume."
                       : ". No new harmful-content case is assigned until it ends."}
                   </p>
                   <div>
@@ -442,7 +442,7 @@ export function AuditorDashboardPage() {
                           <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
                             {c.case_id}
                           </TableCell>
-                          <TableCell>{c.severity_tier ? <SeverityTag tier={c.severity_tier} /> : "Unknown"}</TableCell>
+                          <TableCell>{(c.final_severity_tier ?? c.severity_tier) ? <SeverityTag tier={(c.final_severity_tier ?? c.severity_tier)!} /> : "Unknown"}</TableCell>
                           <TableCell style={{ color: "var(--cds-text-secondary)" }}>Complete</TableCell>
                         </TableRow>
                       ))}

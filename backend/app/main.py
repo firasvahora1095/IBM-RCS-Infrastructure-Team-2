@@ -4,6 +4,7 @@ import hmac
 from urllib.parse import urlparse
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +73,17 @@ from app.orchestrate import (
     build_assignment_orchestrator,
 )
 from app.rate_limit import status_lookup_limiter
+from app.severity import get_severity_tier as _get_severity_tier
+
+
+def _final_severity_tier(case: "Case") -> str | None:  # type: ignore[name-defined]
+    """Return Auditor tier if overridden, otherwise AI tier."""
+    if case.auditor_severity_score is not None:
+        try:
+            return _get_severity_tier(int(case.auditor_severity_score))
+        except (ValueError, TypeError):
+            pass
+    return case.severity_tier
 from app.request_logging import install_access_log_redaction, redact_case_ids
 from app.storage import VideoRangeError, delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
@@ -97,7 +109,125 @@ class _VideoStreamingResponse(StreamingResponse):
             with CancelScope(shield=True):
                 await run_in_threadpool(self._video_body.close)
 
-app = FastAPI(title="IBM RCS Backend", version="0.1.0")
+def _run_db_migrations() -> None:
+    """Apply all incremental schema changes to the deployed database.
+
+    Every statement uses IF NOT EXISTS / safe casts so re-running is harmless.
+    """
+    from app.db import engine
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        # auditors — Sprint 2 columns
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
+        ))
+        # cases — AI pipeline output columns (Sprint 2/3)
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
+        ))
+        # auditors — Sprint 3 daily reset column
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
+        ))
+        # cases — Sprint 3 CAP_REACHED manager_flag support
+        conn.execute(text(
+            "ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
+            "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
+        ))
+
+
+try:
+    _run_db_migrations()
+except Exception as _migration_exc:
+    logging.getLogger("ibm_rcs.api").warning(
+        "DB migration skipped (non-PostgreSQL or already applied): %s", _migration_exc
+    )
+
+def _daily_exposure_reset_job() -> None:
+    """Reset exposure_minutes for all auditors at the daily workday boundary."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.models import Auditor
+    from app.assignment import maybe_reset_daily_exposure
+    db = SessionLocal()
+    try:
+        auditors = db.query(Auditor).all()
+        reset_count = sum(1 for a in auditors if maybe_reset_daily_exposure(db, a))
+        db.commit()
+        log.info("[SCHEDULER] daily exposure reset: %d/%d auditors reset", reset_count, len(auditors))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] daily exposure reset failed: %s", exc)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from zoneinfo import ZoneInfo
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            _daily_exposure_reset_job,
+            CronTrigger(hour=9, minute=0, timezone=ZoneInfo("Australia/Sydney")),
+            id="daily_exposure_reset",
+            replace_existing=True,
+        )
+        scheduler.start()
+        logging.getLogger("ibm_rcs.scheduler").info("[SCHEDULER] daily exposure reset scheduled at 09:00 AEST")
+    except ImportError:
+        logging.getLogger("ibm_rcs.scheduler").warning("[SCHEDULER] apscheduler not installed — daily reset disabled")
+        scheduler = None
+    yield
+    if scheduler:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="IBM RCS Backend", version="0.1.0", lifespan=lifespan)
 
 allowed_origins = [
     origin.strip()
@@ -541,6 +671,7 @@ async def list_auditor_cases(
             "case_id": case.case_id,
             "status": case.status,
             "severity_tier": case.severity_tier,
+            "final_severity_tier": _final_severity_tier(case),
         }
         for case in assigned_cases
     ]
@@ -579,6 +710,7 @@ async def get_auditor_case_detail(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities,
@@ -806,7 +938,7 @@ async def manager_dashboard(
         if ends_at and ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         in_cooldown = bool(ends_at and ends_at > now)
-        requires_check_in = a.cooldown_trigger in ("S4", "SOS")
+        requires_check_in = a.cooldown_trigger == "SOS"
         check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
         cooldown = None
         if in_cooldown and ends_at:
@@ -858,7 +990,7 @@ async def get_my_wellbeing(
         ends_at = row.cooldown_ends_at
         if ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
-        requires_check_in = row.cooldown_trigger in ("S4", "SOS")
+        requires_check_in = row.cooldown_trigger == "SOS"
         check_in_done = bool(row.cooldown_check_in_done)
         if ends_at > now or (requires_check_in and not check_in_done):
             cooldown = {
@@ -1173,7 +1305,7 @@ def _auditor_cooldown_payload(row: Auditor) -> dict | None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
     if ends_at <= datetime.now(timezone.utc):
         return None
-    requires_check_in = row.cooldown_trigger in ("S4", "SOS")
+    requires_check_in = row.cooldown_trigger == "SOS"
     check_in_done = bool(row.cooldown_check_in_done)
     return {
         "ends_at": ends_at.isoformat(),
@@ -1325,6 +1457,7 @@ async def get_auditor_detail(
             {
                 "case_id": c.case_id,
                 "severity_tier": c.severity_tier,
+                "final_severity_tier": _final_severity_tier(c),
                 "completed_at": c.completed_at.isoformat() if c.completed_at else None,
                 "final_outcome": c.final_outcome,
             }
@@ -1379,6 +1512,7 @@ async def get_case_oversight(
             "case_id": c.case_id,
             "auditor_name": auditor_names.get(c.assigned_auditor_id) if c.assigned_auditor_id else None,
             "severity_tier": c.severity_tier,
+            "final_severity_tier": _final_severity_tier(c),
             "status": c.status,
             "manager_flag": c.manager_flag,
             "sos_alert_id": None,
@@ -1569,6 +1703,7 @@ async def get_manager_case_review(
         "status": case.status,
         "manager_flag": case.manager_flag,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "effective_severity_score": case.effective_severity_score,
         "narrative_summary": case.narrative_summary,
         "auditor_severity_score": case.auditor_severity_score,
@@ -1595,7 +1730,31 @@ async def get_reassignment_context(
     candidates = db.scalars(
         select(Auditor).where(Auditor.role == "auditor")
     ).all()
+    now = datetime.now(timezone.utc)
     declining_auditor = db.get(Auditor, case.assigned_auditor_id) if case.assigned_auditor_id else None
+
+    sos_auditor_ids = set(
+        db.scalars(
+            select(Case.assigned_auditor_id).where(
+                Case.assigned_auditor_id.is_not(None),
+                Case.manager_flag == "SOS",
+            )
+        ).all()
+    )
+
+    def _is_available(a: "Auditor") -> bool:
+        if float(a.exposure_minutes or 0) >= int(a.exposure_limit_minutes or 120):
+            return False
+        ends_at = a.cooldown_ends_at
+        if ends_at is not None:
+            if ends_at.tzinfo is None:
+                ends_at = ends_at.replace(tzinfo=timezone.utc)
+            if ends_at > now:
+                return False
+        if a.auditor_id in sos_auditor_ids:
+            return False
+        return True
+
     return {
         "case_id": case.case_id,
         "declining_auditor": {
@@ -1609,7 +1768,7 @@ async def get_reassignment_context(
                 "name": a.auditor_id,
                 "headroom_minutes": int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0),
                 "limited_headroom": (int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0)) < 30,
-                "available": float(a.exposure_minutes or 0) < int(a.exposure_limit_minutes or 120),
+                "available": _is_available(a),
             }
             for a in candidates
             if a.auditor_id != case.assigned_auditor_id
@@ -1630,6 +1789,23 @@ async def reassign_case(
     target = db.get(Auditor, auditor_id)
     if target is None or target.role != "auditor":
         raise HTTPException(status_code=404, detail="Auditor not found")
+    now = datetime.now(timezone.utc)
+    if float(target.exposure_minutes or 0) >= int(target.exposure_limit_minutes or 120):
+        raise HTTPException(status_code=409, detail="Auditor has reached their daily exposure limit")
+    cooldown_ends = target.cooldown_ends_at
+    if cooldown_ends is not None:
+        if cooldown_ends.tzinfo is None:
+            cooldown_ends = cooldown_ends.replace(tzinfo=timezone.utc)
+        if cooldown_ends > now:
+            raise HTTPException(status_code=409, detail="Auditor is in mandatory cooldown")
+    active_sos = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor_id,
+            Case.manager_flag == "SOS",
+        )
+    ).first()
+    if active_sos is not None:
+        raise HTTPException(status_code=409, detail="Auditor has an active SOS alert")
     before = {"assigned_auditor_id": case.assigned_auditor_id, "status": case.status}
     case.assigned_auditor_id = auditor_id
     case.status = "READY_FOR_REVIEW"
@@ -1687,6 +1863,7 @@ async def get_case_exceptional_access(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities or [],
@@ -1762,17 +1939,44 @@ async def record_exceptional_access(
 @app.get("/api/manager/validation")
 async def get_validation_summary(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    from app.severity import get_severity_tier as _get_tier
+    val_cases = db.scalars(
+        select(Case).where(Case.is_validation_case == True, Case.severity_tier.is_not(None))
+    ).all()
+
+    total = len(val_cases)
+    if total == 0:
+        return {"is_placeholder": True, "tiers": [], "match_rate_pct": 0.0, "validation_set_size": 0}
+
+    tier_order = ["S1", "S2", "S3", "S4"]
+    ai_counts = {t: 0 for t in tier_order}
+    gt_counts = {t: 0 for t in tier_order}
+    matches = 0
+
+    for c in val_cases:
+        ai_tier = c.severity_tier
+        gt_tier = c.ground_truth_tier
+        if ai_tier in ai_counts:
+            ai_counts[ai_tier] += 1
+        if gt_tier in gt_counts:
+            gt_counts[gt_tier] += 1
+        if ai_tier == gt_tier:
+            matches += 1
+
     return {
-        "is_placeholder": True,
+        "is_placeholder": False,
         "tiers": [
-            {"tier": "S1", "ai_predicted_pct": 62.0, "ground_truth_pct": 58.0},
-            {"tier": "S2", "ai_predicted_pct": 21.0, "ground_truth_pct": 24.0},
-            {"tier": "S3", "ai_predicted_pct": 11.0, "ground_truth_pct": 13.0},
-            {"tier": "S4", "ai_predicted_pct": 6.0, "ground_truth_pct": 5.0},
+            {
+                "tier": t,
+                "ai_predicted_pct": round(ai_counts[t] / total * 100, 1),
+                "ground_truth_pct": round(gt_counts[t] / total * 100, 1),
+            }
+            for t in tier_order
         ],
-        "match_rate_pct": 84.0,
-        "validation_set_size": 0,
+        "match_rate_pct": round(matches / total * 100, 1),
+        "validation_set_size": total,
     }
 
 
@@ -1794,54 +1998,36 @@ async def ai_chat(
     db: Session = Depends(get_db),
 ):
     from app.chat import chat
+    from app.chat_context import build_context, model_context, no_verified_info, safety_addendum
 
-    context: dict = {}
+    ctx = build_context(db, session.role, session.staff_id, body.message)
 
-    if session.role == "manager":
-        now = datetime.now(timezone.utc)
-        auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
-        open_cases = db.scalar(select(func.count()).select_from(Case).where(Case.status != "COMPLETE")) or 0
-        completed_today_count = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.status == "COMPLETE",
-                Case.completed_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-        ) or 0
-        pending_declined = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.manager_flag.in_(["DECLINED", "CAP_REACHED"]),
-                Case.status != "COMPLETE",
-            )
-        ) or 0
-        context = {
-            "open cases": open_cases,
-            "completed today": completed_today_count,
-            "cases awaiting reassignment": pending_declined,
-            "auditor count": len(auditors),
-            "auditors at exposure limit": sum(
-                1 for a in auditors
-                if (a.exposure_minutes or 0) >= (a.exposure_limit_minutes or 120)
-            ),
+    def payload(reply: str, fallback: bool = False) -> dict:
+        return {
+            "reply": reply,
+            "live_as_of": ctx.live_as_of if ctx.live else None,
+            "case": ctx.case,
+            "links": ctx.links,
+            "fallback": fallback,
         }
 
-    elif session.role == "auditor":
-        auditor = db.get(Auditor, session.staff_id)
-        if auditor:
-            active_cases = db.scalars(
-                select(Case).where(
-                    Case.assigned_auditor_id == session.staff_id,
-                    Case.status.in_(["READY_FOR_REVIEW", "AUDITOR_REVIEW"]),
-                )
-            ).all()
-            context = {
-                "your exposure today": f"{round(auditor.exposure_minutes or 0)} / {auditor.exposure_limit_minutes or 120} min",
-                "your active cases": len(active_cases),
-                "active case IDs": ", ".join(c.case_id for c in active_cases) or "none",
-            }
+    # A case ID that isn't visible to this person gets fixed wording, with no model call,
+    # so the Buddy can't guess at a case it hasn't been given.
+    if ctx.case_unavailable:
+        return payload(no_verified_info(session.role), fallback=True)
 
     try:
-        reply = await run_in_threadpool(chat, body.message, session.role, context)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        reply = await run_in_threadpool(
+            chat,
+            body.message,
+            session.role,
+            model_context(ctx),
+            [turn.model_dump() for turn in body.history],
+            ctx.live_as_of,
+        )
+    except RuntimeError:
+        logger.exception("AI Buddy request failed")
+        raise HTTPException(status_code=503, detail="AI Buddy is unavailable right now.")
 
-    return {"reply": reply}
+    addendum = safety_addendum(session.role, ctx)
+    return payload(f"{reply}\n\n{addendum}" if addendum else reply)

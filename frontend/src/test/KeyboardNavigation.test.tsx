@@ -177,6 +177,10 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByRole("button", { name: "Play" }));
     const grayscale = screen.getByRole("switch", { name: "Grayscale" });
     await tabTo(user, grayscale);
+    // Grayscale defaults to on; Space toggles it off, then back on.
+    expect(grayscale).toHaveAttribute("aria-checked", "true");
+    await user.keyboard(" ");
+    expect(grayscale).toHaveAttribute("aria-checked", "false");
     await user.keyboard(" ");
     expect(grayscale).toHaveAttribute("aria-checked", "true");
     await tabTo(user, screen.getByRole("button", { name: /^(Mute|Unmute)$/ }));

@@ -80,6 +80,7 @@ export interface AuditorCaseListItem {
   case_id: string;
   status: InternalCaseStatus;
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   // Optional — UI needs (Figma 10:6 "Assigned" column):
   assigned_at?: string | null; // ISO 8601
 }
@@ -118,6 +119,7 @@ export interface AuditorCaseDetail {
   watson_severity_score: number | null; // raw model score — audit trail only, never shown as "the" score
   effective_severity_score: number | null; // post-floor score — THIS is what the Auditor sees
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   narrative_summary: string | null;
   incident_timeline: IncidentTimelineEntry[] | null;
   // Optional — UI needs (Figma 18:26, 20:35):
@@ -172,9 +174,9 @@ export interface CooldownState {
   started_at?: string;
   /** ISO 8601 time the cooldown ends. */
   ends_at: string;
-  /** What triggered it: a tier (AR-WB-12) or an SOS, which follows the S4 protocol. */
+  /** What triggered it: a severity tier (AR-WB-12) or an SOS. */
   trigger: SeverityTier | "SOS";
-  /** S4 and SOS require a Manager/support check-in (AR-WB-12). */
+  /** SOS requires a Manager check-in before the auditor can return (AR-WB-12). */
   requires_check_in: boolean;
   /** When the Manager recorded that check-in; the queue stays locked until then. */
   check_in_completed_at?: string | null;
@@ -247,6 +249,7 @@ export interface AuditorDetail extends AuditorOverviewRow {
   recent_cases: {
     case_id: string;
     severity_tier: SeverityTier | null;
+    final_severity_tier?: SeverityTier | null;
     completed_at: string;
     final_outcome?: CaseOutcome | null;
   }[];
@@ -262,6 +265,7 @@ export interface ManagerCaseRow {
   case_id: string;
   auditor_name: string | null;
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   status: InternalCaseStatus;
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */

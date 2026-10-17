@@ -7,4 +7,4 @@ export interface ViewerSettings {
 }
 
 /** Every review opens fully protected: maximum blur (AR-PV-03/04), muted, volume 0. */
-export const PROTECTED_VIEWER_SETTINGS: ViewerSettings = { blur: 100, grayscale: false, muted: true, volume: 0 };
+export const PROTECTED_VIEWER_SETTINGS: ViewerSettings = { blur: 100, grayscale: true, muted: true, volume: 0 };

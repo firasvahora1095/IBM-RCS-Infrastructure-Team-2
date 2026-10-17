@@ -10,23 +10,41 @@ interface Message {
 const SUGGESTED: Record<string, string[]> = {
   manager: [
     "What needs my attention right now?",
-    "How many cases are open today?",
-    "What does SOS mean?",
+    "How many open SOS alerts are there?",
+    "How many cases are awaiting reassignment?",
+    "What does a failed delivery mean?",
   ],
   auditor: [
-    "How many cases do I have?",
     "What is my exposure today?",
-    "What happens if I decline a case?",
+    "What happens when I reach my exposure limit?",
+    "What is the difference between SOS and a wellbeing check-in?",
+    "What happens if I disagree with the AI severity?",
   ],
 };
+
+const STORAGE_KEY = "rcs_ai_buddy_messages";
 
 export function AiChatWidget() {
   const { token, role } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as Message[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,21 +82,21 @@ export function AiChatWidget() {
           bottom: 24,
           right: 24,
           zIndex: 9000,
-          width: 52,
-          height: 52,
+          width: 48,
+          height: 48,
           borderRadius: "50%",
-          background: "var(--cds-interactive, #0f62fe)",
-          color: "#fff",
+          background: "var(--cds-background-inverse, #161616)",
+          color: "var(--cds-text-inverse, #ffffff)",
           border: "none",
           cursor: "pointer",
-          fontSize: 22,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          fontSize: 20,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        {open ? "✕" : "✦"}
+        ✦
       </button>
 
       {/* Chat panel */}
@@ -86,34 +104,54 @@ export function AiChatWidget() {
         <div
           style={{
             position: "fixed",
-            bottom: 88,
+            bottom: 84,
             right: 24,
             zIndex: 9000,
             width: 360,
             maxHeight: 520,
             display: "flex",
             flexDirection: "column",
-            background: "var(--cds-layer-01, #f4f4f4)",
+            background: "var(--cds-background, #ffffff)",
             border: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+            borderRadius: 0,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
             overflow: "hidden",
           }}
         >
           {/* Header */}
           <div
             style={{
-              background: "var(--cds-interactive, #0f62fe)",
-              color: "#fff",
+              background: "var(--cds-background-inverse, #161616)",
+              color: "var(--cds-text-inverse, #ffffff)",
               padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               fontSize: 14,
               fontWeight: 600,
+              letterSpacing: "0.01em",
             }}
           >
-            ✦ AI Buddy
-            <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, opacity: 0.85 }}>
-              — preliminary feature
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>✦</span>
+              AI Buddy
             </span>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close AI Buddy"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--cds-text-inverse, #ffffff)",
+                cursor: "pointer",
+                fontSize: 16,
+                opacity: 0.7,
+                padding: "2px 4px",
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
           </div>
 
           {/* Messages */}
@@ -121,10 +159,11 @@ export function AiChatWidget() {
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: 12,
+              padding: "12px 16px",
               display: "flex",
               flexDirection: "column",
               gap: 8,
+              background: "var(--cds-background, #ffffff)",
             }}
           >
             {messages.length === 0 && (
@@ -153,6 +192,29 @@ export function AiChatWidget() {
               </div>
             )}
 
+            {messages.length > 0 && showSuggestions && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { send(s); setShowSuggestions(false); }}
+                    style={{
+                      textAlign: "left",
+                      background: "var(--cds-layer-02, #fff)",
+                      border: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
+                      borderRadius: 4,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      color: "var(--cds-text-primary)",
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -161,14 +223,14 @@ export function AiChatWidget() {
                   maxWidth: "85%",
                   background:
                     m.role === "user"
-                      ? "var(--cds-interactive, #0f62fe)"
-                      : "var(--cds-layer-02, #fff)",
-                  color: m.role === "user" ? "#fff" : "var(--cds-text-primary)",
+                      ? "var(--cds-background-inverse, #161616)"
+                      : "var(--cds-layer-01, #f4f4f4)",
+                  color: m.role === "user" ? "var(--cds-text-inverse, #ffffff)" : "var(--cds-text-primary, #161616)",
                   border: m.role === "assistant" ? "1px solid var(--cds-border-subtle-01, #e0e0e0)" : "none",
-                  borderRadius: 8,
+                  borderRadius: 2,
                   padding: "8px 12px",
                   fontSize: 13,
-                  lineHeight: "18px",
+                  lineHeight: "20px",
                   whiteSpace: "pre-wrap",
                 }}
               >
@@ -196,11 +258,29 @@ export function AiChatWidget() {
             style={{
               borderTop: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
               display: "flex",
-              padding: 8,
-              gap: 6,
+              alignItems: "stretch",
               background: "var(--cds-layer-01, #f4f4f4)",
             }}
           >
+            {messages.length > 0 && (
+              <button
+                onClick={() => setShowSuggestions((v) => !v)}
+                title="Suggested questions"
+                aria-label="Show suggested questions"
+                style={{
+                  background: showSuggestions ? "var(--cds-background-inverse, #161616)" : "transparent",
+                  color: showSuggestions ? "var(--cds-text-inverse, #ffffff)" : "var(--cds-text-secondary, #525252)",
+                  border: "none",
+                  borderRight: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
+                  padding: "0 12px",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}
+              >
+                ?
+              </button>
+            )}
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -209,12 +289,11 @@ export function AiChatWidget() {
               disabled={loading}
               style={{
                 flex: 1,
-                border: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
-                borderRadius: 4,
-                padding: "6px 10px",
+                border: "none",
+                padding: "12px",
                 fontSize: 13,
-                background: "var(--cds-layer-02, #fff)",
-                color: "var(--cds-text-primary)",
+                background: "transparent",
+                color: "var(--cds-text-primary, #161616)",
                 outline: "none",
               }}
             />
@@ -222,14 +301,14 @@ export function AiChatWidget() {
               onClick={() => send(input)}
               disabled={loading || !input.trim()}
               style={{
-                background: "var(--cds-interactive, #0f62fe)",
-                color: "#fff",
+                background: loading || !input.trim() ? "var(--cds-button-disabled, #c6c6c6)" : "var(--cds-background-inverse, #161616)",
+                color: "var(--cds-text-inverse, #ffffff)",
                 border: "none",
-                borderRadius: 4,
-                padding: "6px 12px",
+                borderLeft: "1px solid var(--cds-border-subtle-01, #e0e0e0)",
+                padding: "0 16px",
                 cursor: loading || !input.trim() ? "not-allowed" : "pointer",
                 fontSize: 13,
-                opacity: loading || !input.trim() ? 0.5 : 1,
+                flexShrink: 0,
               }}
             >
               Send

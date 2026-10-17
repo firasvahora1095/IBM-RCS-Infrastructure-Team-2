@@ -241,7 +241,7 @@ function cooldownForResolvedCase(
     );
     if (!sustained && !repeated) return null;
   }
-  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], tier === "S4");
+  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], false);
 }
 
 /** Screen 1c placeholder limit: "Max size: 10MB (placeholder) — to be confirmed with Dev." */
@@ -405,7 +405,7 @@ function findSos(db: MockDb, alertId: string): MockSosEvent {
 /**
  * AR-WB-06/07 and AR-AI-11: one path for every unexpected-exposure event. The
  * alert is logged with what raised it, the case goes to the Manager, and the
- * S4 protocol applies (AR-WB-12) — 30 minutes plus a mandatory check-in.
+ * SOS cooldown applies (AR-WB-12) — 30 minutes plus a mandatory Manager check-in.
  */
 function raiseSos(db: MockDb, token: string, caseId: string, trigger: SosTrigger): { cooldown: CooldownState } {
   const session = requireSession(db, token, "auditor");
@@ -442,6 +442,7 @@ function caseDetailFor(c: MockCase): AuditorCaseDetail {
     watson_severity_score: c.watson_severity_score,
     effective_severity_score: c.effective_severity_score,
     severity_tier: c.severity_tier,
+    final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
     narrative_summary: c.narrative_summary,
     incident_timeline: c.incident_timeline,
     video_duration_seconds: c.duration_seconds,
@@ -655,6 +656,7 @@ export const mockDataService: DataService = {
         watson_severity_score: c.watson_severity_score,
         effective_severity_score: c.effective_severity_score,
         severity_tier: c.severity_tier,
+        final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
         narrative_summary: c.narrative_summary,
         incident_timeline: c.incident_timeline,
         video_duration_seconds: c.duration_seconds,
@@ -911,6 +913,7 @@ export const mockDataService: DataService = {
         recent_cases: today.map((c) => ({
           case_id: c.case_id,
           severity_tier: c.severity_tier,
+          final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
           completed_at: c.completed_at!,
           final_outcome: c.final_outcome,
         })),
@@ -992,6 +995,7 @@ export const mockDataService: DataService = {
           case_id: c.case_id,
           auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
           severity_tier: c.severity_tier,
+          final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
           status: c.status,
           manager_flag: c.manager_flag,
           sos_alert_id: [...db.sosEvents].reverse().find((e) => e.case_id === c.case_id)?.id ?? null,

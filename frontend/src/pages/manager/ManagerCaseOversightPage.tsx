@@ -148,7 +148,7 @@ function CaseRow({ row }: { row: ManagerCaseRow }) {
         )}
       </TableCell>
       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
-      <TableCell>{row.severity_tier ? <SeverityTag tier={row.severity_tier} size="sm" /> : "—"}</TableCell>
+      <TableCell>{(row.final_severity_tier ?? row.severity_tier) ? <SeverityTag tier={(row.final_severity_tier ?? row.severity_tier)!} size="sm" /> : "—"}</TableCell>
       <TableCell style={{ color: "var(--cds-text-secondary)" }}>
         {managerStatusLabel(row.status, row.manager_flag)}
       </TableCell>
