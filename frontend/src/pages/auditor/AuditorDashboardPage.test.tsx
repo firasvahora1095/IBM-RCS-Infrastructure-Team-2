@@ -25,6 +25,8 @@ describe("AuditorDashboardPage", () => {
     sessionStorage.setItem("rcs_staff_role", "auditor");
     sessionStorage.setItem("rcs_staff_id", "auditor-1");
     vi.restoreAllMocks();
+    // Nothing has been released to claim, so the "Available to claim" section stays out of these tests.
+    vi.spyOn(services, "getAvailableCases").mockResolvedValue({ can_claim: true, reason: null, cases: [] });
   });
 
   it("shows each case's severity tag and the Figma status copy", async () => {

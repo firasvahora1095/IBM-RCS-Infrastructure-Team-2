@@ -6,6 +6,7 @@ import { clearBuddyConversation } from "../components/chat/useBuddyConversation"
 const TOKEN_KEY = "rcs_staff_token";
 const ROLE_KEY = "rcs_staff_role";
 const STAFF_ID_KEY = "rcs_staff_id";
+const SUPER_ADMIN_KEY = "rcs_staff_super_admin";
 
 /**
  * Fired whenever the stored session changes, so every component using
@@ -30,6 +31,8 @@ export interface StaffSession {
   token: string;
   role: StaffRole;
   staffId: string;
+  /** Shows the fallback queue. Only a convenience: the server decides what a call may do. */
+  isSuperAdmin: boolean;
 }
 
 /** Reads the current session straight from sessionStorage. */
@@ -42,7 +45,12 @@ export function readStaffSession(): StaffSession | null {
   // The API returns no display name, only the ID used to log in, so that's
   // what the staff headers show (rather than inventing a name like the
   // Figma mockups' "J. Doe").
-  return { token, role, staffId: sessionStorage.getItem(STAFF_ID_KEY) ?? "" };
+  return {
+    token,
+    role,
+    staffId: sessionStorage.getItem(STAFF_ID_KEY) ?? "",
+    isSuperAdmin: role === "auditor" && sessionStorage.getItem(SUPER_ADMIN_KEY) === "1",
+  };
 }
 
 function clearStaffSession(): void {
@@ -51,15 +59,18 @@ function clearStaffSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
   sessionStorage.removeItem(STAFF_ID_KEY);
+  sessionStorage.removeItem(SUPER_ADMIN_KEY);
   // In-progress Auditor reviews belong to this session too.
   clearAllDraftResolutions();
   notifySessionChanged();
 }
 
-function storeStaffSession(token: string, role: StaffRole, staffId: string): void {
+function storeStaffSession(token: string, role: StaffRole, staffId: string, isSuperAdmin = false): void {
   sessionStorage.setItem(TOKEN_KEY, token);
   sessionStorage.setItem(ROLE_KEY, role);
   sessionStorage.setItem(STAFF_ID_KEY, staffId);
+  if (isSuperAdmin && role === "auditor") sessionStorage.setItem(SUPER_ADMIN_KEY, "1");
+  else sessionStorage.removeItem(SUPER_ADMIN_KEY);
   notifySessionChanged();
 }
 
@@ -88,8 +99,9 @@ export function useAuth() {
 
   const login = useCallback(async (staffId: string, password: string): Promise<StaffRole> => {
     const result = await staffLogin(staffId, password);
-    storeStaffSession(result.token, result.role, staffId);
-    setSession({ token: result.token, role: result.role, staffId });
+    const isSuperAdmin = result.is_super_admin === true && result.role === "auditor";
+    storeStaffSession(result.token, result.role, staffId, isSuperAdmin);
+    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin });
     return result.role;
   }, []);
 
@@ -105,8 +117,9 @@ export function useAuth() {
     if (current && result.role !== current.role) {
       throw new Error("This account can't continue this session.");
     }
-    storeStaffSession(result.token, result.role, staffId);
-    setSession({ token: result.token, role: result.role, staffId });
+    const isSuperAdmin = result.is_super_admin === true && result.role === "auditor";
+    storeStaffSession(result.token, result.role, staffId, isSuperAdmin);
+    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin });
   }, []);
 
   const logout = useCallback(() => {
@@ -118,6 +131,7 @@ export function useAuth() {
     token: session?.token ?? null,
     role: session?.role ?? null,
     staffId: session?.staffId ?? "",
+    isSuperAdmin: session?.isSuperAdmin ?? false,
     isLoggedIn: session !== null,
     login,
     reauthenticate,

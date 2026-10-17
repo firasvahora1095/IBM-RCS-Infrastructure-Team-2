@@ -65,6 +65,7 @@ from app.assignment import NoEligibleAuditorError, select_auditor
 from app.case_ids import generate_case_id
 from app.case_status import public_status
 from app.case_workflow import record_case_assignment
+from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback, release_waiting_cases
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case, CaseSource
 from app.orchestrate import (
@@ -161,6 +162,16 @@ def _run_db_migrations() -> None:
         conn.execute(text(
             "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
         ))
+        # Sprint 3 fallback reviewer and case visibility (extra-features 1.6)
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_visibility VARCHAR(25) NOT NULL DEFAULT 'ASSIGNED_ONLY'"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS fallback_queued_at TIMESTAMPTZ"
+        ))
         # auditors — Sprint 3 daily reset column
         conn.execute(text(
             "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
@@ -204,6 +215,24 @@ def _daily_exposure_reset_job() -> None:
         db.close()
 
 
+def _release_fallback_job() -> None:
+    """Place fallback cases whose hold has passed, once a standard Auditor is eligible."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.fallback_queue import release_waiting_cases
+    db = SessionLocal()
+    try:
+        released = release_waiting_cases(db)
+        db.commit()
+        if released:
+            log.info("[SCHEDULER] fallback release: %s", ", ".join(f"{c}->{a}" for c, a in released))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] fallback release failed: %s", exc)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
     try:
@@ -215,6 +244,13 @@ async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
             _daily_exposure_reset_job,
             CronTrigger(hour=9, minute=0, timezone=ZoneInfo("Australia/Sydney")),
             id="daily_exposure_reset",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            _release_fallback_job,
+            "interval",
+            seconds=30,
+            id="fallback_release",
             replace_existing=True,
         )
         scheduler.start()
@@ -458,16 +494,26 @@ async def create_report(
 
         # Auditors never claim cases. The configured Orchestrate adapter owns
         # the assignment decision; this endpoint only validates and persists it.
-        decision = await orchestrator.assign_case(case_id)
-        selected_auditor = db.get(Auditor, decision.auditor_id)
-        if selected_auditor is None or selected_auditor.role != "auditor":
-            raise AssignmentOrchestrationError(
-                "Orchestrate selected an invalid Auditor account"
-            )
-        print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
-        logger.info("case %s assigned to %s", case_id, decision.auditor_id)
-        record_case_assignment(db, case, decision)
-        db.commit()
+        try:
+            decision = await orchestrator.assign_case(case_id)
+        except NoEligibleAuditorError:
+            # No standard Auditor can take it right now. The report is kept, not
+            # rejected: it waits, unowned, in the Super Admin's fallback queue.
+            decision = None
+        if decision is None:
+            logger.info("case %s has no eligible Auditor; queued for the Super Admin", case_id)
+            mark_fallback(db, case)
+            db.commit()
+        else:
+            selected_auditor = db.get(Auditor, decision.auditor_id)
+            if selected_auditor is None or selected_auditor.role != "auditor":
+                raise AssignmentOrchestrationError(
+                    "Orchestrate selected an invalid Auditor account"
+                )
+            print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
+            logger.info("case %s assigned to %s", case_id, decision.auditor_id)
+            record_case_assignment(db, case, decision)
+            db.commit()
         background_tasks.add_task(_run_analysis_in_background, case_id)
     except (
         AssignmentOrchestrationError,
@@ -600,6 +646,8 @@ async def staff_login(payload: LoginRequest, db: Session = Depends(get_db)):
     return {
         "token": token,
         "role": session.role,
+        # Lets the Auditor screens show the fallback queue. Every endpoint re-checks it server-side.
+        "is_super_admin": bool(staff.is_super_admin) and staff.role == "auditor",
         "expires_at": datetime.fromtimestamp(
             session.expires_at,
             tz=timezone.utc,
@@ -658,6 +706,10 @@ async def list_auditor_cases(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
+    # A fallback case may be waiting for exactly this Auditor to become eligible; place it now
+    # rather than at the next scheduler tick.
+    release_waiting_cases(db)
+    db.commit()
     assigned_cases = db.scalars(
         select(Case)
         .where(
@@ -1515,6 +1567,7 @@ async def get_case_oversight(
             "final_severity_tier": _final_severity_tier(c),
             "status": c.status,
             "manager_flag": c.manager_flag,
+            "case_visibility": c.case_visibility,
             "sos_alert_id": None,
         }
         for c in cases
@@ -1808,6 +1861,7 @@ async def reassign_case(
         raise HTTPException(status_code=409, detail="Auditor has an active SOS alert")
     before = {"assigned_auditor_id": case.assigned_auditor_id, "status": case.status}
     case.assigned_auditor_id = auditor_id
+    case.case_visibility = "ASSIGNED_ONLY"
     case.status = "READY_FOR_REVIEW"
     case.manager_flag = None
     db.add(AuditLog(
@@ -1987,6 +2041,7 @@ def _safe_audit_value(value):
 
 from app.governance_api import install_routes as install_governance_routes
 install_governance_routes(app, get_current_manager, require_internal_api_key)
+install_fallback_routes(app, get_current_session)
 # ---------------------------------------------------------------------------
 # AI Chatbot ("AI buddy") — watsonx.ai backed
 # ---------------------------------------------------------------------------

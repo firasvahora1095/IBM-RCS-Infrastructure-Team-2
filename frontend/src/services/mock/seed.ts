@@ -2,7 +2,7 @@ import type { MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
 import { createB2bSeed } from "./b2bSeed";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 11;
+export const MOCK_DB_VERSION = 12;
 
 /**
  * Synthetic demo data for the mock data source.
@@ -249,6 +249,8 @@ export function createSeedDb(now: number): MockDb {
     staffMember("auditor-4", "auditor", "Reese Patel", 2, 94, now, 35),
     staffMember("auditor-5", "auditor", "Marcus Webb", 3, 105, now, 50),
     staffMember("manager-1", "manager", "Alex Morgan", 0, 0, now, null),
+    // The fallback reviewer. Never picked by weighted assignment.
+    { ...staffMember("superadmin-1", "auditor", "Casey Admin", 0, 0, now, null), is_super_admin: true },
   ];
 
   const cases: MockCase[] = [
@@ -261,6 +263,43 @@ export function createSeedDb(now: number): MockDb {
       updated_at: minutesAgo(now, 2),
       // Finishes simulated AI analysis a few minutes into the demo.
       ai_ready_at: new Date(now + 3 * 60_000).toISOString(),
+    }),
+    // Fallback demo (extra-features 1.6): no standard Auditor owns these two.
+    baseCase(now, {
+      case_id: "AR-2026-00433",
+      assigned_auditor: null,
+      assigned_at: null,
+      case_visibility: "SUPER_ADMIN_ONLY",
+      created_at: minutesAgo(now, 14),
+      updated_at: minutesAgo(now, 8),
+      ai_ready_at: minutesAgo(now, 8),
+      watson_severity_score: 48,
+      effective_severity_score: 48,
+      severity_tier: "S2",
+      narrative_summary: "Mock: a verbal confrontation with no physical contact. Arrived while every standard Auditor was unavailable.",
+      incident_timeline: [{ start: 10, end: 25, severity_tier: "S2", tag: null }],
+      flagged_entities: [{ label: "Person A", start: 8, end: 40 }],
+      transcript: [{ time: 12, text: "[raised voices]" }],
+      audio_intensity: [0.2, 0.4, 0.5, 0.3, 0.2],
+      flag_reason: "Verbal conflict",
+    }),
+    baseCase(now, {
+      case_id: "AR-2026-00434",
+      assigned_auditor: null,
+      assigned_at: null,
+      case_visibility: "AVAILABLE_TO_AUDITORS",
+      created_at: minutesAgo(now, 22),
+      updated_at: minutesAgo(now, 6),
+      ai_ready_at: minutesAgo(now, 6),
+      watson_severity_score: 22,
+      effective_severity_score: 22,
+      severity_tier: "S1",
+      narrative_summary: "Mock: a routine interaction. Released to eligible Auditors to claim.",
+      incident_timeline: [{ start: 5, end: 5, severity_tier: "S1", tag: null }],
+      flagged_entities: [{ label: "Vehicle", start: 0, end: 40 }],
+      transcript: [{ time: 5, text: "[conversation]" }],
+      audio_intensity: [0.1, 0.2, 0.2, 0.1],
+      flag_reason: "Routine interaction",
     }),
     baseCase(now, {
       case_id: "AR-2026-00419",

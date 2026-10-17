@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Button,
@@ -29,6 +29,7 @@ import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import { StatTile } from "../../components/ui/StatTile";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
+import { AvailableCasesSection, FallbackQueueSection } from "../../components/fallback/FallbackQueue";
 
 /**
  * Status copy exactly as the Figma queue writes it ("Ready for review", "AI
@@ -67,7 +68,7 @@ const SECONDARY_TEXT = "var(--cds-text-helper)";
  */
 export function AuditorDashboardPage() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, isSuperAdmin } = useAuth();
   const { wellbeing } = useMyWellbeing();
   const handleSessionExpiry = useSessionExpiryHandler();
   const [cases, setCases] = useState<AuditorCaseListItem[] | null>(null);
@@ -99,6 +100,23 @@ export function AuditorDashboardPage() {
     cooldown !== null &&
     (Date.parse(cooldown.ends_at) > pageOpenedAt || (cooldown.requires_check_in && !cooldown.check_in_completed_at));
   const atExposureLimit = wellbeing != null && wellbeing.exposure_minutes_today >= wellbeing.exposure_limit_minutes;
+
+  // The fallback and "available to claim" lists reload after a case changes hands, and
+  // "My queue" reloads with them. The wellbeing blocks mirror what the server enforces.
+  const [fallbackRefresh, setFallbackRefresh] = useState(0);
+  const reloadAfterCaseChange = useCallback(() => {
+    if (token) {
+      getAuditorCases(token)
+        .then((result) => setCases(result))
+        .catch(() => {});
+    }
+    setFallbackRefresh((n) => n + 1);
+  }, [token]);
+  const takeBlockReason = inCooldown
+    ? "You are in a mandatory cooldown."
+    : atExposureLimit
+      ? "You have reached your daily exposure limit."
+      : null;
 
   useEffect(() => {
     if (!atExposureLimit || !token) return;
@@ -368,6 +386,18 @@ export function AuditorDashboardPage() {
 
         {cases && (
           <>
+            {/* The Super Admin's fallback queue sits first: it is their main job (extra-features 1.6). */}
+            {isSuperAdmin && token && (
+              <FallbackQueueSection
+                token={token}
+                refreshKey={fallbackRefresh}
+                onChanged={reloadAfterCaseChange}
+                onSessionExpired={handleSessionExpiry}
+                canTake={takeBlockReason === null}
+                blockReason={takeBlockReason}
+              />
+            )}
+
             {/*
               My queue, grouped by what the Auditor can do next (Sprint 3 extras §1.5):
               finish what's in review, then what's ready, then what's still in AI analysis.
@@ -405,6 +435,16 @@ export function AuditorDashboardPage() {
                 </section>
               );
             })}
+
+            {/* Cases released because no one could take them. Shown to standard Auditors, only when there are some. */}
+            {!isSuperAdmin && token && (
+              <AvailableCasesSection
+                token={token}
+                refreshKey={fallbackRefresh}
+                onChanged={reloadAfterCaseChange}
+                onSessionExpired={handleSessionExpiry}
+              />
+            )}
 
             {/* Empty-state panels (Figma 36:146, 36:189, 34:121). */}
             {openCases.length === 0 ? (

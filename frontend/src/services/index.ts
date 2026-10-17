@@ -44,6 +44,13 @@ export const aiChat = delegate("aiChat");
 
 // Auditor review
 export const getAuditorCases = delegate("getAuditorCases");
+
+// Fallback queue (Super Admin, extra-features 1.6)
+export const getAllOpenCases = delegate("getAllOpenCases");
+export const getAvailableCases = delegate("getAvailableCases");
+export const takeCase = delegate("takeCase");
+export const claimCase = delegate("claimCase");
+export const makeCaseAvailable = delegate("makeCaseAvailable");
 export const getAuditorCaseDetail = delegate("getAuditorCaseDetail");
 export const resolveCase = delegate("resolveCase");
 
