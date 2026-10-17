@@ -150,6 +150,15 @@ class AiBuddyTests(unittest.TestCase):
         self.assertEqual(summary["final_outcome"], "Violation Found")
         self.assertEqual(summary["delivery_status"], "NEEDS_ATTENTION")
 
+    def test_a_case_with_the_manager_never_names_who_declined_it(self) -> None:
+        with self.Session.begin() as db:
+            db.get(Case, "AR-2026-00500").manager_flag = "DECLINED"
+            db.get(Case, "AR-2026-00500").status = "AUDITOR_REVIEW"
+        with self.Session() as db:
+            summary = lookup_case(db, "manager", "manager-1", "AR-2026-00500")
+        self.assertEqual(summary["status"], "Manager Review")
+        self.assertIsNone(summary["assigned_auditor"])
+
     def test_declined_case_shows_as_manager_review(self) -> None:
         with self.Session.begin() as db:
             db.get(Case, "AR-2026-00417").manager_flag = "DECLINED"
