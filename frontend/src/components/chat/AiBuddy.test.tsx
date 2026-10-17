@@ -189,15 +189,17 @@ describe("AiBuddy", () => {
     await waitFor(() => expect(screen.getByLabelText("Ask a question")).toHaveFocus());
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "AI Buddy" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "AI Buddy" })).toHaveFocus();
+    // Focus goes back in an effect, so wait for it rather than assuming it has already run.
+    await waitFor(() => expect(screen.getByRole("button", { name: "AI Buddy" })).toHaveFocus());
   });
 
   it("makes room for the panel on wide screens only while it is open", async () => {
     renderBuddy();
     const user = await openPanel();
-    expect(document.documentElement).toHaveAttribute("data-ai-buddy", "open");
+    // The attribute is set and removed in effects, which React may run a moment after the click or key press.
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-ai-buddy", "open"));
     await user.keyboard("{Escape}");
-    expect(document.documentElement).not.toHaveAttribute("data-ai-buddy");
+    await waitFor(() => expect(document.documentElement).not.toHaveAttribute("data-ai-buddy"));
   });
 
   it("keeps the conversation in sessionStorage only, and Clear conversation removes it", async () => {
