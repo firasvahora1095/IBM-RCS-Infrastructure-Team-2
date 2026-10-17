@@ -133,14 +133,14 @@ def test_real_frame_tags_scores_and_raw_responses_are_persisted(tmp_path: Path) 
         }
     ]
 
-    raw = json.loads((tmp_path / "analysis-output/frame-00001.raw.json").read_text())
+    raw = json.loads((tmp_path / "analysis-output/frame-00001.raw.json").read_text(encoding="utf-8"))
     normalized = json.loads(
-        (tmp_path / "analysis-output/frame-00001.analysis.json").read_text()
+        (tmp_path / "analysis-output/frame-00001.analysis.json").read_text(encoding="utf-8")
     )
     saved_case_analysis = json.loads(
-        (tmp_path / "analysis-output/case-analysis.json").read_text()
+        (tmp_path / "analysis-output/case-analysis.json").read_text(encoding="utf-8")
     )
-    manifest = json.loads((tmp_path / "analysis-output/manifest.json").read_text())
+    manifest = json.loads((tmp_path / "analysis-output/manifest.json").read_text(encoding="utf-8"))
     assert raw["id"] == "response-2"
     assert "raw_response" not in raw
     assert normalized["tags"] == ["physical_violence"]
@@ -302,7 +302,7 @@ def test_model_failure_returns_handled_state_and_database_fallback(tmp_path: Pat
         assert stored.flagged_entities is None
         assert audit.action == "AI_ANALYSIS_FAILED"
 
-    manifest = json.loads((tmp_path / "failed-output/manifest.json").read_text())
+    manifest = json.loads((tmp_path / "failed-output/manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "failed"
     assert manifest["failure_stage"] == "watsonx_call"
     assert manifest["failed_frame"] == "frame-00000"
@@ -335,7 +335,7 @@ def test_malformed_model_content_keeps_raw_response_for_audit(tmp_path: Path) ->
     assert run.status == "failed"
     assert run.failure_stage == "response_validation"
     raw = json.loads(
-        (tmp_path / "malformed-output/frame-00000.raw.json").read_text()
+        (tmp_path / "malformed-output/frame-00000.raw.json").read_text(encoding="utf-8")
     )
     assert raw["id"] == "malformed-response-1"
     assert not (tmp_path / "malformed-output/frame-00000.analysis.json").exists()

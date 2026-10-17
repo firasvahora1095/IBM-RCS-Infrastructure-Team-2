@@ -240,6 +240,9 @@ def _format_summary_time(start: float, end: float) -> str:
     rounded_end = int(float(end) + 0.5)
     if rounded_start == rounded_end:
         return f"at approximately {_fmt(rounded_start)}"
+    if rounded_end < 60:
+        # The approved wording states the unit once: "around 5–10 seconds".
+        return f"around {rounded_start}–{rounded_end} seconds"
     return f"around {_fmt(rounded_start)}–{_fmt(rounded_end)}"
 
 
