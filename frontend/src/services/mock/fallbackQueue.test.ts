@@ -171,22 +171,35 @@ describe("fallback queue (mock data source, extra-features 1.6)", () => {
         st.cooldown = null;
       });
 
-    it("a parked case says when it will be placed", async () => {
+    it("a parked case is visible to the Super Admin at once, with nothing to wait for", async () => {
       const id = await parkedCase();
       const admin = await login("superadmin-1");
       const row = (await mock.getAllOpenCases(admin.token)).find((r) => r.case_id === id)!;
-      expect(Date.parse(row.auto_release_at!) - Date.now()).toBeGreaterThan(FALLBACK_HOLD_MS - 5_000);
+      expect(FALLBACK_HOLD_MS).toBe(0);
+      expect(row.assigned_auditor_id).toBeNull();
+      expect(Date.parse(row.auto_release_at!)).toBeLessThanOrEqual(Date.now());
     });
 
-    it("is not placed before its hold ends, even when an Auditor is free", async () => {
+    it("is placed the moment a standard Auditor becomes eligible, with no delay", async () => {
       const id = await parkedCase();
-      freeUp("auditor-1");
       const admin = await login("superadmin-1");
       await mock.getAllOpenCases(admin.token);
-      expect(readDb().cases.find((c) => c.case_id === id)!.assigned_auditor).toBeNull();
+      expect(readDb().cases.find((c) => c.case_id === id)!.assigned_auditor).toBeNull(); // nobody free yet
+      freeUp("auditor-1");
+      await mock.getAllOpenCases(admin.token);
+      expect(readDb().cases.find((c) => c.case_id === id)!.assigned_auditor).toBe("auditor-1");
     });
 
-    it("is placed by itself once the hold ends and a standard Auditor is eligible", async () => {
+    it("lets the Super Admin take it first if they get there before an Auditor is free", async () => {
+      const id = await parkedCase();
+      const admin = await login("superadmin-1");
+      await mock.takeCase(id, admin.token);
+      freeUp("auditor-1");
+      await mock.getAllOpenCases(admin.token);
+      expect(readDb().cases.find((c) => c.case_id === id)!.assigned_auditor).toBe("superadmin-1");
+    });
+
+    it("is placed by itself once a standard Auditor is eligible", async () => {
       const id = await parkedCase();
       freeUp("auditor-1");
       age(id, FALLBACK_HOLD_MS + 1_000);

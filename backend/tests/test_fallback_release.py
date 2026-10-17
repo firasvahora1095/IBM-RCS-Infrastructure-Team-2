@@ -70,7 +70,7 @@ class FallbackReleaseTests(unittest.TestCase):
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
         session_store.clear()
-        os.environ["FALLBACK_HOLD_MINUTES"] = "5"
+        os.environ["FALLBACK_HOLD_MINUTES"] = "5"  # most tests exercise a hold; the defaults have their own tests
         with self.Session.begin() as db:
             db.add_all(
                 [
@@ -119,15 +119,25 @@ class FallbackReleaseTests(unittest.TestCase):
 
     # --- the hold ---------------------------------------------------------------
 
-    def test_hold_defaults_to_five_minutes_and_is_configurable(self) -> None:
+    def test_there_is_no_hold_by_default_and_one_can_be_configured(self) -> None:
         os.environ.pop("FALLBACK_HOLD_MINUTES", None)
-        self.assertEqual(fallback_hold_minutes(), 5)
-        os.environ["FALLBACK_HOLD_MINUTES"] = "0"
         self.assertEqual(fallback_hold_minutes(), 0)
-        os.environ["FALLBACK_HOLD_MINUTES"] = "not a number"
+        os.environ["FALLBACK_HOLD_MINUTES"] = "5"
         self.assertEqual(fallback_hold_minutes(), 5)
+        os.environ["FALLBACK_HOLD_MINUTES"] = "not a number"
+        self.assertEqual(fallback_hold_minutes(), 0)
 
-    def test_a_case_is_not_placed_before_its_hold_ends_so_the_super_admin_gets_first_look(self) -> None:
+    def test_by_default_a_parked_case_is_placed_the_moment_someone_is_eligible(self) -> None:
+        os.environ.pop("FALLBACK_HOLD_MINUTES", None)
+        self.set_auditor("auditor-1", cooldown_ends_at=NOW + timedelta(minutes=20))
+        self.set_auditor("auditor-2", exposure_minutes=120.0)
+        self.park("NOW1", minutes_ago=0)
+        self.assertEqual(self.release(), [])  # nobody eligible: it waits, visible to the Super Admin
+        self.set_auditor("auditor-1", cooldown_ends_at=None)
+        self.assertEqual(self.release(), [("NOW1", "auditor-1")])  # no delay once someone is free
+
+    def test_a_configured_hold_keeps_a_case_back_so_the_super_admin_gets_first_look(self) -> None:
+        os.environ["FALLBACK_HOLD_MINUTES"] = "5"
         self.park("FRESH1", minutes_ago=2)
         self.assertEqual(self.release(), [])
         self.assertIsNone(self.owner("FRESH1"))

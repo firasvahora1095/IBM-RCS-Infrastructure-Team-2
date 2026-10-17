@@ -59,14 +59,15 @@ def unavailable_reason(db: Session, auditor: Auditor, now: datetime | None = Non
 def fallback_hold_minutes() -> int:
     """How long a parked case waits for the Super Admin before the system places it.
 
-    An assumption, not a client ruling: long enough that a cooldown ending seconds later does not
-    snatch a case the Super Admin is about to take, short enough that no case sits unreviewed.
-    Set FALLBACK_HOLD_MINUTES to change it (0 releases as soon as someone is eligible).
+    The team decided on 0: no delay that nobody specified. A case waits safely and is visible to the
+    Super Admin at once; the moment a standard Auditor is eligible it is placed by the weighted rule,
+    unless the Super Admin has already taken it. FALLBACK_HOLD_MINUTES can add a delay if a client
+    ever asks for the Super Admin to have a first look of a stated length.
     """
     try:
-        return max(0, int(os.getenv("FALLBACK_HOLD_MINUTES", "5")))
+        return max(0, int(os.getenv("FALLBACK_HOLD_MINUTES", "0")))
     except ValueError:
-        return 5
+        return 0
 
 
 def _has_open_sos(db: Session, auditor_id: str) -> bool:

@@ -2,13 +2,15 @@
 
 **Track:** Design / Product · **Owner:** Aleeya Ahmad (UX) · **Branch:** `feat/super-admin-auditor`
 **Asked for by:** Emily, 8 Oct demo feedback (`meeting-with-emily-sprint-3-demo.md`, section 3): "a super admin auditor who always receives all cases, a fallback, plus something that can make cases visible to low level auditors."
+**How we word it:** the Super Admin has **visibility of all cases and acts as the fallback reviewer**. Visibility is kept separate from ownership and assignment, so "always receives" never means "owns everything".
+**Team decisions (confirmed):** no hold (0 minutes); the Super Admin may claim a released case; a Manager may reassign to the Super Admin, listed last; Super Admin is a flag on an Auditor account, with every extra permission enforced server-side and no Manager powers.
 **Rules from:** [`docs/ba/extra-features.md`](../ba/extra-features.md), section 1.6 (Case Assignment Fallback)
 
 ## 1. The idea in four lines
 
 1. **Normal assignment stays the default.** Weighted by exposure and case count, as Naresh specified. The Super Admin is never part of that pool.
 2. **A case is never lost.** Before this work, a report made while every standard Auditor was in cooldown or at their limit failed with a 503 and its upload was deleted. Now it is kept, unowned, and visible to the Super Admin.
-3. **Nobody has to click to move it.** The system places a parked case by itself, using the same weighted rule and the same wellbeing checks, as soon as a standard Auditor is eligible.
+3. **Nobody has to click to move it.** The system places a parked case by itself, using the same weighted rule and the same wellbeing checks, **the moment** a standard Auditor is eligible, unless the Super Admin has already taken it.
 4. **Seeing is not owning, and owning is the only way in.** Visibility lives in `cases.case_visibility`; ownership in `cases.assigned_auditor_id`. Only the owner can open the full review, so the Super Admin seeing a case never exposes its footage.
 
 ## 2. Rights matrix
@@ -43,29 +45,32 @@ New report
                                   │
                                   ├─ Super Admin takes it (optional, any time, if they are eligible)
                                   │
-                                  └─ after the hold, and once a standard Auditor is eligible:
+                                  └─ the moment a standard Auditor is eligible (no hold):
                                          the system assigns it by the same weighted rule ──► ASSIGNED_ONLY
 ```
 
 **Who is eligible** is exactly what normal assignment already means, plus the one extra block Manager reassignment uses: not in cooldown, under the daily exposure limit, no open SOS. The Super Admin is never chosen.
 
-**When it runs.** A scheduler job every 30 seconds, and also when an Auditor opens their queue or the Super Admin opens the fallback queue, so a due case is placed at the first moment someone could take it.
+**When it runs.** A scheduler job every 30 seconds, and also when an Auditor opens their queue or the Super Admin opens the fallback queue, so a waiting case is placed at the first moment someone could take it.
+
+**Why there is no hold.** An earlier draft held a case for 5 minutes so the Super Admin had a first look. The team removed it: the number was never specified, and with 30-second polling the Super Admin would need a separate notification to act within it, so the delay protected nothing. A case waits safely and is visible to the Super Admin straight away; if they get there first they take it, otherwise the weighted rule places it. `FALLBACK_HOLD_MINUTES` still exists and defaults to 0, in case a client ever specifies a first-look window.
 
 **Why this and not the claim list.** Letting Auditors claim a case would ask a person to do the placement the system already knows how to do, and would favour whoever clicks fastest over whoever is lightest loaded. Placement by the weighted rule is fairer and needs no one. "Make available" remains for the one case where a Manager or the Super Admin wants Auditors to choose for themselves; it is an option, not a step.
 
 **What the system never touches:** a case with the Manager, a case already released for claiming, a case that has an owner, and any case without a recorded queued time (hand-seeded demo data stays put).
 
-**The Super Admin sees it coming.** Each parked case shows "Placed automatically from 2:32 pm", so there is nothing to watch and nothing to chase.
+**The Super Admin sees it coming.** A parked case reads "Being placed automatically when an Auditor is free" (or "Placed automatically from 2:32 pm" if a hold is configured), so there is nothing to watch and nothing to chase.
 
-## 4. Assumptions to confirm (not client rulings)
+## 4. Decisions
 
-| # | Assumption | Why it was chosen | Who confirms |
-|---|---|---|---|
-| 1 | **Hold of 5 minutes** before the system places a parked case (`FALLBACK_HOLD_MINUTES`; 0 places it as soon as someone is eligible). | A cooldown ending seconds later shouldn't snatch a case the Super Admin is about to take; five minutes is short enough that no case sits unreviewed. No source gives this number. | Jana (BA) / Naresh |
-| 2 | The Super Admin may also claim a case released for claiming. | They can already take any unowned case, so blocking it protects nothing. | Jana |
-| 3 | The Super Admin appears last in the Manager's reassignment list and in the Manager's Auditor overview. | A Manager may reassign to them (BA 1.6: "be assigned a case as a fallback"); wellbeing limits apply to them as to anyone. | Jana |
-| 4 | The mock data source uses a 60-second hold so the behaviour is visible in a demo. | A real 5-minute wait is too long to show. | Aleeya |
-| 5 | "Super Admin" is a flag on an Auditor account, not a new role. | Keeps the session role model unchanged and makes it impossible for a Manager account to be one. | Hyuna / Firas |
+| # | Decision | Status |
+|---|---|---|
+| 1 | **No hold (0 minutes).** A case is placed the moment a standard Auditor is eligible, unless the Super Admin has already taken it. | Confirmed by the team |
+| 2 | The Super Admin can claim a released or unowned case, as long as they are eligible themselves and the case is not waiting on a Manager exception (decline, SOS, cap reached). | Confirmed |
+| 3 | A Manager can reassign a case to the Super Admin. They are listed last, and the same wellbeing rules apply. | Confirmed |
+| 4 | "Super Admin" is a flag on an Auditor account, not a new role, provided the extra permissions are enforced server-side and give no Manager powers. | Confirmed. Enforced server-side and proved by `test_access_matrix.py` |
+| 5 | Wording: "visibility of all cases, and the fallback reviewer", not "always receives cases". | Confirmed |
+| 6 | The mock data source follows the same rule (no hold). | Aleeya |
 
 ## 5. What changed
 
@@ -88,5 +93,3 @@ python -m pytest tests/test_access_matrix.py tests/test_fallback_queue.py tests/
 cd ../frontend
 npx vitest run src/components/fallback src/services/mock/fallbackQueue.test.ts
 ```
-
-Known failures that predate this work and are not caused by it: 9 backend tests in `test_storage.py` and `test_video_analysis.py`; 3 frontend tests about the S4 cooldown check-in (`CooldownPage.test.tsx` twice, `mockDataService.test.ts` once).

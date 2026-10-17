@@ -174,10 +174,11 @@ function selectAuditor(db: MockDb): string | null {
 }
 
 /**
- * How long a parked case waits for the Super Admin before the system places it. The real backend's
- * default is 5 minutes (FALLBACK_HOLD_MINUTES); this is shortened so the behaviour is visible in a demo.
+ * How long a parked case waits for the Super Admin before the system places it. The team decided on
+ * none, as in the backend (FALLBACK_HOLD_MINUTES defaults to 0): a case is placed as soon as a
+ * standard Auditor is eligible, unless the Super Admin has already taken it.
  */
-export const FALLBACK_HOLD_MS = 60_000;
+export const FALLBACK_HOLD_MS = 0;
 
 function autoReleaseAt(c: MockCase): number | null {
   if (!c.fallback_queued_at || c.case_visibility !== "SUPER_ADMIN_ONLY") return null;
