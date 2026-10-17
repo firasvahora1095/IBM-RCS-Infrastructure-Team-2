@@ -17,7 +17,7 @@ import { StatusTag } from "../ui/StatusTag";
 import { claimCase, getAllOpenCases, getAvailableCases, makeCaseAvailable, takeCase } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
-import { mapStatusToStaffLabel } from "../../design-tokens/statusLabels";
+import { managerStatusLabel } from "../../design-tokens/managerLabels";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 } as const;
 
@@ -54,10 +54,9 @@ function errorText(err: unknown): string {
   return err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE;
 }
 
-/** Manager Review for a declined, SOS or cap-reached case still open, as on the Manager screens. */
+/** The same status wording as the Manager screens. */
 function statusLabel(row: FallbackCaseRow): string {
-  if (row.manager_flag && row.status !== "COMPLETE") return "Manager Review";
-  return mapStatusToStaffLabel(row.status as InternalCaseStatus);
+  return managerStatusLabel(row.status as InternalCaseStatus, row.manager_flag);
 }
 
 interface SectionProps {

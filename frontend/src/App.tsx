@@ -20,6 +20,7 @@ import { ManagerDeclinedQueuePage } from "./pages/manager/ManagerDeclinedQueuePa
 import { ManagerCaseReviewPage } from "./pages/manager/ManagerCaseReviewPage";
 import { ManagerReassignmentPage } from "./pages/manager/ManagerReassignmentPage";
 import { ManagerExceptionalAccessPage } from "./pages/manager/ManagerExceptionalAccessPage";
+import { ManagerInsightsPage } from "./pages/manager/ManagerInsightsPage";
 import { ManagerValidationPage } from "./pages/manager/ManagerValidationPage";
 import { ManagerDeliveriesPage } from "./pages/manager/ManagerDeliveriesPage";
 import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetailPage";
@@ -67,7 +68,8 @@ function PublicLayout() {
  *   "/auditor"           — Auditor dashboard (auditor role only)
  *   "/auditor/cases/:id" — Auditor case review: content warning → summary → workspace → severity → confirmation
  *   "/auditor/cooldown"  — Auditor cooldown after a high-severity case or SOS
- *   "/manager"                          — Oversight Dashboard (manager role only, as are all below)
+ *   "/manager"                          — Overview (manager role only, as are all below)
+ *   "/manager/insights"                 — Insights: case flow, AI and Auditor decisions, outcomes, delivery health
  *   "/manager/audit-logs"              — Saved audit history
  *   "/manager/auditors/:auditorId"      — Auditor Detail / exposure limit / check-ins
  *   "/manager/cases"                    — Consolidated Case Oversight
@@ -208,6 +210,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="manager">
             <ManagerDeclinedQueuePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/insights"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerInsightsPage />
           </ProtectedRoute>
         }
       />

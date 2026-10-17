@@ -84,9 +84,14 @@ export function ManagerDeliveriesPage() {
         title="Deliveries"
         subtitle="Completed case results are sent to CommunityHub automatically. You only need to act when a delivery keeps failing."
         actions={
-          <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
-            CommunityHub connection
-          </Button>
+          <>
+            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/messages">
+              Client messages
+            </Button>
+            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
+              CommunityHub connection
+            </Button>
+          </>
         }
       />
       <LoadState error={error} loading={!data && !error} what="deliveries" />
@@ -95,7 +100,7 @@ export function ManagerDeliveriesPage() {
           <Grid className="rcs-grid" condensed>
             <Column sm={2} md={2} lg={4}>
               <StatTile
-                label="Needs attention"
+                label="Failed"
                 value={counts.attention}
                 tone={counts.attention ? "error" : "neutral"}
                 helper={counts.attention ? "Failed after automatic retries" : "All clear"}
@@ -113,7 +118,7 @@ export function ManagerDeliveriesPage() {
             </Column>
             <Column sm={2} md={2} lg={4}>
               <StatTile
-                label="Successful"
+                label="Delivered"
                 value={counts.success}
                 helper="Received by CommunityHub"
               />

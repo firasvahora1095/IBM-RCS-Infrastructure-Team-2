@@ -10,6 +10,8 @@ interface StatTileProps {
   helper?: ReactNode;
   /** "error" adds the 3px red accent the SOS Inbox uses for rows that need action. */
   tone?: Tone;
+  /** A control for the tile, e.g. "Evidence", always in the top-right corner. */
+  corner?: ReactNode;
   /** Makes the whole tile a link. */
   to?: string;
   /** Accessible name for the link; defaults to "{label}: {value}". */
@@ -20,7 +22,7 @@ interface StatTileProps {
  * A summary figure in the existing Manager Panel style: white, 1px subtle
  * border, small label over a monospace value (as Figure in ManagerBits).
  */
-export function StatTile({ label, value, helper, tone = "neutral", to, linkLabel }: StatTileProps) {
+export function StatTile({ label, value, helper, tone = "neutral", corner, to, linkLabel }: StatTileProps) {
   const body = (
     <>
       <span className="rcs-stat-label">{label}</span>
@@ -38,6 +40,19 @@ export function StatTile({ label, value, helper, tone = "neutral", to, linkLabel
       >
         {body}
       </RouterLink>
+    );
+  }
+  if (corner) {
+    // Label left, control right, on one row: the same arrangement as a section's title row.
+    return (
+      <div className={className}>
+        <div className="rcs-stat-top">
+          <span className="rcs-stat-label">{label}</span>
+          {corner}
+        </div>
+        <span className="rcs-stat-value">{value}</span>
+        {helper && <span className="rcs-stat-helper">{helper}</span>}
+      </div>
     );
   }
   return <div className={className}>{body}</div>;

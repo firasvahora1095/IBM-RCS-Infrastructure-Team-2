@@ -146,9 +146,10 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
   });
 
   it.each([
-    ["Intelligence Dashboard", "/manager", "Manager Intelligence Dashboard"],
+    ["Overview", "/manager", "Overview"],
+    ["Insights", "/manager/insights", "Insights"],
     ["Auditor Detail", "/manager/auditors/auditor-4", "Reese Patel"],
-    ["Case Oversight", "/manager/cases", "Consolidated Case Oversight"],
+    ["Cases", "/manager/cases", "Cases"],
     ["SOS Inbox", "/manager/sos", "SOS Inbox"],
     ["SOS Alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
     ["SOS Follow-up", "/manager/sos/SOS-demo0003/follow-up", "Log follow-up — Reese Patel"],

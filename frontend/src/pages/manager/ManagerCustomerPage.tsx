@@ -177,10 +177,10 @@ export function ManagerCustomerPage() {
               <SegmentedBar
                 label="Delivery health"
                 segments={[
-                  { key: "ok", label: "Successful", value: data.health.success, color: "var(--cds-support-success)" },
+                  { key: "ok", label: "Delivered", value: data.health.success, color: "var(--cds-support-success)" },
                   { key: "pending", label: "Pending", value: data.health.pending, color: "var(--cds-border-strong-01)" },
                   { key: "retry", label: "Retrying", value: data.health.retrying, color: "var(--cds-support-info)" },
-                  { key: "attention", label: "Needs attention", value: data.health.needs_attention, color: "var(--cds-support-error)" },
+                  { key: "attention", label: "Failed", value: data.health.needs_attention, color: "var(--cds-support-error)" },
                 ]}
               />
             </Section>

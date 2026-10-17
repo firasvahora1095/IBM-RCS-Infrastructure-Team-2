@@ -2,8 +2,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button, Tag } from "@carbon/react";
 import { EntityPills } from "../../components/review/AiEvidencePanels";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { getManagerCaseReview } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -30,7 +31,7 @@ export function ManagerCaseReviewPage() {
   return (
     <ManagerLayout showNav={false}>
       <ManagerBreadcrumb trail={[{ label: "Reassignment Queue", to: "/manager/reassignment" }, { label: caseId }]} />
-      <h1 style={pageTitle}>Case {caseId}</h1>
+      <PageHeader title={`Case ${caseId}`} />
       <LoadState error={error} loading={!data && !error} what="this case" />
       {data && (
         <>

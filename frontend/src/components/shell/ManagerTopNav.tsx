@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import { MANAGER_SECTIONS } from "./managerSections";
+import { Link, useLocation } from "react-router-dom";
+import { activeSection, MANAGER_SECTIONS } from "./managerSections";
 
 const tabBase = {
   display: "inline-block",
@@ -11,13 +11,16 @@ const tabBase = {
 } as const;
 
 /**
- * The Manager TopNav (Figma component "TopNav=Manager", node 94:132): all
- * the Manager sections, each a real route (Task 103).
+ * The Manager TopNav (Figma component "TopNav=Manager", node 94:132): the five
+ * Manager sections, each a real route (Task 103).
  *
- * Real links (NavLink) rather than buttons, because these navigate between
- * pages; NavLink also sets aria-current="page" on the active section.
+ * Real links rather than buttons, because these navigate between pages. The
+ * active section is worked out from the path so that sub-pages (an SOS alert,
+ * a reassignment decision) keep the section they belong to marked with
+ * aria-current="page".
  */
 export function ManagerTopNav() {
+  const active = activeSection(useLocation().pathname);
   return (
     <nav
       aria-label="Manager sections"
@@ -27,21 +30,24 @@ export function ManagerTopNav() {
         borderBottom: "1px solid var(--cds-border-subtle-01)",
       }}
     >
-      {MANAGER_SECTIONS.map((tab) => (
-        <NavLink
-          key={tab.path}
-          to={tab.path}
-          end={tab.end}
-          style={({ isActive }) => ({
-            ...tabBase,
-            color: isActive ? "var(--cds-text-primary)" : "var(--cds-text-secondary)",
-            fontWeight: isActive ? 600 : 400,
-            borderBottomColor: isActive ? "var(--cds-border-interactive)" : "transparent",
-          })}
-        >
-          {tab.label}
-        </NavLink>
-      ))}
+      {MANAGER_SECTIONS.map((tab) => {
+        const isActive = tab.path === active;
+        return (
+          <Link
+            key={tab.path}
+            to={tab.path}
+            aria-current={isActive ? "page" : undefined}
+            style={{
+              ...tabBase,
+              color: isActive ? "var(--cds-text-primary)" : "var(--cds-text-secondary)",
+              fontWeight: isActive ? 600 : 400,
+              borderBottomColor: isActive ? "var(--cds-border-interactive)" : "transparent",
+            }}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

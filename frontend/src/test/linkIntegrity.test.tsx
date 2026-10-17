@@ -37,6 +37,7 @@ const JOURNEYS: Record<Person, string[]> = {
   auditor: ["/auditor", "/auditor/cooldown"],
   manager: [
     "/manager",
+    "/manager/insights",
     "/manager/cases",
     "/manager/sos",
     "/manager/reassignment",

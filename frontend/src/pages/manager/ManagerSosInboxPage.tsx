@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { secondaryText } from "../../components/manager/managerStyles";
 import { listSosAlerts } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
@@ -22,7 +23,7 @@ export function ManagerSosInboxPage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>SOS Inbox</h1>
+      <PageHeader title="SOS Inbox" subtitle="Most urgent first. Review an alert to see the context; you acknowledge it from there, then log your follow-up." />
       <LoadState error={error} loading={!data && !error} what="SOS alerts" />
       {data && data.length === 0 && <p style={secondaryText}>No SOS alerts have been raised.</p>}
       {data && data.length > 0 && (
@@ -36,7 +37,14 @@ export function ManagerSosInboxPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((alert) => {
+              {/* Unacknowledged first, then newest: the order to work in. */}
+              {[...data]
+                .sort(
+                  (a, b) =>
+                    Number(b.status === "UNACKNOWLEDGED") - Number(a.status === "UNACKNOWLEDGED") ||
+                    Date.parse(b.triggered_at) - Date.parse(a.triggered_at),
+                )
+                .map((alert) => {
                 const unacknowledged = alert.status === "UNACKNOWLEDGED";
                 const detailUrl = `/manager/sos/${encodeURIComponent(alert.id)}`;
                 return (
@@ -52,13 +60,15 @@ export function ManagerSosInboxPage() {
                     <TableCell>{formatDayTime(alert.triggered_at, now, { withAgo: true })}</TableCell>
                     <TableCell>
                       {unacknowledged ? (
+                        // Opens the context first. Acknowledging is a step on the next page, so this is not red:
+                        // it is not a destructive action, and nothing is recorded by clicking it.
                         <Button
-                          kind="danger"
+                          kind="tertiary"
                           size="sm"
                           onClick={() => navigate(detailUrl)}
-                          aria-label={`Acknowledge ${alert.auditor_name}'s SOS alert`}
+                          aria-label={`Review ${alert.auditor_name}'s SOS alert`}
                         >
-                          Acknowledge
+                          Review alert
                         </Button>
                       ) : (
                         <RouterLink to={detailUrl} className="cds--link">

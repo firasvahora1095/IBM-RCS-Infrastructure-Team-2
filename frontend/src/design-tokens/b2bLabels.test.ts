@@ -6,10 +6,10 @@ import { NOT_IN_CLIENT_REPORT, REPORT_STATUS_LABEL, RELEASE_CONFIRM_BODY } from 
 describe("B2B labels", () => {
   it("names every delivery status in plain words", () => {
     expect(DELIVERY_STATUS_LABEL).toEqual({
-      SUCCESS: "Successful",
+      SUCCESS: "Delivered",
       PENDING: "Pending",
       RETRYING: "Retrying",
-      NEEDS_ATTENTION: "Needs attention",
+      NEEDS_ATTENTION: "Failed",
     });
   });
 

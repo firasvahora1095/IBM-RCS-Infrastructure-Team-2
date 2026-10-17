@@ -30,25 +30,24 @@ function SheetSection({
 }) {
   return (
     <section className="rcs-sheet-section" aria-labelledby={`${defId}-title`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <h3 id={`${defId}-title`} className="rcs-section-title">
-            {title}
-          </h3>
-          <p className="rcs-helper">{definition}</p>
-        </div>
+      {/* Title and its control share one row, the control at the far end, as on every Manager section. */}
+      <div className="rcs-section-head">
+        <h3 id={`${defId}-title`} className="rcs-section-title">
+          {title}
+        </h3>
         {evidence && (
           <Button
             kind="ghost"
             size="sm"
             className="rcs-no-print rcs-evidence-button"
             onClick={evidence}
-            aria-label={`View evidence: ${title}`}
+            aria-label={`Evidence: ${title}`}
           >
-            View evidence
+            Evidence
           </Button>
         )}
       </div>
+      <p className="rcs-helper">{definition}</p>
       {children}
     </section>
   );
@@ -217,7 +216,7 @@ export function ReportSheet({
           <SegmentedBar
             label="Delivery health"
             segments={[
-              { key: "ok", label: "Successful", value: m.delivery.success, color: "var(--cds-support-success)" },
+              { key: "ok", label: "Delivered", value: m.delivery.success, color: "var(--cds-support-success)" },
               {
                 key: "retry",
                 label: "Pending or retrying",
@@ -226,7 +225,7 @@ export function ReportSheet({
               },
               {
                 key: "na",
-                label: "Needs attention",
+                label: "Failed",
                 value: m.delivery.needs_attention,
                 color: "var(--cds-support-error)",
               },
@@ -248,7 +247,7 @@ export function ReportSheet({
 
       <footer className="rcs-sheet-section">
         <p className="rcs-helper">
-          Prepared by RCS from completed case records. Final outcomes and severities are decided by trained human
+          Generated from completed case records. Final outcomes and severities are decided by trained human
           reviewers; AI analysis assists them and never makes the final decision. This report contains aggregate figures
           only. Figures were calculated on {formatShortDateTime(calculatedAt)} and are fixed for version{" "}
           {report.version}: a released version never changes.

@@ -77,16 +77,26 @@ describe("B2B screens — automated accessibility", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("Manager Intelligence Dashboard, loaded, and its evidence dialog have no detectable violations", async () => {
+  it("Manager Overview, loaded, and its evidence dialog have no detectable violations", async () => {
     await signInManager();
     const { container } = renderAt("/manager");
     await screen.findByRole("table", { name: "Auditor protection and availability" });
     await screen.findByRole("list", { name: "Items that need you" });
+    expect(await axe(container)).toHaveNoViolations();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Evidence" })[0]);
+    await screen.findByRole("table", { name: "Contributing cases" });
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("Manager Insights, loaded, and its evidence dialog have no detectable violations", async () => {
+    await signInManager();
+    const { container } = renderAt("/manager/insights");
     await screen.findByRole("table", { name: /AI severity \(rows\)/ });
     expect(await axe(container)).toHaveNoViolations();
 
-    const strip = screen.getByRole("region", { name: "Operations at a glance" });
-    fireEvent.click(within(strip).getAllByRole("button", { name: "View evidence" })[0]);
+    const strip = screen.getByRole("region", { name: "Figures for the period" });
+    fireEvent.click(within(strip).getAllByRole("button", { name: "Evidence" })[0]);
     await screen.findByRole("table", { name: "Contributing cases" });
     expect(await axe(document.body)).toHaveNoViolations();
   });

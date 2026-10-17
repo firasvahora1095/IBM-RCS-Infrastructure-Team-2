@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, RadioButton, RadioButtonGroup, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { pageTitle } from "../../components/manager/managerStyles";
 import { getSosAlert, logSosFollowUp } from "../../services";
 import { ApiError, type SosFollowUpOutcome } from "../../services/types";
 import { SOS_FOLLOW_UP_OPTIONS } from "../../design-tokens/managerLabels";
@@ -60,7 +60,7 @@ export function ManagerSosFollowUpPage() {
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
       <ManagerBreadcrumb trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: `${name} — Follow-up` }]} />
-      <h1 style={pageTitle}>Log follow-up — {name}</h1>
+      <PageHeader title={`Log follow-up — ${name}`} />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && logged && (
         <Panel maxWidth={560}>
@@ -72,8 +72,13 @@ export function ManagerSosFollowUpPage() {
             subtitle={`${SOS_FOLLOW_UP_OPTIONS.find((o) => o.value === outcome)?.label}. This SOS alert is now resolved.`}
             style={{ maxWidth: "100%" }}
           />
-          <div>
+          <div className="flex flex-wrap gap-3">
             <Button onClick={() => navigate("/manager/sos")}>Return to SOS Inbox</Button>
+            {data.auditor_id && (
+              <Button kind="tertiary" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
+                View {name}&apos;s record
+              </Button>
+            )}
           </div>
         </Panel>
       )}
@@ -103,6 +108,15 @@ export function ManagerSosFollowUpPage() {
               />
             ))}
           </RadioButtonGroup>
+          <p className="rcs-helper" aria-live="polite">
+            {outcome === "NO_FURTHER_ACTION" &&
+              "Records that you spoke with the Auditor and no further action is needed. The alert is resolved."}
+            {outcome === "REASSIGNED_REMAINING_CASES" &&
+              "Records that you moved the Auditor's remaining cases. Decide who takes them from the Reassignment Queue."}
+            {outcome === "AUDITOR_STOPPED_SHIFT" &&
+              "Records that the Auditor stopped their shift. Their open cases will need a new Auditor."}
+            {!outcome && "Choose what happened. Your notes and this outcome are kept in the audit trail."}
+          </p>
           {submitError && (
             <InlineNotification
               kind="error"

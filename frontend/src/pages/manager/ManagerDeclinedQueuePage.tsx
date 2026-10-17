@@ -1,8 +1,9 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeclinedCases } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -22,7 +23,7 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Reassignment Queue</h1>
+      <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (
@@ -32,7 +33,7 @@ export function ManagerDeclinedQueuePage() {
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
                 <TableHeader>Auditor</TableHeader>
-                <TableHeader>S-tier</TableHeader>
+                <TableHeader>Severity</TableHeader>
                 <TableHeader>Decline reason</TableHeader>
                 <TableHeader>Time declined</TableHeader>
                 <TableHeader>
@@ -41,7 +42,14 @@ export function ManagerDeclinedQueuePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((row) => (
+              {/* Most severe first, then oldest: the order to decide in. */}
+              {[...data]
+                .sort(
+                  (a, b) =>
+                    (b.severity_tier ?? "").localeCompare(a.severity_tier ?? "") ||
+                    Date.parse(a.declined_at) - Date.parse(b.declined_at),
+                )
+                .map((row) => (
                 <TableRow key={row.case_id}>
                   <TableCell>
                     <RouterLink
