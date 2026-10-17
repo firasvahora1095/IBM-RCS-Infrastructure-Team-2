@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { Button, InlineLoading } from "@carbon/react";
+import { useNavigate } from "react-router-dom";
+import { Button, InlineLoading, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { CheckmarkFilled } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
@@ -17,6 +17,8 @@ import {
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorOverviewRow, ManagerIntelligence } from "../../services/types";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { StatusTag } from "../ui/StatusTag";
+import type { StatusTone } from "../../design-tokens/statusTones";
 
 /** The inbox shows this many rows; the rest sit behind "Show all". */
 const VISIBLE_ROWS = 10;
@@ -39,10 +41,17 @@ interface InboxRow {
   detail: string;
   /** SOS is the one row that carries red; everything else is neutral text. */
   urgent?: boolean;
+  /** A short written state beside the detail, so what is waiting is clear without colour. */
+  status?: { label: string; tone: StatusTone };
   /** The one-click action, done in the row. */
   act?: { label: string; ariaLabel: string; run: () => Promise<ActionResult> };
-  /** Where the full page for this item is. */
+  /**
+   * Where the full page for this item is. With an action on the row it sits in the "more" menu, so a
+   * row has one visible action; without one, it is the row's action.
+   */
   open?: { label: string; to: string };
+  /** Other ways to deal with the item, in the "more" menu. */
+  more?: { label: string; to: string }[];
 }
 
 interface Props {
@@ -103,14 +112,25 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
       );
 
       const next: InboxRow[] = [];
-      for (const alert of sos.filter((a) => a.status !== "RESOLVED")) {
+      // One row for all open SOS alerts, not one per alert: the same action three times is noise. The
+      // SOS Inbox lists each alert; a single alert opens directly.
+      const openSos = sos
+        .filter((a) => a.status !== "RESOLVED")
+        .sort((a, b) => Date.parse(b.triggered_at) - Date.parse(a.triggered_at));
+      if (openSos.length > 0) {
+        const names = openSos.map((a) => a.auditor_name);
+        const unacknowledged = openSos.some((a) => a.status === "UNACKNOWLEDGED");
         next.push({
-          key: `sos-${alert.id}`,
+          key: "sos",
           kind: "SOS Alert",
-          subject: alert.auditor_name,
-          detail: formatRelativeTime(alert.triggered_at),
+          subject: names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "),
+          detail: `${openSos.length > 1 ? "Latest " : ""}${formatRelativeTime(openSos[0].triggered_at)}`,
           urgent: true,
-          open: { label: "Open alert", to: `/manager/sos/${encodeURIComponent(alert.id)}` },
+          status: { label: unacknowledged ? "Unacknowledged" : "In progress", tone: unacknowledged ? "error" : "warning" },
+          open:
+            openSos.length === 1
+              ? { label: "Open alert", to: `/manager/sos/${encodeURIComponent(openSos[0].id)}` }
+              : { label: `Open SOS Inbox (${openSos.length})`, to: "/manager/sos" },
         });
       }
       for (const detail of details) {
@@ -121,6 +141,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
             kind: isBreak ? "Break Request" : "Talk Request",
             subject: detail.display_name,
             detail: formatRelativeTime(request.created_at),
+            status: { label: "Waiting", tone: "neutral" },
             act: isBreak
               ? {
                   label: "Approve",
@@ -151,7 +172,8 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           key: `case-${c.case_id}`,
           kind: capped ? "Exposure Limit" : "Reassignment",
           subject: c.case_id,
-          detail: capped ? `${c.auditor_name} reached their limit` : `${c.auditor_name} declined`,
+          detail: c.auditor_name,
+          status: { label: capped ? "Limit reached" : "Declined", tone: "neutral" },
           act: best
             ? {
                 label: `Reassign to ${best.name}`,
@@ -173,7 +195,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
           key: `del-${d.delivery_id}`,
           kind: "Delivery Failed",
           subject: d.case_id,
-          detail: d.reason ?? `${d.attempts} attempts`,
+          detail: `${d.attempts} attempts${d.reason ? ` · ${d.reason}` : ""}`,
           act: {
             label: "Retry",
             ariaLabel: `Retry, delivery for case ${d.case_id}`,
@@ -262,8 +284,15 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
             {shown.map((row) => (
               <li key={row.key} className="rcs-inbox-row" data-urgent={row.urgent ? "error" : undefined}>
                 <span className="rcs-inbox-kind">{row.kind}</span>
-                <span className="rcs-inbox-what">
-                  <span className={CASE_KINDS.includes(row.kind) ? "rcs-mono" : undefined}>{row.subject}</span>
+                <span className={`rcs-inbox-subject ${CASE_KINDS.includes(row.kind) ? "rcs-mono" : ""}`}>
+                  {row.subject}
+                </span>
+                <span className="rcs-inbox-detail">
+                  {row.status && (
+                    <StatusTag tone={row.status.tone} size="sm">
+                      {row.status.label}
+                    </StatusTag>
+                  )}
                   <span className="rcs-helper">{row.detail}</span>
                   {rowErrors[row.key] && (
                     <span className="rcs-inbox-error" role="alert">
@@ -271,8 +300,9 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                     </span>
                   )}
                 </span>
+                {/* One visible action per row; anything else is one step away in the menu. */}
                 <span className="rcs-inbox-actions">
-                  {row.act && (
+                  {row.act ? (
                     <Button
                       kind="tertiary"
                       size="sm"
@@ -282,17 +312,25 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
                     >
                       {busy === row.key ? "Working…" : row.act.label}
                     </Button>
-                  )}
-                  {row.open &&
-                    (row.act ? (
-                      <RouterLink className="cds--link" to={row.open.to}>
-                        {row.open.label}
-                      </RouterLink>
-                    ) : (
+                  ) : (
+                    row.open && (
                       <Button kind="tertiary" size="sm" onClick={() => navigate(row.open!.to)}>
                         {row.open.label}
                       </Button>
-                    ))}
+                    )
+                  )}
+                  {row.act && (row.open || row.more?.length) && (
+                    <OverflowMenu
+                      size="sm"
+                      flipped
+                      aria-label={`More actions, ${row.subject}`}
+                      iconDescription={`More actions, ${row.subject}`}
+                    >
+                      {[...(row.open ? [row.open] : []), ...(row.more ?? [])].map((item) => (
+                        <OverflowMenuItem key={item.to} itemText={item.label} onClick={() => navigate(item.to)} />
+                      ))}
+                    </OverflowMenu>
+                  )}
                 </span>
               </li>
             ))}

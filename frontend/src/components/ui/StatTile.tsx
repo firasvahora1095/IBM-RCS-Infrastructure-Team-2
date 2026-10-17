@@ -42,10 +42,18 @@ export function StatTile({ label, value, helper, tone = "neutral", corner, to, l
       </RouterLink>
     );
   }
-  return (
-    <div className={className}>
-      {corner && <div className="rcs-stat-corner">{corner}</div>}
-      {body}
-    </div>
-  );
+  if (corner) {
+    // Label left, control right, on one row: the same arrangement as a section's title row.
+    return (
+      <div className={className}>
+        <div className="rcs-stat-top">
+          <span className="rcs-stat-label">{label}</span>
+          {corner}
+        </div>
+        <span className="rcs-stat-value">{value}</span>
+        {helper && <span className="rcs-stat-helper">{helper}</span>}
+      </div>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }

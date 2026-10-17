@@ -191,8 +191,9 @@ describe("Manager screens", () => {
       renderAt("/manager");
       const list = await screen.findByRole("list", { name: "Items that need you" });
       // SOS opens its context first: acknowledging is a deliberate step.
-      expect(within(list).getAllByText("SOS Alert")).toHaveLength(3);
-      expect(within(list).getAllByRole("button", { name: "Open alert" }).length).toBeGreaterThan(0);
+      // One row for all open SOS alerts, not one identical row each; it opens the SOS Inbox.
+      expect(within(list).getAllByText("SOS Alert")).toHaveLength(1);
+      expect(within(list).getByRole("button", { name: /^Open SOS Inbox \(3\)/ })).toBeInTheDocument();
       expect(within(list).getAllByText("Break Request").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Talk Request").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Reassignment").length).toBeGreaterThan(0);

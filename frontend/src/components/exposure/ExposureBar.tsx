@@ -10,6 +10,8 @@ interface ExposureBarProps {
   /** Header variant switches the fill to Carbon support-warning at the limit (Figma 34:121). */
   warnAtLimit?: boolean;
   width?: number | string;
+  /** Marks 80% with a tick and colours the fill by risk: blue under 80%, yellow from 80%, red at the limit. */
+  thresholds?: boolean;
   /** Accessible name, e.g. "Your exposure today" or "Reese Patel's exposure today". */
   ariaLabel: string;
 }
@@ -33,12 +35,21 @@ export function ExposureBar({
   compactLabel,
   warnAtLimit = false,
   width = 200,
+  thresholds = false,
   ariaLabel,
 }: ExposureBarProps) {
   const safeLimit = Math.max(1, limit);
   const percent = Math.min(100, Math.round((minutes / safeLimit) * 100));
   const atLimit = minutes >= safeLimit;
-  const fill = warnAtLimit && atLimit ? "var(--cds-support-warning)" : "var(--cds-interactive)";
+  const fill = thresholds
+    ? atLimit
+      ? "var(--cds-support-error)"
+      : minutes / safeLimit >= 0.8
+        ? "var(--cds-support-warning)"
+        : "var(--cds-interactive)"
+    : warnAtLimit && atLimit
+      ? "var(--cds-support-warning)"
+      : "var(--cds-interactive)";
   const track = "var(--cds-layer-accent-01)";
 
   return (
@@ -50,9 +61,15 @@ export function ExposureBar({
         aria-valuemax={safeLimit}
         aria-valuenow={Math.min(minutes, safeLimit)}
         aria-valuetext={label}
-        style={{ height: 8, backgroundColor: track, overflow: "hidden" }}
+        style={{ height: 8, backgroundColor: track, overflow: "hidden", position: "relative" }}
       >
         <div style={{ height: 8, width: `${percent}%`, backgroundColor: fill }} />
+        {thresholds && (
+          <div
+            aria-hidden="true"
+            style={{ position: "absolute", insetBlock: 0, insetInlineStart: "80%", width: 1, backgroundColor: "var(--cds-border-strong-01)" }}
+          />
+        )}
       </div>
       <span
         style={{

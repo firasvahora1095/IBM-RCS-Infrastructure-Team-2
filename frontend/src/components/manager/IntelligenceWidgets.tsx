@@ -2,6 +2,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { SkeletonText } from "@carbon/react";
 import { Figure } from "./ManagerBits";
 import { BarList, SegmentedBar } from "../ui/Charts";
+import { StatTile } from "../ui/StatTile";
 import { TransitionMatrix } from "../ui/TransitionMatrix";
 import type { ManagerIntelligence, SeverityTier } from "../../services/types";
 import { getSeverityInfo } from "../../design-tokens/severity";
@@ -113,21 +114,21 @@ export function Comparison({ data }: { data: ManagerIntelligence }) {
   }
   const top = comparison.top_transition;
   return (
-    <div className="flex flex-wrap items-start gap-8">
-      <dl className="flex flex-col gap-4" style={{ margin: 0 }}>
-        <Figure
+    // Two even halves: the two headline figures as the same tiles used across the page, and the matrix
+    // that explains them. Labels are sans, numbers are mono, as on every tile.
+    <div className="rcs-comparison">
+      <div className="flex flex-col gap-4">
+        <StatTile
           label="AI Override"
-          value={
-            <span className="flex flex-col">
-              {percent(comparison.override_rate)}
-              <span className="rcs-helper" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
-                {comparison.overrides} of {comparison.eligible} decided cases
-              </span>
-            </span>
-          }
+          value={percent(comparison.override_rate)}
+          helper={`${comparison.overrides} of ${comparison.eligible} decided cases`}
         />
-        <Figure label="Most common change" value={top ? `${top.from} → ${top.to} (${top.count})` : "None"} />
-      </dl>
+        <StatTile
+          label="Most common change"
+          value={top ? `${top.from} → ${top.to}` : "None"}
+          helper={top ? plural(top.count, "case", "cases") : "No changes in the period"}
+        />
+      </div>
       <TransitionMatrix matrix={comparison.matrix} />
     </div>
   );

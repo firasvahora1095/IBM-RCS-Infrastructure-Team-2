@@ -70,7 +70,7 @@ export function ManagerInsightsPage() {
 
       <section aria-label="Figures for the period">
         <Grid className="rcs-grid" condensed>
-          <Column sm={4} md={4} lg={5}>
+          <Column sm={4} md={4} lg={8}>
             <StatTile
               label="Total cases"
               value={data ? data.kpis.total_cases : "–"}
@@ -78,7 +78,7 @@ export function ManagerInsightsPage() {
               corner={evidenceButton("total_cases")}
             />
           </Column>
-          <Column sm={4} md={4} lg={5}>
+          <Column sm={4} md={4} lg={8}>
             <StatTile
               label="Completed"
               value={data ? data.kpis.completed : "–"}

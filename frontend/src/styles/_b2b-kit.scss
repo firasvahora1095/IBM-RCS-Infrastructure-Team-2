@@ -84,7 +84,6 @@
 // Stat tile: a Panel-style figure. Neutral by default; an item needing action
 // gets the same 3px error accent the SOS Inbox uses on unacknowledged rows.
 .rcs-stat-tile {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -110,10 +109,13 @@ a.rcs-stat-tile:focus-visible {
 .rcs-stat-tile.rcs-tone-error {
   box-shadow: inset 3px 0 0 var(--cds-support-error);
 }
-.rcs-stat-corner {
-  position: absolute;
-  inset-block-start: 0.5rem;
-  inset-inline-end: 0.5rem;
+.rcs-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  // The ghost button is 2rem tall; pull the row up so a tile with a control is no taller than one without.
+  margin-block: -0.375rem;
 }
 .rcs-stat-label {
   font-size: 0.75rem;
@@ -296,7 +298,6 @@ a.rcs-stat-tile .rcs-stat-helper {
   border-collapse: separate;
   border-spacing: 2px;
   inline-size: 100%;
-  max-inline-size: 26rem;
   caption {
     caption-side: bottom;
     text-align: start;
@@ -564,19 +565,34 @@ html {
   border-block-start: 1px solid var(--cds-border-subtle-01);
 }
 .rcs-inbox-row {
+  // kind | who | state and detail | action: every row on the same four columns, so the eye
+  // runs straight down each one instead of zigzagging.
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  min-block-size: 3rem;
-  padding: 0.5rem 1rem;
+  min-block-size: 3.5rem;
+  padding: 0.75rem 1rem;
   border-block-end: 1px solid var(--cds-border-subtle-01);
+  // The one urgent kind is the one thing that is tinted: urgency is read before the words.
   &[data-urgent="error"] {
     box-shadow: inset 3px 0 0 var(--cds-support-error);
+    background-color: var(--cds-notification-background-error);
+  }
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: 8.5rem minmax(0, 1fr) auto;
+    .rcs-inbox-detail {
+      grid-column: 2 / -1;
+      grid-row: 2;
+    }
   }
   @include breakpoint.breakpoint-down(md) {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
+    .rcs-inbox-detail {
+      grid-column: auto;
+      grid-row: auto;
+    }
   }
 }
 .rcs-inbox-kind {
@@ -584,22 +600,23 @@ html {
   font-weight: 600;
   color: var(--cds-text-primary);
 }
-.rcs-inbox-what {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.75rem;
+.rcs-inbox-subject {
   @include type.type-style("body-compact-01");
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
-.rcs-inbox-actions {
+.rcs-inbox-detail {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
+.rcs-inbox-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 0.5rem 1rem;
-  @include breakpoint.breakpoint-down(md) {
-    justify-content: flex-start;
-  }
+  gap: 0.25rem;
 }
 .rcs-inbox-error {
   flex-basis: 100%;
@@ -615,4 +632,14 @@ html {
 }
 .rcs-inbox-empty-title {
   @include type.type-style("productive-heading-02");
+}
+
+// AI and Auditor decisions: headline tiles and the matrix in two even halves.
+.rcs-comparison {
+  display: grid;
+  gap: 1.5rem 2rem;
+  align-items: start;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 1fr 1fr;
+  }
 }

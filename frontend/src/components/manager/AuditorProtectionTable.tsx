@@ -97,20 +97,13 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                         <RouterLink to={url} className="cds--link" onClick={(e) => e.stopPropagation()}>
                           {row.display_name}
                         </RouterLink>
-                        {/* Who asked, low-key (MR-SOS-07): quiet tags, answered in their record. */}
+                        {/* Who asked, low-key (MR-SOS-07): plain secondary text, not tags, so it never competes
+                            with the state column; answered in the Needs you inbox and their record. */}
                         {((row.open_requests?.break_requests ?? 0) > 0 ||
                           (row.open_requests?.talk_requests ?? 0) > 0) && (
-                          <div className="flex flex-wrap gap-1">
-                            {(row.open_requests?.break_requests ?? 0) > 0 && (
-                              <StatusTag tone="warning" size="sm">
-                                Break requested
-                              </StatusTag>
-                            )}
-                            {(row.open_requests?.talk_requests ?? 0) > 0 && (
-                              <StatusTag tone="info" size="sm">
-                                Wants to talk
-                              </StatusTag>
-                            )}
+                          <div className="rcs-helper flex flex-wrap gap-x-2">
+                            {(row.open_requests?.break_requests ?? 0) > 0 && <span>Break requested</span>}
+                            {(row.open_requests?.talk_requests ?? 0) > 0 && <span>Wants to talk</span>}
                           </div>
                         )}
                       </div>
@@ -119,6 +112,7 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                       <ExposureBar
                         surface="light"
                         width={160}
+                        thresholds
                         minutes={row.exposure_minutes_today}
                         limit={row.exposure_limit_minutes}
                         label={`${row.exposure_minutes_today} / ${row.exposure_limit_minutes} min`}
@@ -129,13 +123,18 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                       <ExposureStateTag state={row.exposure_state} />
                     </TableCell>
                     <TableCell style={{ color: "var(--cds-text-secondary)" }}>
-                      {cooldownSummary(row.cooldown, now)}
+                      {cooldownSummary(row.cooldown, now).replace("—", "None")}
                     </TableCell>
                     <TableCell className="rcs-mono">{row.active_case_count}</TableCell>
                     <TableCell>
-                      <StatusTag tone={AVAILABILITY_TONE[availability]} size="sm">
-                        {AVAILABILITY_LABEL[availability]}
-                      </StatusTag>
+                      {availability === "AVAILABLE" ? (
+                        // Nothing to act on: plain text, not a green badge.
+                        <span style={{ color: "var(--cds-text-secondary)" }}>{AVAILABILITY_LABEL[availability]}</span>
+                      ) : (
+                        <StatusTag tone={AVAILABILITY_TONE[availability]} size="sm">
+                          {AVAILABILITY_LABEL[availability]}
+                        </StatusTag>
+                      )}
                     </TableCell>
                     <TableCell style={{ textAlign: "right", color: "var(--cds-icon-secondary)" }}>
                       <ChevronRight aria-hidden="true" />
