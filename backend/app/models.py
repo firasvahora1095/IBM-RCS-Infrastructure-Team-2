@@ -143,6 +143,9 @@ class Case(Base):
     # ASSIGNED_ONLY (default), SUPER_ADMIN_ONLY (no standard Auditor could take it) or
     # AVAILABLE_TO_AUDITORS (released to eligible Auditors to claim, metadata only).
     case_visibility = Column(String(25), nullable=False, server_default="ASSIGNED_ONLY")
+    # When the system parked this case in the fallback queue. Only a case with this set is released
+    # automatically once a standard Auditor is eligible; hand-seeded demo cases leave it empty.
+    fallback_queued_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),

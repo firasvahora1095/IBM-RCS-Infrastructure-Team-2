@@ -276,6 +276,21 @@ class FallbackQueueTests(unittest.TestCase):
         self.assertEqual(r.status_code, 409)
         self.assertIn("SOS", r.json()["detail"])
 
+    def test_a_case_with_the_manager_cannot_be_taken_claimed_or_released_and_never_names_who_declined(self) -> None:
+        # A declined case keeps its owner in the database, but the Super Admin never sees it (MR-CR-04).
+        self.add_case("DECL1", owner="auditor-1", flag="DECLINED", visibility="AVAILABLE_TO_AUDITORS")
+        self.add_case("DECL2", owner=None, flag="DECLINED", visibility="SUPER_ADMIN_ONLY")
+        rows = {c["case_id"]: c for c in self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()}
+        self.assertIsNone(rows["DECL1"]["assigned_auditor_id"])
+        self.assertEqual(rows["DECL1"]["manager_flag"], "DECLINED")
+        sa = self.headers("superadmin-1")
+        self.assertEqual(self.client.post("/api/auditor/cases/DECL2/take", headers=sa).status_code, 409)
+        self.assertEqual(self.client.post("/api/cases/DECL2/make-available", headers=self.headers("manager-1")).status_code, 409)
+        self.assertEqual(self.client.post("/api/auditor/cases/DECL1/claim", headers=self.headers("auditor-2")).status_code, 404)
+        listing = self.client.get("/api/auditor/available-cases", headers=self.headers("auditor-2")).json()
+        self.assertEqual(listing["cases"], [])
+        self.assertIsNone(self.case("DECL2").assigned_auditor_id)
+
     def test_manager_reassignment_clears_the_fallback_visibility(self) -> None:
         self.add_case("FREE1", visibility="AVAILABLE_TO_AUDITORS")
         r = self.client.post("/api/manager/cases/FREE1/reassign", json={"auditor_id": "auditor-2"}, headers=self.headers("manager-1"))

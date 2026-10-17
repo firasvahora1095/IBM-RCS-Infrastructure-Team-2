@@ -173,12 +173,12 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
     return candidates
 
 
-def select_auditor(db: Session) -> AuditorCandidate:
-    """Select the lowest-score Auditor, then the least recently assigned."""
-    candidates = list_assignment_candidates(db)
-    if not candidates:
-        raise NoEligibleAuditorError("No eligible Auditors are available")
+def pick_best(candidates: list[AuditorCandidate]) -> AuditorCandidate:
+    """The approved ordering: lowest weighted score, then whoever waited longest.
 
+    Shared by normal assignment and by the automatic release of fallback cases, so
+    a case released later is placed by exactly the same rule it would have been.
+    """
     return min(
         candidates,
         key=lambda candidate: (
@@ -188,3 +188,12 @@ def select_auditor(db: Session) -> AuditorCandidate:
             candidate.auditor_id,
         ),
     )
+
+
+def select_auditor(db: Session) -> AuditorCandidate:
+    """Select the lowest-score Auditor, then the least recently assigned."""
+    candidates = list_assignment_candidates(db)
+    if not candidates:
+        raise NoEligibleAuditorError("No eligible Auditors are available")
+
+    return pick_best(candidates)

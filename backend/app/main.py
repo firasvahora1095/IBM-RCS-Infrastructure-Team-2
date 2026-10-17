@@ -65,7 +65,7 @@ from app.assignment import NoEligibleAuditorError, select_auditor
 from app.case_ids import generate_case_id
 from app.case_status import public_status
 from app.case_workflow import record_case_assignment
-from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback
+from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback, release_waiting_cases
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case, CaseSource
 from app.orchestrate import (
@@ -169,6 +169,9 @@ def _run_db_migrations() -> None:
         conn.execute(text(
             "ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_visibility VARCHAR(25) NOT NULL DEFAULT 'ASSIGNED_ONLY'"
         ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS fallback_queued_at TIMESTAMPTZ"
+        ))
         # auditors — Sprint 3 daily reset column
         conn.execute(text(
             "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
@@ -212,6 +215,24 @@ def _daily_exposure_reset_job() -> None:
         db.close()
 
 
+def _release_fallback_job() -> None:
+    """Place fallback cases whose hold has passed, once a standard Auditor is eligible."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.fallback_queue import release_waiting_cases
+    db = SessionLocal()
+    try:
+        released = release_waiting_cases(db)
+        db.commit()
+        if released:
+            log.info("[SCHEDULER] fallback release: %s", ", ".join(f"{c}->{a}" for c, a in released))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] fallback release failed: %s", exc)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
     try:
@@ -223,6 +244,13 @@ async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
             _daily_exposure_reset_job,
             CronTrigger(hour=9, minute=0, timezone=ZoneInfo("Australia/Sydney")),
             id="daily_exposure_reset",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            _release_fallback_job,
+            "interval",
+            seconds=30,
+            id="fallback_release",
             replace_existing=True,
         )
         scheduler.start()
@@ -678,6 +706,10 @@ async def list_auditor_cases(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
+    # A fallback case may be waiting for exactly this Auditor to become eligible; place it now
+    # rather than at the next scheduler tick.
+    release_waiting_cases(db)
+    db.commit()
     assigned_cases = db.scalars(
         select(Case)
         .where(
@@ -1535,6 +1567,7 @@ async def get_case_oversight(
             "final_severity_tier": _final_severity_tier(c),
             "status": c.status,
             "manager_flag": c.manager_flag,
+            "case_visibility": c.case_visibility,
             "sos_alert_id": None,
         }
         for c in cases

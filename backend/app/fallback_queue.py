@@ -20,14 +20,15 @@ see every open case. The rules, kept in one place:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import StaffSession
-from app.assignment import maybe_reset_daily_exposure
+from app.assignment import list_assignment_candidates, maybe_reset_daily_exposure, pick_best
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case
 
@@ -50,12 +51,78 @@ def unavailable_reason(db: Session, auditor: Auditor, now: datetime | None = Non
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         if ends_at > now:
             return "You are in a mandatory cooldown."
-    open_sos = db.scalar(
-        select(Case.case_id).where(Case.assigned_auditor_id == auditor.auditor_id, Case.manager_flag == "SOS").limit(1)
-    )
-    if open_sos is not None:
+    if _has_open_sos(db, auditor.auditor_id):
         return "You have an open SOS alert."
     return None
+
+
+def fallback_hold_minutes() -> int:
+    """How long a parked case waits for the Super Admin before the system places it.
+
+    An assumption, not a client ruling: long enough that a cooldown ending seconds later does not
+    snatch a case the Super Admin is about to take, short enough that no case sits unreviewed.
+    Set FALLBACK_HOLD_MINUTES to change it (0 releases as soon as someone is eligible).
+    """
+    try:
+        return max(0, int(os.getenv("FALLBACK_HOLD_MINUTES", "5")))
+    except ValueError:
+        return 5
+
+
+def _has_open_sos(db: Session, auditor_id: str) -> bool:
+    return (
+        db.scalar(select(Case.case_id).where(Case.assigned_auditor_id == auditor_id, Case.manager_flag == "SOS").limit(1))
+        is not None
+    )
+
+
+def auto_release_at(case: Case) -> datetime | None:
+    """When the system will place this case by itself, or None if it never will."""
+    if case.fallback_queued_at is None or case.case_visibility != SUPER_ADMIN_ONLY:
+        return None
+    queued = case.fallback_queued_at
+    if queued.tzinfo is None:
+        queued = queued.replace(tzinfo=timezone.utc)
+    return queued + timedelta(minutes=fallback_hold_minutes())
+
+
+def release_waiting_cases(db: Session, now: datetime | None = None) -> list[tuple[str, str]]:
+    """Place parked cases automatically, so nobody has to click Make available.
+
+    A case the system parked (no standard Auditor was eligible) is placed once its hold has passed
+    and a standard Auditor is eligible, using the same ordering and the same wellbeing blocks as
+    normal assignment: not in cooldown, under the exposure limit, no open SOS. The Super Admin is
+    never chosen. A case with the Manager, released for claiming, or without a queued time is left
+    alone. Returns (case_id, auditor_id) for each case placed; the caller commits.
+    """
+    now = now or datetime.now(timezone.utc)
+    waiting = db.scalars(
+        select(Case)
+        .where(
+            Case.case_visibility == SUPER_ADMIN_ONLY,
+            Case.assigned_auditor_id.is_(None),
+            Case.manager_flag.is_(None),
+            Case.status != "COMPLETE",
+            Case.fallback_queued_at.is_not(None),
+        )
+        .order_by(Case.fallback_queued_at.asc())
+        .with_for_update()
+    ).all()
+    placed: list[tuple[str, str]] = []
+    for case in waiting:
+        due = auto_release_at(case)
+        if due is None or due > now:
+            continue
+        # Recomputed for every case: each placement changes who is lightest loaded.
+        candidates = [c for c in list_assignment_candidates(db) if not _has_open_sos(db, c.auditor_id)]
+        if not candidates:
+            break
+        best = pick_best(candidates)
+        auditor = db.get(Auditor, best.auditor_id)
+        _assign(db, case, auditor, "system", "AUTO_RELEASE")
+        db.flush()
+        placed.append((case.case_id, auditor.auditor_id))
+    return placed
 
 
 def mark_fallback(db: Session, case: Case) -> None:
@@ -63,13 +130,19 @@ def mark_fallback(db: Session, case: Case) -> None:
     case.assigned_auditor_id = None
     case.status = "AI_PROCESSING"
     case.case_visibility = SUPER_ADMIN_ONLY
+    case.fallback_queued_at = datetime.now(timezone.utc)
     db.add(
         AuditLog(
             case_id=case.case_id,
             actor="system",
             action="CASE_FALLBACK_QUEUED",
             before_value={"status": "SUBMITTED"},
-            after_value={"status": case.status, "case_visibility": SUPER_ADMIN_ONLY, "reason": "no eligible Auditor"},
+            after_value={
+                "status": case.status,
+                "case_visibility": SUPER_ADMIN_ONLY,
+                "reason": "no eligible Auditor",
+                "auto_release_after_minutes": fallback_hold_minutes(),
+            },
         )
     )
 
@@ -83,10 +156,17 @@ def queue_row(case: Case) -> dict:
         "status": case.status,
         "severity_tier": case.severity_tier,
         "final_severity_tier": _final_severity_tier(case),
-        "assigned_auditor_id": case.assigned_auditor_id,
+        # A declined, SOS or cap-reached case is with the Manager. Who it came from is never shown here
+        # (no per-Auditor scrutiny, MR-CR-04), so the owner is blank and manager_flag says why.
+        "assigned_auditor_id": None if case.manager_flag else case.assigned_auditor_id,
         "case_visibility": case.case_visibility,
         "manager_flag": case.manager_flag,
+        # When the system will place it by itself; the Super Admin does not need to act before then.
+        "auto_release_at": (auto_release_at(case).isoformat() if auto_release_at(case) else None),
     }
+
+
+WITH_MANAGER = "This case is waiting for a Manager decision."
 
 
 def _get_case(db: Session, case_id: str, *, for_update: bool = False) -> Case:
@@ -155,6 +235,8 @@ def install_routes(app: FastAPI, get_current_session) -> None:
     ):
         """Every open case, for the Super Admin: queue metadata and who owns each one."""
         _require_super_admin(session, db)
+        release_waiting_cases(db)
+        db.commit()
         cases = db.scalars(select(Case).where(Case.status != "COMPLETE").order_by(Case.created_at.desc())).all()
         return [queue_row(c) for c in cases]
 
@@ -166,9 +248,15 @@ def install_routes(app: FastAPI, get_current_session) -> None:
     ):
         """Cases released to standard Auditors to claim, with whether this Auditor can claim now."""
         auditor = _require_auditor(session, db)
+        release_waiting_cases(db)
         cases = db.scalars(
             select(Case)
-            .where(Case.case_visibility == AVAILABLE_TO_AUDITORS, Case.assigned_auditor_id.is_(None), Case.status != "COMPLETE")
+            .where(
+                Case.case_visibility == AVAILABLE_TO_AUDITORS,
+                Case.assigned_auditor_id.is_(None),
+                Case.manager_flag.is_(None),
+                Case.status != "COMPLETE",
+            )
             .order_by(Case.created_at.asc())
         ).all()
         reason = unavailable_reason(db, auditor)
@@ -198,6 +286,8 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         """Super Admin takes a case no one owns. A case a standard Auditor already owns goes through the Manager."""
         admin = _require_super_admin(session, db)
         case = _get_case(db, case_id, for_update=True)
+        if case.manager_flag:
+            raise HTTPException(status_code=409, detail=WITH_MANAGER)
         if case.assigned_auditor_id is not None:
             raise HTTPException(status_code=409, detail="This case already has an Auditor. A Manager can reassign it.")
         if case.status == "COMPLETE":
@@ -219,7 +309,7 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         """A standard Auditor claims a case that was made available, if they are eligible right now."""
         auditor = _require_auditor(session, db)
         case = _get_case(db, case_id, for_update=True)
-        if case.case_visibility != AVAILABLE_TO_AUDITORS or case.assigned_auditor_id is not None:
+        if case.case_visibility != AVAILABLE_TO_AUDITORS or case.assigned_auditor_id is not None or case.manager_flag:
             # A claimed, taken or never-released case looks the same, so the answer reveals nothing extra.
             raise HTTPException(status_code=404, detail="Case not found")
         reason = unavailable_reason(db, auditor)
@@ -242,6 +332,8 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         else:
             actor = _require_super_admin(session, db).auditor_id
         case = _get_case(db, case_id, for_update=True)
+        if case.manager_flag:
+            raise HTTPException(status_code=409, detail=WITH_MANAGER)
         if case.assigned_auditor_id is not None:
             raise HTTPException(status_code=409, detail="This case already has an Auditor.")
         if case.status == "COMPLETE":
