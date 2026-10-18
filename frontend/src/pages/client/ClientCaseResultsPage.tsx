@@ -49,7 +49,7 @@ import { safeHttpUrl } from "../../utils/safeUrl";
 const OUTCOME_TONE = {
   POLICY_VIOLATION_FOUND: "error",
   NO_VIOLATION_FOUND: "neutral",
-  CLOSED_NO_REASSIGNMENT: "warning",
+  CLOSED_NO_REASSIGNMENT: "request",
 } as const;
 
 /** The post's own ID, readable in a table, from CommunityHub's post link. */
