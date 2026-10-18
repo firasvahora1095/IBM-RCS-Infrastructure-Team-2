@@ -18,8 +18,9 @@ const STATE_RANK = { UNDER: 0, APPROACHING: 1, AT_LIMIT: 2 } as const;
 const AVAILABILITY_RANK: Record<Availability, number> = {
   AVAILABLE: 0,
   COOLDOWN: 1,
-  NO_NEW_CASES: 2,
-  SOS_PROTECTION: 3,
+  ON_BREAK: 2,
+  NO_NEW_CASES: 3,
+  SOS_PROTECTION: 4,
 };
 
 const HEADERS = [

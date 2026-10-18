@@ -500,10 +500,12 @@ export function AuditorCaseDetailPage() {
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>AI summary</h1>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3">
+          {/* Case ID, severity and CVI score together in one tile, as the case's headline. */}
+          <div className="flex flex-col gap-3 p-6" style={{ border: "1px solid var(--cds-border-subtle-01)" }}>
+            <p style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>Case {caseDetail.case_id}</p>
+            <div className="flex flex-wrap items-center gap-4">
               <SeverityTag tier={caseDetail.severity_tier!} />
-              <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>CVI {aiScore} / 100</span>
+              <span style={{ ...mono, fontSize: 20, lineHeight: "28px" }}>{`CVI ${aiScore} / 100`}</span>
               <span style={secondaryText}>AI pre-screen</span>
               <Toggletip align="bottom-start">
                 <ToggletipButton label="About this score">
@@ -512,7 +514,8 @@ export function AuditorCaseDetailPage() {
                 <ToggletipContent>
                   <p>
                     The effective score, after the weapon-detection floor where it applies. The model&apos;s original
-                    score is kept separately in the audit log and never overwritten. You can adjust it after your review.
+                    score is kept separately in the audit log and never overwritten. You can adjust it after your
+                    review.
                   </p>
                 </ToggletipContent>
               </Toggletip>
