@@ -160,7 +160,7 @@ describe("AuditorCaseDetailPage", () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(AI_FAILED_CASE);
     renderPage("AR-2026-00421");
 
-    expect(await screen.findByText("Severity unknown. AI analysis is unavailable for this case.")).toBeInTheDocument();
+    expect(await screen.findByText("Severity unknown.")).toBeInTheDocument();
     await passContentWarning();
 
     // Straight into the workspace: no summary, no way back to one.
