@@ -106,9 +106,25 @@ def open_request_counts(db: Session, auditor_id: str) -> dict:
     rows = db.scalars(
         select(WellbeingRequest).where(WellbeingRequest.auditor_id == auditor_id, WellbeingRequest.status == "OPEN")
     ).all()
+    midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+    on_break = False
+    for r in db.scalars(
+        select(WellbeingRequest).where(
+            WellbeingRequest.auditor_id == auditor_id,
+            WellbeingRequest.kind == "BREAK_REQUEST",
+            WellbeingRequest.status == "APPROVED",
+        )
+    ).all():
+        resolved = r.resolved_at
+        if resolved is not None and resolved.tzinfo is None:
+            resolved = resolved.replace(tzinfo=timezone.utc)
+        if resolved is not None and resolved >= midnight:
+            on_break = True
     return {
         "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
         "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
+        # A break the Manager approved today: shown as Unavailable (break), not Available.
+        "on_break": on_break,
     }
 
 

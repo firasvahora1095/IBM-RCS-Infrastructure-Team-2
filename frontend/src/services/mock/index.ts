@@ -500,6 +500,15 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
       talk_requests: db.wellbeingRequests.filter(
         (r) => r.auditor_id === staff.staff_id && r.kind === "TALK_TO_MANAGER" && r.status === "OPEN",
       ).length,
+      // A break the Manager approved today.
+      on_break: db.wellbeingRequests.some(
+        (r) =>
+          r.auditor_id === staff.staff_id &&
+          r.kind === "BREAK_REQUEST" &&
+          r.status === "APPROVED" &&
+          r.resolved_at !== null &&
+          new Date(r.resolved_at).toDateString() === new Date().toDateString(),
+      ),
     },
   };
 }

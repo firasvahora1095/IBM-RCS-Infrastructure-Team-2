@@ -13,7 +13,7 @@ export const PROVENANCE_BADGE_TITLE =
   "These figures come from seeded demo records, not real operations. They show how the dashboard works.";
 
 /** Whether an Auditor can be given new harmful-content cases right now. */
-export type Availability = "AVAILABLE" | "COOLDOWN" | "NO_NEW_CASES" | "SOS_PROTECTION";
+export type Availability = "AVAILABLE" | "COOLDOWN" | "NO_NEW_CASES" | "SOS_PROTECTION" | "ON_BREAK";
 
 export const AVAILABILITY_LABEL: Record<Availability, string> = {
   // BA §11.1: Available, Cooldown, Unavailable. The reason follows in brackets, so the one place
@@ -22,6 +22,7 @@ export const AVAILABILITY_LABEL: Record<Availability, string> = {
   COOLDOWN: "Cooldown",
   NO_NEW_CASES: "Unavailable (limit)",
   SOS_PROTECTION: "Unavailable (SOS)",
+  ON_BREAK: "Unavailable (break)",
 };
 
 // Red belongs to the Limit column's "Limit reached" and to the SOS row in "Needs you". Availability stays
@@ -31,6 +32,7 @@ export const AVAILABILITY_TONE: Record<Availability, StatusTone> = {
   COOLDOWN: "info",
   NO_NEW_CASES: "neutral",
   SOS_PROTECTION: "neutral",
+  ON_BREAK: "info",
 };
 
 /**
@@ -40,6 +42,7 @@ export const AVAILABILITY_TONE: Record<Availability, StatusTone> = {
  */
 export function availabilityOf(row: AuditorOverviewRow, now: number): Availability {
   if (row.open_sos) return "SOS_PROTECTION";
+  if (row.open_requests?.on_break) return "ON_BREAK";
   if (row.exposure_state === "AT_LIMIT") return "NO_NEW_CASES";
   const c = row.cooldown;
   if (c && (Date.parse(c.ends_at) > now || (c.requires_check_in && !c.check_in_completed_at))) return "COOLDOWN";

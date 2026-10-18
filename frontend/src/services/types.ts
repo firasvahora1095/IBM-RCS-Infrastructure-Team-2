@@ -254,7 +254,7 @@ export interface AuditorOverviewRow {
   /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
   open_sos?: boolean;
   /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
-  open_requests?: { break_requests: number; talk_requests: number };
+  open_requests?: { break_requests: number; talk_requests: number; on_break?: boolean };
 }
 
 /** Unresolved SOS alerts, for the persistent banner and header badge (MR-SOS-03). */

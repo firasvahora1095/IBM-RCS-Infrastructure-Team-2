@@ -56,5 +56,12 @@ describe("availability wording (BA extra-features §11.1)", () => {
     expect(AVAILABILITY_LABEL.COOLDOWN).toBe("Cooldown");
     expect(AVAILABILITY_LABEL.NO_NEW_CASES).toBe("Unavailable (limit)");
     expect(AVAILABILITY_LABEL.SOS_PROTECTION).toBe("Unavailable (SOS)");
+    expect(AVAILABILITY_LABEL.ON_BREAK).toBe("Unavailable (break)");
+  });
+
+  it("shows an Auditor on an approved break as Unavailable (break), after an open SOS", () => {
+    const onBreak = { ...base, open_requests: { break_requests: 0, talk_requests: 0, on_break: true } };
+    expect(availabilityOf(onBreak, Date.now())).toBe("ON_BREAK");
+    expect(availabilityOf({ ...onBreak, open_sos: true }, Date.now())).toBe("SOS_PROTECTION");
   });
 });
