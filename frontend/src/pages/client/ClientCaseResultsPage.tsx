@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  ContentSwitcher,
   Column,
   Grid,
   Button,
@@ -9,11 +8,16 @@ import {
   Modal,
   RadioButton,
   RadioButtonGroup,
+  Search,
   Select,
   SelectItem,
   SkeletonText,
   TextArea,
-  Switch,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -21,9 +25,6 @@ import {
   TableContainer,
   TableHeader,
   TableRow,
-  TableToolbar,
-  TableToolbarContent,
-  TableToolbarSearch,
 } from "@carbon/react";
 import { ClientLayout } from "../../components/layout/ClientLayout";
 import { StatTile } from "../../components/ui/StatTile";
@@ -116,8 +117,135 @@ export function ClientCaseResultsPage() {
     }
   }
 
+  const onNeeds: boolean = view === "needs";
+  const viewBody = (
+    <div className="flex flex-col gap-4" style={{ paddingBlockStart: 16 }}>
+      {onNeeds && (
+        <p className="rcs-helper" style={{ fontSize: 14 }}>
+          Delivered results your team hasn&apos;t acted on yet. Choose Record action once the post has been removed or
+          kept: RCS is told, and the result moves to All results as actioned.
+        </p>
+      )}
+
+      {rows.length === 0 && onNeeds && outcome === "ALL" && !query.trim() ? (
+        <EmptyState
+          title="Nothing needs action"
+          body="Every delivered result has an action recorded. New results appear here as RCS sends them."
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-4">
+            <div style={{ minWidth: 220 }}>
+              <Select
+                id="result-outcome"
+                size="md"
+                labelText="Outcome"
+                value={outcome}
+                onChange={(e) => setOutcome(e.target.value as "ALL" | DeliveredOutcome)}
+              >
+                <SelectItem value="ALL" text="All outcomes" />
+                <SelectItem value="POLICY_VIOLATION_FOUND" text={PAYLOAD_OUTCOME_LABEL.POLICY_VIOLATION_FOUND} />
+                <SelectItem value="NO_VIOLATION_FOUND" text={PAYLOAD_OUTCOME_LABEL.NO_VIOLATION_FOUND} />
+                <SelectItem value="CLOSED_NO_REASSIGNMENT" text={PAYLOAD_OUTCOME_LABEL.CLOSED_NO_REASSIGNMENT} />
+              </Select>
+            </div>
+            <div style={{ flex: "1 1 260px", maxWidth: 420 }}>
+              <Search
+                size="md"
+                labelText="Search by case ID or post link"
+                placeholder="Search by case ID or post link"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <Layer>
+            <TableContainer>
+              <Table aria-label="Case results" className="rcs-actions-end">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Case ID</TableHeader>
+                    <TableHeader>Post</TableHeader>
+                    <TableHeader>RCS result</TableHeader>
+                    <TableHeader>Final severity</TableHeader>
+                    <TableHeader>Completed</TableHeader>
+                    <TableHeader>Received</TableHeader>
+                    <TableHeader>Your team&apos;s action</TableHeader>
+                    <TableHeader>Actions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paged.rows.map((r: CaseResult) => (
+                    <TableRow key={r.delivery_id}>
+                      <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
+                        {r.case_id}
+                      </TableCell>
+                      <TableCell>
+                        {safeHttpUrl(r.post_url) ? (
+                          <a className="cds--link" href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer">
+                            {postLabel(r.post_url)}
+                          </a>
+                        ) : r.post_url ? (
+                          // Not an http(s) link: shown as text, never made clickable.
+                          <span style={{ overflowWrap: "anywhere" }}>{r.post_url}</span>
+                        ) : (
+                          <span className="rcs-helper">Not attached</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <StatusTag tone={OUTCOME_TONE[r.outcome]}>{PAYLOAD_OUTCOME_LABEL[r.outcome]}</StatusTag>
+                      </TableCell>
+                      <TableCell>
+                        {r.final_severity ? <SeverityTag tier={r.final_severity} size="sm" /> : "—"}
+                      </TableCell>
+                      <TableCell>{formatShortDateTime(r.completed_at)}</TableCell>
+                      <TableCell>
+                        {r.status === "DELIVERED" && r.delivered_at ? (
+                          formatShortDateTime(r.delivered_at)
+                        ) : (
+                          <StatusTag tone="info">On its way</StatusTag>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {r.platform_action ? (
+                          <StatusTag tone={r.platform_action.action === "REMOVED" ? "success" : "neutral"}>
+                            {PLATFORM_ACTION_LABEL[r.platform_action.action]}
+                          </StatusTag>
+                        ) : r.status === "DELIVERED" ? (
+                          <StatusTag tone={r.outcome === "POLICY_VIOLATION_FOUND" ? "warning" : "neutral"}>
+                            Needs action
+                          </StatusTag>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {r.status === "DELIVERED" && !r.platform_action && (
+                          <Button
+                            kind="tertiary"
+                            size="sm"
+                            aria-label={`Record action for ${r.case_id}`}
+                            onClick={() => open(r)}
+                          >
+                            Record action
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Layer>
+          <TablePagination paged={paged} />
+          {rows.length === 0 && <p className="rcs-helper">No results match these filters.</p>}
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <ClientLayout maxWidth={1184}>
+    <ClientLayout maxWidth={1320}>
       <PageHeader
         title="Case results"
         subtitle="Every result RCS has sent to CommunityHub. RCS decides whether a post broke policy; your team decides what happens to it."
@@ -158,147 +286,21 @@ export function ClientCaseResultsPage() {
             </Column>
           </Grid>
 
-          {/* Two views of one table, so a ContentSwitcher like the Manager's Deliveries: what is waiting, then everything. */}
-          <div style={{ maxWidth: 480 }}>
-            <ContentSwitcher
-              size="md"
-              aria-label="Case result views"
-              selectedIndex={view === "needs" ? 0 : 1}
-              onChange={({ index }) => setPicked(index === 0 ? "needs" : "all")}
-            >
-              <Switch name="needs" text={`Needs action (${needsAction.length})`} />
-              <Switch name="all" text={`All results (${results.length})`} />
-            </ContentSwitcher>
-          </div>
-          {view === "needs" && (
-            <p className="rcs-helper" style={{ fontSize: 14 }}>
-              Delivered results your team hasn&apos;t acted on yet. Choose Record action once the post has been removed
-              or kept: RCS is told, and the result moves to All results as actioned.
-            </p>
-          )}
-
-          {rows.length === 0 && view === "needs" && outcome === "ALL" && !query.trim() ? (
-            <EmptyState
-              title="Nothing needs action"
-              body="Every delivered result has an action recorded. New results appear here as RCS sends them."
-            />
-          ) : (
-            <>
-              <Layer>
-                <TableContainer>
-                  <TableToolbar aria-label="Case results toolbar">
-                    <TableToolbarContent>
-                      <div style={{ minWidth: 200, alignSelf: "center", paddingInline: 8 }}>
-                        <Select
-                          id="result-outcome"
-                          size="md"
-                          labelText="Outcome"
-                          hideLabel
-                          value={outcome}
-                          onChange={(e) => setOutcome(e.target.value as "ALL" | DeliveredOutcome)}
-                        >
-                          <SelectItem value="ALL" text="All outcomes" />
-                          <SelectItem
-                            value="POLICY_VIOLATION_FOUND"
-                            text={PAYLOAD_OUTCOME_LABEL.POLICY_VIOLATION_FOUND}
-                          />
-                          <SelectItem value="NO_VIOLATION_FOUND" text={PAYLOAD_OUTCOME_LABEL.NO_VIOLATION_FOUND} />
-                          <SelectItem
-                            value="CLOSED_NO_REASSIGNMENT"
-                            text={PAYLOAD_OUTCOME_LABEL.CLOSED_NO_REASSIGNMENT}
-                          />
-                        </Select>
-                      </div>
-                      <TableToolbarSearch
-                        persistent
-                        labelText="Search by case ID or post link"
-                        placeholder="Search by case ID or post link"
-                        onChange={(e) =>
-                          setQuery(
-                            typeof e === "string" ? e : ((e?.target as HTMLInputElement | undefined)?.value ?? ""),
-                          )
-                        }
-                      />
-                    </TableToolbarContent>
-                  </TableToolbar>
-                  <Table aria-label="Case results">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader>Case ID</TableHeader>
-                        <TableHeader>Post</TableHeader>
-                        <TableHeader>RCS result</TableHeader>
-                        <TableHeader>Final severity</TableHeader>
-                        <TableHeader>Completed</TableHeader>
-                        <TableHeader>Received</TableHeader>
-                        <TableHeader>Your team&apos;s action</TableHeader>
-                        <TableHeader>Actions</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {paged.rows.map((r: CaseResult) => (
-                        <TableRow key={r.delivery_id}>
-                          <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
-                            {r.case_id}
-                          </TableCell>
-                          <TableCell>
-                            {safeHttpUrl(r.post_url) ? (
-                              <a className="cds--link" href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer">
-                                {postLabel(r.post_url)}
-                              </a>
-                            ) : r.post_url ? (
-                              // Not an http(s) link: shown as text, never made clickable.
-                              <span style={{ overflowWrap: "anywhere" }}>{r.post_url}</span>
-                            ) : (
-                              <span className="rcs-helper">Not attached</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <StatusTag tone={OUTCOME_TONE[r.outcome]}>{PAYLOAD_OUTCOME_LABEL[r.outcome]}</StatusTag>
-                          </TableCell>
-                          <TableCell>
-                            {r.final_severity ? <SeverityTag tier={r.final_severity} size="sm" /> : "—"}
-                          </TableCell>
-                          <TableCell>{formatShortDateTime(r.completed_at)}</TableCell>
-                          <TableCell>
-                            {r.status === "DELIVERED" && r.delivered_at ? (
-                              formatShortDateTime(r.delivered_at)
-                            ) : (
-                              <StatusTag tone="info">On its way</StatusTag>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {r.platform_action ? (
-                              <StatusTag tone={r.platform_action.action === "REMOVED" ? "success" : "neutral"}>
-                                {PLATFORM_ACTION_LABEL[r.platform_action.action]}
-                              </StatusTag>
-                            ) : r.status === "DELIVERED" ? (
-                              <StatusTag tone="warning">Needs action</StatusTag>
-                            ) : (
-                              "—"
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {r.status === "DELIVERED" && !r.platform_action && (
-                              <Button
-                                kind="tertiary"
-                                size="sm"
-                                aria-label={`Record action for ${r.case_id}`}
-                                onClick={() => open(r)}
-                              >
-                                Record action
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Layer>
-              <TablePagination paged={paged} />
-              {rows.length === 0 && <p className="rcs-helper">No results match these filters.</p>}
-            </>
-          )}
+          {/* Two views of one table. Carbon's line tabs, the same underline as the section tabs above, not a
+              black-and-white switcher that looks like a button. */}
+          <Tabs
+            selectedIndex={view === "needs" ? 0 : 1}
+            onChange={({ selectedIndex }) => setPicked(selectedIndex === 0 ? "needs" : "all")}
+          >
+            <TabList aria-label="Case result views">
+              <Tab>{`Needs action (${needsAction.length})`}</Tab>
+              <Tab>{`All results (${results.length})`}</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel className="rcs-tab-panel-flush">{view === "needs" && viewBody}</TabPanel>
+              <TabPanel className="rcs-tab-panel-flush">{view === "all" && viewBody}</TabPanel>
+            </TabPanels>
+          </Tabs>
         </>
       )}
 
