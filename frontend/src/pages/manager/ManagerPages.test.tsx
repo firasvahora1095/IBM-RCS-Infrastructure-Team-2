@@ -167,10 +167,12 @@ describe("Manager screens", () => {
       await waitFor(() => expect(within(strip).getByText(String(open))).toBeInTheDocument());
     });
 
-    it("has no primary button: every inbox action is secondary, and reports are made from Insights and Reports", async () => {
+    it("has one primary button, which jumps to Needs you: every inbox action is secondary, and reports are made from Insights and Reports", async () => {
       renderAt("/manager");
       await screen.findByRole("list", { name: "Items that need you" });
-      expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(0);
+      const primary = await screen.findByRole("link", { name: /^Needs you \(\d+\)$/ });
+      expect(primary).toHaveAttribute("href", "#needs-attention");
+      expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(1);
       expect(screen.queryByRole("button", { name: "Generate report" })).not.toBeInTheDocument();
     });
 
@@ -237,12 +239,23 @@ describe("Manager screens", () => {
       expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
     });
 
+    it("counts what is waiting on each work queue, red for SOS alone", async () => {
+      renderAt("/manager");
+      const links = await screen.findByRole("navigation", { name: "Work queues" });
+      await waitFor(() => expect(links.querySelectorAll(".rcs-subnav-count").length).toBeGreaterThan(0));
+      const badges = [...links.querySelectorAll(".rcs-subnav-count")];
+      for (const badge of badges) {
+        const isSos = badge.closest("a")?.getAttribute("href") === "/manager/sos";
+        expect(badge.classList.contains("rcs-subnav-count--neutral")).toBe(!isSos);
+      }
+    });
+
     it("keeps the SOS inbox, Reassignment queue and Client messages one click away, in a row under Overview", async () => {
       renderAt("/manager");
       const links = await screen.findByRole("navigation", { name: "Work queues" });
       expect(within(links).getByRole("link", { name: /^SOS inbox/ })).toHaveAttribute("href", "/manager/sos");
-      expect(within(links).getByRole("link", { name: "Reassignment queue" })).toHaveAttribute("href", "/manager/reassignment");
-      expect(within(links).getByRole("link", { name: "Client messages" })).toHaveAttribute("href", "/manager/messages");
+      expect(within(links).getByRole("link", { name: /^Reassignment queue/ })).toHaveAttribute("href", "/manager/reassignment");
+      expect(within(links).getByRole("link", { name: /^Client messages/ })).toHaveAttribute("href", "/manager/messages");
     });
 
     it("opens a failed delivery, where it is retried, rather than retrying from the list", async () => {

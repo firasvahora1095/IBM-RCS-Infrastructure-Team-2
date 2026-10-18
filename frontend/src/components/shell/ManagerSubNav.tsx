@@ -7,7 +7,15 @@ import { activeSection, WORK_QUEUES } from "./managerSections";
  * second, quieter row so the main bar stays at six sections, and appear only on Overview and its sub-pages
  * because that is where this work happens.
  */
-export function ManagerSubNav({ sosCount = 0 }: { sosCount?: number }) {
+export function ManagerSubNav({
+  sosCount = 0,
+  reassignmentCount = 0,
+  messageCount = 0,
+}: {
+  sosCount?: number;
+  reassignmentCount?: number;
+  messageCount?: number;
+}) {
   const { pathname } = useLocation();
   if (activeSection(pathname) !== "/manager") return null;
   return (
@@ -27,7 +35,15 @@ export function ManagerSubNav({ sosCount = 0 }: { sosCount?: number }) {
             data-active={isActive || undefined}
           >
             {queue.label}
+            {/* Red is for SOS alone, the one thing that is urgent. Every other queue waiting on the Manager gets the
+                same count in a neutral dark badge, so a number always means "waiting for you" and only red means "now". */}
             {queue.path === "/manager/sos" && sosCount > 0 && <span className="rcs-subnav-count">{sosCount}</span>}
+            {queue.path === "/manager/reassignment" && reassignmentCount > 0 && (
+              <span className="rcs-subnav-count rcs-subnav-count--neutral">{reassignmentCount}</span>
+            )}
+            {queue.path === "/manager/messages" && messageCount > 0 && (
+              <span className="rcs-subnav-count rcs-subnav-count--neutral">{messageCount}</span>
+            )}
           </Link>
         );
       })}

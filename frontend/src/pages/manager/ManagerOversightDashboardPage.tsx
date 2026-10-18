@@ -27,8 +27,8 @@ const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
  * figures sit above for context. Case flow, AI and Auditor decisions, Client
  * outcomes and Delivery health moved to Insights.
  *
- * Overview has no primary button: every action in the inbox is a secondary one, and
- * Generate report lives on Insights and Reports. The header's "Demo data" badge already labels seeded
+ * Overview's one primary button jumps to the "Needs you" inbox (shown only when something is waiting); every action
+ * inside the inbox is a secondary one, and Generate report lives on Insights and Reports. The header's "Demo data" badge already labels seeded
  * figures on every screen (MR-OV-08), so the page does not repeat it.
  * See docs/ux/manager-ux-audit-and-redesign.md.
  */
@@ -55,6 +55,9 @@ export function ManagerOversightDashboardPage() {
         subtitle={data ? `${data.organisation_name} · ${periodLabel}` : "Loading…"}
         actions={
           <>
+            {data && data.kpis.needs_manager_action > 0 && (
+              <Button href="#needs-attention">{`Needs you (${data.kpis.needs_manager_action})`}</Button>
+            )}
             <Dropdown
               id="dashboard-period"
               titleText="Period"

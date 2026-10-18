@@ -191,7 +191,17 @@ export function ReviewWorkspace({
     };
     const observer = new ResizeObserver(measure);
     observer.observe(wrapper);
-    return () => observer.disconnect();
+    // The track itself can change size without the wrapper changing (the time label and volume beside it settle after
+    // the first paint), so watch it too, and measure again once the first frame is laid out and on window resize.
+    const track = wrapper.querySelector<HTMLElement>(".cds--slider__track");
+    if (track) observer.observe(track);
+    const frame = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", measure);
+      observer.disconnect();
+    };
   }, []);
 
   // Keep streamed footage and local previews in step with the controls.

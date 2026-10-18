@@ -6,6 +6,8 @@ import { ManagerSubNav } from "../shell/ManagerSubNav";
 import { SosAlertBanner } from "../notifications/SosAlertBanner";
 import { StaffPage } from "./StaffPage";
 import { useSosSummary } from "../../hooks/useSosSummary";
+import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { listClientMessages, listDeclinedCases } from "../../services";
 
 interface ManagerLayoutProps {
   children: ReactNode;
@@ -28,6 +30,9 @@ interface ManagerLayoutProps {
  */
 export function ManagerLayout({ children, showNav = true, showSosBanner = true, maxWidth, clientScope = false }: ManagerLayoutProps) {
   const sos = useSosSummary();
+  // The counts on the work-queue tabs: cases waiting for a new Auditor and Client messages not yet answered.
+  const declined = useStaffQuery(listDeclinedCases, "", { refreshMs: 30_000 });
+  const messages = useStaffQuery(listClientMessages, "", { refreshMs: 30_000 });
   return (
     <>
       <StaffHeader role="manager" sosSummary={sos} />
@@ -35,7 +40,11 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
       <div style={{ paddingTop: 48 }}>
         {showSosBanner && <SosAlertBanner summary={sos} />}
         {showNav && <ManagerTopNav end={clientScope ? <ClientSwitcher /> : undefined} />}
-        {showNav && <ManagerSubNav sosCount={sos?.unresolved_count ?? 0} />}
+        {showNav && <ManagerSubNav
+            sosCount={sos?.unresolved_count ?? 0}
+            reassignmentCount={declined.data?.length ?? 0}
+            messageCount={messages.data?.filter((m) => m.status !== "ANSWERED").length ?? 0}
+          />}
       </div>
       <StaffPage clearHeader={false} maxWidth={maxWidth}>
         {children}
