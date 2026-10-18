@@ -187,7 +187,11 @@ export function computeIntelligence(
 
   const declined = openLive.filter((r) => r.flag === "DECLINED");
   const capped = openLive.filter((r) => r.flag === "CAP_REACHED");
-  const deliveries = source.deliveries.filter((d) => d.organisation_id === source.organisation.organisation_id);
+  // "All clients" counts every delivery; one client counts only its own.
+  const deliveries =
+    source.organisation.organisation_id === "ALL"
+      ? source.deliveries
+      : source.deliveries.filter((d) => d.organisation_id === source.organisation.organisation_id);
   const failed = deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION");
   const attention: { kind: AttentionKind; count: number }[] = [
     { kind: "SOS", count: source.openSosAuditors },

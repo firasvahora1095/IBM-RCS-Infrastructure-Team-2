@@ -127,12 +127,12 @@ export function ManagerSosFollowUpPage() {
           </RadioButtonGroup>
           <p className="rcs-helper" aria-live="polite">
             {outcome === "NO_FURTHER_ACTION" &&
-              "Records that you spoke with the Auditor and no further action is needed. The alert is resolved."}
+              "You spoke with the Auditor and they are well enough to keep working. This resolves the alert."}
             {outcome === "REASSIGNED_REMAINING_CASES" &&
-              "Records that you moved the Auditor's remaining cases. Decide who takes them from the Reassignment Queue."}
+              "The Auditor keeps working, but you are handing their remaining cases to other Auditors. Choose who takes them in the Reassignment Queue."}
             {outcome === "AUDITOR_STOPPED_SHIFT" &&
-              "Records that the Auditor stopped their shift. Their open cases will need a new Auditor."}
-            {!outcome && "Choose what happened. Your notes and this outcome are kept in the audit trail."}
+              "The Auditor has stopped for the day. Their open cases will need new Auditors."}
+            {!outcome && "Choose what happened after you spoke with the Auditor. Your notes and this choice are kept in the audit trail."}
           </p>
           {submitError && (
             <InlineNotification

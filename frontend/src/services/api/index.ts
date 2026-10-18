@@ -98,4 +98,5 @@ export const apiDataService: DataService = {
   clientListCaseResults: http.clientListCaseResults,
   clientRecordPlatformAction: http.clientRecordPlatformAction,
   listClientAccounts: http.listClientAccounts,
+  listClients: http.listClients,
 };

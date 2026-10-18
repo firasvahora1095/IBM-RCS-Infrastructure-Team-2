@@ -22,6 +22,7 @@ import { SeverityTag } from "../../components/severity/SeverityTag";
 import { getCaseOversight } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { inScope, useClients } from "../../hooks/useClientScope";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 import { caseStatusTone } from "../../design-tokens/statusTones";
 import { StatusTag } from "../../components/ui/StatusTag";
@@ -31,12 +32,6 @@ import { isOpenBucket, OPEN_BUCKET_LABEL, openBucketOf } from "../../design-toke
 const ALL_STATUSES = "All statuses";
 
 type SortKey = "severity" | "status" | "auditor" | "case";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "severity", label: "Severity, high to low" },
-  { key: "status", label: "Status, in workflow order" },
-  { key: "auditor", label: "Auditor, A to Z" },
-  { key: "case", label: "Case ID, newest first" },
-];
 /** The order a case moves through, so a status sort reads as a pipeline rather than alphabetically. */
 const STATUS_ORDER = ["Processing", "Ready for Review", "In Review", "Complete"];
 
@@ -73,7 +68,9 @@ function detailHref(row: ManagerCaseRow): string {
  */
 export function ManagerCaseOversightPage() {
   const navigate = useNavigate();
-  const { data, error } = useStaffQuery(getCaseOversight);
+  const { data: allCases, error } = useStaffQuery(getCaseOversight);
+  const { scope, selected } = useClients();
+  const data = allCases ? allCases.filter((c) => inScope(scope, c)) : allCases;
   // The dashboard opens this list on a stage (?stage=) or a case (?search=).
   const [params, setParams] = useSearchParams();
   const rawStage = params.get("stage");
@@ -102,9 +99,12 @@ export function ManagerCaseOversightPage() {
         (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9),
     );
   const [sortKey, setSortKey] = useState<SortKey>("severity");
+  const [sortDir, setSortDir] = useState<"ASC" | "DESC">("ASC");
   const others = matching
     .filter((c) => attentionOf(c) === null)
-    .sort((a, b) => {
+    .sort((a, b) => (sortDir === "ASC" ? 1 : -1) * compare(a, b));
+
+  function compare(a: ManagerCaseRow, b: ManagerCaseRow): number {
       switch (sortKey) {
         case "status":
           return (
@@ -118,12 +118,12 @@ export function ManagerCaseOversightPage() {
         default:
           return (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9);
       }
-    });
+  }
 
-  const paged = usePagination(others, `${query}|${statusFilter}|${stage}|${sortKey}`);
+  const paged = usePagination(others, `${query}|${statusFilter}|${stage}|${sortKey}|${sortDir}`);
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader title="Cases" subtitle="Every case across all Auditors. What needs you comes first." />
       <div className="flex flex-wrap items-end gap-4">
         <div style={{ width: "100%", maxWidth: 320 }}>
@@ -175,6 +175,7 @@ export function ManagerCaseOversightPage() {
               <TableHead>
                 <TableRow>
                   <TableHeader>Case ID</TableHeader>
+                  {!selected && <TableHeader>Client</TableHeader>}
                   <TableHeader>Severity</TableHeader>
                   <TableHeader>Auditor</TableHeader>
                   <TableHeader>Needs</TableHeader>
@@ -194,6 +195,7 @@ export function ManagerCaseOversightPage() {
                       style={{ cursor: "pointer" }}
                     >
                       <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+                      {!selected && <TableCell>{row.organisation_name ?? "—"}</TableCell>}
                       <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
                       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
                       <TableCell>
@@ -218,28 +220,41 @@ export function ManagerCaseOversightPage() {
         <Section
           id="all-cases"
           title={needing.length > 0 ? `All other cases · ${others.length}` : `All cases · ${others.length}`}
-          actions={
-            <Dropdown
-              id="case-sort"
-              titleText="Sort by"
-              label="Sort by"
-              size="sm"
-              type="inline"
-              items={SORT_OPTIONS}
-              itemToString={(o) => (o ? o.label : "")}
-              selectedItem={SORT_OPTIONS.find((o) => o.key === sortKey)}
-              onChange={({ selectedItem }) => selectedItem && setSortKey(selectedItem.key)}
-            />
-          }
         >
           <Layer>
             <Table aria-label="All cases">
               <TableHead>
                 <TableRow>
-                  <TableHeader>Case ID</TableHeader>
-                  <TableHeader>Severity</TableHeader>
-                  <TableHeader>Auditor</TableHeader>
-                  <TableHeader>Status</TableHeader>
+                  {(
+                    [
+                      ["case", "Case ID"],
+                      ...(!selected ? ([["client", "Client"]] as const) : []),
+                      ["severity", "Severity"],
+                      ["auditor", "Auditor"],
+                      ["status", "Status"],
+                    ] as const
+                  ).map(([key, label]) =>
+                    key === "client" ? (
+                      <TableHeader key={key}>{label}</TableHeader>
+                    ) : (
+                      // Click a heading to sort by it; click again to reverse. Severity starts at the most severe.
+                      <TableHeader
+                        key={key}
+                        isSortable
+                        isSortHeader={sortKey === key}
+                        sortDirection={sortKey === key ? sortDir : "NONE"}
+                        onClick={() => {
+                          if (sortKey === key) setSortDir(sortDir === "ASC" ? "DESC" : "ASC");
+                          else {
+                            setSortKey(key);
+                            setSortDir("ASC");
+                          }
+                        }}
+                      >
+                        {label}
+                      </TableHeader>
+                    ),
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -248,6 +263,7 @@ export function ManagerCaseOversightPage() {
                   return (
                     <TableRow key={row.case_id}>
                       <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+                      {!selected && <TableCell>{row.organisation_name ?? "—"}</TableCell>}
                       <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
                       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
                       <TableCell style={{ color: "var(--cds-text-secondary)" }}>

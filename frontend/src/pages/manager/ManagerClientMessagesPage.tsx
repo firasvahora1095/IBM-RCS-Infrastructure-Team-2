@@ -9,6 +9,7 @@ import { TablePagination, usePagination } from "../../components/ui/TablePaginat
 import { listClientMessages } from "../../services";
 import type { ClientMessage } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { inScope, useClients } from "../../hooks/useClientScope";
 import { MANAGER_MESSAGE_STATUS_LABEL, MESSAGE_TONE, MESSAGE_TOPIC_LABEL } from "../../design-tokens/messageLabels";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
@@ -19,7 +20,9 @@ import { formatDayTime } from "../../utils/formatRelativeTime";
  */
 export function ManagerClientMessagesPage() {
   const navigate = useNavigate();
-  const { data, error } = useStaffQuery(listClientMessages);
+  const { data: allMessages, error } = useStaffQuery(listClientMessages);
+  const { scope, selected } = useClients();
+  const data = allMessages ? allMessages.filter((m) => inScope(scope, m)) : allMessages;
   const waiting = (data ?? [])
     .filter((m) => m.status !== "ANSWERED")
     .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
@@ -29,7 +32,7 @@ export function ManagerClientMessagesPage() {
   const pagedAnswered = usePagination(answered, String(answered.length));
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Client messages" }]} />
       <PageHeader
         title="Client messages"
@@ -38,23 +41,23 @@ export function ManagerClientMessagesPage() {
             ? waiting.length === 0
               ? "Everything has been answered."
               : `${waiting.length} waiting for a reply. Clients are told RCS replies within one working day.`
-            : "Questions from CommunityHub users."
+            : "Questions from your Clients' users."
         }
       />
       <LoadState error={error} loading={!data && !error} what="Client messages" />
       {data && waiting.length > 0 && (
         <Section id="waiting" title={`Waiting for a reply · ${waiting.length}`} description="Oldest first.">
-          <MessageTable label="Client messages waiting for a reply" rows={waiting} navigate={navigate} withReply />
+          <MessageTable label="Client messages waiting for a reply" rows={waiting} navigate={navigate} withReply showClient={!selected} />
         </Section>
       )}
       {data && answered.length > 0 && (
         <Section id="answered" title={`Answered · ${answered.length}`}>
-          <MessageTable label="Answered Client messages" rows={pagedAnswered.rows} navigate={navigate} />
+          <MessageTable label="Answered Client messages" rows={pagedAnswered.rows} navigate={navigate} showClient={!selected} />
           <TablePagination paged={pagedAnswered} />
         </Section>
       )}
       {data && data.length === 0 && (
-        <Section title="No messages yet" description="When a CommunityHub user writes to RCS, their message appears here.">
+        <Section title="No messages yet" description="When a Client's user writes to RCS, their message appears here.">
           <span />
         </Section>
       )}
@@ -67,11 +70,14 @@ function MessageTable({
   rows,
   navigate,
   withReply = false,
+  showClient = false,
 }: {
   label: string;
   rows: ClientMessage[];
   navigate: (to: string) => void;
   withReply?: boolean;
+  /** "All clients" is selected, so each message says whose it is. */
+  showClient?: boolean;
 }) {
   return (
     <Layer>
@@ -104,9 +110,11 @@ function MessageTable({
                 </TableCell>
                 <TableCell>
                   {m.display_name}
-                  <span className="rcs-helper" style={{ display: "block" }}>
-                    {m.organisation_name}
-                  </span>
+                  {showClient && (
+                    <span className="rcs-helper" style={{ display: "block" }}>
+                      {m.organisation_name}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell style={{ color: "var(--cds-text-secondary)" }}>{formatDayTime(m.created_at)}</TableCell>
                 <TableCell>

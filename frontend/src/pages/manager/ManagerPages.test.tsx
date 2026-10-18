@@ -167,17 +167,14 @@ describe("Manager screens", () => {
       await waitFor(() => expect(within(strip).getByText(String(open))).toBeInTheDocument());
     });
 
-    it("has exactly one primary button, Generate Report, and no inbox row is primary (D4)", async () => {
+    it("has no primary button: every inbox action is secondary, and reports are made from Insights and Reports", async () => {
       renderAt("/manager");
-      const list = await screen.findByRole("list", { name: "Items that need you" });
-      expect(list).toBeInTheDocument();
-      const primaries = () => document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)");
-      expect(screen.getByRole("button", { name: "Generate Report" })).toHaveClass("cds--btn--primary");
-      expect(primaries()).toHaveLength(1);
-      expect(screen.queryByRole("button", { name: /Follow up \d+ SOS/ })).not.toBeInTheDocument();
+      await screen.findByRole("list", { name: "Items that need you" });
+      expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: "Generate report" })).not.toBeInTheDocument();
     });
 
-    it("keeps Generate Report as the one primary action when nothing needs the Manager", async () => {
+    it("says nothing needs the Manager when nothing does", async () => {
       updateDb((db) => {
         const now = new Date().toISOString();
         for (const sos of db.sosEvents) sos.resolved_at = sos.resolved_at ?? now;
@@ -190,56 +187,51 @@ describe("Manager screens", () => {
       });
       renderAt("/manager");
       expect(await screen.findByText("Nothing needs your attention")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Generate Report" })).toHaveClass("cds--btn--primary");
-      expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(1);
     });
 
-    it("lists Manager decisions as an inbox, each row naming what it is and where to go (BA 11.1)", async () => {
+    it("lists Manager decisions as an inbox, each row naming what it is and opening its details (BA 11.1)", async () => {
       updateDb((db) => {
         db.deliveries[0].delivery_status = "NEEDS_ATTENTION";
       });
       renderAt("/manager");
       const list = await screen.findByRole("list", { name: "Items that need you" });
-      // SOS opens its context first: acknowledging is a deliberate step.
+      const showAll = screen.queryByRole("button", { name: /^Show all/ });
+      if (showAll) fireEvent.click(showAll);
       // One row for all open SOS alerts, not one identical row each; it opens the SOS Inbox.
       expect(within(list).getAllByText("SOS Alert")).toHaveLength(1);
-      expect(within(list).getByRole("button", { name: /^Open SOS Inbox \(3\)/ })).toBeInTheDocument();
+      expect(within(list).getByRole("button", { name: "View alerts" })).toBeInTheDocument();
       expect(within(list).getAllByText("Break Request").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Talk Request").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Reassignment").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Delivery Failed").length).toBeGreaterThan(0);
+      // Every row has exactly one button, and none of them decides anything from the list.
+      for (const row of within(list).getAllByRole("listitem")) expect(within(row).getAllByRole("button")).toHaveLength(1);
+      expect(within(list).queryByRole("button", { name: /^(Approve|Retry|Follow up|Reassign)/ })).not.toBeInTheDocument();
     });
 
-    it("approves a break request in the row, with no page change (one click)", async () => {
+    it("opens a request instead of acting on it, so the Manager reads why first", async () => {
       renderAt("/manager");
-      const approve = await screen.findByRole("button", { name: /^Approve, break request from Reese Patel/ });
-      fireEvent.click(approve);
-      await waitFor(() => expect(screen.queryByRole("button", { name: /^Approve, break request from Reese/ })).toBeNull());
-      expect(await screen.findByText("Approved the break request from Reese Patel.", { selector: "p[role=status]" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
-      expect(
-        readDb().wellbeingRequests.filter((w) => w.kind === "BREAK_REQUEST" && w.status === "APPROVED").length,
-      ).toBeGreaterThan(0);
-    });
-
-    it("opens a talk request instead of dismissing it, so it is read before it is marked followed up", async () => {
-      renderAt("/manager");
-      const row = (await screen.findByText("Talk Request")).closest("li")!;
-      expect(within(row).queryByRole("button", { name: /^Follow/ })).not.toBeInTheDocument();
+      const row = (await screen.findByText("Break Request")).closest("li")!;
       fireEvent.click(within(row).getByRole("button", { name: "View request" }));
       expect(await screen.findByRole("heading", { level: 1, name: "Reese Patel" })).toBeInTheDocument();
-      const done = () => readDb().wellbeingRequests.filter((w) => w.kind === "TALK_TO_MANAGER" && w.status === "FOLLOWED_UP").length;
-      const before = done();
-      fireEvent.click(await screen.findByRole("button", { name: "Mark as followed up" }));
-      await waitFor(() => expect(done()).toBe(before + 1));
+      expect(
+        readDb().wellbeingRequests.filter((w) => w.kind === "BREAK_REQUEST" && w.status === "APPROVED").length,
+      ).toBe(1);
     });
 
-    it("never reassigns from the list: Review opens the decision with the suggested Auditor selected", async () => {
+    it("opens a row's details when the row itself is clicked", async () => {
+      renderAt("/manager");
+      const row = (await screen.findByText("AR-2026-00398")).closest("li")!;
+      fireEvent.click(row);
+      expect(await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
+    });
+
+    it("never reassigns from the list: View case opens the decision with the suggested Auditor selected", async () => {
       renderAt("/manager");
       const row = (await screen.findByText("AR-2026-00398")).closest("li")!;
       expect(within(row).getByText(/Suggested: /)).toBeInTheDocument();
       expect(within(row).queryByRole("button", { name: /^Reassign/ })).not.toBeInTheDocument();
-      fireEvent.click(within(row).getByRole("button", { name: "Review" }));
+      fireEvent.click(within(row).getByRole("button", { name: "View case" }));
       expect(await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
       // Nothing moved until the Manager confirms on that page.
       expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
@@ -253,28 +245,17 @@ describe("Manager screens", () => {
       expect(within(links).getByRole("link", { name: "Client messages" })).toHaveAttribute("href", "/manager/messages");
     });
 
-    it("retries a failed delivery in the row and clears it once CommunityHub accepts it", async () => {
+    it("opens a failed delivery, where it is retried, rather than retrying from the list", async () => {
       updateDb((db) => {
-        db.organisation.status = "READY";
+        db.deliveries[0].delivery_status = "NEEDS_ATTENTION";
       });
       renderAt("/manager");
-      const [retry] = await screen.findAllByRole("button", { name: /^Retry, delivery for case/ });
-      const name = retry.getAttribute("aria-label")!;
-      const caseId = name.replace("Retry, delivery for case ", "");
-      fireEvent.click(retry);
-      await waitFor(() => expect(screen.queryByRole("button", { name })).not.toBeInTheDocument());
-      expect(readDb().deliveries.find((d) => d.case_id === caseId)!.delivery_status).toBe("SUCCESS");
-    });
-
-    it("keeps a failed delivery in the inbox, and says so, when the retry fails again", async () => {
-      updateDb((db) => {
-        db.organisation.status = "ERROR";
-      });
-      renderAt("/manager");
-      const retry = await screen.findAllByRole("button", { name: /^Retry, delivery for case/ });
-      fireEvent.click(retry[0]);
-      expect(await screen.findByText(/Still failing/)).toBeInTheDocument();
-      expect(screen.getAllByRole("button", { name: /^Retry, delivery for case/ })).toHaveLength(retry.length);
+      await screen.findByRole("list", { name: "Items that need you" });
+      const showAll = screen.queryByRole("button", { name: /^Show all/ });
+      if (showAll) fireEvent.click(showAll);
+      const row = (await screen.findAllByText("Delivery Failed"))[0].closest("li")!;
+      fireEvent.click(within(row).getByRole("button", { name: "View delivery" }));
+      expect(await screen.findByRole("button", { name: "Retry delivery" })).toBeInTheDocument();
     });
 
     it("shows who asked for support with one quiet tag, and no rankings or scores (MR-SOS-07)", async () => {
@@ -353,7 +334,7 @@ describe("Manager screens", () => {
 
   it("acknowledges an SOS and logs the follow-up, which completes the Auditor check-in (MR-SOS-04/06)", async () => {
     renderAt("/manager/sos");
-    fireEvent.click(await screen.findByRole("button", { name: /Review Marcus Webb.s SOS alert/ }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /^View alert from Marcus Webb/ }))[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Acknowledge" }));
 
     expect(await screen.findByRole("heading", { name: "Log follow-up — Marcus Webb" })).toBeInTheDocument();
@@ -362,7 +343,7 @@ describe("Manager screens", () => {
     fireEvent.change(screen.getByLabelText("Follow-up notes"), {
       target: { value: "Called Marcus; okay to continue." },
     });
-    fireEvent.click(screen.getByLabelText("Followed up — no further action"));
+    fireEvent.click(screen.getByLabelText("Auditor is fine to continue"));
     fireEvent.click(log);
 
     expect(await screen.findByText(/This SOS alert is now resolved\./)).toBeInTheDocument();

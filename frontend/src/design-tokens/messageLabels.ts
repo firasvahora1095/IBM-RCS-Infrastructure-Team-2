@@ -34,22 +34,22 @@ export const MESSAGE_MAX_SUBJECT = 120;
  * Starting points for a reply, by topic. They keep to what a reply may say (aggregate facts, no Auditor names or
  * case content) and leave [bracketed] gaps for the Manager's own facts. A reply can't be sent while a gap is open.
  */
-export const REPLY_TEMPLATES: Record<ClientMessageTopic, { label: string; body: string }> = {
+export const REPLY_TEMPLATES: Record<ClientMessageTopic, { label: string; body: (clientName: string) => string }> = {
   REPORT_QUESTION: {
     label: "Use template",
-    body: "Thank you for your question about the report. The figures are aggregate and come from completed case records. [Your answer.]",
+    body: () => "Thank you for your question about the report. The figures are aggregate and come from completed case records. [Your answer.]",
   },
   DELIVERY_ISSUE: {
     label: "Use template",
-    body: "Thank you for flagging this. We checked the delivery to CommunityHub and [what you found]. Results are retried automatically, and we will confirm once it has been received.",
+    body: (clientName) => "Thank you for flagging this. We checked the delivery to " + clientName + " and [what you found]. Results are retried automatically, and we will confirm once it has been received.",
   },
   ACCOUNT_ACCESS: {
     label: "Use template",
-    body: "Thank you for getting in touch about access. [What you have done, or what you need from them.]",
+    body: () => "Thank you for getting in touch about access. [What you have done, or what you need from them.]",
   },
   OTHER: {
     label: "Use template",
-    body: "Thank you for your message. [Your reply.]",
+    body: () => "Thank you for your message. [Your reply.]",
   },
 };
 

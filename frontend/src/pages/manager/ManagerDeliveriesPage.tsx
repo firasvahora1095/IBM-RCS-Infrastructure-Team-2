@@ -29,11 +29,13 @@ import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeliveries } from "../../services";
 import type { Delivery } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { inScope, useClients } from "../../hooks/useClientScope";
 import { PAYLOAD_OUTCOME_LABEL } from "../../design-tokens/deliveryLabels";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 const HEADERS = [
   { key: "case", header: "Case" },
+  { key: "client", header: "Client" },
   { key: "outcome", header: "Outcome" },
   { key: "severity", header: "Final severity" },
   { key: "moderation", header: "Moderation status" },
@@ -51,7 +53,10 @@ const HEADERS = [
  */
 export function ManagerDeliveriesPage() {
   const navigate = useNavigate();
-  const { data, error } = useStaffQuery(listDeliveries);
+  const { data: allDeliveries, error } = useStaffQuery(listDeliveries);
+  const { scope, selected, clients } = useClients();
+  const clientName = (id: string) => clients.find((c) => c.organisation_id === id)?.name ?? id;
+  const data = useMemo(() => (allDeliveries ? allDeliveries.filter((d) => inScope(scope, d)) : allDeliveries), [allDeliveries, scope]);
   const [params, setParams] = useSearchParams();
   const [now] = useState(() => Date.now());
   const [page, setPage] = useState(1);
@@ -80,13 +85,13 @@ export function ManagerDeliveriesPage() {
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader
         title="Deliveries"
-        subtitle="Completed case results are sent to CommunityHub automatically. You only need to act when a delivery keeps failing."
+        subtitle={`Completed case results are sent to ${selected ? selected.name : "each Client"} automatically. You only need to act when a delivery keeps failing.`}
         actions={
           <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
-            CommunityHub connection
+            {selected ? `${selected.name} connection` : "Client connections"}
           </Button>
         }
       />
@@ -116,7 +121,7 @@ export function ManagerDeliveriesPage() {
               <StatTile
                 label="Delivered"
                 value={counts.success}
-                helper="Received by CommunityHub"
+                helper={`Received by ${selected ? selected.name : "the Client"}`}
               />
             </Column>
           </Grid>
@@ -144,7 +149,7 @@ export function ManagerDeliveriesPage() {
               body={
                 tabIndex === 0
                   ? "Every completed case result has been delivered or is still being retried automatically."
-                  : "When an Auditor completes a case, its result is delivered to CommunityHub and appears here."
+                  : "When an Auditor completes a case, its result is delivered to the Client and appears here."
               }
             />
           ) : (
@@ -163,10 +168,10 @@ export function ManagerDeliveriesPage() {
                     />
                   </TableToolbarContent>
                 </TableToolbar>
-                <Table aria-label="Case result deliveries to CommunityHub">
+                <Table aria-label="Case result deliveries">
                   <TableHead>
                     <TableRow>
-                      {HEADERS.map((h) => (
+                      {HEADERS.filter((h) => !selected || h.key !== "client").map((h) => (
                         <TableHeader key={h.key}>{h.header}</TableHeader>
                       ))}
                     </TableRow>
@@ -194,6 +199,7 @@ export function ManagerDeliveriesPage() {
                               {d.case_id}
                             </RouterLink>
                           </TableCell>
+                          {!selected && <TableCell>{clientName(d.organisation_id)}</TableCell>}
                           <TableCell>{PAYLOAD_OUTCOME_LABEL[d.outcome]}</TableCell>
                           <TableCell>
                             {d.final_severity ? <SeverityTag tier={d.final_severity} size="sm" /> : "—"}

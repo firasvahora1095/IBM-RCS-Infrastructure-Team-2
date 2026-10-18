@@ -1,6 +1,20 @@
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Accordion, AccordionItem, Button, CodeSnippet, InlineLoading, InlineNotification } from "@carbon/react";
+import {
+  Accordion,
+  AccordionItem,
+  Button,
+  CodeSnippet,
+  InlineLoading,
+  InlineNotification,
+  Layer,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -11,8 +25,9 @@ import { getCustomerIntegration, listClientAccounts, listReports, testIntegratio
 import { ApiError, NETWORK_ERROR_MESSAGE, type IntegrationTestResult } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { ALL_CLIENTS, useClients, useClientScope } from "../../hooks/useClientScope";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { CLIENT_ROLE_LABEL, CLIENT_ROLE_SCOPE, RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
+import { CLIENT_ROLE_LABEL, CLIENT_ROLE_SCOPE, responsibilityBoundary } from "../../design-tokens/deliveryLabels";
 import { formatPeriod, formatShortDateTime } from "../../utils/formatPeriod";
 
 const SAMPLE_PAYLOAD = `{
@@ -32,9 +47,15 @@ const SAMPLE_PAYLOAD = `{
 export function ManagerCustomerPage() {
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
-  const { data, error, reload } = useStaffQuery((t) => getCustomerIntegration("COMMUNITYHUB", t));
+  const { selected, clients } = useClients();
+  const { setClientId } = useClientScope();
+  const clientId = selected?.organisation_id ?? null;
+  const { data, error, reload } = useStaffQuery(
+    (t) => (clientId ? getCustomerIntegration(clientId, t) : Promise.resolve(null)),
+    clientId ?? "none",
+  );
   const reports = useStaffQuery(listReports);
-  const accounts = useStaffQuery((t) => listClientAccounts("COMMUNITYHUB", t));
+  const accounts = useStaffQuery((t) => (clientId ? listClientAccounts(clientId, t) : Promise.resolve([])), clientId ?? "none");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<IntegrationTestResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -45,7 +66,7 @@ export function ManagerCustomerPage() {
     setResult(null);
     setTestError(null);
     try {
-      setResult(await testIntegration("COMMUNITYHUB", token));
+      setResult(await testIntegration(clientId ?? "", token));
       reload();
     } catch (err) {
       if (handleSessionExpiry(err)) return;
@@ -55,17 +76,85 @@ export function ManagerCustomerPage() {
     }
   }
 
-  const latestReleased = reports.data?.find((r) => r.status === "RELEASED");
+  const latestReleased = reports.data?.find((r) => r.status === "RELEASED" && r.organisation_id === clientId);
   const ready = data?.status === "READY";
 
+  // With no Client selected, the page is the list of them: each Client's connection and delivery health on one line,
+  // so the state of every connection can be read without opening any.
+  const everyone = useStaffQuery(
+    (t) => (clientId ? Promise.resolve([]) : Promise.all(clients.map((c) => getCustomerIntegration(c.organisation_id, t)))),
+    `${clientId ?? "all"}:${clients.map((c) => c.organisation_id).join(",")}`,
+  );
+
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader
-        breadcrumb={<ManagerBreadcrumb trail={[{ label: "Deliveries", to: "/manager/deliveries" }, { label: "CommunityHub connection" }]} />}
-        title="CommunityHub"
-        subtitle={data?.description ?? "Social platform"}
+        breadcrumb={
+          <ManagerBreadcrumb
+            trail={[
+              { label: "Deliveries", to: "/manager/deliveries" },
+              selected
+                ? { label: "Client connections", to: "/manager/customers/communityhub", onClick: () => setClientId(ALL_CLIENTS) }
+                : { label: "Client connections" },
+              ...(selected ? [{ label: selected.name }] : []),
+            ]}
+          />
+        }
+        title={selected?.name ?? "Client connections"}
+        subtitle={
+          selected
+            ? (data?.description ?? "Customer organisation")
+            : "How RCS delivers results to each Client, and whether each connection is working."
+        }
       />
-      <LoadState error={error} loading={!data && !error} what="this customer" />
+      {!selected && everyone.data && (
+        <Layer>
+          <Table aria-label="Client connections">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Client</TableHeader>
+                <TableHeader>Type</TableHeader>
+                <TableHeader>Connection</TableHeader>
+                <TableHeader>Delivered</TableHeader>
+                <TableHeader>Failed</TableHeader>
+                <TableHeader>Last tested</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {everyone.data.map((c) => (
+                <TableRow
+                  key={c.organisation_id}
+                  onClick={() => setClientId(c.organisation_id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <TableCell style={{ fontWeight: 600 }}>
+                    <button
+                      type="button"
+                      className="cds--link rcs-link-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClientId(c.organisation_id);
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  </TableCell>
+                  <TableCell>{c.description.split(" · ")[0]}</TableCell>
+                  <TableCell>
+                    <StatusTag tone={c.status === "READY" ? "success" : "error"} size="sm">
+                      {c.status === "READY" ? "Connected" : "Needs attention"}
+                    </StatusTag>
+                  </TableCell>
+                  <TableCell className="rcs-mono">{c.health.success}</TableCell>
+                  <TableCell className="rcs-mono">{c.health.needs_attention}</TableCell>
+                  <TableCell>{c.last_tested_at ? formatShortDateTime(c.last_tested_at) : "Not tested"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Layer>
+      )}
+      <LoadState error={error} loading={Boolean(selected) && !data && !error} what="this Client" />
       {data && (
         // One column, in the order a Manager asks the questions: is it connected, is it delivering, what was reported,
         // then how it works and who can see it.
@@ -73,7 +162,7 @@ export function ManagerCustomerPage() {
           <Section
             id="connection"
             title="Connection"
-            description="Whether RCS can send completed results to CommunityHub."
+            description={`Whether RCS can send completed results to ${selected?.name ?? "the Client"}.`}
             actions={<StatusTag tone={ready ? "success" : "error"}>{ready ? "Connected" : "Needs attention"}</StatusTag>}
           >
             <dl className="rcs-glance">
@@ -94,7 +183,7 @@ export function ManagerCustomerPage() {
                   {ready ? "Test connection" : "Retest connection"}
                 </Button>
               )}
-              <span className="rcs-helper">Sends one test result to CommunityHub and reports whether it was accepted.</span>
+              <span className="rcs-helper">Sends one test result to {selected?.name} and reports whether it was accepted.</span>
             </div>
             {/* Where the outcome of the test appears. */}
             <div aria-live="polite">
@@ -117,7 +206,7 @@ export function ManagerCustomerPage() {
           <Section
             id="delivery-health"
             title="Delivery health"
-            description="What happened to the results sent to CommunityHub."
+            description={`What happened to the results sent to ${selected?.name ?? "the Client"}.`}
             actions={
               <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/deliveries">
                 View deliveries
@@ -138,7 +227,7 @@ export function ManagerCustomerPage() {
           <Section
             id="service-reports"
             title="Service reports"
-            description="The summary reports shared with CommunityHub."
+            description={`The summary reports shared with ${selected?.name ?? "the Client"}.`}
             actions={
               <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/reports">
                 View reports
@@ -165,7 +254,7 @@ export function ManagerCustomerPage() {
           <Section
             id="client-accounts"
             title="Client accounts"
-            description="Who at CommunityHub can see what. Each account sees only what its role needs."
+            description={`Who at ${selected?.name ?? "the Client"} can see what. Each account sees only what its role needs.`}
           >
             {accounts.data ? (
               <ul className="flex flex-col">
@@ -182,7 +271,7 @@ export function ManagerCustomerPage() {
             ) : (
               <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
             )}
-            <p className="rcs-helper">{RESPONSIBILITY_BOUNDARY}</p>
+            <p className="rcs-helper">{responsibilityBoundary(selected?.name ?? "The Client")}</p>
           </Section>
 
           {/* The set-up detail is for whoever maintains the connection, so it is one step away rather than on the page. */}
@@ -190,8 +279,8 @@ export function ManagerCustomerPage() {
             <AccordionItem title="Technical details for the integration owner">
               <div className="flex flex-col gap-6">
                 <p className="rcs-body">
-                  Each completed result is sent automatically to CommunityHub. A failed send is retried, and every result
-                  carries a unique ID, so CommunityHub never processes the same result twice.
+                  Each completed result is sent automatically to {selected?.name}. A failed send is retried, and every
+                  result carries a unique ID, so it is never processed twice.
                 </p>
                 <KeyValueList
                   mono={["Destination"]}
@@ -204,7 +293,7 @@ export function ManagerCustomerPage() {
                   ]}
                 />
                 <div className="flex flex-col gap-2">
-                  <h3 className="rcs-subheading">Example of what CommunityHub receives</h3>
+                  <h3 className="rcs-subheading">Example of what the Client receives</h3>
                   <CodeSnippet type="multi" feedback="Copied" aria-label="Example result payload" wrapText>
                     {SAMPLE_PAYLOAD}
                   </CodeSnippet>

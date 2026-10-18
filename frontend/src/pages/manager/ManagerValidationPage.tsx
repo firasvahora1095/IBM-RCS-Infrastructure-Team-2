@@ -13,6 +13,7 @@ import { TablePagination, usePagination } from "../../components/ui/TablePaginat
 import { getGovernanceSummary, getValidationSummary, getGovernanceCase, getAuditHistory } from "../../services";
 import type { GovernanceSummary, GovernanceQuery, GovernanceLogRow, ValidationSummary } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { ALL_CLIENTS, useClients } from "../../hooks/useClientScope";
 import { formatShortDateTime } from "../../utils/formatPeriod";
 
 /** The three views, in the order shown. Auditor overrides is the landing view: it changes with every completed case and is the one a Manager returns to. The accuracy test runs on a fixed reference set, so it is checked far less often. */
@@ -76,7 +77,12 @@ export function ManagerValidationPage() {
   const [query, setQuery] = useState<GovernanceQuery>({ limit: 25 });
   const [selectedCase, setSelectedCase] = useState("");
   const [action, setAction] = useState("");
-  const governance = useStaffQuery((token) => getGovernanceSummary(token, query), JSON.stringify(query));
+  const { scope } = useClients();
+  const organisation_id = scope === ALL_CLIENTS ? undefined : scope;
+  const governance = useStaffQuery(
+    (token) => getGovernanceSummary(token, { ...query, organisation_id }),
+    JSON.stringify({ ...query, organisation_id }),
+  );
 
   const [params, setParams] = useSearchParams();
   const view = VIEWS.find((v) => v.key === params.get("view")) ?? VIEWS[0];
@@ -97,10 +103,10 @@ export function ManagerValidationPage() {
   );
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader
         title="Validation & Audit"
-        subtitle="Assess the reliability of the AI and trace how each result was produced. Select a view."
+        subtitle="Assess the reliability of the AI and trace how each result was produced. The AI accuracy test covers the AI itself; the other two views follow the selected client."
       />
 
       {data?.is_placeholder && (
@@ -290,11 +296,11 @@ function GovernanceFilters({
       }}
     >
       <fieldset className="rcs-filter-group">
-        <legend>When and which data</legend>
+        <legend>Time period</legend>
         <div className="rcs-filter-row">
           <TextInput id={`${view}-from`} name="from" type="datetime-local" labelText="From" size="md" />
           <TextInput id={`${view}-to`} name="to" type="datetime-local" labelText="To" size="md" />
-          <Select id={`${view}-context`} name="context" labelText="Data" size="md" defaultValue="live">
+          <Select id={`${view}-context`} name="context" labelText="Data source" size="md" defaultValue="live">
             <SelectItem value="live" text="Live calls" />
             <SelectItem value="test" text="Test calls" />
             <SelectItem value="demo" text="Legacy demo" />
@@ -303,7 +309,7 @@ function GovernanceFilters({
       </fieldset>
       {isLog && (
         <fieldset className="rcs-filter-group">
-          <legend>What to look for</legend>
+          <legend>Call details</legend>
           <div className="rcs-filter-row">
             <TextInput id="log-case" name="case" labelText="Case ID" size="md" maxLength={20} placeholder="e.g. AR-2026-00340" />
             <Select id="log-leakage" name="leakage" labelText="Prompt leakage check" size="md" defaultValue="">

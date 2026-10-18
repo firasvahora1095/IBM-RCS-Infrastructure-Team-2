@@ -30,7 +30,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { NOT_IN_CLIENT_REPORT, RELEASE_CONFIRM_BODY } from "../../design-tokens/reportLabels";
+import { NOT_IN_CLIENT_REPORT, releaseConfirmBody } from "../../design-tokens/reportLabels";
 import { formatPeriod, formatShortDateTime } from "../../utils/formatPeriod";
 
 const NOTE_LIMIT = 600;
@@ -98,7 +98,7 @@ export function ManagerReportDetailPage() {
       setNotice({
         kind: "success",
         title: "Report released.",
-        subtitle: "CommunityHub's authorised users can now view it.",
+        subtitle: `${data?.organisation_name ?? "The Client"}'s authorised users can now view it.`,
       });
       reload();
     } catch (err) {
@@ -155,7 +155,7 @@ export function ManagerReportDetailPage() {
         <Grid className="rcs-grid">
           <Column sm={4} md={8} lg={11} className="flex flex-col gap-4">
             <p className="rcs-helper rcs-no-print">
-              This is exactly what CommunityHub will see. Only you can open the evidence behind each section.
+              This is exactly what {data?.organisation_name ?? "the Client"} will see. Only you can open the evidence behind each section.
             </p>
             <ReportSheet
               report={{ ...data, manager_note: draft ? note.trim() || null : data.manager_note }}
@@ -172,7 +172,7 @@ export function ManagerReportDetailPage() {
                   </h2>
                   <TextArea
                     id="manager-note"
-                    labelText="Service notes for CommunityHub (optional)"
+                    labelText={`Service notes for ${data?.organisation_name ?? "the Client"} (optional)`}
                     helperText="Factual service or quality notes. Shown in the report."
                     value={note}
                     maxCount={NOTE_LIMIT}
@@ -207,7 +207,7 @@ export function ManagerReportDetailPage() {
                     Released
                   </h2>
                   <p className="rcs-body">
-                    CommunityHub's authorised users can view and download this version. Released reports can't be
+                    {data?.organisation_name ?? "The Client"}'s authorised users can view and download this version. Released reports can't be
                     edited.
                   </p>
                   <Button kind="tertiary" onClick={newVersion}>
@@ -268,7 +268,7 @@ export function ManagerReportDetailPage() {
       <Modal
         open={confirmOpen}
         danger={false}
-        modalHeading="Release this report to CommunityHub?"
+        modalHeading={`Release this report to ${data?.organisation_name ?? "the Client"}?`}
         modalLabel={data ? formatPeriod(data.period_start, data.period_end) : undefined}
         primaryButtonText={releasing ? "Releasing…" : "Release report"}
         primaryButtonDisabled={releasing}
@@ -276,7 +276,7 @@ export function ManagerReportDetailPage() {
         onRequestClose={() => !releasing && setConfirmOpen(false)}
         onRequestSubmit={release}
       >
-        <p className="rcs-body">{RELEASE_CONFIRM_BODY}</p>
+        <p className="rcs-body">{releaseConfirmBody(data?.organisation_name ?? "The Client")}</p>
       </Modal>
       {data && evidenceKey && data.metrics.evidence && (
         <EvidenceDialog

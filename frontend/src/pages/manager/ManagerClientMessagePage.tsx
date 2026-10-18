@@ -96,7 +96,7 @@ export function ManagerClientMessagePage() {
                 </h2>
                 {!reply.trim() && (
                   <div>
-                    <Button kind="tertiary" size="sm" onClick={() => setReply(REPLY_TEMPLATES[data.topic].body)}>
+                    <Button kind="tertiary" size="sm" onClick={() => setReply(REPLY_TEMPLATES[data.topic].body(data.organisation_name))}>
                       {REPLY_TEMPLATES[data.topic].label}
                     </Button>
                   </div>

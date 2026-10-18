@@ -832,6 +832,109 @@ class B2bContractTests(unittest.TestCase):
         unknown = {**params, "organisation_id": "NOPE"}
         self.assertEqual(self.client.get("/api/manager/intelligence", params=unknown, headers=manager).status_code, 404)
 
+    # ---- more than one client -------------------------------------------------
+
+    def add_client(self, organisation_id: str, name: str) -> None:
+        with self.Session.begin() as db:
+            db.add(Organisation(
+                organisation_id=organisation_id, name=name, description="Customer organisation",
+                status="READY", destination_masked="https://example.invalid/••••••",
+            ))
+
+    def intel_for(self, organisation_id: str) -> dict:
+        today = datetime.now(timezone.utc).date()
+        query = {
+            "organisation_id": organisation_id,
+            "period_start": (today - timedelta(days=1)).isoformat(),
+            "period_end": (today + timedelta(days=1)).isoformat(),
+        }
+        response = self.client.get("/api/manager/intelligence", params=query, headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_clients_are_listed_for_the_selector(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        response = self.client.get("/api/manager/clients", headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        ids = {c["organisation_id"] for c in response.json()}
+        self.assertIn("STREAMNEST", ids)
+        self.assertIn(COMMUNITYHUB_ID, ids)
+        self.assertEqual(self.client.get("/api/manager/clients").status_code, 401)
+        self.assertEqual(
+            self.client.get("/api/manager/clients", headers=self.staff_headers("auditor-1")).status_code, 403
+        )
+
+    def test_all_clients_adds_up_to_the_sum_of_each_client(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        now = datetime.now(timezone.utc)
+        self.add_case("RCS-CH-00001", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00001", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+                      organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=3), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00002", status="AUDITOR_REVIEW", organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=1))
+        self.add_delivery("DEL-RCS-CH-00001", "SUCCESS")
+        self.add_delivery("DEL-RCS-SN-00001", "NEEDS_ATTENTION", organisation_id="STREAMNEST",
+                          failure_reason="StreamNest's endpoint was unavailable (503)")
+        self.add_delivery("DEL-RCS-SN-00002", "SUCCESS", organisation_id="STREAMNEST")
+
+        everyone = self.intel_for("ALL")
+        hub = self.intel_for(COMMUNITYHUB_ID)
+        stream = self.intel_for("STREAMNEST")
+
+        self.assertEqual(everyone["organisation_name"], "All clients")
+        self.assertEqual(hub["kpis"]["total_cases"], 1)
+        self.assertEqual(stream["kpis"]["total_cases"], 2)
+        for key in ("total_cases", "completed", "open_cases"):
+            self.assertEqual(everyone["kpis"][key], hub["kpis"][key] + stream["kpis"][key], key)
+        for key in ("success", "pending", "retrying", "needs_attention"):
+            self.assertEqual(
+                everyone["delivery"]["health"][key],
+                hub["delivery"]["health"][key] + stream["delivery"]["health"][key],
+                key,
+            )
+        # The failed delivery belongs to StreamNest, so it is in All and in StreamNest, never in CommunityHub.
+        failed_ids = lambda body: [row["delivery_id"] for row in body["delivery"]["failed"]]
+        self.assertEqual(failed_ids(everyone), ["DEL-RCS-SN-00001"])
+        self.assertEqual(failed_ids(stream), ["DEL-RCS-SN-00001"])
+        self.assertEqual(failed_ids(hub), [])
+        self.assertEqual(self.intel_for("all")["kpis"], everyone["kpis"])
+
+    def test_a_report_counts_only_its_own_clients_cases(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        now = datetime.now(timezone.utc)
+        self.add_case("RCS-CH-00010", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00010", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+                      organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        today = now.date()
+        body = {
+            "organisation_id": "STREAMNEST",
+            "period_start": (today - timedelta(days=1)).isoformat(),
+            "period_end": (today + timedelta(days=1)).isoformat(),
+        }
+        response = self.client.post("/api/manager/reports", json=body, headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        report = response.json()
+        self.assertEqual(report["organisation_id"], "STREAMNEST")
+        self.assertTrue(report["report_id"].startswith("RPT-SN-"), report["report_id"])
+        self.assertEqual(report["metrics"]["cases_completed"], 1)
+        self.assertEqual(report["metrics"]["no_violation_count"], 1)
+        self.assertEqual(report["metrics"]["violation_count"], 0)
+
+    def test_the_comparison_follows_the_selected_client(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        self.add_history("RCS-CHH-0001", "S2", "S3")
+        self.add_history("RCS-SNH-0001", "S1", "S1", organisation_id="STREAMNEST")
+        headers = self.staff_headers("manager-1")
+        everyone = self.client.get("/api/manager/governance", headers=headers).json()
+        stream = self.client.get("/api/manager/governance", params={"organisation_id": "STREAMNEST"}, headers=headers).json()
+        self.assertEqual(everyone["compared_cases"], 2)
+        self.assertEqual(stream["compared_cases"], 1)
+        self.assertEqual([r["case_id"] for r in stream["comparisons"]], ["RCS-SNH-0001"])
+
     def test_evidence_lists_at_most_two_hundred_case_ids(self) -> None:
         now = datetime.now(timezone.utc)
         with self.Session.begin() as db:

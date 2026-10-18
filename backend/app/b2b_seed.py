@@ -59,7 +59,7 @@ def month_period(today: date, offset: int) -> tuple[str, str]:
     return first.isoformat(), last.isoformat()
 
 
-def _historical_cases(now: datetime, rng: random.Random) -> list[CaseHistory]:
+def _historical_cases(now: datetime, rng: random.Random, organisation_id: str = COMMUNITYHUB_ID) -> list[CaseHistory]:
     start_month, _ = month_period(now.date(), -2)
     day = datetime.fromisoformat(start_month).replace(tzinfo=timezone.utc)
     rows: list[CaseHistory] = []
@@ -83,7 +83,7 @@ def _historical_cases(now: datetime, rng: random.Random) -> list[CaseHistory]:
             chars = "".join(rng.choice(ID_ALPHABET) for _ in range(8))
             rows.append(CaseHistory(
                 case_id=f"RCS-{chars[:4]}-{chars[4:]}",
-                organisation_id=COMMUNITYHUB_ID,
+                organisation_id=organisation_id,
                 created_at=created,
                 completed_at=completed,
                 ai_tier=ai_tier,
@@ -105,7 +105,9 @@ def _attempt(n: int, at: datetime, ok: bool, reason: str | None = None) -> dict:
     }
 
 
-def _delivered(case_id: str, outcome: str, tier: str, completed: datetime, retried: bool) -> Delivery:
+def _delivered(
+    case_id: str, outcome: str, tier: str, completed: datetime, retried: bool, organisation_id: str = COMMUNITYHUB_ID
+) -> Delivery:
     """A delivery that reached CommunityHub, sometimes after one automatic retry."""
     attempts = (
         [
@@ -118,7 +120,7 @@ def _delivered(case_id: str, outcome: str, tier: str, completed: datetime, retri
     return Delivery(
         delivery_id=f"DEL-{case_id}",
         case_id=case_id,
-        organisation_id=COMMUNITYHUB_ID,
+        organisation_id=organisation_id,
         outcome=outcome,
         final_severity=tier,
         completed_at=completed,
@@ -187,9 +189,98 @@ def wipe_b2b(db: Session) -> None:
     db.commit()
 
 
+# The other clients. CommunityHub is the original customer (b2b.COMMUNITYHUB_ID).
+OTHER_CLIENTS = (
+    {
+        "id": "STREAMNEST", "code": "SN", "name": "StreamNest", "description": "Video platform · Customer organisation",
+        "destination": "https://hooks.streamnest.example/••••••/rcs-results", "seed": 3101,
+        "host": "streamnest.example/watch", "user": ("sn-user-01", "Riley Chen"), "failed": True,
+        "tag_slot": 2,
+    },
+    {
+        "id": "PIXELCIRCLE", "code": "PC", "name": "PixelCircle", "description": "Photo community · Customer organisation",
+        "destination": "https://api.pixelcircle.example/••••••/rcs-results", "seed": 3102,
+        "host": "pixelcircle.example/photo", "user": ("pc-user-01", "Morgan Ellis"), "failed": False,
+        "tag_slot": 4,
+    },
+)
+_KEEP_WITH_COMMUNITYHUB = {"AR-2026-00404", "AR-2026-00409", "AR-2026-00399"}
+
+
+def _tag_live_cases(live_cases: list[Case]) -> None:
+    """Give a few live cases to the other clients (never the flagged or demo-scripted ones)."""
+    eligible = [c for c in live_cases if not c.manager_flag and c.case_id not in _KEEP_WITH_COMMUNITYHUB]
+    for client in OTHER_CLIENTS:
+        for i, case in enumerate(eligible):
+            if i % 6 == client["tag_slot"]:
+                case.organisation_id = client["id"]
+
+
+def _seed_other_clients(db: Session, now: datetime, live_cases: list[Case], client_password: str) -> None:
+    """Each other client gets its own older cases, deliveries, reports, account and a waiting message."""
+    client_hash = hash_password(client_password)
+    today = now.date()
+    released_start, released_end = month_period(today, -2)
+    draft_start, draft_end = month_period(today, -1)
+    first_of_previous = date.fromisoformat(draft_start)
+    released_at = datetime(first_of_previous.year, first_of_previous.month, 3, 11, 5, tzinfo=timezone.utc)
+    for client in OTHER_CLIENTS:
+        rng = random.Random(client["seed"])
+        org_id = client["id"]
+        db.add(Organisation(
+            organisation_id=org_id, name=client["name"], description=client["description"], status="READY",
+            destination_masked=client["destination"], last_tested_at=now - timedelta(hours=26),
+        ))
+        user_id, user_name = client["user"]
+        db.add(ClientUser(user_id=user_id, login_hash=client_hash, display_name=user_name,
+                          organisation_id=org_id, role="REPORTS"))
+        history = [h for i, h in enumerate(_historical_cases(now, rng, org_id)) if i % 4 == 0]
+        db.add_all(history)
+        deliveries = [
+            _delivered(h.case_id, h.outcome, h.final_tier, h.completed_at, rng.random() < 0.06, org_id) for h in history
+        ]
+        if client["failed"] and deliveries:
+            _needs_attention(deliveries[-1], UNAVAILABLE_REASON.replace("CommunityHub", client["name"]))
+        for i, d in enumerate(deliveries):
+            d.source_url = f"https://{client['host']}/{4200 + i}"
+        db.add_all(deliveries)
+        db.flush()
+        released_generated = released_at - timedelta(hours=1)
+        draft_generated = now - timedelta(hours=5)
+        db.add_all([
+            ServiceReport(
+                report_id=report_id_for(released_start, released_end, 1, client["code"]), organisation_id=org_id,
+                period_start=released_start, period_end=released_end, status="RELEASED", version=1,
+                generated_at=released_generated, released_at=released_at, released_by="manager-01",
+                metrics=compute_metrics(db, released_start, released_end, released_generated, org_id),
+            ),
+            ServiceReport(
+                report_id=report_id_for(draft_start, draft_end, 1, client["code"]), organisation_id=org_id,
+                period_start=draft_start, period_end=draft_end, status="DRAFT", version=1,
+                generated_at=draft_generated,
+                metrics=compute_metrics(db, draft_start, draft_end, draft_generated, org_id),
+            ),
+        ])
+        streamnest = org_id == "STREAMNEST"
+        db.add(ClientMessage(
+            message_id=f"MSG-{client['code']}-01", organisation_id=org_id, user_id=user_id,
+            topic="DELIVERY_ISSUE" if streamnest else "REPORT_QUESTION",
+            subject="A result is stuck on our side" if streamnest else "Can we get the report earlier in the month?",
+            body=(
+                "Mock: one result has not appeared in our moderation queue. Could you check the delivery?"
+                if streamnest
+                else "Mock: our team reviews at the start of the month. Is an earlier release possible?"
+            ),
+            status="SENT", created_at=now - timedelta(minutes=75 if streamnest else 190),
+        ))
+    db.flush()
+
+
 def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password: str) -> dict:
     """Insert the B2B demo story. Call after the live cases are committed."""
     rng = random.Random(2026)
+    # A few live cases belong to the other clients; the rest are CommunityHub's.
+    _tag_live_cases(live_cases)
 
     db.add(Organisation(
         organisation_id=COMMUNITYHUB_ID,
@@ -239,6 +330,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             continue
         deliveries.append(_delivered(
             case.case_id, case.final_outcome, final_tier_of(case) or "S1", case.completed_at, False,
+            case.organisation_id or COMMUNITYHUB_ID,
         ))
     # Reports came from CommunityHub posts, so each result carries its post link.
     for i, d in enumerate(deliveries):
@@ -277,7 +369,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             "Volumes were steady across the month. A small number of results needed an "
             "automatic retry before CommunityHub received them; all were delivered."
         ),
-        metrics=compute_metrics(db, released_start, released_end, released_generated_at),
+        metrics=compute_metrics(db, released_start, released_end, released_generated_at, COMMUNITYHUB_ID),
     )
     draft = ServiceReport(
         report_id=report_id_for(draft_start, draft_end, 1),
@@ -287,7 +379,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         status="DRAFT",
         version=1,
         generated_at=draft_generated_at,
-        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at),
+        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at, COMMUNITYHUB_ID),
     )
     db.add_all([released, draft])
     db.add_all([
@@ -302,6 +394,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         for action, minutes in (("VIEW", 0), ("DOWNLOAD", 4))
     ])
     db.add_all(_governance_log(now, [h.case_id for h in history], rng))
+    _seed_other_clients(db, now, live_cases, client_password)
     db.add_all([
         ClientMessage(
             message_id="MSG-1001",

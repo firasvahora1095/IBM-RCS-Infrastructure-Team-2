@@ -164,7 +164,7 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
       <div className="flex flex-col gap-2">
         <h3 className="rcs-subheading">Waiting for you now</h3>
         {delivery.failed.length === 0 ? (
-          <p className="rcs-helper">No failed handoffs. Results reach CommunityHub automatically.</p>
+          <p className="rcs-helper">No failed handoffs. Results reach each Client automatically.</p>
         ) : (
           <ul className="rcs-failed-list">
             {delivery.failed.map((row) => (

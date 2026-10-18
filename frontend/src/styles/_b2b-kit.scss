@@ -832,3 +832,13 @@ html {
     }
   }
 }
+
+// A link that is a button, for a row's name when the row opens in place.
+.rcs-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+}

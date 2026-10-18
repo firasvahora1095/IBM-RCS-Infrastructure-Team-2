@@ -22,7 +22,7 @@ export const EXPOSURE_STATE_LABEL: Record<ExposureState, string> = {
 /** SOS Inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
 export const SOS_STATUS_LABEL: Record<SosAlertStatus, string> = {
   UNACKNOWLEDGED: "Unacknowledged",
-  IN_PROGRESS: "Acknowledged — in progress",
+  IN_PROGRESS: "In progress",
   RESOLVED: "Resolved",
 };
 
@@ -38,9 +38,9 @@ export const SOS_TRIGGER_LABEL: Record<SosTrigger, string> = {
 
 /** Structured follow-up outcomes, in Figma order (103:228). None is pre-selected. */
 export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label: string }[] = [
-  { value: "NO_FURTHER_ACTION", label: "Followed up — no further action" },
-  { value: "REASSIGNED_REMAINING_CASES", label: "Followed up — reassigned remaining cases" },
-  { value: "AUDITOR_STOPPED_SHIFT", label: "Followed up — Auditor stopped shift" },
+  { value: "NO_FURTHER_ACTION", label: "Auditor is fine to continue" },
+  { value: "REASSIGNED_REMAINING_CASES", label: "Remaining cases moved to other Auditors" },
+  { value: "AUDITOR_STOPPED_SHIFT", label: "Auditor stopped for the day" },
 ];
 
 /**

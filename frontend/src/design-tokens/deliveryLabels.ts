@@ -28,13 +28,17 @@ export const MODERATION_COMPLETE_LABEL = "Complete";
 
 export const DELIVERY_SPLIT_SENTENCE = "The Auditor's work is complete. Only the delivery needs attention.";
 
+/** The same statement for one Client's screens, named for them. */
+export const responsibilityBoundary = (client: string) =>
+  `RCS decides the moderation finding. ${client} decides what enforcement to apply.`;
+
 export const RESPONSIBILITY_BOUNDARY =
   "RCS decides the moderation finding. CommunityHub decides what enforcement to apply.";
 
 export const DELIVERY_BOUNDARY_NOTE = "You can fix the delivery. You can't change the Auditor's decision.";
 
 export const IDEMPOTENCY_NOTE =
-  "The same delivery ID is reused on every retry, so CommunityHub never processes a result twice.";
+  "The same delivery ID is reused on every retry, so a result is never processed twice.";
 
 /** What CommunityHub did with a result, in their moderators' words. */
 export const PLATFORM_ACTION_LABEL: Record<"REMOVED" | "KEPT", string> = {

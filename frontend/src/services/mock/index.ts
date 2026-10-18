@@ -56,6 +56,7 @@ import {
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
 import { findCaseId, mockBuddyReply, type BuddyLiveFigures } from "./buddy";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { clientOf, findOrganisation } from "./clients";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -1244,6 +1245,8 @@ export const mockDataService: DataService = {
         .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
           severity_tier: c.severity_tier,
           final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
@@ -1342,6 +1345,8 @@ export const mockDataService: DataService = {
         })
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: c.decline
             ? (displayName(db, c.decline.declined_by) ?? c.decline.declined_by)
             : (c.assigned_auditor ? (displayName(db, c.assigned_auditor) ?? c.assigned_auditor) : "Unknown"),

@@ -117,7 +117,7 @@ export function ReportSheet({
             ? `RCS completed no cases in this period.`
             : `RCS completed ${m.cases_completed} ${m.cases_completed === 1 ? "case" : "cases"} from ${m.cases_received} ${m.cases_received === 1 ? "report" : "reports"} received. ${
                 decided ? `${violationRate}% of decided cases were found to violate policy. ` : ""
-              }${deliveredRate === null ? "" : `${deliveredRate}% of results reached CommunityHub.`}`}
+              }${deliveredRate === null ? "" : `${deliveredRate}% of results reached ${report.organisation_name}.`}`}
         </p>
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
           <BigFigure label="Cases completed" value={m.cases_completed} />
@@ -220,7 +220,7 @@ export function ReportSheet({
 
         <div className="md:col-span-2">
         <SheetSection
-          title="Delivery to CommunityHub"
+          title={`Delivery to ${report.organisation_name}`}
           definition={METRIC_DEFINITIONS.delivery}
           defId="def-delivery"
           evidence={evidence("delivery")}

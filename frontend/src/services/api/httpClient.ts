@@ -1,4 +1,5 @@
 import type {
+  ClientOrganisation,
   AuditLogHistory,
   AuditLogQuery,
   AuditorCaseDetail,
@@ -809,4 +810,10 @@ export async function makeCaseAvailable(caseId: string, token: string): Promise<
     headers: bearer(token),
   });
   return parseJsonOrThrow<{ available: true }>(r);
+}
+
+/** The clients RCS serves, for the Manager's client selector. */
+export async function listClients(token: string): Promise<ClientOrganisation[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/clients`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientOrganisation[]>(r);
 }

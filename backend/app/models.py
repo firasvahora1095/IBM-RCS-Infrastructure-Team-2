@@ -109,6 +109,8 @@ class Case(Base):
     )
 
     case_id = Column(String(20), primary_key=True)
+    # The client whose content this is. Existing cases belong to CommunityHub, the original customer.
+    organisation_id = Column(String(50), nullable=False, default="COMMUNITYHUB", server_default="COMMUNITYHUB")
     status = Column(String(30), nullable=False, server_default="SUBMITTED")
     assigned_auditor_id = Column(
         String(50),

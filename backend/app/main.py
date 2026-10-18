@@ -67,7 +67,7 @@ from app.case_status import public_status
 from app.case_workflow import record_case_assignment
 from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback, release_waiting_cases
 from app.db import get_db
-from app.models import AuditLog, Auditor, Case, CaseSource
+from app.models import AuditLog, Auditor, Case, CaseSource, Organisation
 from app.orchestrate import (
     AssignmentOrchestrationError,
     AssignmentOrchestrator,
@@ -141,6 +141,9 @@ def _run_db_migrations() -> None:
             "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
         ))
         # cases — AI pipeline output columns (Sprint 2/3)
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS organisation_id VARCHAR(50) NOT NULL DEFAULT 'COMMUNITYHUB'"
+        ))
         conn.execute(text(
             "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
         ))
@@ -1559,9 +1562,12 @@ async def get_case_oversight(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     return [
         {
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id) if c.assigned_auditor_id else None,
             "severity_tier": c.severity_tier,
             "final_severity_tier": _final_severity_tier(c),
@@ -1714,6 +1720,7 @@ async def list_declined_cases(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     result = []
     for c in cases:
         log = db.scalars(
@@ -1725,6 +1732,8 @@ async def list_declined_cases(
         reason = log.after_value.get("reason", "OTHER") if log and log.after_value else "OTHER"
         result.append({
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id, "Unknown"),
             "severity_tier": c.severity_tier,
             "reason": reason,

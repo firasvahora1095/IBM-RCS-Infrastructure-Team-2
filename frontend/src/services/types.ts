@@ -295,8 +295,18 @@ export interface AuditorDetail extends AuditorOverviewRow {
 }
 
 /** One row of Consolidated Case Oversight (Figma 86:198, MR-OV-06, MR-CR-06). */
+/** A client of RCS: a platform whose content RCS reviews and whose results RCS delivers. */
+export interface ClientOrganisation {
+  organisation_id: string;
+  name: string;
+  description: string;
+}
+
 export interface ManagerCaseRow {
   case_id: string;
+  /** Which client the case belongs to. */
+  organisation_id?: string;
+  organisation_name?: string;
   auditor_name: string | null;
   severity_tier: SeverityTier | null;
   final_severity_tier?: SeverityTier | null;
@@ -346,6 +356,8 @@ export type SosFollowUpOutcome = "NO_FURTHER_ACTION" | "REASSIGNED_REMAINING_CAS
 /** One declined case awaiting a Manager decision (Figma 119:289, MR-CR-02/04). No per-Auditor counts, by design. */
 export interface DeclinedCaseRow {
   case_id: string;
+  organisation_id?: string;
+  organisation_name?: string;
   auditor_name: string;
   severity_tier: SeverityTier | null;
   reason: DeclineReason;
@@ -745,6 +757,8 @@ export interface GovernanceSource {
 }
 export interface GovernanceQuery {
   case_id?: string;
+  /** Only this client's cases (the Manager's client selector). */
+  organisation_id?: string;
   context?: "live" | "test" | "demo";
   leakage?: string;
   from_at?: string;
@@ -1048,6 +1062,8 @@ export interface DataService {
   ): Promise<CaseResult>;
   /** Who at the customer can see what (Manager view). */
   listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]>;
+  /** Every client RCS serves, for the Manager's client selector. */
+  listClients(token: string): Promise<ClientOrganisation[]>;
 
   // "Contact RCS": the client asks, a Manager answers (own organisation only).
   clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage>;

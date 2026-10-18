@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Column, Dropdown, Grid, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
@@ -6,7 +6,6 @@ import { LoadState } from "../../components/manager/ManagerBits";
 import { AuditorProtectionTable } from "../../components/manager/AuditorProtectionTable";
 import { NeedsYouInbox } from "../../components/manager/NeedsYouInbox";
 import { evidenceValue } from "../../components/manager/evidenceValue";
-import { GenerateReportButton } from "../../components/manager/GenerateReportButton";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
@@ -28,26 +27,18 @@ const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
  * figures sit above for context. Case flow, AI and Auditor decisions, Client
  * outcomes and Delivery Health moved to Insights.
  *
- * Generate Report is the page's one primary button (D4); every action in the
- * inbox is secondary. The header's "Demo data" badge already labels seeded
+ * Overview has no primary button: every action in the inbox is a secondary one, and
+ * Generate report lives on Insights and Reports. The header's "Demo data" badge already labels seeded
  * figures on every screen (MR-OV-08), so the page does not repeat it.
  * See docs/ux/manager-ux-audit-and-redesign.md.
  */
 export function ManagerOversightDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { intel, data, periodKey, setPeriod, start, end, periodLabel, now } = useManagerIntelligence();
+  const { intel, data, periodKey, setPeriod, periodLabel, now } = useManagerIntelligence({ allClients: true });
   const overview = useStaffQuery(getAuditorOverview, "", { refreshMs: REFRESH_MS });
 
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
-  const { reload: reloadIntel } = intel;
-  const { reload: reloadOverview } = overview;
-  const refresh = useCallback(() => {
-    reloadIntel();
-    reloadOverview();
-  }, [reloadIntel, reloadOverview]);
 
   const notice = noticeFrom(location.state);
 
@@ -76,7 +67,6 @@ export function ManagerOversightDashboardPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
-            <GenerateReportButton start={start} end={end} disabled={!data} onError={setGenerateError} />
           </>
         }
       />
@@ -87,17 +77,6 @@ export function ManagerOversightDashboardPage() {
           title={notice.title}
           subtitle={notice.detail}
           onCloseButtonClick={() => navigate(location.pathname + location.search, { replace: true, state: null })}
-          style={{ maxWidth: "100%" }}
-        />
-      )}
-      {generateError && (
-        <InlineNotification
-          kind="error"
-          lowContrast
-          role="alert"
-          title="Couldn't generate the report."
-          subtitle={generateError}
-          onClose={() => setGenerateError(null)}
           style={{ maxWidth: "100%" }}
         />
       )}
@@ -117,7 +96,7 @@ export function ManagerOversightDashboardPage() {
               value={
                 data ? (data.delivery.success_rate === null ? "–" : percent(data.delivery.success_rate)) : "–"
               }
-              helper="Results delivered to CommunityHub"
+              helper="Results delivered to Clients"
             />
           </Column>
         </Grid>
@@ -132,7 +111,7 @@ export function ManagerOversightDashboardPage() {
         description="Resolve items here, or open one for the full detail."
         actions={evidenceButton("needs_manager_action")}
       >
-        <NeedsYouInbox intelligence={data} overview={overview.data} onChanged={refresh} />
+        <NeedsYouInbox intelligence={data} overview={overview.data} />
       </Section>
 
       <Section

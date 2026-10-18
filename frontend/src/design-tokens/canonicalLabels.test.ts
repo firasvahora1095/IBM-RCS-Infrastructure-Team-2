@@ -102,15 +102,15 @@ describe("Manager labels (Manager Figma prototype 0qMhTLDlozGkcdqcgbwyse)", () =
   });
 
   it("uses the SOS Inbox status column wording (103:151)", () => {
-    expect(SOS_STATUS_LABEL.IN_PROGRESS).toBe("Acknowledged — in progress");
+    expect(SOS_STATUS_LABEL.IN_PROGRESS).toBe("In progress");
     expect(SOS_STATUS_LABEL.RESOLVED).toBe("Resolved");
   });
 
   it("lists the follow-up outcomes in Figma order (103:228)", () => {
     expect(SOS_FOLLOW_UP_OPTIONS.map((o) => o.label)).toEqual([
-      "Followed up — no further action",
-      "Followed up — reassigned remaining cases",
-      "Followed up — Auditor stopped shift",
+      "Auditor is fine to continue",
+      "Remaining cases moved to other Auditors",
+      "Auditor stopped for the day",
     ]);
   });
 });

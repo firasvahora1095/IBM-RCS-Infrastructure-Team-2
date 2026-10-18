@@ -294,31 +294,28 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     // SOS: acknowledge from the inbox, then log the follow-up.
     renderAt("/manager/sos");
-    await tabTo(user, await screen.findByRole("button", { name: /Review Marcus Webb.s SOS alert/ }));
+    await tabTo(user, (await screen.findAllByRole("button", { name: /^View alert from Marcus Webb/ }))[0]);
     await user.keyboard("{Enter}");
     await tabTo(user, await screen.findByRole("button", { name: "Acknowledge" }));
     await user.keyboard("{Enter}");
     await screen.findByRole("heading", { name: "Log follow-up — Marcus Webb" });
     await tabTo(user, screen.getByLabelText("Follow-up notes"));
     await user.keyboard("Called Marcus; okay to continue.");
-    await tabTo(user, screen.getByRole("radio", { name: "Followed up — no further action" }));
+    await tabTo(user, screen.getByRole("radio", { name: "Auditor is fine to continue" }));
     await user.keyboard(" ");
     await tabTo(user, screen.getByRole("button", { name: "Log outcome" }));
     await user.keyboard("{Enter}");
     expect(await screen.findByText(/This SOS alert is now resolved\./)).toBeInTheDocument();
   });
 
-  it("Manager Overview: an inbox row is approved with the keyboard, without leaving the page", async () => {
+  it("Manager Overview: an inbox row opens its details with the keyboard", async () => {
     const user = userEvent.setup();
     await signIn("manager-1");
     renderAt("/manager");
 
-    await tabTo(user, await screen.findByRole("button", { name: /^Approve, break request from Reese Patel/ }));
+    await tabTo(user, (await screen.findAllByRole("button", { name: "View request" }))[0]);
     await user.keyboard("{Enter}");
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Approve, break request from Reese Patel/ })).toBeNull(),
-    );
-    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Reese Patel" })).toBeInTheDocument();
   });
 
   it("Manager reassignment: the Auditor list selects with the keyboard and confirms back on the Overview", async () => {
