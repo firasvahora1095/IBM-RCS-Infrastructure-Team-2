@@ -18,8 +18,8 @@ import { FlowHubPage } from "./FlowHubPage";
 /** The eight screens the B2B high-level flow lists, and the route each one lives on. */
 const REQUIRED_TOUCHPOINTS: { touchpoint: string; routes: string[] }[] = [
   { touchpoint: "1. Customer / integration context", routes: ["/rcs", "/rcs/get-started"] },
-  { touchpoint: "2. Reporter submission", routes: ["/communityhub", "/"] },
-  { touchpoint: "3. Reporter status", routes: ["/status"] },
+  { touchpoint: "2. Reporter submission", routes: ["/communityhub", "/report"] },
+  { touchpoint: "3. Reporter status", routes: ["/report/status"] },
   { touchpoint: "4. Auditor review", routes: ["/auditor"] },
   { touchpoint: "5. Case completion / delivery", routes: ["/manager/deliveries"] },
   { touchpoint: "6. Manager oversight", routes: ["/manager"] },

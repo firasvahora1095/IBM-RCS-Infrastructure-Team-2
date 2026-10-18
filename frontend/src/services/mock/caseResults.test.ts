@@ -58,8 +58,8 @@ describe("Per-case results for CommunityHub (mock)", () => {
     const waiting = (await mock.clientListCaseResults(moderator)).find(
       (r) => r.status === "DELIVERED" && !r.platform_action,
     )!;
-    const after = await mock.clientRecordPlatformAction(waiting.delivery_id, moderator, "REMOVED", "Mock: removed.");
-    expect(after.platform_action).toMatchObject({ action: "REMOVED", by: "ch-mod-04", note: "Mock: removed." });
+    const after = await mock.clientRecordPlatformAction(waiting.delivery_id, moderator, "REMOVED", "removed.");
+    expect(after.platform_action).toMatchObject({ action: "REMOVED", by: "ch-mod-04", note: "removed." });
 
     const delivery = await mock.getDelivery(waiting.delivery_id, await staff("manager-1"));
     expect(delivery.platform_action?.action).toBe("REMOVED");
@@ -84,7 +84,7 @@ describe("Per-case results for CommunityHub (mock)", () => {
 
   it("delivers 'closed without a decision' when a Manager closes a case, with no severity", async () => {
     const declined = readDb().cases.find((c) => c.manager_flag === "DECLINED")!;
-    await mock.closeWithoutReassignment(declined.case_id, await staff("manager-1"), "Mock: duplicate report.");
+    await mock.closeWithoutReassignment(declined.case_id, await staff("manager-1"), "duplicate report.");
     const delivery = readDb().deliveries.find((d) => d.case_id === declined.case_id)!;
     expect(delivery.outcome).toBe("CLOSED_NO_REASSIGNMENT");
     expect(delivery.final_severity).toBeNull();

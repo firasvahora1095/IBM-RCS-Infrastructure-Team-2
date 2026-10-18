@@ -38,7 +38,10 @@ export function MarketingHeader() {
           >
             Client sign in
           </RouterLink>
-          <RouterLink to="/staff/login" style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}>
+          <RouterLink
+            to="/staff/login"
+            style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
+          >
             Staff sign in
           </RouterLink>
         </HeaderGlobalBar>

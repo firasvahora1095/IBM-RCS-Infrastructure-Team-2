@@ -197,7 +197,7 @@ export interface MockDb {
   /** Opt-in email/SMS update requests (UR-ID-05). Nothing is ever sent from mock mode. */
   statusUpdateRequests: { case_id: string; email: string | null; phone: string | null; requested_at: string }[];
   /** Follow-up context added to a case by the reporter (UR-NTH-05). File contents are never stored. */
-  caseAdditions: { case_id: string; details: string; attachment_name: string | null; added_at: string }[];
+  caseAdditions: { case_id: string; details: string; attachment_names: string[]; added_at: string }[];
   /** Staff login lockout, keyed by the staff ID that was typed. */
   loginAttempts: Record<string, { failureTimes: number[]; lockedUntil: number | null }>;
   sosEvents: MockSosEvent[];

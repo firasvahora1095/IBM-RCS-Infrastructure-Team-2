@@ -564,7 +564,7 @@ export function RcsLandingPage() {
             {[
               { title: "Product", links: [["How it works", "/rcs#how-it-works"], ["Reviewer wellbeing", "/rcs#wellbeing"], ["Integration", "/rcs#integration"], ["Reporting", "/rcs#reporting"]] },
               { title: "Get started", links: [["Set up your organisation", "/rcs/get-started"], ["Client sign in", "/client/login"], ["Staff sign in", "/staff/login"]] },
-              { title: "For the public", links: [["Report content", "/"], ["Check a case status", "/status"]] },
+              { title: "For the public", links: [["Report content", "/report"], ["Check a case status", "/report/status"]] },
               { title: "This prototype", links: [["Demo flow guide", "/flow"], ["CommunityHub (simulated)", "/communityhub"]] },
             ].map((col) => (
               <Column key={col.title} sm={2} md={2} lg={4} className="mb-8">

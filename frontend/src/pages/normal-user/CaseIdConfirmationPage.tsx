@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, Navigate, useLocation } from "react-router-dom";
-import { Button, InlineNotification, TextInput, Dropdown, Link } from "@carbon/react";
+import { Accordion, AccordionItem, Button, InlineNotification, TextInput, Dropdown } from "@carbon/react";
 import { CheckmarkFilled } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { loadCaseId } from "../../hooks/useCaseIdStorage";
@@ -40,7 +40,7 @@ export function CaseIdConfirmationPage() {
   useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
   if (!caseId) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/report" replace />;
   }
 
   async function handleCopy() {
@@ -115,7 +115,9 @@ export function CaseIdConfirmationPage() {
         </div>
 
         <div>
-          <Button onClick={handleCopy}>Copy case ID</Button>
+          <Button kind="tertiary" onClick={handleCopy}>
+            Copy case ID
+          </Button>
         </div>
 
         {/* aria-live so screen-reader users hear the result of pressing Copy. */}
@@ -147,121 +149,108 @@ export function CaseIdConfirmationPage() {
 
       <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
 
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-        Want updates by email or SMS instead? (optional)
-      </p>
+      {/* A confirmation first: asking for contact details is optional, so it stays closed until wanted. */}
+      <Accordion>
+        <AccordionItem title="Get updates by email or SMS (optional)">
+          <div className="flex flex-col gap-4">
+            <TextInput
+              id="email-updates"
+              type="email"
+              labelText="Email (optional)"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-      <TextInput
-        id="email-updates"
-        type="email"
-        labelText="Email (optional)"
-        placeholder="you@example.com"
-        autoComplete="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+            <div className="flex items-end gap-2">
+              <div style={{ width: 96, flexShrink: 0 }}>
+                <Dropdown
+                  id="country-code"
+                  titleText="Code"
+                  label="+61"
+                  items={COUNTRY_CODES}
+                  itemToString={(item) => item?.label ?? ""}
+                  initialSelectedItem={COUNTRY_CODES[0]}
+                />
+              </div>
+              <div className="flex-1">
+                <TextInput
+                  id="phone-updates"
+                  type="tel"
+                  labelText="Phone (optional)"
+                  placeholder="0400 000 000"
+                  autoComplete="tel-national"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
 
-      <div className="flex items-end gap-2">
-        <div style={{ width: 96, flexShrink: 0 }}>
-          <Dropdown
-            id="country-code"
-            titleText="Code"
-            label="+61"
-            items={COUNTRY_CODES}
-            itemToString={(item) => item?.label ?? ""}
-            initialSelectedItem={COUNTRY_CODES[0]}
-          />
-        </div>
-        <div className="flex-1">
-          <TextInput
-            id="phone-updates"
-            type="tel"
-            labelText="Phone (optional)"
-            placeholder="0400 000 000"
-            autoComplete="tel-national"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)", maxWidth: 320 }}>
-        We&apos;ll text or email you a secure one-time link to this status page — no extra account or password needed.
-      </p>
-
-      <div className="flex flex-col gap-3">
-        <div>
-          <Button
-            kind="tertiary"
-            disabled={!hasContactDetail || updates === "sending" || updates === "enabled"}
-            onClick={handleSendUpdates}
-          >
-            {updates === "sending" ? "Sending…" : "Send me updates"}
-          </Button>
-        </div>
-        <div aria-live="polite">
-          {/* Figma 102:80 success state, only once the request was really accepted. */}
-          {updates === "enabled" && (
-            <p className="flex gap-1.5" style={{ fontSize: 13, color: "var(--cds-text-primary)" }}>
-              <CheckmarkFilled
-                size={16}
-                style={{ fill: "var(--cds-support-success)", flexShrink: 0, marginTop: 1 }}
-                aria-hidden="true"
-              />{" "}
-              Updates enabled — you&apos;ll get a message when your case status changes.
+            <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)", maxWidth: 320 }}>
+              We&apos;ll text or email you a secure one-time link to this status page — no extra account or password
+              needed.
             </p>
-          )}
-          {/* A backend without a notifications endpoint must not promise a
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <Button
+                  kind="tertiary"
+                  disabled={!hasContactDetail || updates === "sending" || updates === "enabled"}
+                  onClick={handleSendUpdates}
+                >
+                  {updates === "sending" ? "Sending…" : "Send me updates"}
+                </Button>
+              </div>
+              <div aria-live="polite">
+                {/* Figma 102:80 success state, only once the request was really accepted. */}
+                {updates === "enabled" && (
+                  <p className="flex gap-1.5" style={{ fontSize: 13, color: "var(--cds-text-primary)" }}>
+                    <CheckmarkFilled
+                      size={16}
+                      style={{ fill: "var(--cds-support-success)", flexShrink: 0, marginTop: 1 }}
+                      aria-hidden="true"
+                    />{" "}
+                    Updates enabled — you&apos;ll get a message when your case status changes.
+                  </p>
+                )}
+                {/* A backend without a notifications endpoint must not promise a
               message that never arrives, so this honest notice replaces the
               success state (copy pending UX sign-off). */}
-          {updates === "unavailable" && (
-            <InlineNotification
-              kind="info"
-              lowContrast
-              hideCloseButton
-              title="Email and SMS updates aren't available yet."
-              subtitle="Your contact details haven't been saved. Keep your case ID to check this case."
-              style={{ maxWidth: "100%" }}
-            />
-          )}
-          {updates === "failed" && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title="We couldn't set up updates."
-              subtitle={updatesError ?? NETWORK_ERROR_MESSAGE}
-              style={{ maxWidth: "100%" }}
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          {/* Per the Figma annotation, these destinations are "to be
-              confirmed by Dev — not a tracked design decision", so they are
-              deliberately not wired to guessed URLs. */}
-          <Link href="#" onClick={(e) => e.preventDefault()}>
-            View requirements*
-          </Link>
-          <Link href="#" onClick={(e) => e.preventDefault()}>
-            Contact support*
-          </Link>
-        </div>
-        <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)" }}>
-          *Destination to be confirmed by Dev — not a tracked design decision.
-        </p>
-      </div>
+                {updates === "unavailable" && (
+                  <InlineNotification
+                    kind="info"
+                    lowContrast
+                    hideCloseButton
+                    title="Email and SMS updates aren't available yet."
+                    subtitle="Your contact details haven't been saved. Keep your case ID to check this case."
+                    style={{ maxWidth: "100%" }}
+                  />
+                )}
+                {updates === "failed" && (
+                  <InlineNotification
+                    kind="error"
+                    lowContrast
+                    hideCloseButton
+                    role="alert"
+                    title="We couldn't set up updates."
+                    subtitle={updatesError ?? NETWORK_ERROR_MESSAGE}
+                    style={{ maxWidth: "100%" }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </AccordionItem>
+      </Accordion>
 
       <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
 
       <div className="flex flex-wrap gap-4">
-        <Button kind="tertiary" as={RouterLink} to="/status">
+        <Button as={RouterLink} to="/report/status">
           Check case status
         </Button>
-        <Button kind="tertiary" as={RouterLink} to="/">
+        <Button kind="tertiary" as={RouterLink} to="/report">
           Submit another report
         </Button>
       </div>

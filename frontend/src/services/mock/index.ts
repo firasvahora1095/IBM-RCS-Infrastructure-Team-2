@@ -126,7 +126,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 48,
         severity_tier: "S2",
         flag_reason: "Physical conflict",
-        narrative_summary: "Mock: two people in a heated confrontation; brief pushing detected.",
+        narrative_summary: "two people in a heated confrontation; brief pushing detected.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
         flagged_entities: [
           { label: "Person A", start: 5, end: 40 },
@@ -140,7 +140,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 72,
         severity_tier: "S3",
         flag_reason: "Graphic violence",
-        narrative_summary: "Mock: physical altercation detected between two people.",
+        narrative_summary: "physical altercation detected between two people.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
         flagged_entities: [{ label: "Person A", start: 10, end: 30 }],
         transcript: null,
@@ -677,9 +677,9 @@ export const mockDataService: DataService = {
     });
   },
 
-  async addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }> {
+  async addCaseInformation(caseId: string, details: string, attachments?: File[]): Promise<{ added: true }> {
     await delay();
-    if (!details.trim() && !attachment) {
+    if (!details.trim() && !(attachments && attachments.length > 0)) {
       throw new ApiError("Add some details or attach a file before submitting.", 400);
     }
     return updateDb((db) => {
@@ -689,7 +689,7 @@ export const mockDataService: DataService = {
       db.caseAdditions.push({
         case_id: caseId,
         details: details.trim(),
-        attachment_name: attachment?.name ?? null,
+        attachment_names: (attachments ?? []).map((f) => f.name),
         added_at: new Date().toISOString(),
       });
       found.updated_at = new Date().toISOString();

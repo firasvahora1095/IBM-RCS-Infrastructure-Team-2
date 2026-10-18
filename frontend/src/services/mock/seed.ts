@@ -150,7 +150,7 @@ function managerSeedCases(now: number): MockCase[] {
       manager_flag: "DECLINED",
       decline: {
         reason,
-        other_text: reason === "OTHER" ? "Mock: I reviewed a very similar case earlier today." : null,
+        other_text: reason === "OTHER" ? "I reviewed a very similar case earlier today." : null,
         declined_by: auditorId,
         declined_at: minutesAgo(now, minutes),
       },
@@ -165,7 +165,7 @@ function managerSeedCases(now: number): MockCase[] {
       watson_severity_score: score,
       effective_severity_score: score,
       severity_tier: tier,
-      narrative_summary: "Mock: completed standard case.",
+      narrative_summary: "completed standard case.",
       final_outcome: "NO_VIOLATION_FOUND",
       created_at: minutesAgo(now, minutes + 30),
       updated_at: minutesAgo(now, minutes),
@@ -180,7 +180,7 @@ function managerSeedCases(now: number): MockCase[] {
       severity_tier: "S3",
       manager_flag: "SOS",
       narrative_summary:
-        "Mock: sustained physical confrontation between two individuals detected between 00:41–01:12, escalating in intensity. Multi-person conflict flagged at 01:05. No weapon detected. Auditor activated SOS during active playback at 00:58.",
+        "sustained physical confrontation between two individuals detected between 00:41–01:12, escalating in intensity. Multi-person conflict flagged at 01:05. No weapon detected. Auditor activated SOS during active playback at 00:58.",
       incident_timeline: [{ start: 41, end: 72, severity_tier: "S3", tag: "multi_person_conflict" }],
     }),
     managerCase({
@@ -189,7 +189,7 @@ function managerSeedCases(now: number): MockCase[] {
       effective_severity_score: 55,
       severity_tier: "S2",
       manager_flag: "SOS",
-      narrative_summary: "Mock: a heated confrontation with repeated shoving. No weapon detected.",
+      narrative_summary: "a heated confrontation with repeated shoving. No weapon detected.",
       incident_timeline: [{ start: 20, end: 48, severity_tier: "S2", tag: "physical_violence" }],
     }),
     managerCase({
@@ -199,7 +199,7 @@ function managerSeedCases(now: number): MockCase[] {
       severity_tier: "S4",
       manager_flag: "SOS",
       narrative_summary:
-        "Mock: an assault with visible injury. The Auditor activated SOS shortly after playback began.",
+        "an assault with visible injury. The Auditor activated SOS shortly after playback began.",
       incident_timeline: [{ start: 15, end: 40, severity_tier: "S4", tag: "visible_injury" }],
     }),
     baseCase(now, {
@@ -210,13 +210,13 @@ function managerSeedCases(now: number): MockCase[] {
       effective_severity_score: 66,
       severity_tier: "S3",
       manager_flag: "SOS",
-      narrative_summary: "Mock: a fight between several people outside a venue.",
+      narrative_summary: "a fight between several people outside a venue.",
       final_outcome: "CLOSED_NO_REASSIGNMENT",
       completed_at: minutesAgo(now, 1600),
     }),
     declined("AR-2026-00398", "auditor-2", "S2", 58, "NEAR_EXPOSURE_LIMIT", 35, {
       narrative_summary:
-        "Mock: verbal confrontation escalating to a single shove between two individuals at 00:34. No weapon detected. Aggressive posturing continues intermittently through 01:20.",
+        "verbal confrontation escalating to a single shove between two individuals at 00:34. No weapon detected. Aggressive posturing continues intermittently through 01:20.",
       incident_timeline: [
         { start: 34, end: 34, severity_tier: "S2", tag: "physical_violence" },
         { start: 40, end: 80, severity_tier: "S2", tag: "multi_person_conflict" },
@@ -225,13 +225,13 @@ function managerSeedCases(now: number): MockCase[] {
         "Rating not changed, but I'm close to my exposure limit for today and would prefer this case go to someone with more headroom.",
     }),
     declined("AR-2026-00386", "auditor-1", "S3", 72, "MORE_SEVERE_THAN_AI", 1150, {
-      narrative_summary: "Mock: a physical altercation; the Auditor judged it more severe than the AI indicated.",
+      narrative_summary: "a physical altercation; the Auditor judged it more severe than the AI indicated.",
     }),
     declined("AR-2026-00379", "auditor-3", "S2", 49, "PERSONAL_TRIGGER", 1340, {
-      narrative_summary: "Mock: a confrontation between two people in a car park.",
+      narrative_summary: "a confrontation between two people in a car park.",
     }),
     declined("AR-2026-00371", "auditor-5", "S1", 24, "OTHER", 2900, {
-      narrative_summary: "Mock: a verbal disagreement in a queue. No physical contact detected.",
+      narrative_summary: "a verbal disagreement in a queue. No physical contact detected.",
     }),
     completed("AR-2026-00412", "S2", 51, 300),
     completed("AR-2026-00409", "S1", 18, 250),
@@ -276,7 +276,7 @@ export function createSeedDb(now: number): MockDb {
       watson_severity_score: 48,
       effective_severity_score: 48,
       severity_tier: "S2",
-      narrative_summary: "Mock: a verbal confrontation with no physical contact. Arrived while every standard Auditor was unavailable.",
+      narrative_summary: "a verbal confrontation with no physical contact. Arrived while every standard Auditor was unavailable.",
       incident_timeline: [{ start: 10, end: 25, severity_tier: "S2", tag: null }],
       flagged_entities: [{ label: "Person A", start: 8, end: 40 }],
       transcript: [{ time: 12, text: "[raised voices]" }],
@@ -294,7 +294,7 @@ export function createSeedDb(now: number): MockDb {
       watson_severity_score: 22,
       effective_severity_score: 22,
       severity_tier: "S1",
-      narrative_summary: "Mock: a routine interaction. Released to eligible Auditors to claim.",
+      narrative_summary: "a routine interaction. Released to eligible Auditors to claim.",
       incident_timeline: [{ start: 5, end: 5, severity_tier: "S1", tag: null }],
       flagged_entities: [{ label: "Vehicle", start: 0, end: 40 }],
       transcript: [{ time: 5, text: "[conversation]" }],
@@ -308,7 +308,7 @@ export function createSeedDb(now: number): MockDb {
       effective_severity_score: 22,
       severity_tier: "S1",
       narrative_summary:
-        "Mock: a verbal disagreement between two people in a public space. No physical contact detected.",
+        "a verbal disagreement between two people in a public space. No physical contact detected.",
       incident_timeline: [{ start: 18, end: 31, severity_tier: "S1", tag: null }],
       flagged_entities: [
         { label: "Person A", start: 10, end: 60 },
@@ -326,7 +326,7 @@ export function createSeedDb(now: number): MockDb {
       effective_severity_score: 88,
       severity_tier: "S4",
       narrative_summary:
-        "Mock: a sustained assault involving a weapon. The weapon-use floor rule raised the effective score above the model's original figure.",
+        "a sustained assault involving a weapon. The weapon-use floor rule raised the effective score above the model's original figure.",
       incident_timeline: [
         { start: 30, end: 64, severity_tier: "S3", tag: "physical_violence" },
         { start: 70, end: 70, severity_tier: "S4", tag: "weapon_use" },
@@ -357,7 +357,7 @@ export function createSeedDb(now: number): MockDb {
       watson_severity_score: 45,
       effective_severity_score: 45,
       severity_tier: "S2",
-      narrative_summary: "Mock: a pushing incident between two people outside a venue.",
+      narrative_summary: "a pushing incident between two people outside a venue.",
       incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
       final_outcome: "POLICY_VIOLATION_FOUND",
       auditor_severity_score: null,
@@ -375,7 +375,7 @@ export function createSeedDb(now: number): MockDb {
       watson_severity_score: 58,
       effective_severity_score: 58,
       severity_tier: "S2",
-      narrative_summary: "Mock: a confrontation between two people on public transport.",
+      narrative_summary: "a confrontation between two people on public transport.",
       incident_timeline: [{ start: 40, end: 72, severity_tier: "S2", tag: "multi_person_conflict" }],
     }),
     baseCase(now, {
@@ -389,7 +389,7 @@ export function createSeedDb(now: number): MockDb {
       watson_severity_score: 30,
       effective_severity_score: 30,
       severity_tier: "S1",
-      narrative_summary: "Mock: no violent behaviour detected.",
+      narrative_summary: "no violent behaviour detected.",
       incident_timeline: [],
       final_outcome: "NO_VIOLATION_FOUND",
       completed_at: minutesAgo(now, 1440),
@@ -425,7 +425,7 @@ export function createSeedDb(now: number): MockDb {
       ...sosEvent("SOS-demo0004", "AR-2026-00390", "auditor-1", minutesAgo(now, 1720)),
       acknowledged_at: minutesAgo(now, 1710),
       acknowledged_by: "manager-1",
-      follow_up_notes: "Mock: checked in by phone; no further action needed.",
+      follow_up_notes: "checked in by phone; no further action needed.",
       follow_up_outcome: "NO_FURTHER_ACTION",
       resolved_at: minutesAgo(now, 1690),
     },
@@ -456,7 +456,7 @@ export function createSeedDb(now: number): MockDb {
           watson_severity_score: score,
           effective_severity_score: score,
           severity_tier: tier,
-          narrative_summary: "Mock: completed standard case.",
+          narrative_summary: "completed standard case.",
           final_outcome: tier === "S3" ? "POLICY_VIOLATION_FOUND" : "NO_VIOLATION_FOUND",
           assigned_at: minutesAgo(now, minutes + 20),
           created_at: minutesAgo(now, minutes + 40),
@@ -486,7 +486,7 @@ export function createSeedDb(now: number): MockDb {
         created_at: minutesAgo(now, 150),
         resolved_at: null,
         status: "OPEN",
-        reason: "Mock: a few of today's cases have stayed with me. I'd like a quick chat.",
+        reason: "a few of today's cases have stayed with me. I'd like a quick chat.",
       },
       {
         id: "WB-demo0002",
@@ -506,7 +506,7 @@ export function createSeedDb(now: number): MockDb {
         created_at: minutesAgo(now, 95),
         resolved_at: minutesAgo(now, 88),
         status: "APPROVED",
-        reason: "Mock: back-to-back S3 cases this morning.",
+        reason: "back-to-back S3 cases this morning.",
       },
       {
         id: "WB-demo0004",

@@ -950,7 +950,7 @@ export interface DataService {
   /** Screen 1c: report with a screenshot image (UR-NTH-02). */
   createScreenshotReport(image: File, source?: ReportSource): Promise<CreateReportResponse>;
   /** Figma 80:31: add context (and optionally a file) to an existing case (UR-NTH-05). */
-  addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }>;
+  addCaseInformation(caseId: string, details: string, attachments?: File[]): Promise<{ added: true }>;
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;

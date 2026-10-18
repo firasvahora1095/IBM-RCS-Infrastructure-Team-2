@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Header, HeaderName, HeaderGlobalBar, HeaderGlobalAction, Theme } from "@carbon/react";
 import { Help } from "@carbon/icons-react";
 import { DemoDataBadge } from "./DemoDataBadge";
@@ -17,15 +18,16 @@ import { DemoDataBadge } from "./DemoDataBadge";
  * HeaderGlobalAction requires `aria-label`, which covers that dev note.
  */
 export function AppHeader() {
+  const navigate = useNavigate();
   return (
     <Theme theme="g100">
       <Header aria-label="IBM Content Safety Reporting">
-        <HeaderName href="/" prefix="IBM">
+        <HeaderName href="/report" prefix="IBM">
           Content Safety Reporting
         </HeaderName>
         <DemoDataBadge />
         <HeaderGlobalBar>
-          <HeaderGlobalAction aria-label="Help" tooltipAlignment="end">
+          <HeaderGlobalAction aria-label="Help" tooltipAlignment="end" onClick={() => navigate("/report/contact#faq")}>
             <Help size={20} />
           </HeaderGlobalAction>
         </HeaderGlobalBar>

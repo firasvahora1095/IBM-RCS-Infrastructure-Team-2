@@ -18,7 +18,7 @@ describe("Normal User pages — automated accessibility (Task 99)", () => {
     const { axe } = await runAxeOnPage(<UploadPage />);
     expect(await axe()).toHaveNoViolations();
 
-    fireEvent.click(screen.getByLabelText("Include my name & email"));
+    fireEvent.click(screen.getByLabelText("Yes, include my name and email"));
     expect(await axe()).toHaveNoViolations();
   });
 
@@ -32,12 +32,12 @@ describe("Normal User pages — automated accessibility (Task 99)", () => {
 
   it("Case ID Confirmation page has no detectable violations", async () => {
     saveCaseId("INSZNNJI4P");
-    const { axe } = await runAxeOnPage(<CaseIdConfirmationPage />, "/case-confirmation");
+    const { axe } = await runAxeOnPage(<CaseIdConfirmationPage />, "/report/confirmation");
     expect(await axe()).toHaveNoViolations();
   });
 
   it("Status lookup, not-found and found states have no detectable violations", async () => {
-    const { axe } = await runAxeOnPage(<StatusLookupPage />, "/status");
+    const { axe } = await runAxeOnPage(<StatusLookupPage />, "/report/status");
     expect(await axe()).toHaveNoViolations();
 
     vi.spyOn(services, "getStatus").mockRejectedValueOnce(new ApiError("Case not found", 404));
