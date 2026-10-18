@@ -115,7 +115,7 @@ describe("B2B screens — automated accessibility", () => {
     await signInClient();
     const list = renderAt("/client/reports");
     await screen.findByRole("heading", { level: 1, name: "Service reports" });
-    await screen.findByRole("list", { name: "Released reports" });
+    await screen.findByRole("table", { name: "Released reports" });
     expect(await axe(list.container)).toHaveNoViolations();
     list.unmount();
 

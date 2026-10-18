@@ -1,20 +1,26 @@
 import { useMemo, useState } from "react";
 import {
   ContentSwitcher,
+  Column,
+  Grid,
   InlineNotification,
   Layer,
-  Search,
   SkeletonText,
   Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TableContainer,
   TableHeader,
   TableRow,
+  TableToolbar,
+  TableToolbarContent,
+  TableToolbarSearch,
 } from "@carbon/react";
-import { ClientHeader } from "../../components/shell/ClientHeader";
-import { StaffPage } from "../../components/layout/StaffPage";
+import { ClientLayout } from "../../components/layout/ClientLayout";
+import { StatTile } from "../../components/ui/StatTile";
+import { TablePagination, usePagination } from "../../components/ui/TablePagination";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState } from "../../components/ui/Blocks";
 import { StatusTag } from "../../components/ui/StatusTag";
@@ -65,57 +71,81 @@ export function ClientCaseResultsPage() {
       .filter((r) => !q || r.case_id.toLowerCase().includes(q) || (r.post_url ?? "").toLowerCase().includes(q));
   }, [data, filter, query]);
   const waiting = (data ?? []).filter((r) => r.status === "DELIVERED" && !r.platform_action).length;
+  const onItsWay = (data ?? []).filter((r) => r.status !== "DELIVERED").length;
+  const actioned = (data ?? []).filter((r) => r.platform_action).length;
+  const countOf = (key: "ALL" | DeliveredOutcome) =>
+    (data ?? []).filter((r) => key === "ALL" || r.outcome === key).length;
+  const paged = usePagination(rows, `${filter}|${query}`);
 
   return (
-    <>
-      <ClientHeader />
-      <StaffPage maxWidth={1184}>
-        <PageHeader
-          title="Case results"
-          subtitle={
-            data
-              ? `Every result RCS has sent to CommunityHub. ${waiting} delivered result${waiting === 1 ? "" : "s"} still waiting for an action in your moderation queue.`
-              : "Every result RCS has sent to CommunityHub."
-          }
+    <ClientLayout maxWidth={1184}>
+      <PageHeader
+        title="Case results"
+        subtitle="Every result RCS has sent to CommunityHub, to check against your own moderation queue."
+      />
+      {error && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="Couldn't load case results."
+          subtitle={error.message}
+          style={{ maxWidth: "100%" }}
         />
-        {error && (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            role="alert"
-            title="Couldn't load case results."
-            subtitle={error.message}
-            style={{ maxWidth: "100%" }}
-          />
-        )}
-        {!data && !error && <SkeletonText paragraph lineCount={6} />}
-        {data && data.length === 0 && <EmptyState title="No results yet" body="Results appear here as soon as RCS sends them." />}
-        {data && data.length > 0 && (
-          <>
-            <div className="flex flex-wrap items-end gap-4">
-              <div style={{ minWidth: 320 }}>
-                <ContentSwitcher
-                  size="md"
-                  selectedIndex={FILTERS.findIndex((f) => f.key === filter)}
-                  onChange={({ index }) => setFilter(FILTERS[index ?? 0].key)}
-                >
-                  {FILTERS.map((f) => (
-                    <Switch key={f.key} name={f.key} text={f.label} />
-                  ))}
-                </ContentSwitcher>
-              </div>
-              <div style={{ flex: "1 1 240px", maxWidth: 360 }}>
-                <Search
-                  size="md"
-                  labelText="Search by case ID or post link"
-                  placeholder="Search by case ID or post link"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
+      )}
+      {!data && !error && <SkeletonText paragraph lineCount={6} />}
+      {data && data.length === 0 && (
+        <EmptyState title="No results yet" body="Results appear here as soon as RCS sends them." />
+      )}
+      {data && data.length > 0 && (
+        <>
+          <Grid className="rcs-grid" condensed>
+            <Column sm={2} md={2} lg={4}>
+              <StatTile
+                label="Needs action"
+                value={waiting}
+                tone={waiting ? "error" : "neutral"}
+                helper={waiting ? "Delivered, no action taken yet" : "All clear"}
+              />
+            </Column>
+            <Column sm={2} md={2} lg={4}>
+              <StatTile label="On its way" value={onItsWay} helper="Sent by RCS, not yet received" />
+            </Column>
+            <Column sm={2} md={2} lg={4}>
+              <StatTile label="Actioned" value={actioned} helper="Your team has acted" />
+            </Column>
+            <Column sm={2} md={2} lg={4}>
+              <StatTile label="All results" value={data.length} helper="Sent to CommunityHub" />
+            </Column>
+          </Grid>
+          <div className="flex flex-wrap items-end gap-4">
+            <div style={{ minWidth: 320 }}>
+              <ContentSwitcher
+                size="md"
+                selectedIndex={FILTERS.findIndex((f) => f.key === filter)}
+                onChange={({ index }) => setFilter(FILTERS[index ?? 0].key)}
+              >
+                {FILTERS.map((f) => (
+                  <Switch key={f.key} name={f.key} text={`${f.label} (${countOf(f.key)})`} />
+                ))}
+              </ContentSwitcher>
             </div>
-            <Layer>
+          </div>
+          <Layer>
+            <TableContainer>
+              <TableToolbar aria-label="Case results toolbar">
+                <TableToolbarContent>
+                  <TableToolbarSearch
+                    persistent
+                    labelText="Search by case ID or post link"
+                    placeholder="Search by case ID or post link"
+                    onChange={(e) =>
+                      setQuery(typeof e === "string" ? e : ((e?.target as HTMLInputElement | undefined)?.value ?? ""))
+                    }
+                  />
+                </TableToolbarContent>
+              </TableToolbar>
               <Table aria-label="Case results">
                 <TableHead>
                   <TableRow>
@@ -129,9 +159,11 @@ export function ClientCaseResultsPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {rows.map((r: CaseResult) => (
+                  {paged.rows.map((r: CaseResult) => (
                     <TableRow key={r.delivery_id}>
-                      <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{r.case_id}</TableCell>
+                      <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
+                        {r.case_id}
+                      </TableCell>
                       <TableCell>
                         {safeHttpUrl(r.post_url) ? (
                           <a className="cds--link" href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer">
@@ -147,7 +179,9 @@ export function ClientCaseResultsPage() {
                       <TableCell>
                         <StatusTag tone={OUTCOME_TONE[r.outcome]}>{PAYLOAD_OUTCOME_LABEL[r.outcome]}</StatusTag>
                       </TableCell>
-                      <TableCell>{r.final_severity ? <SeverityTag tier={r.final_severity} size="sm" /> : "—"}</TableCell>
+                      <TableCell>
+                        {r.final_severity ? <SeverityTag tier={r.final_severity} size="sm" /> : "—"}
+                      </TableCell>
                       <TableCell>{formatShortDateTime(r.completed_at)}</TableCell>
                       <TableCell>
                         {r.status === "DELIVERED" && r.delivered_at ? (
@@ -171,15 +205,16 @@ export function ClientCaseResultsPage() {
                   ))}
                 </TableBody>
               </Table>
-            </Layer>
-            {rows.length === 0 && <p className="rcs-helper">No results match these filters.</p>}
-          </>
-        )}
-        <p className="rcs-helper">
-          Results include only the case ID, the post link, the outcome, the final severity and when it was decided. RCS
-          never shares footage, summaries or who reviewed a case. {ACCESS_DISCLOSURE}
-        </p>
-      </StaffPage>
-    </>
+            </TableContainer>
+          </Layer>
+          <TablePagination paged={paged} />
+          {rows.length === 0 && <p className="rcs-helper">No results match these filters.</p>}
+        </>
+      )}
+      <p className="rcs-helper">
+        Results include only the case ID, the post link, the outcome, the final severity and when it was decided. RCS
+        never shares footage, summaries or who reviewed a case. {ACCESS_DISCLOSURE}
+      </p>
+    </ClientLayout>
   );
 }
