@@ -83,7 +83,6 @@ export function ContentWarningModal({
 
   return (
     <ComposedModal
-      className="rcs-consent"
       open={open}
       onClose={onClose}
       preventCloseOnClickOutside
