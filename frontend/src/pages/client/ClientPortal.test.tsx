@@ -101,4 +101,29 @@ describe("CommunityHub portal frame", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Record action" })).toBeDisabled();
   });
+
+  it("clears many results at once: Follow RCS on all, with what it will do spelled out", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const needsTab = await screen.findByRole("tab", { name: /^Needs action \(\d+\)$/ });
+    const before = Number(needsTab.textContent!.match(/\((\d+)\)/)![1]);
+    fireEvent.click(await screen.findByRole("button", { name: "Follow RCS on all" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Keep \d+ posts? RCS found no violation in|Remove \d+ posts?/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Follow RCS" }));
+    expect(await screen.findByText(/results? recorded\. RCS has been told/)).toBeInTheDocument();
+    await waitFor(() => expect(Number(screen.getAllByRole("tab")[0].textContent!.match(/\((\d+)\)/)![1])).toBeLessThan(before));
+  });
+
+  it("records the same action on selected results", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const table = await screen.findByRole("table", { name: "Case results" });
+    const boxes = within(table).getAllByRole("checkbox", { name: /^Select AR-/ });
+    fireEvent.click(boxes[0]);
+    const bar = await screen.findByRole("group", { name: "Selected results" });
+    expect(within(bar).getByText("1 selected")).toBeInTheDocument();
+    fireEvent.click(within(bar).getByRole("button", { name: "Post kept" }));
+    expect(await screen.findByText(/1 result recorded/)).toBeInTheDocument();
+  });
 });

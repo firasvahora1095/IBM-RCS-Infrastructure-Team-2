@@ -25,6 +25,8 @@ import {
   TableContainer,
   TableHeader,
   TableRow,
+  TableSelectAll,
+  TableSelectRow,
 } from "@carbon/react";
 import { ClientLayout } from "../../components/layout/ClientLayout";
 import { StatTile } from "../../components/ui/StatTile";
@@ -75,13 +77,33 @@ export function ClientCaseResultsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [followAll, setFollowAll] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const results = data ?? [];
-  const needsAction = results.filter((r) => r.status === "DELIVERED" && !r.platform_action);
-  const onItsWay = results.filter((r) => r.status !== "DELIVERED").length;
+  // Only results that have reached CommunityHub: how RCS gets a result there is not the client's concern, and a result
+  // that is still travelling can't be acted on yet. It appears here the moment it arrives.
+  const results = (data ?? []).filter((r) => r.status === "DELIVERED");
+  const needsAction = results.filter((r) => !r.platform_action);
+  const violations = results.filter((r) => r.outcome === "POLICY_VIOLATION_FOUND");
+  const decided = results.filter((r) => r.outcome !== "CLOSED_NO_REASSIGNMENT").length;
+  const removed = results.filter((r) => r.platform_action?.action === "REMOVED").length;
   const actioned = results.filter((r) => r.platform_action).length;
+  const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : "0%");
   // Opens on what is waiting for the team, as the Manager's Deliveries opens on what needs attention.
   const view = picked ?? (needsAction.length > 0 ? "needs" : "all");
+  // What RCS found points at the usual action: a violation is removed, a clear post is kept. A post RCS could not
+  // review has no obvious answer, so it stays for a person.
+  const suggested = needsAction
+    .filter((r) => r.outcome !== "CLOSED_NO_REASSIGNMENT")
+    .map((result) => ({
+      result,
+      action: (result.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT") as PlatformAction["action"],
+    }));
+  const toRemove = suggested.filter((x) => x.action === "REMOVED").length;
+  const toKeep = suggested.length - toRemove;
+  const notReviewed = needsAction.length - suggested.length;
+  const selectedRows = needsAction.filter((r) => selected.has(r.delivery_id));
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,13 +139,34 @@ export function ClientCaseResultsPage() {
     }
   }
 
+  /** Many results at once, as a platform with many reports a day would: one tap, not one dialog per post. */
+  async function applyMany(items: { result: CaseResult; action: PlatformAction["action"] }[]) {
+    if (!token || items.length === 0) return;
+    setSaving(true);
+    setBulkError(null);
+    try {
+      await Promise.all(
+        items.map(({ result, action }) => clientRecordPlatformAction(result.delivery_id, token, action)),
+      );
+      setNotice(`${items.length} result${items.length === 1 ? "" : "s"} recorded. RCS has been told.`);
+      setSelected(new Set());
+      setFollowAll(false);
+      reload();
+      window.dispatchEvent(new Event(CLIENT_RESULTS_CHANGED_EVENT));
+    } catch (err) {
+      setBulkError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const onNeeds: boolean = view === "needs";
   const viewBody = (
     <div className="flex flex-col gap-4" style={{ paddingBlockStart: 16 }}>
       {onNeeds && (
         <p className="rcs-helper" style={{ fontSize: 14 }}>
-          Delivered results your team hasn&apos;t acted on yet. Choose Record action once the post has been removed or
-          kept: RCS is told, and the result moves to All results as actioned.
+          Delivered results your team hasn&apos;t acted on yet. Follow RCS to apply the usual action to all of them, or
+          select some, or open one. RCS is told, and each result moves to All results as actioned.
         </p>
       )}
 
@@ -134,6 +177,35 @@ export function ClientCaseResultsPage() {
         />
       ) : (
         <>
+          {onNeeds && selectedRows.length > 0 && (
+            <div
+              className="flex flex-wrap items-center gap-3 px-4 py-2"
+              style={{ backgroundColor: "var(--cds-layer-01)" }}
+              role="group"
+              aria-label="Selected results"
+            >
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{selectedRows.length} selected</span>
+              <Button
+                kind="tertiary"
+                size="sm"
+                disabled={saving}
+                onClick={() => void applyMany(selectedRows.map((result) => ({ result, action: "REMOVED" as const })))}
+              >
+                Post removed
+              </Button>
+              <Button
+                kind="tertiary"
+                size="sm"
+                disabled={saving}
+                onClick={() => void applyMany(selectedRows.map((result) => ({ result, action: "KEPT" as const })))}
+              >
+                Post kept
+              </Button>
+              <Button kind="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </div>
+          )}
           <div className="flex flex-wrap items-end gap-4">
             <div style={{ minWidth: 220 }}>
               <Select
@@ -164,12 +236,34 @@ export function ClientCaseResultsPage() {
               <Table aria-label="Case results" className="rcs-actions-end">
                 <TableHead>
                   <TableRow>
+                    {onNeeds && (
+                      <TableSelectAll
+                        id="select-all-results"
+                        name="select-all-results"
+                        ariaLabel="Select all results on this page"
+                        checked={paged.rows.length > 0 && paged.rows.every((r) => selected.has(r.delivery_id))}
+                        indeterminate={
+                          paged.rows.some((r) => selected.has(r.delivery_id)) &&
+                          !paged.rows.every((r) => selected.has(r.delivery_id))
+                        }
+                        onSelect={() => {
+                          const all = paged.rows.every((r) => selected.has(r.delivery_id));
+                          setSelected((cur) => {
+                            const next = new Set(cur);
+                            for (const r of paged.rows) {
+                              if (all) next.delete(r.delivery_id);
+                              else next.add(r.delivery_id);
+                            }
+                            return next;
+                          });
+                        }}
+                      />
+                    )}
                     <TableHeader>Case ID</TableHeader>
                     <TableHeader>Post</TableHeader>
                     <TableHeader>RCS result</TableHeader>
                     <TableHeader>Final severity</TableHeader>
-                    <TableHeader>Completed</TableHeader>
-                    <TableHeader>Received</TableHeader>
+                    <TableHeader>Decided</TableHeader>
                     <TableHeader>Your team&apos;s action</TableHeader>
                     <TableHeader>Actions</TableHeader>
                   </TableRow>
@@ -179,9 +273,32 @@ export function ClientCaseResultsPage() {
                     <TableRow
                       key={r.delivery_id}
                       // A delivered result has something to open: record the action, or see what was recorded.
-                      onClick={r.status === "DELIVERED" ? () => open(r) : undefined}
+                      onClick={
+                        r.status === "DELIVERED"
+                          ? (e) => {
+                              if ((e.target as HTMLElement).closest(".cds--table-column-checkbox")) return;
+                              open(r);
+                            }
+                          : undefined
+                      }
                       style={{ cursor: r.status === "DELIVERED" ? "pointer" : "default" }}
                     >
+                      {onNeeds && (
+                        <TableSelectRow
+                          id={`select-${r.delivery_id}`}
+                          name={`select-${r.delivery_id}`}
+                          ariaLabel={`Select ${r.case_id}`}
+                          checked={selected.has(r.delivery_id)}
+                          onSelect={() =>
+                            setSelected((cur) => {
+                              const next = new Set(cur);
+                              if (next.has(r.delivery_id)) next.delete(r.delivery_id);
+                              else next.add(r.delivery_id);
+                              return next;
+                            })
+                          }
+                        />
+                      )}
                       <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
                         {r.case_id}
                       </TableCell>
@@ -210,22 +327,14 @@ export function ClientCaseResultsPage() {
                         {r.final_severity ? <SeverityTag tier={r.final_severity} size="sm" /> : "—"}
                       </TableCell>
                       <TableCell>{formatShortDateTime(r.completed_at)}</TableCell>
-                      <TableCell>
-                        {r.status === "DELIVERED" && r.delivered_at ? (
-                          formatShortDateTime(r.delivered_at)
-                        ) : (
-                          <StatusTag tone="info">On its way</StatusTag>
-                        )}
-                      </TableCell>
+
                       <TableCell>
                         {r.platform_action ? (
                           <StatusTag tone={r.platform_action.action === "REMOVED" ? "success" : "neutral"}>
                             {PLATFORM_ACTION_LABEL[r.platform_action.action]}
                           </StatusTag>
                         ) : r.status === "DELIVERED" ? (
-                          <StatusTag tone={r.outcome === "POLICY_VIOLATION_FOUND" ? "warning" : "neutral"}>
-                            Needs action
-                          </StatusTag>
+                          <StatusTag tone="request">Needs action</StatusTag>
                         ) : (
                           "—"
                         )}
@@ -263,7 +372,25 @@ export function ClientCaseResultsPage() {
       <PageHeader
         title="Case results"
         subtitle="Every result RCS has sent to CommunityHub. RCS decides whether a post broke policy; your team decides what happens to it."
+        actions={
+          suggested.length > 0 ? (
+            <Button disabled={saving} onClick={() => setFollowAll(true)}>
+              Follow RCS on all
+            </Button>
+          ) : undefined
+        }
       />
+      {bulkError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          role="alert"
+          title="That wasn't recorded."
+          subtitle={bulkError}
+          onClose={() => setBulkError(null)}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {notice && (
         <InlineNotification
           kind="success"
@@ -291,12 +418,29 @@ export function ClientCaseResultsPage() {
       )}
       {data && data.length > 0 && (
         <>
+          {/* What a CommunityHub moderator wants at a glance: how much RCS flagged, how much of it came down, and whether
+              the team has caught up. */}
           <Grid className="rcs-grid" condensed>
-            <Column sm={2} md={2} lg={4}>
-              <StatTile label="On its way" value={onItsWay} helper="Sent by RCS, not yet received" />
+            <Column sm={4} md={2} lg={5}>
+              <StatTile
+                label="Violations found"
+                value={violations.length}
+                helper={`${share(violations.length, decided)} of ${decided} decided`}
+              />
             </Column>
-            <Column sm={2} md={2} lg={4}>
-              <StatTile label="Actioned" value={actioned} helper="Your team has recorded an action" />
+            <Column sm={4} md={3} lg={5}>
+              <StatTile
+                label="Posts removed"
+                value={removed}
+                helper={`${share(removed, violations.length)} of violations`}
+              />
+            </Column>
+            <Column sm={4} md={3} lg={6}>
+              <StatTile
+                label="Team has acted on"
+                value={`${actioned} of ${results.length}`}
+                helper={needsAction.length ? `${needsAction.length} still need action` : "All caught up"}
+              />
             </Column>
           </Grid>
 
@@ -318,81 +462,112 @@ export function ClientCaseResultsPage() {
         </>
       )}
 
-      <Modal
-        open={acting !== null}
-        size="sm"
-        // An actioned result opens read-only: what was recorded, by whom and when.
-        passiveModal={Boolean(acting?.platform_action)}
-        modalHeading={
-          acting?.platform_action
-            ? `${acting.case_id}`
-            : acting
-              ? `Record action for ${acting.case_id}`
-              : "Record action"
-        }
-        primaryButtonText={saving ? "Recording…" : "Record action"}
-        secondaryButtonText="Cancel"
-        primaryButtonDisabled={!choice || saving}
-        onRequestClose={() => setActing(null)}
-        onRequestSubmit={() => void record()}
-      >
-        {acting?.platform_action ? (
-          <dl className="flex flex-col gap-3" style={{ fontSize: 14 }}>
-            <div>
-              <dt className="rcs-helper">RCS result</dt>
-              <dd>{PAYLOAD_OUTCOME_LABEL[acting.outcome]}</dd>
-            </div>
-            <div>
-              <dt className="rcs-helper">Your team&apos;s action</dt>
-              <dd>{PLATFORM_ACTION_LABEL[acting.platform_action.action]}</dd>
-            </div>
-            <div>
-              <dt className="rcs-helper">Recorded</dt>
-              <dd>
-                {formatShortDateTime(acting.platform_action.at)} by {acting.platform_action.by}
-              </dd>
-            </div>
-            {acting.platform_action.note && (
-              <div>
-                <dt className="rcs-helper">Note</dt>
-                <dd>{acting.platform_action.note}</dd>
-              </div>
+      {followAll && (
+        <Modal
+          open
+          size="sm"
+          modalHeading="Follow RCS on all?"
+          primaryButtonText={saving ? "Recording…" : "Follow RCS"}
+          secondaryButtonText="Cancel"
+          primaryButtonDisabled={saving}
+          onRequestClose={() => setFollowAll(false)}
+          onRequestSubmit={() => void applyMany(suggested)}
+        >
+          <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p>
+              {toRemove > 0 && `Remove ${toRemove} post${toRemove === 1 ? "" : "s"} RCS found in violation. `}
+              {toKeep > 0 && `Keep ${toKeep} post${toKeep === 1 ? "" : "s"} RCS found no violation in.`}
+            </p>
+            {notReviewed > 0 && (
+              <p className="rcs-helper" style={{ fontSize: 14 }}>
+                {notReviewed} {notReviewed === 1 ? "result was" : "results were"} not reviewed, so{" "}
+                {notReviewed === 1 ? "it stays" : "they stay"} here for your team to decide.
+              </p>
             )}
-          </dl>
-        ) : (
-          <div className="flex flex-col gap-5">
-            <RadioButtonGroup
-              name="platform-action"
-              legendText="What did your team do with the post?"
-              orientation="vertical"
-              valueSelected={choice ?? undefined}
-              onChange={(value) => setChoice(value as PlatformAction["action"])}
-            >
-              <RadioButton id="action-removed" value="REMOVED" labelText={PLATFORM_ACTION_LABEL.REMOVED} />
-              <RadioButton id="action-kept" value="KEPT" labelText={PLATFORM_ACTION_LABEL.KEPT} />
-            </RadioButtonGroup>
-            <TextArea
-              id="action-note"
-              labelText="Note (optional)"
-              helperText="Only your team and RCS see this."
-              rows={3}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            {saveError && (
-              <InlineNotification
-                kind="error"
-                lowContrast
-                hideCloseButton
-                role="alert"
-                title="That wasn't recorded."
-                subtitle={saveError}
-                style={{ maxWidth: "100%" }}
-              />
-            )}
+            <p className="rcs-helper" style={{ fontSize: 14 }}>
+              RCS is told once this is recorded. Open any result afterwards to see what was recorded.
+            </p>
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
+
+      {acting && (
+        <Modal
+          open
+          size="sm"
+          // An actioned result opens read-only: what was recorded, by whom and when.
+          passiveModal={Boolean(acting?.platform_action)}
+          modalHeading={
+            acting?.platform_action
+              ? `${acting.case_id}`
+              : acting
+                ? `Record action for ${acting.case_id}`
+                : "Record action"
+          }
+          primaryButtonText={saving ? "Recording…" : "Record action"}
+          secondaryButtonText="Cancel"
+          primaryButtonDisabled={!choice || saving}
+          onRequestClose={() => setActing(null)}
+          onRequestSubmit={() => void record()}
+        >
+          {acting?.platform_action ? (
+            <dl className="flex flex-col gap-3" style={{ fontSize: 14 }}>
+              <div>
+                <dt className="rcs-helper">RCS result</dt>
+                <dd>{PAYLOAD_OUTCOME_LABEL[acting.outcome]}</dd>
+              </div>
+              <div>
+                <dt className="rcs-helper">Your team&apos;s action</dt>
+                <dd>{PLATFORM_ACTION_LABEL[acting.platform_action.action]}</dd>
+              </div>
+              <div>
+                <dt className="rcs-helper">Recorded</dt>
+                <dd>
+                  {formatShortDateTime(acting.platform_action.at)} by {acting.platform_action.by}
+                </dd>
+              </div>
+              {acting.platform_action.note && (
+                <div>
+                  <dt className="rcs-helper">Note</dt>
+                  <dd>{acting.platform_action.note}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <div className="flex flex-col gap-5">
+              <RadioButtonGroup
+                name="platform-action"
+                legendText="What did your team do with the post?"
+                orientation="vertical"
+                valueSelected={choice ?? undefined}
+                onChange={(value) => setChoice(value as PlatformAction["action"])}
+              >
+                <RadioButton id="action-removed" value="REMOVED" labelText={PLATFORM_ACTION_LABEL.REMOVED} />
+                <RadioButton id="action-kept" value="KEPT" labelText={PLATFORM_ACTION_LABEL.KEPT} />
+              </RadioButtonGroup>
+              <TextArea
+                id="action-note"
+                labelText="Note (optional)"
+                helperText="Only your team and RCS see this."
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              {saveError && (
+                <InlineNotification
+                  kind="error"
+                  lowContrast
+                  hideCloseButton
+                  role="alert"
+                  title="That wasn't recorded."
+                  subtitle={saveError}
+                  style={{ maxWidth: "100%" }}
+                />
+              )}
+            </div>
+          )}
+        </Modal>
+      )}
       <p className="rcs-helper">
         Results include only the case ID, the post link, the outcome, the final severity and when it was decided. RCS
         never shares footage, summaries or who reviewed a case. {ACCESS_DISCLOSURE}
