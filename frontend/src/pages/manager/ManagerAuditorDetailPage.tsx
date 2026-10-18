@@ -14,7 +14,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
 import { cooldownSummary, SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
-import { WELLBEING_TONE } from "../../design-tokens/statusTones";
+import { WELLBEING_TONE, SOS_TONE } from "../../design-tokens/statusTones";
+import { getSeverityInfo } from "../../design-tokens/severity";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 
 const DEFAULT_LIMIT_MINUTES = 120;
@@ -111,9 +112,9 @@ export function ManagerAuditorDetailPage() {
   const openRequests = data?.wellbeing_requests.filter((r) => r.status === "OPEN").length ?? 0;
 
   return (
-    <ManagerLayout showNav={false}>
+    <ManagerLayout>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "Dashboard", to: "/manager" }, { label: data?.display_name ?? auditorId }]} />
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: data?.display_name ?? auditorId }]} />
       <LoadState error={error} loading={!data && !error} what="this Auditor" />
       {data && (
         <>
@@ -123,12 +124,73 @@ export function ManagerAuditorDetailPage() {
               <>
                 <ExposureStateTag state={data.exposure_state} />
                 {openRequests > 0 && (
-                  <StatusTag tone="info">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
+                  <StatusTag tone="request">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
                 )}
-                {data.pattern_flagged && <StatusTag tone="neutral">Pattern flagged — private</StatusTag>}
+                {data.pattern_flagged && (
+                  <span title="A private marker that this Auditor's recent exposure is worth a check-in. Only the Manager sees it.">
+                    <StatusTag tone="neutral">Pattern flagged</StatusTag>
+                  </span>
+                )}
               </>
             }
           />
+
+          {/* Actions first: what this person asked of you, then the figures. */}
+          <Panel title="Support requests">
+            <p style={secondaryText}>
+              Private requests from the Auditor, separate from SOS.
+            </p>
+            {actionError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                hideCloseButton
+                role="alert"
+                title="Error:"
+                subtitle={actionError}
+                style={{ maxWidth: "100%" }}
+              />
+            )}
+            {data.wellbeing_requests.length === 0 ? (
+              <p style={secondaryText}>No support requests.</p>
+            ) : (
+              <ul className="flex flex-col gap-3" aria-live="polite">
+                {data.wellbeing_requests.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-col gap-2 px-4 py-3"
+                    style={{ backgroundColor: "var(--cds-layer-01)" }}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>
+                        {r.kind === "TALK_TO_MANAGER" ? "Wants to talk to you" : "Asked for a break"}
+                        {r.case_id && <span style={{ fontWeight: 400 }}>{` · case ${r.case_id}`}</span>}
+                      </span>
+                      <span className="rcs-helper">{formatClockTime(r.created_at)}</span>
+                    </div>
+                    {r.reason && <p style={{ fontSize: 14 }}>&ldquo;{r.reason}&rdquo;</p>}
+                    <div className="rcs-align-row">
+                      {r.status !== "OPEN" && <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>}
+                      {r.status === "OPEN" && (
+                        <Button
+                          kind="tertiary"
+                          size="sm"
+                          disabled={actingId === r.id}
+                          onClick={() => void act(r)}
+                        >
+                          {actingId === r.id
+                            ? "Saving…"
+                            : r.kind === "BREAK_REQUEST"
+                              ? "Approve break"
+                              : "Mark as followed up"}
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
 
           {/* Today at a glance */}
           <Panel title="Today">
@@ -149,79 +211,26 @@ export function ManagerAuditorDetailPage() {
               width={240}
               minutes={data.exposure_minutes_today}
               limit={data.exposure_limit_minutes}
-              label={`${Math.round((data.exposure_minutes_today / Math.max(1, data.exposure_limit_minutes)) * 100)}% of today's limit`}
+              thresholds
+              label={`${Math.round((data.exposure_minutes_today / Math.max(1, data.exposure_limit_minutes)) * 100)}% of today's ${data.exposure_limit_minutes} min limit`}
               ariaLabel={`${data.display_name}'s exposure today`}
             />
           </Panel>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Panel title="Support requests">
-              <p style={secondaryText}>
-                Private requests from the Auditor, separate from SOS. Reasons are optional, so many have none.
-              </p>
-              {actionError && (
-                <InlineNotification
-                  kind="error"
-                  lowContrast
-                  hideCloseButton
-                  role="alert"
-                  title="Error:"
-                  subtitle={actionError}
-                  style={{ maxWidth: "100%" }}
-                />
-              )}
-              {data.wellbeing_requests.length === 0 ? (
-                <p style={secondaryText}>No support requests.</p>
-              ) : (
-                <ul className="flex flex-col gap-3" aria-live="polite">
-                  {data.wellbeing_requests.map((r) => (
-                    <li
-                      key={r.id}
-                      className="flex flex-col gap-2 px-4 py-3"
-                      style={{ backgroundColor: "var(--cds-layer-01)" }}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>
-                          {r.kind === "TALK_TO_MANAGER" ? "Wants to talk to you" : "Asked for a break"}
-                          {r.case_id && <span style={{ fontWeight: 400 }}>{` · case ${r.case_id}`}</span>}
-                        </span>
-                        <span className="rcs-helper">{formatClockTime(r.created_at)}</span>
-                      </div>
-                      {r.reason && <p style={{ fontSize: 14 }}>&ldquo;{r.reason}&rdquo;</p>}
-                      <div className="flex flex-wrap items-center gap-3">
-                        <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>
-                        {r.status === "OPEN" && (
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            disabled={actingId === r.id}
-                            onClick={() => void act(r)}
-                          >
-                            {actingId === r.id
-                              ? "Saving…"
-                              : r.kind === "BREAK_REQUEST"
-                                ? "Approve break"
-                                : "Mark as followed up"}
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
-
             <Panel title="Cases completed today">
               {data.recent_cases.length === 0 ? (
                 <p style={secondaryText}>No cases completed today.</p>
               ) : (
                 <>
                   <p style={secondaryText}>
-                    {severityMix.map((t) => `${t.count} × ${t.tier}`).join(" · ")}
+                    {`${data.recent_cases.length} ${data.recent_cases.length === 1 ? "case" : "cases"}: ${severityMix
+                      .map((t) => `${t.count} ${getSeverityInfo(t.tier).label}`)
+                      .join(", ")}`}
                   </p>
                   <ul className="flex flex-col gap-3">
                     {data.recent_cases.map((c) => (
-                      <li key={c.case_id} className="flex flex-wrap items-center gap-4">
+                      <li key={c.case_id} className="rcs-align-row" style={{ columnGap: "1rem" }}>
                         <span style={{ ...mono, fontSize: 12, width: 120 }}>{c.case_id}</span>
                         {c.severity_tier ? <SeverityTag tier={c.severity_tier} size="sm" /> : <span>—</span>}
                         {c.final_outcome && (
@@ -243,7 +252,7 @@ export function ManagerAuditorDetailPage() {
               ) : (
                 <ul className="flex flex-col gap-3">
                   {data.sos_history!.map((e) => (
-                    <li key={e.id} className="flex flex-wrap items-center gap-4">
+                    <li key={e.id} className="rcs-align-row" style={{ columnGap: "1rem" }}>
                       <RouterLink className="cds--link" to={`/manager/sos/${encodeURIComponent(e.id)}`}>
                         {new Date(e.triggered_at).toLocaleString([], {
                           weekday: "short",
@@ -251,7 +260,7 @@ export function ManagerAuditorDetailPage() {
                           minute: "2-digit",
                         })}
                       </RouterLink>
-                      <StatusTag tone={e.status === "RESOLVED" ? "success" : e.status === "IN_PROGRESS" ? "warning" : "error"}>
+                      <StatusTag tone={SOS_TONE[e.status]}>
                         {SOS_STATUS_LABEL[e.status]}
                       </StatusTag>
                     </li>
@@ -287,6 +296,7 @@ export function ManagerAuditorDetailPage() {
                   <div style={{ width: "100%", maxWidth: 200 }}>
                     <NumberInput
                       id="exposure-limit-input"
+                      size="lg"
                       label="Daily limit (minutes)"
                       min={30}
                       max={480}
@@ -301,7 +311,7 @@ export function ManagerAuditorDetailPage() {
                       }}
                     />
                   </div>
-                  <Button disabled={saveState === "saving"} onClick={saveLimit}>
+                  <Button kind="tertiary" disabled={saveState === "saving"} onClick={saveLimit}>
                     {saveState === "saving" ? "Saving…" : saveState === "failed" ? "Save limit (retry)" : "Save limit"}
                   </Button>
                 </div>

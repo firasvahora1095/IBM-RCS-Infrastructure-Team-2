@@ -1,6 +1,6 @@
 /**
- * The Manager sections. Six, not eight: the work queues (SOS Inbox,
- * Reassignment Queue) are reached from the Overview's "Needs you" inbox. Analytics
+ * The Manager sections. Six, not eight: the work queues (SOS inbox,
+ * Reassignment queue) are reached from the Overview's "Needs you" inbox. Analytics
  * live under Insights; Validation (with the audit history) has its own tab.
  * Routes are unchanged; each sub-page keeps its owning section highlighted
  * (docs/ux/manager-ux-audit-and-redesign.md §4).
@@ -16,13 +16,17 @@ export const MANAGER_SECTIONS: readonly NavTab[] = [
   {
     label: "Overview",
     path: "/manager",
-    owns: [/^\/manager$/, /^\/manager\/(sos|reassignment|auditors)(\/|$)/, /^\/manager\/cases\/[^/]+\/(reassign|raw)$/],
+    owns: [
+      /^\/manager$/,
+      /^\/manager\/(sos|reassignment|auditors|messages)(\/|$)/,
+      /^\/manager\/cases\/[^/]+\/(reassign|raw)$/,
+    ],
   },
   { label: "Cases", path: "/manager/cases", owns: [/^\/manager\/cases(\/|$)/] },
   {
     label: "Deliveries",
     path: "/manager/deliveries",
-    owns: [/^\/manager\/(deliveries|customers|messages)(\/|$)/],
+    owns: [/^\/manager\/(deliveries|customers)(\/|$)/],
   },
   { label: "Reports", path: "/manager/reports", owns: [/^\/manager\/reports(\/|$)/] },
   { label: "Insights", path: "/manager/insights", owns: [/^\/manager\/insights(\/|$)/] },
@@ -35,3 +39,11 @@ export const MANAGER_SECTIONS: readonly NavTab[] = [
 export function activeSection(pathname: string): string | undefined {
   return MANAGER_SECTIONS.find((tab) => tab.owns.some((pattern) => pattern.test(pathname)))?.path;
 }
+
+/** The work queues shown under Overview. The first is the Overview page itself (figures, inbox and Auditors). */
+export const WORK_QUEUES: readonly NavTab[] = [
+  { label: "Needs you", path: "/manager", owns: [/^\/manager$/] },
+  { label: "SOS inbox", path: "/manager/sos", owns: [/^\/manager\/sos(\/|$)/] },
+  { label: "Reassignment queue", path: "/manager/reassignment", owns: [/^\/manager\/reassignment(\/|$)/] },
+  { label: "Client messages", path: "/manager/messages", owns: [/^\/manager\/messages(\/|$)/] },
+];

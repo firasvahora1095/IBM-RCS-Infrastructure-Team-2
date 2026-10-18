@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, RadioButton, RadioButtonGroup, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { RawContentAccess } from "../../components/manager/RawContentAccess";
 import { LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { closeWithoutReassignment, getReassignmentContext, reassignCase } from "../../services";
@@ -94,8 +95,10 @@ export function ManagerReassignmentPage() {
   }
 
   const trail = [
-    { label: caseId, to: `/manager/cases/${encodeURIComponent(caseId)}/review` },
-    { label: "Reassignment decision" },
+    { label: "Overview", to: "/manager" },
+    { label: "Reassignment queue", to: "/manager/reassignment" },
+    { label: `Case ${caseId}`, to: `/manager/cases/${encodeURIComponent(caseId)}/review` },
+    { label: "Decision" },
   ];
 
   return (
@@ -172,23 +175,15 @@ export function ManagerReassignmentPage() {
                 onChange={(e) => setNote(e.target.value)}
               />
               <div>
-                <Button kind="secondary" disabled={!note.trim() || pending !== null} onClick={confirmNoReassignment}>
+                <Button kind="tertiary" disabled={!note.trim() || pending !== null} onClick={confirmNoReassignment}>
                   {pending === "close" ? "Confirming…" : "Confirm no reassignment"}
                 </Button>
               </div>
             </div>
           )}
-          <p style={{ ...secondaryText, fontSize: 12 }}>
-            <RouterLink
-              className="cds--link"
-              style={{ fontSize: 12 }}
-              to={`/manager/cases/${encodeURIComponent(caseId)}/raw?from=${encodeURIComponent(`/manager/cases/${caseId}/reassign`)}`}
-            >
-              Not enough to decide? View raw content (exceptional access)
-            </RouterLink>
-          </p>
         </Panel>
       )}
+      {data && <RawContentAccess caseId={caseId} returnTo={`/manager/cases/${caseId}/reassign`} />}
     </ManagerLayout>
   );
 }

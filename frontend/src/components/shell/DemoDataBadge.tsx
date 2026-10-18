@@ -16,7 +16,7 @@ export function DemoDataBadge() {
   if (!isMockData) return null;
   return (
     <Tag
-      type="purple"
+      type="cyan"
       size="sm"
       title="Synthetic demo data — not connected to the live backend"
       className="self-center"

@@ -25,7 +25,7 @@ export function PageHeader({ title, eyebrow, subtitle, breadcrumb, actions, meta
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="flex min-w-0 flex-col gap-2">
           {eyebrow && <p className="rcs-eyebrow">{eyebrow}</p>}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="rcs-align-row">
             <h1 className="rcs-page-title">{title}</h1>
             {meta}
           </div>

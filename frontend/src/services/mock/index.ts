@@ -56,6 +56,7 @@ import {
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
 import { findCaseId, mockBuddyReply, type BuddyLiveFigures } from "./buddy";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { clientOf, findOrganisation } from "./clients";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -174,9 +175,9 @@ function selectAuditor(db: MockDb): string | null {
 }
 
 /**
- * How long a parked case waits for the Super Admin before the system places it. The team decided on
+ * How long a parked case waits for the Super Auditor before the system places it. The team decided on
  * none, as in the backend (FALLBACK_HOLD_MINUTES defaults to 0): a case is placed as soon as a
- * standard Auditor is eligible, unless the Super Admin has already taken it.
+ * standard Auditor is eligible, unless the Super Auditor has already taken it.
  */
 export const FALLBACK_HOLD_MS = 0;
 
@@ -221,7 +222,7 @@ function requireSession(db: MockDb, token: string, role: "auditor" | "manager") 
   return session;
 }
 
-/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Admin too. */
+/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Auditor too. */
 function unavailableReason(db: MockDb, member: MockStaff): string | null {
   if (exposureMinutes(member) >= member.exposure_limit_minutes) return "You have reached your daily exposure limit.";
   if (inCooldown(member)) return "You are in a mandatory cooldown.";
@@ -234,7 +235,7 @@ function unavailableReason(db: MockDb, member: MockStaff): string | null {
 function requireSuperAdmin(db: MockDb, token: string): MockStaff {
   const session = requireSession(db, token, "auditor");
   const member = staffById(db, session.staffId);
-  if (!member.is_super_admin) throw new ApiError("Super Admin access required", 403);
+  if (!member.is_super_admin) throw new ApiError("Super Auditor access required", 403);
   return member;
 }
 
@@ -757,11 +758,16 @@ export const mockDataService: DataService = {
       delete db.loginAttempts[key];
       const token = newToken();
       db.sessions[token] = { staffId: member.staff_id, role: member.role };
-      return { token, role: member.role, is_super_admin: member.role === "auditor" && member.is_super_admin === true };
+      return {
+        token,
+        role: member.role,
+        is_super_admin: member.role === "auditor" && member.is_super_admin === true,
+        display_name: member.display_name,
+      };
     });
   },
 
-  // ---- Fallback queue (Super Admin, extra-features 1.6) ----
+  // ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
   async getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
     await delay();
@@ -780,6 +786,7 @@ export const mockDataService: DataService = {
           assigned_auditor_id: c.manager_flag ? null : c.assigned_auditor,
           case_visibility: c.case_visibility ?? "ASSIGNED_ONLY",
           manager_flag: c.manager_flag,
+          created_at: c.created_at,
           auto_release_at: autoReleaseAt(c) === null ? null : new Date(autoReleaseAt(c)!).toISOString(),
         }));
     });
@@ -826,7 +833,7 @@ export const mockDataService: DataService = {
       if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
       const reason = unavailableReason(db, admin);
       if (reason) throw new ApiError(reason, 409);
-      assignUnownedCase(db, c, admin, "taken by the Super Admin");
+      assignUnownedCase(db, c, admin, "taken by the Super Auditor");
       return { taken: true };
     });
   },
@@ -1244,6 +1251,8 @@ export const mockDataService: DataService = {
         .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
           severity_tier: c.severity_tier,
           final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
@@ -1342,6 +1351,8 @@ export const mockDataService: DataService = {
         })
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: c.decline
             ? (displayName(db, c.decline.declined_by) ?? c.decline.declined_by)
             : (c.assigned_auditor ? (displayName(db, c.assigned_auditor) ?? c.assigned_auditor) : "Unknown"),

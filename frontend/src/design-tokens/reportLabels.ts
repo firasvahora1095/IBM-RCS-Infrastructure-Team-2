@@ -19,8 +19,8 @@ export const NOT_IN_CLIENT_REPORT: readonly string[] = [
   "Internal technical errors",
 ];
 
-export const RELEASE_CONFIRM_BODY =
-  "CommunityHub's authorised users will be able to view and download it. You can't edit a released report; you can create a new version.";
+export const releaseConfirmBody = (client: string) =>
+  `${client}'s authorised users will be able to view and download it. You can't edit a released report; you can create a new version.`;
 
 export const NO_SLA_NOTE = "No service-level target is set for this period, so none is compared.";
 
@@ -43,5 +43,5 @@ export const METRIC_DEFINITIONS = {
   timeliness: "The middle value of time from report received to final decision, for cases completed in the period.",
   overrides: "Completed cases where the final human severity differs from the AI's initial severity.",
   workflow: "Completed cases that were declined by one reviewer and decided by another.",
-  delivery: "Results sent to CommunityHub for cases completed in the period, by delivery status.",
+  delivery: "Results sent to the Client for cases completed in the period, by delivery status.",
 } as const;

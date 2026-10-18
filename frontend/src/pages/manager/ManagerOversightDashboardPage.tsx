@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Column, Dropdown, Grid, InlineLoading, InlineNotification } from "@carbon/react";
+import { Button, Column, Dropdown, Grid, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { AuditorProtectionTable } from "../../components/manager/AuditorProtectionTable";
@@ -10,11 +10,9 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
 import { StatTile } from "../../components/ui/StatTile";
-import { generateReport, getAuditorOverview } from "../../services";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
+import { getAuditorOverview } from "../../services";
 import type { EvidenceKey } from "../../services/types";
-import { useAuth } from "../../hooks/useAuth";
-import { ORGANISATION_ID, REFRESH_MS, useManagerIntelligence } from "../../hooks/useManagerIntelligence";
+import { REFRESH_MS, useManagerIntelligence } from "../../hooks/useManagerIntelligence";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { noticeFrom } from "./managerNotice";
 import { PERIOD_OPTIONS } from "../../utils/periods";
@@ -27,45 +25,22 @@ const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
  * two questions: what needs me now (the "Needs you" inbox, each row with its
  * action in place) and who is protected (the Auditors table). Three quiet
  * figures sit above for context. Case flow, AI and Auditor decisions, Client
- * outcomes and Delivery Health moved to Insights.
+ * outcomes and Delivery health moved to Insights.
  *
- * Generate Report is the page's one primary button (D4); every action in the
- * inbox is secondary. The header's "Demo data" badge already labels seeded
+ * Overview has no primary button: every action in the inbox is a secondary one, and
+ * Generate report lives on Insights and Reports. The header's "Demo data" badge already labels seeded
  * figures on every screen (MR-OV-08), so the page does not repeat it.
  * See docs/ux/manager-ux-audit-and-redesign.md.
  */
 export function ManagerOversightDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token } = useAuth();
-  const { intel, data, periodKey, setPeriod, start, end, periodLabel, now } = useManagerIntelligence();
+  const { intel, data, periodKey, setPeriod, periodLabel, now } = useManagerIntelligence({ allClients: true });
   const overview = useStaffQuery(getAuditorOverview, "", { refreshMs: REFRESH_MS });
 
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
-  const { reload: reloadIntel } = intel;
-  const { reload: reloadOverview } = overview;
-  const refresh = useCallback(() => {
-    reloadIntel();
-    reloadOverview();
-  }, [reloadIntel, reloadOverview]);
 
   const notice = noticeFrom(location.state);
-
-  async function handleGenerate() {
-    if (!token) return;
-    setGenerating(true);
-    setGenerateError(null);
-    try {
-      const report = await generateReport(token, ORGANISATION_ID, start, end);
-      navigate(`/manager/reports/${encodeURIComponent(report.report_id)}`);
-    } catch (err) {
-      setGenerateError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
-      setGenerating(false);
-    }
-  }
 
   const evidenceButton = (key: EvidenceKey) => (
     <Button kind="ghost" size="sm" className="rcs-evidence-button" onClick={() => setEvidenceKey(key)}>
@@ -92,13 +67,6 @@ export function ManagerOversightDashboardPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
-            {generating ? (
-              <InlineLoading description="Generating the report…" />
-            ) : (
-              <Button onClick={handleGenerate} disabled={!data}>
-                Generate Report
-              </Button>
-            )}
           </>
         }
       />
@@ -109,17 +77,6 @@ export function ManagerOversightDashboardPage() {
           title={notice.title}
           subtitle={notice.detail}
           onCloseButtonClick={() => navigate(location.pathname + location.search, { replace: true, state: null })}
-          style={{ maxWidth: "100%" }}
-        />
-      )}
-      {generateError && (
-        <InlineNotification
-          kind="error"
-          lowContrast
-          role="alert"
-          title="Couldn't generate the report."
-          subtitle={generateError}
-          onClose={() => setGenerateError(null)}
           style={{ maxWidth: "100%" }}
         />
       )}
@@ -139,7 +96,7 @@ export function ManagerOversightDashboardPage() {
               value={
                 data ? (data.delivery.success_rate === null ? "–" : percent(data.delivery.success_rate)) : "–"
               }
-              helper="Results delivered to CommunityHub"
+              helper="Results delivered to Clients"
             />
           </Column>
         </Grid>
@@ -151,10 +108,10 @@ export function ManagerOversightDashboardPage() {
       <Section
         id="needs-attention"
         title="Needs you"
-        description="Act here. Open an item only when you want the detail."
+        description="Resolve items here, or open one for the full detail."
         actions={evidenceButton("needs_manager_action")}
       >
-        <NeedsYouInbox intelligence={data} overview={overview.data} onChanged={refresh} />
+        <NeedsYouInbox intelligence={data} overview={overview.data} />
       </Section>
 
       <Section

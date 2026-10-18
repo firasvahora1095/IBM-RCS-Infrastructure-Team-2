@@ -102,7 +102,7 @@ export function Outcomes({ data }: { data: ManagerIntelligence }) {
             label: `${tier} · ${info.label}`,
             value: outcomes.severity[tier],
             // S1's tag fill is too light to read as a bar on the track.
-            color: tier === "S1" ? "var(--cds-icon-secondary)" : info.background,
+            color: info.bar,
           };
         })}
       />
@@ -122,7 +122,7 @@ export function Comparison({ data }: { data: ManagerIntelligence }) {
     <div className="rcs-comparison">
       <div className="flex flex-col gap-4">
         <StatTile
-          label="AI Override"
+          label="AI override"
           value={percent(comparison.override_rate)}
           helper={`The AI and the Auditor disagreed in ${comparison.overrides} of ${comparison.eligible} decided cases`}
         />
@@ -164,7 +164,7 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
       <div className="flex flex-col gap-2">
         <h3 className="rcs-subheading">Waiting for you now</h3>
         {delivery.failed.length === 0 ? (
-          <p className="rcs-helper">No failed handoffs. Results reach CommunityHub automatically.</p>
+          <p className="rcs-helper">No failed handoffs. Results reach each Client automatically.</p>
         ) : (
           <ul className="rcs-failed-list">
             {delivery.failed.map((row) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import { Button, InlineNotification, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -11,7 +11,13 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
-import { MANAGER_MESSAGE_STATUS_LABEL, MESSAGE_MAX_BODY, MESSAGE_TONE } from "../../design-tokens/messageLabels";
+import {
+  hasOpenGap,
+  MANAGER_MESSAGE_STATUS_LABEL,
+  MESSAGE_MAX_BODY,
+  MESSAGE_TONE,
+  REPLY_TEMPLATES,
+} from "../../design-tokens/messageLabels";
 
 /**
  * One client message (Manager). Opening it marks it "Seen by RCS" for the
@@ -29,7 +35,7 @@ export function ManagerClientMessagePage() {
 
   async function send() {
     setTried(true);
-    if (!token || !reply.trim()) return;
+    if (!token || !reply.trim() || hasOpenGap(reply)) return;
     setSending(true);
     setSendError(null);
     try {
@@ -47,7 +53,13 @@ export function ManagerClientMessagePage() {
   return (
     <ManagerLayout showNav={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "Client messages", to: "/manager/messages" }, { label: messageId }]} />
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Overview", to: "/manager" },
+          { label: "Client messages", to: "/manager/messages" },
+          { label: data?.display_name ?? messageId },
+        ]}
+      />
       <LoadState error={error} loading={!data && !error} what="this message" />
       {data && (
         <>
@@ -61,11 +73,34 @@ export function ManagerClientMessagePage() {
               viewer="manager"
               reportHref={(id) => `/manager/reports/${encodeURIComponent(id)}`}
             />
+            {data.topic === "DELIVERY_ISSUE" && (
+              <section className="rcs-section" aria-labelledby="related-heading">
+                <h2 id="related-heading" className="rcs-section-title">
+                  Review the delivery first
+                </h2>
+                <p className="rcs-body">
+                  Questions about a missing result are resolved from Deliveries. Retry or escalate the delivery, then
+                  reply with your findings.
+                </p>
+                <div>
+                  <Button kind="tertiary" as={RouterLink} to="/manager/deliveries?status=needs-attention">
+                    Open failed deliveries
+                  </Button>
+                </div>
+              </section>
+            )}
             {!data.reply && (
               <section className="rcs-section" aria-labelledby="reply-heading">
                 <h2 id="reply-heading" className="rcs-section-title">
                   Reply
                 </h2>
+                {!reply.trim() && (
+                  <div>
+                    <Button kind="tertiary" size="sm" onClick={() => setReply(REPLY_TEMPLATES[data.topic].body(data.organisation_name))}>
+                      {REPLY_TEMPLATES[data.topic].label}
+                    </Button>
+                  </div>
+                )}
                 <TextArea
                   id="manager-reply"
                   labelText="Your reply"
@@ -74,8 +109,8 @@ export function ManagerClientMessagePage() {
                   maxCount={MESSAGE_MAX_BODY}
                   enableCounter
                   value={reply}
-                  invalid={tried && !reply.trim()}
-                  invalidText="Write a reply."
+                  invalid={tried && (!reply.trim() || hasOpenGap(reply))}
+                  invalidText={reply.trim() ? "Replace the text in [brackets] with your own words." : "Write a reply."}
                   onChange={(e) => setReply(e.target.value)}
                 />
                 {sendError && (

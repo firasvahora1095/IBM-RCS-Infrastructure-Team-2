@@ -1,4 +1,5 @@
 import type {
+  ClientOrganisation,
   AuditLogHistory,
   AuditLogQuery,
   AuditorCaseDetail,
@@ -775,7 +776,7 @@ export async function getGovernanceCase(caseId: string, token: string): Promise<
   return parseJsonOrThrow<GovernanceCase>(r);
 }
 
-// ---- Fallback queue (Super Admin, extra-features 1.6) ----
+// ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
 export async function getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/auditor/all-cases`, { headers: bearer(token), cache: "no-store" });
@@ -809,4 +810,10 @@ export async function makeCaseAvailable(caseId: string, token: string): Promise<
     headers: bearer(token),
   });
   return parseJsonOrThrow<{ available: true }>(r);
+}
+
+/** The clients RCS serves, for the Manager's client selector. */
+export async function listClients(token: string): Promise<ClientOrganisation[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/clients`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientOrganisation[]>(r);
 }

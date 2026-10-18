@@ -30,9 +30,11 @@ interface StaffHeaderProps {
  * exposure data, so there's never a made-up number.
  */
 export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
-  const { staffId, logout } = useAuth();
+  const { staffId, displayName, isSuperAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const label = ROLE_LABEL[role];
+  // A Super Auditor is an Auditor with extra duties; the header says so, with a name rather than a login ID.
+  const whoLabel = role === "auditor" && isSuperAdmin ? "Super Auditor" : label;
   const { wellbeing } = useMyWellbeing();
 
   function handleSignOut() {
@@ -83,7 +85,7 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               className="hidden lg:inline"
               style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
             >
-              {label}: {staffId}
+              {whoLabel}: {displayName || staffId}
             </span>
           )}
           <AiBuddy />

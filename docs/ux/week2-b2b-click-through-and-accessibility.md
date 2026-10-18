@@ -48,7 +48,7 @@ Acceptance criteria: *fully navigable keyboard-only; no status conveyed by colou
 | `/communityhub/moderation` | 100 | |
 | `/` report form · `/status` · `/flow` | 100 · 100 · 100 | flow guide: label-in-name fixed |
 | `/staff/login` · `/client/login` | 100 · 100 | |
-| `/auditor` with the Super Admin's fallback queue | 100 | |
+| `/auditor` with the Super Auditor's fallback queue | 100 | |
 | **AI Buddy panel open, with an answer, live caption and link** | 100 | |
 | `/manager` | 100 | label-in-name and table-header issues fixed |
 | `/manager/cases` (new Availability column) | 100 | |

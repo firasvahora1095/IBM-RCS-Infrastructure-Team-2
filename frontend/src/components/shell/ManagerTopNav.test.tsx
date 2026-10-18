@@ -41,7 +41,7 @@ describe("ManagerTopNav (Task 103)", () => {
     ["/manager/auditors/auditor-1", "Overview"],
     ["/manager/cases/AR-1/reassign", "Overview"],
     ["/manager/cases/AR-1/review", "Cases"],
-    ["/manager/messages/MSG-1", "Deliveries"],
+    ["/manager/messages/MSG-1", "Overview"],
     ["/manager/validation", "Validation"],
     ["/manager/audit-logs", "Validation"],
   ])("keeps the owning section highlighted on %s", (path, section) => {

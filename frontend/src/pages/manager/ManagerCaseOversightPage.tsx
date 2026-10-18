@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button,
   DismissibleTag,
   Dropdown,
-  InlineNotification,
   Layer,
   Search,
   Table,
@@ -16,50 +15,62 @@ import {
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { Section } from "../../components/ui/Blocks";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { getCaseOversight, makeCaseAvailable } from "../../services";
+import { getCaseOversight } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
-import { useAuth } from "../../hooks/useAuth";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
+import { inScope, useClients } from "../../hooks/useClientScope";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { caseStatusTone } from "../../design-tokens/statusTones";
 import { StatusTag } from "../../components/ui/StatusTag";
+import { TablePagination, usePagination } from "../../components/ui/TablePagination";
 import { isOpenBucket, OPEN_BUCKET_LABEL, openBucketOf } from "../../design-tokens/intelligenceLabels";
 
 const ALL_STATUSES = "All statuses";
 
+type SortKey = "severity" | "status" | "auditor" | "case";
+/** The order a case moves through, so a status sort reads as a pipeline rather than alphabetically. */
+const STATUS_ORDER = ["Processing", "Ready for review", "In review", "Complete"];
+
+/** What a case needs from the Manager, in the order to work through them. `null` means nothing. */
+type Attention = { kind: "blocked" | "reassign"; label: string; action: string } | null;
+
+function attentionOf(row: ManagerCaseRow): Attention {
+  if (row.status === "COMPLETE") return null;
+  if (row.manager_flag === "SOS") return { kind: "blocked", label: "Blocked", action: "Review alert" };
+  if (row.manager_flag) return { kind: "reassign", label: "Needs reassignment", action: "Review" };
+  // A case with no Auditor yet is never the Manager's to push along: it is released to Auditors automatically
+  // (the Super Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
+  return null;
+}
+const ATTENTION_RANK = { blocked: 0, reassign: 1 } as const;
+const SEVERITY_RANK: Record<string, number> = { S4: 0, S3: 1, S2: 2, S1: 3 };
+const tierOf = (row: ManagerCaseRow) => row.final_severity_tier ?? row.severity_tier;
+
+/** The page a case's attention opens: the alert, or the reassignment decision. */
+function detailHref(row: ManagerCaseRow): string {
+  return row.manager_flag === "SOS" && row.sos_alert_id
+    ? `/manager/sos/${encodeURIComponent(row.sos_alert_id)}`
+    : `/manager/cases/${encodeURIComponent(row.case_id)}/${row.manager_flag ? "reassign" : "review"}`;
+}
+
 /**
- * Consolidated Case Oversight (Manager Figma 86:198): every case across all
- * Auditors, searchable and filterable (MR-OV-06). SOS and Declined rows are
- * distinguished by a flag tag and a left accent bar, not colour alone, and
- * link to the SOS alert or the case review. Standard rows aren't links:
- * they progress to Complete without Manager approval (MR-CR-06).
+ * Cases (Manager Figma 86:198): every case across all Auditors, searchable and filterable (MR-OV-06).
+ *
+ * What needs the Manager is the first thing on the page, in its own table: Blocked cases (an open SOS), cases that
+ * Need Reassignment, and any case Held Back from Auditors, most severe first, each with the one action that deals
+ * with it. Everything else follows in "All cases", where a tag appears only for the states that matter. Nobody
+ * should have to scroll a long list looking for a coloured edge. Standard cases progress to Complete without
+ * Manager approval (MR-CR-06), so they are not links.
  */
 export function ManagerCaseOversightPage() {
-  const { data, error, reload } = useStaffQuery(getCaseOversight);
-  const { token } = useAuth();
-  const [releasing, setReleasing] = useState<string | null>(null);
-  const [releaseNotice, setReleaseNotice] = useState<string | null>(null);
-  const [releaseError, setReleaseError] = useState<string | null>(null);
-
-  // A case with no Auditor can be released so eligible Auditors may claim it (extra-features 1.6).
-  async function makeAvailable(caseId: string) {
-    if (!token) return;
-    setReleasing(caseId);
-    setReleaseNotice(null);
-    setReleaseError(null);
-    try {
-      await makeCaseAvailable(caseId, token);
-      setReleaseNotice(`${caseId} is now available to eligible Auditors.`);
-      reload();
-    } catch (err) {
-      setReleaseError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
-    } finally {
-      setReleasing(null);
-    }
-  }
+  const navigate = useNavigate();
+  const { data: allCases, error } = useStaffQuery(getCaseOversight);
+  const { scope, selected } = useClients();
+  const data = allCases ? allCases.filter((c) => inScope(scope, c)) : allCases;
   // The dashboard opens this list on a stage (?stage=) or a case (?search=).
   const [params, setParams] = useSearchParams();
   const rawStage = params.get("stage");
@@ -72,7 +83,7 @@ export function ManagerCaseOversightPage() {
     [data],
   );
 
-  const rows = (data ?? []).filter((c) => {
+  const matching = (data ?? []).filter((c) => {
     const q = query.trim().toLowerCase();
     const matchesQuery = !q || c.case_id.toLowerCase().includes(q) || (c.auditor_name ?? "").toLowerCase().includes(q);
     const matchesStatus =
@@ -80,10 +91,40 @@ export function ManagerCaseOversightPage() {
     const matchesStage = !stage || openBucketOf(c.status, c.manager_flag) === stage;
     return matchesQuery && matchesStatus && matchesStage;
   });
+  const needing = matching
+    .filter((c) => attentionOf(c) !== null)
+    .sort(
+      (a, b) =>
+        ATTENTION_RANK[attentionOf(a)!.kind] - ATTENTION_RANK[attentionOf(b)!.kind] ||
+        (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9),
+    );
+  const [sortKey, setSortKey] = useState<SortKey>("severity");
+  const [sortDir, setSortDir] = useState<"ASC" | "DESC">("ASC");
+  const others = matching
+    .filter((c) => attentionOf(c) === null)
+    .sort((a, b) => (sortDir === "ASC" ? 1 : -1) * compare(a, b));
+
+  function compare(a: ManagerCaseRow, b: ManagerCaseRow): number {
+      switch (sortKey) {
+        case "status":
+          return (
+            STATUS_ORDER.indexOf(managerStatusLabel(a.status, a.manager_flag)) -
+            STATUS_ORDER.indexOf(managerStatusLabel(b.status, b.manager_flag))
+          );
+        case "auditor":
+          return (a.auditor_name ?? "~").localeCompare(b.auditor_name ?? "~");
+        case "case":
+          return b.case_id.localeCompare(a.case_id);
+        default:
+          return (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9);
+      }
+  }
+
+  const paged = usePagination(others, `${query}|${statusFilter}|${stage}|${sortKey}|${sortDir}`);
 
   return (
-    <ManagerLayout>
-      <PageHeader title="Cases" subtitle="Every case across all Auditors. Search, or filter by status." />
+    <ManagerLayout clientScope>
+      <PageHeader title="Cases" subtitle="Every case across all Auditors. What needs you comes first." />
       <div className="flex flex-wrap items-end gap-4">
         <div style={{ width: "100%", maxWidth: 320 }}>
           <Search
@@ -122,115 +163,122 @@ export function ManagerCaseOversightPage() {
           />
         </div>
       )}
-      {releaseNotice && (
-        <InlineNotification kind="success" lowContrast hideCloseButton title="Done." subtitle={releaseNotice} style={{ maxWidth: "100%" }} />
-      )}
-      {releaseError && (
-        <InlineNotification
-          kind="error"
-          lowContrast
-          hideCloseButton
-          role="alert"
-          title="That didn't work."
-          subtitle={releaseError}
-          style={{ maxWidth: "100%" }}
-        />
-      )}
       <LoadState error={error} loading={!data && !error} what="cases" />
+      {data && needing.length > 0 && (
+        <Section
+          id="cases-need-you"
+          title={`Needs you · ${needing.length}`}
+          description="Most urgent first. Select a row, or use its button."
+        >
+          <Layer>
+            <Table aria-label="Cases that need you">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Case ID</TableHeader>
+                  {!selected && <TableHeader>Client</TableHeader>}
+                  <TableHeader>Severity</TableHeader>
+                  <TableHeader>Auditor</TableHeader>
+                  <TableHeader>Needs</TableHeader>
+                  <TableHeader>
+                    <span className="cds--visually-hidden">Action</span>
+                  </TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {needing.map((row) => {
+                  const need = attentionOf(row)!;
+                  const href = detailHref(row);
+                  return (
+                    <TableRow
+                      key={row.case_id}
+                      onClick={() => navigate(href)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+                      {!selected && <TableCell>{row.organisation_name ?? "—"}</TableCell>}
+                      <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
+                      <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
+                      <TableCell>
+                        <StatusTag tone={caseStatusTone(need.label)} size="sm">
+                          {need.label}
+                        </StatusTag>
+                      </TableCell>
+                      <TableCell style={{ textAlign: "end" }} onClick={(e) => e.stopPropagation()}>
+                        <Button kind="tertiary" size="sm" onClick={() => navigate(href!)}>
+                          {need.action}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Layer>
+        </Section>
+      )}
       {data && (
-        <Layer>
-          <Table aria-label="All cases">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Case ID</TableHeader>
-                <TableHeader>Auditor</TableHeader>
-                <TableHeader>Severity</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader>Availability</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((c) => (
-                <CaseRow key={c.case_id} row={c} busy={releasing !== null} onMakeAvailable={makeAvailable} />
-              ))}
-            </TableBody>
-          </Table>
-          {rows.length === 0 && <p style={{ ...secondaryText, padding: 16 }}>No cases match your search.</p>}
-        </Layer>
+        <Section
+          id="all-cases"
+          title={needing.length > 0 ? `All other cases · ${others.length}` : `All cases · ${others.length}`}
+        >
+          <Layer>
+            <Table aria-label="All cases">
+              <TableHead>
+                <TableRow>
+                  {(
+                    [
+                      ["case", "Case ID"],
+                      ...(!selected ? ([["client", "Client"]] as const) : []),
+                      ["severity", "Severity"],
+                      ["auditor", "Auditor"],
+                      ["status", "Status"],
+                    ] as const
+                  ).map(([key, label]) =>
+                    key === "client" ? (
+                      <TableHeader key={key}>{label}</TableHeader>
+                    ) : (
+                      // Click a heading to sort by it; click again to reverse. Severity starts at the most severe.
+                      <TableHeader
+                        key={key}
+                        isSortable
+                        isSortHeader={sortKey === key}
+                        sortDirection={sortKey === key ? sortDir : "NONE"}
+                        onClick={() => {
+                          if (sortKey === key) setSortDir(sortDir === "ASC" ? "DESC" : "ASC");
+                          else {
+                            setSortKey(key);
+                            setSortDir("ASC");
+                          }
+                        }}
+                      >
+                        {label}
+                      </TableHeader>
+                    ),
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paged.rows.map((row) => {
+                  const label = managerStatusLabel(row.status, row.manager_flag);
+                  return (
+                    <TableRow key={row.case_id}>
+                      <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+                      {!selected && <TableCell>{row.organisation_name ?? "—"}</TableCell>}
+                      <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
+                      <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
+                      <TableCell style={{ color: "var(--cds-text-secondary)" }}>
+                        {label}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {others.length === 0 && <p style={{ ...secondaryText, padding: 16 }}>No other cases match your search.</p>}
+            <TablePagination paged={paged} />
+          </Layer>
+        </Section>
       )}
     </ManagerLayout>
-  );
-}
-
-function CaseRow({
-  row,
-  busy,
-  onMakeAvailable,
-}: {
-  row: ManagerCaseRow;
-  busy: boolean;
-  onMakeAvailable: (caseId: string) => void;
-}) {
-  const unowned = row.auditor_name === null && row.manager_flag === null && row.status !== "COMPLETE";
-  const flagged = row.manager_flag !== null;
-  const href =
-    row.manager_flag === "SOS" && row.sos_alert_id
-      ? `/manager/sos/${encodeURIComponent(row.sos_alert_id)}`
-      : (row.manager_flag === "DECLINED" || row.manager_flag === "CAP_REACHED")
-        ? `/manager/cases/${encodeURIComponent(row.case_id)}/review`
-        : null;
-  const accent = flagged
-    ? {
-        boxShadow: `inset 3px 0 0 ${row.manager_flag === "SOS" ? "var(--cds-support-error)" : "var(--cds-border-inverse)"}`,
-      }
-    : undefined;
-
-  return (
-    <TableRow>
-      <TableCell style={{ ...mono, fontSize: 12, ...accent }}>
-        {href ? (
-          <RouterLink to={href} className="cds--link" style={mono}>
-            {row.case_id}
-          </RouterLink>
-        ) : (
-          row.case_id
-        )}
-      </TableCell>
-      <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
-      <TableCell>{(row.final_severity_tier ?? row.severity_tier) ? <SeverityTag tier={(row.final_severity_tier ?? row.severity_tier)!} size="sm" /> : "—"}</TableCell>
-      <TableCell>
-        {/* The status says it once: the old Flag column repeated Blocked and Needs Reassignment. Colour is for the two
-            states that need the Manager; everything else is plain text. */}
-        {row.manager_flag === "SOS" && row.status !== "COMPLETE" ? (
-          <StatusTag tone="error" size="sm">
-            {managerStatusLabel(row.status, row.manager_flag)}
-          </StatusTag>
-        ) : row.manager_flag && row.status !== "COMPLETE" ? (
-          <StatusTag tone="warning" size="sm">
-            {managerStatusLabel(row.status, row.manager_flag)}
-          </StatusTag>
-        ) : (
-          <span style={{ color: "var(--cds-text-secondary)" }}>{managerStatusLabel(row.status, row.manager_flag)}</span>
-        )}
-      </TableCell>
-      <TableCell>
-        {unowned && row.case_visibility === "AVAILABLE_TO_AUDITORS" && (
-          <StatusTag tone="info" size="sm">
-            Available to Auditors
-          </StatusTag>
-        )}
-        {unowned && row.case_visibility === "SUPER_ADMIN_ONLY" && (
-          <Button
-            kind="tertiary"
-            size="sm"
-            disabled={busy}
-            aria-label={`Make available, case ${row.case_id}`}
-            onClick={() => onMakeAvailable(row.case_id)}
-          >
-            Make available
-          </Button>
-        )}
-      </TableCell>
-    </TableRow>
   );
 }

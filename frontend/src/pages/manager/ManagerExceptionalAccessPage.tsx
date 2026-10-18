@@ -78,6 +78,7 @@ export function ManagerExceptionalAccessPage() {
   }
 
   const trail = [
+    ...(returnTo === "/manager" ? [] : [{ label: "Overview", to: "/manager" }]),
     { label: returnLabel.replace("Return to ", "").replace(/^./, (c) => c.toUpperCase()), to: returnTo },
     { label: `Case ${caseId} (exceptional access)` },
   ];
@@ -110,14 +111,14 @@ export function ManagerExceptionalAccessPage() {
             onDecline={() => navigate(returnTo)}
             onClose={() => navigate(returnTo)}
             closeLabel={returnLabel}
-            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide — logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
+            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide, and it is logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
           />
         </>
       )}
 
       {data && step === "summary" && (
         <>
-          <PageHeader title="AI Analysis Summary" />
+          <PageHeader title="AI summary" />
           <div className="flex flex-wrap items-center gap-3">
             {data.severity_tier && <SeverityTag tier={data.severity_tier} />}
             {data.effective_severity_score !== null && (

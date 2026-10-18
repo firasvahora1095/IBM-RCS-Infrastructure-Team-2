@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button,
   Grid,
@@ -29,11 +29,13 @@ import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeliveries } from "../../services";
 import type { Delivery } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { inScope, useClients } from "../../hooks/useClientScope";
 import { PAYLOAD_OUTCOME_LABEL } from "../../design-tokens/deliveryLabels";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 const HEADERS = [
   { key: "case", header: "Case" },
+  { key: "client", header: "Client" },
   { key: "outcome", header: "Outcome" },
   { key: "severity", header: "Final severity" },
   { key: "moderation", header: "Moderation status" },
@@ -50,7 +52,11 @@ const HEADERS = [
  * need no Manager action at all.
  */
 export function ManagerDeliveriesPage() {
-  const { data, error } = useStaffQuery(listDeliveries);
+  const navigate = useNavigate();
+  const { data: allDeliveries, error } = useStaffQuery(listDeliveries);
+  const { scope, selected, clients } = useClients();
+  const clientName = (id: string) => clients.find((c) => c.organisation_id === id)?.name ?? id;
+  const data = useMemo(() => (allDeliveries ? allDeliveries.filter((d) => inScope(scope, d)) : allDeliveries), [allDeliveries, scope]);
   const [params, setParams] = useSearchParams();
   const [now] = useState(() => Date.now());
   const [page, setPage] = useState(1);
@@ -74,24 +80,19 @@ export function ManagerDeliveriesPage() {
   const [query, setQuery] = useState("");
   const needle = query.trim().toUpperCase();
   const filtered = needle
-    ? rows.filter((d) => d.case_id.toUpperCase().includes(needle) || d.delivery_id.toUpperCase().includes(needle))
+    ? rows.filter((d) => d.case_id.toUpperCase().includes(needle))
     : rows;
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader
         title="Deliveries"
-        subtitle="Completed case results are sent to CommunityHub automatically. You only need to act when a delivery keeps failing."
+        subtitle={`Completed case results are sent to ${selected ? selected.name : "each Client"} automatically. You only need to act when a delivery keeps failing.`}
         actions={
-          <>
-            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/messages">
-              Client messages
-            </Button>
-            <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
-              CommunityHub connection
-            </Button>
-          </>
+          <Button kind="tertiary" size="md" as={RouterLink} to="/manager/customers/communityhub">
+            {selected ? `${selected.name} connection` : "Client connections"}
+          </Button>
         }
       />
       <LoadState error={error} loading={!data && !error} what="deliveries" />
@@ -120,7 +121,7 @@ export function ManagerDeliveriesPage() {
               <StatTile
                 label="Delivered"
                 value={counts.success}
-                helper="Received by CommunityHub"
+                helper={`Received by ${selected ? selected.name : "the Client"}`}
               />
             </Column>
           </Grid>
@@ -148,7 +149,7 @@ export function ManagerDeliveriesPage() {
               body={
                 tabIndex === 0
                   ? "Every completed case result has been delivered or is still being retried automatically."
-                  : "When an Auditor completes a case, its result is delivered to CommunityHub and appears here."
+                  : "When an Auditor completes a case, its result is delivered to the Client and appears here."
               }
             />
           ) : (
@@ -158,8 +159,8 @@ export function ManagerDeliveriesPage() {
                   <TableToolbarContent>
                     <TableToolbarSearch
                       persistent
-                      labelText="Search deliveries"
-                      placeholder="Search by case or delivery ID"
+                      labelText="Search by Case ID"
+                      placeholder="Search by Case ID"
                       onChange={(e) => {
                         setPage(1);
                         setQuery(typeof e === "string" ? e : (e?.target as HTMLInputElement | undefined)?.value ?? "");
@@ -167,10 +168,10 @@ export function ManagerDeliveriesPage() {
                     />
                   </TableToolbarContent>
                 </TableToolbar>
-                <Table aria-label="Case result deliveries to CommunityHub">
+                <Table aria-label="Case result deliveries">
                   <TableHead>
                     <TableRow>
-                      {HEADERS.map((h) => (
+                      {HEADERS.filter((h) => !selected || h.key !== "client").map((h) => (
                         <TableHeader key={h.key}>{h.header}</TableHeader>
                       ))}
                     </TableRow>
@@ -182,17 +183,23 @@ export function ManagerDeliveriesPage() {
                       return (
                         <TableRow
                           key={d.delivery_id}
-                          style={attention ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
+                          onClick={() => navigate(`/manager/deliveries/${encodeURIComponent(d.delivery_id)}`)}
+                          style={{
+                            cursor: "pointer",
+                            ...(attention ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : {}),
+                          }}
                         >
                           <TableCell>
                             <RouterLink
                               className="cds--link rcs-mono"
                               to={`/manager/deliveries/${encodeURIComponent(d.delivery_id)}`}
                               aria-label={`Delivery for case ${d.case_id}`}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {d.case_id}
                             </RouterLink>
                           </TableCell>
+                          {!selected && <TableCell>{clientName(d.organisation_id)}</TableCell>}
                           <TableCell>{PAYLOAD_OUTCOME_LABEL[d.outcome]}</TableCell>
                           <TableCell>
                             {d.final_severity ? <SeverityTag tier={d.final_severity} size="sm" /> : "—"}
@@ -201,7 +208,12 @@ export function ManagerDeliveriesPage() {
                             <StatusTag kind="moderation" value="COMPLETE" />
                           </TableCell>
                           <TableCell>
-                            <StatusTag kind="delivery" value={d.delivery_status} />
+                            {d.delivery_status === "NEEDS_ATTENTION" && d.escalated_at ? (
+                              // With the integration owner now: no longer the Manager's to act on.
+                              <StatusTag tone="info">Escalated</StatusTag>
+                            ) : (
+                              <StatusTag kind="delivery" value={d.delivery_status} />
+                            )}
                           </TableCell>
                           <TableCell className="rcs-mono">{d.attempts.length === 0 ? "—" : d.attempts.length}</TableCell>
                           <TableCell>{last ? formatDayTime(last.at, now) : "Scheduled"}</TableCell>

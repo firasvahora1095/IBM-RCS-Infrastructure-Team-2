@@ -100,16 +100,16 @@ def period_bounds(period_start: str, period_end: str) -> tuple[datetime, datetim
     return start, end
 
 
-def report_id_for(period_start: str, period_end: str, version: int) -> str:
-    """RPT-CH-2026-09 for a whole month; otherwise both dates."""
+def report_id_for(period_start: str, period_end: str, version: int, code: str = "CH") -> str:
+    """RPT-CH-2026-09 for a whole month; otherwise both dates. `code` is the client's short code."""
     start = date.fromisoformat(period_start)
     end = date.fromisoformat(period_end)
     next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
     whole_month = start.day == 1 and end == next_month - timedelta(days=1)
     base = (
-        f"RPT-CH-{start.year}-{start.month:02d}"
+        f"RPT-{code}-{start.year}-{start.month:02d}"
         if whole_month
-        else f"RPT-CH-{period_start.replace('-', '')}-{period_end.replace('-', '')}"
+        else f"RPT-{code}-{period_start.replace('-', '')}-{period_end.replace('-', '')}"
     )
     return f"{base}-v{version}" if version > 1 else base
 
@@ -328,7 +328,37 @@ def _find_organisation(db: Session, organisation_id: str) -> Organisation:
 # ---- Report figures -------------------------------------------------------
 
 
-def _records(db: Session) -> list[dict]:
+ALL_CLIENTS = "ALL"
+
+# An escalation the integration owner has not answered in this long comes back to the Manager.
+ESCALATION_FOLLOW_UP_HOURS = 24
+
+# The short code in a client's report IDs (RPT-CH-..., RPT-SN-...).
+REPORT_CODES = {"COMMUNITYHUB": "CH", "STREAMNEST": "SN", "PIXELCIRCLE": "PC"}
+
+
+def _scope(db: Session, organisation_id: str) -> Organisation | None:
+    """The client in view, or None for "All clients"."""
+    if organisation_id.upper() == ALL_CLIENTS:
+        return None
+    return _find_organisation(db, organisation_id)
+
+
+def _client_case_ids(db: Session, organisation_id: str | None) -> set[str] | None:
+    """The cases (live and older) that belong to one client; None means no filtering (all clients)."""
+    if organisation_id is None:
+        return None
+    ids = set(db.scalars(select(CaseHistory.case_id).where(CaseHistory.organisation_id == organisation_id)).all())
+    ids |= set(db.scalars(select(Case.case_id).where(Case.organisation_id == organisation_id)).all())
+    return ids
+
+
+def _records(db: Session, organisation_id: str | None = None) -> list[dict]:
+    history_query = select(CaseHistory)
+    live_query = select(Case)
+    if organisation_id is not None:
+        history_query = history_query.where(CaseHistory.organisation_id == organisation_id)
+        live_query = live_query.where(Case.organisation_id == organisation_id)
     history = [
         {
             "case_id": h.case_id,
@@ -342,7 +372,7 @@ def _records(db: Session) -> list[dict]:
             "outcome": h.outcome,
             "declined": bool(h.declined_reassigned),
         }
-        for h in db.scalars(select(CaseHistory)).all()
+        for h in db.scalars(history_query).all()
     ]
     live = [
         {
@@ -358,7 +388,7 @@ def _records(db: Session) -> list[dict]:
             # The live schema records a decline as a manager flag until reassignment.
             "declined": c.manager_flag == "DECLINED",
         }
-        for c in db.scalars(select(Case)).all()
+        for c in db.scalars(live_query).all()
     ]
     return history + live
 
@@ -435,12 +465,18 @@ def evidence_entry(
     }
 
 
-def compute_metrics(db: Session, period_start: str, period_end: str, now: datetime | None = None) -> dict:
+def compute_metrics(
+    db: Session,
+    period_start: str,
+    period_end: str,
+    now: datetime | None = None,
+    organisation_id: str | None = None,
+) -> dict:
     """Aggregate figures for one period, calculated only from stored records, with the
     evidence behind each one so a report snapshot keeps how it was calculated."""
     now = now or datetime.now(timezone.utc)
     start, end = period_bounds(period_start, period_end)
-    records = _records(db)
+    records = _records(db, organisation_id)
 
     def in_period(moment: datetime | None) -> bool:
         return moment is not None and start <= moment <= end
@@ -466,9 +502,10 @@ def compute_metrics(db: Session, period_start: str, period_end: str, now: dateti
         for r in completed
         if r["created"] is not None and r["completed"] >= r["created"]
     ]
-    deliveries = [
-        d for d in db.scalars(select(Delivery)).all() if in_period(utc(d.completed_at))
-    ]
+    delivery_query = select(Delivery)
+    if organisation_id is not None:
+        delivery_query = delivery_query.where(Delivery.organisation_id == organisation_id)
+    deliveries = [d for d in db.scalars(delivery_query).all() if in_period(utc(d.completed_at))]
     def evidence(key: str, rows: list, **counts) -> dict:
         title, definition, fields = REPORT_EVIDENCE[key]
         ids = [r["case_id"] if isinstance(r, dict) else r.case_id for r in rows]
@@ -612,14 +649,20 @@ def _open_bucket(record: dict) -> str:
     return record["status"] if record["status"] in OPEN_BUCKETS else "SUBMITTED"
 
 
-def compute_intelligence(db: Session, org: Organisation, period_start: str, period_end: str, now: datetime) -> dict:
-    """The Manager Intelligence Dashboard: six widgets and the evidence behind each figure."""
+def compute_intelligence(
+    db: Session, org: Organisation | None, period_start: str, period_end: str, now: datetime
+) -> dict:
+    """The Manager Intelligence Dashboard: six widgets and the evidence behind each figure.
+
+    For one client, or for all of them (`org` is None): the same calculations over every client's cases and
+    deliveries, so the Overview and Insights add up whichever way they are viewed."""
     start, end = period_bounds(period_start, period_end)
 
     def in_period(moment: datetime | None) -> bool:
         return moment is not None and start <= moment <= end
 
-    records = _records(db)
+    client_id = org.organisation_id if org else None
+    records = _records(db, client_id)
     received = [r for r in records if in_period(r["created"])]
     completed = [r for r in records if in_period(r["completed"])]
     open_live = [r for r in records if r["live"] and r["status"] != "COMPLETE"]
@@ -631,10 +674,17 @@ def compute_intelligence(db: Session, org: Organisation, period_start: str, peri
     # Needs attention: only items that need the Manager to act.
     declined = [r for r in open_live if r["flag"] == "DECLINED"]
     capped = [r for r in open_live if r["flag"] == "CAP_REACHED"]
-    deliveries = list(
-        db.scalars(select(Delivery).where(Delivery.organisation_id == org.organisation_id)).all()
-    )
-    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION"]
+    delivery_query = select(Delivery)
+    if client_id is not None:
+        delivery_query = delivery_query.where(Delivery.organisation_id == client_id)
+    deliveries = list(db.scalars(delivery_query).all())
+    # An escalated failure is with the integration owner now, so it is no longer the Manager's to act on.
+    failed = [
+        d
+        for d in deliveries
+        if d.delivery_status == "NEEDS_ATTENTION"
+        and (d.escalated_at is None or now - utc(d.escalated_at) > timedelta(hours=ESCALATION_FOLLOW_UP_HOURS))
+    ]
     support = open_support_request_counts(db)
     attention = [
         {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
@@ -697,6 +747,7 @@ def compute_intelligence(db: Session, org: Organisation, period_start: str, peri
                 "attempts": len(d.attempts or []),
                 "reason": d.failure_reason,
                 "last_attempt_at": last_attempt(d),
+                "escalation_overdue": d.escalated_at is not None,
             }
             for d in failed
         ),
@@ -710,8 +761,8 @@ def compute_intelligence(db: Session, org: Organisation, period_start: str, peri
         return [r["case_id"] for r in rows]
 
     return {
-        "organisation_id": org.organisation_id,
-        "organisation_name": org.name,
+        "organisation_id": org.organisation_id if org else ALL_CLIENTS,
+        "organisation_name": org.name if org else "All clients",
         "period_start": period_start,
         "period_end": period_end,
         "calculated_at": iso(now),
@@ -848,6 +899,16 @@ class ClientLoginRequest(BaseModel):
 
 
 # ---- Manager: customer integration ---------------------------------------
+
+
+@router.get("/api/manager/clients")
+async def list_clients(
+    _: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    """Every client RCS serves, for the Manager's client selector."""
+    orgs = db.scalars(select(Organisation).order_by(Organisation.name)).all()
+    return [{"organisation_id": o.organisation_id, "name": o.name, "description": o.description} for o in orgs]
 
 
 @router.get("/api/manager/customers/{organisation_id}")
@@ -1010,7 +1071,7 @@ async def get_intelligence(
     db: Session = Depends(get_db),
 ):
     validate_period(period_start, period_end)
-    org = _find_organisation(db, organisation_id)
+    org = _scope(db, organisation_id)
     now = datetime.now(timezone.utc)
     advance_deliveries(db, now)
     result = compute_intelligence(db, org, period_start, period_end, now)
@@ -1038,7 +1099,7 @@ async def generate_report(
     org = _find_organisation(db, payload.organisation_id)
     now = datetime.now(timezone.utc)
     advance_deliveries(db, now)
-    metrics = compute_metrics(db, start, end, now)
+    metrics = compute_metrics(db, start, end, now, org.organisation_id)
     same_period = db.scalars(
         select(ServiceReport).where(
             ServiceReport.organisation_id == org.organisation_id,
@@ -1055,7 +1116,7 @@ async def generate_report(
         return _report_payload(db, draft)
     version = max((r.version for r in same_period), default=0) + 1
     report = ServiceReport(
-        report_id=report_id_for(start, end, version),
+        report_id=report_id_for(start, end, version, REPORT_CODES.get(org.organisation_id, org.organisation_id[:2])),
         organisation_id=org.organisation_id,
         period_start=start,
         period_end=end,
@@ -1145,7 +1206,7 @@ async def list_report_access(
 MAX_COMPARISONS = 200
 
 
-def comparison_rows(db: Session) -> list[dict]:
+def comparison_rows(db: Session, organisation_id: str | None = None) -> list[dict]:
     """AI vs Auditor, one row per decided case, newest decision first (Validation & Audit, section B).
 
     Cases a Manager closed without a decision are left out: there is no human
@@ -1153,7 +1214,12 @@ def comparison_rows(db: Session) -> list[dict]:
     No Auditor is named: a difference isn't a verdict on anyone.
     """
     rows: list[dict] = []
-    for h in db.scalars(select(CaseHistory)).all():
+    history_query = select(CaseHistory)
+    live_query = select(Case).where(Case.status == "COMPLETE")
+    if organisation_id is not None:
+        history_query = history_query.where(CaseHistory.organisation_id == organisation_id)
+        live_query = live_query.where(Case.organisation_id == organisation_id)
+    for h in db.scalars(history_query).all():
         if h.ai_tier and h.final_tier:
             rows.append({
                 "case_id": h.case_id,
@@ -1167,7 +1233,7 @@ def comparison_rows(db: Session) -> list[dict]:
                 "decided_at": iso(h.completed_at),
                 "provenance": "legacy",
             })
-    for c in db.scalars(select(Case).where(Case.status == "COMPLETE")).all():
+    for c in db.scalars(live_query).all():
         final_tier = final_tier_of(c)
         if c.final_outcome not in DECIDED_OUTCOMES or not c.severity_tier or not final_tier:
             continue
@@ -1192,8 +1258,8 @@ def comparison_rows(db: Session) -> list[dict]:
     return sorted(rows, key=lambda r: r["decided_at"] or "", reverse=True)
 
 
-def _override_patterns(db: Session) -> tuple[list[dict], int, list[dict]]:
-    rows = comparison_rows(db)
+def _override_patterns(db: Session, organisation_id: str | None = None) -> tuple[list[dict], int, list[dict]]:
+    rows = comparison_rows(db, organisation_id)
     counts: dict[tuple[str, str], int] = {}
     for r in rows:
         if r["override"]:
@@ -1226,10 +1292,14 @@ async def get_governance_summary(
     auditor_tier: Literal["S1", "S2", "S3", "S4"] | None = None,
     override: bool | None = None,
     comparison_offset: int = Query(default=0, ge=0),
+    organisation_id: str | None = Query(default=None, max_length=50),
 ):
     from app.governance_views import summary
     response.headers["Cache-Control"] = "no-store"
-    return summary(db, comparison_rows(db), case_id=case_id, context=context, leakage=leakage,
+    # Only one client's cases when a client is selected; the AI call log and comparisons follow the same cases.
+    org = _scope(db, organisation_id) if organisation_id else None
+    client_id = org.organisation_id if org else None
+    return summary(db, comparison_rows(db, client_id), case_ids=_client_case_ids(db, client_id), case_id=case_id, context=context, leakage=leakage,
                    from_at=from_at, to_at=to_at, before=before, limit=limit,
                    ai_tier=ai_tier, auditor_tier=auditor_tier, override=override,
                    comparison_offset=comparison_offset)

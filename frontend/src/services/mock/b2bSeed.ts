@@ -71,13 +71,13 @@ export function monthPeriod(now: number, offset: number): { start: string; end: 
 }
 
 /** Readable report ID: a whole month is RPT-CH-2026-09, any other period uses both dates. */
-export function reportIdFor(start: string, end: string, version: number): string {
+export function reportIdFor(start: string, end: string, version: number, code = "CH"): string {
   const [sy, sm, sd] = start.split("-").map(Number);
   const lastOfMonth = new Date(sy, sm, 0).getDate();
   const wholeMonth = sd === 1 && end === `${sy}-${pad(sm)}-${pad(lastOfMonth)}`;
   const base = wholeMonth
-    ? `RPT-CH-${sy}-${pad(sm)}`
-    : `RPT-CH-${start.replaceAll("-", "")}-${end.replaceAll("-", "")}`;
+    ? `RPT-${code}-${sy}-${pad(sm)}`
+    : `RPT-${code}-${start.replaceAll("-", "")}-${end.replaceAll("-", "")}`;
   return version > 1 ? `${base}-v${version}` : base;
 }
 
@@ -141,6 +141,7 @@ function successfulDelivery(
   tier: SeverityTier | null,
   completedAt: string,
   random: () => number,
+  clientId: string = COMMUNITYHUB_ID,
 ): MockDelivery {
   const completed = Date.parse(completedAt);
   // A few deliveries needed one automatic retry before succeeding.
@@ -174,7 +175,7 @@ function successfulDelivery(
   return {
     delivery_id: `DEL-${caseId}`,
     case_id: caseId,
-    organisation_id: COMMUNITYHUB_ID,
+    organisation_id: clientId,
     outcome,
     final_severity: tier,
     completed_at: completedAt,
@@ -234,8 +235,150 @@ function governanceLog(now: number, caseIds: string[], random: () => number): Go
   });
 }
 
+const STREAMNEST_ID = "STREAMNEST";
+const PIXELCIRCLE_ID = "PIXELCIRCLE";
+
+/**
+ * Two more clients, so the Manager screens can be seen scoped to one client or across all of them. Each has its own
+ * older cases, deliveries, reports, accounts and a waiting message. CommunityHub's data is untouched.
+ */
+function otherClients(now: number, demoPassword: string, liveCases: MockCase[]) {
+  const defs = [
+    {
+      id: STREAMNEST_ID,
+      code: "SN",
+      name: "StreamNest",
+      description: "Video platform · Customer organisation",
+      destination: "https://hooks.streamnest.example/••••••/rcs-results",
+      seed: 3101,
+      host: "streamnest.example/watch",
+      user: { id: "sn-user-01", name: "Riley Chen" },
+      failedDelivery: true,
+    },
+    {
+      id: PIXELCIRCLE_ID,
+      code: "PC",
+      name: "PixelCircle",
+      description: "Photo community · Customer organisation",
+      destination: "https://api.pixelcircle.example/••••••/rcs-results",
+      seed: 3102,
+      host: "pixelcircle.example/photo",
+      user: { id: "pc-user-01", name: "Morgan Ellis" },
+      failedDelivery: false,
+    },
+  ];
+  const organisations: MockOrganisation[] = [];
+  const history: MockHistoricalCase[] = [];
+  const deliveries: MockDelivery[] = [];
+  const reports: ServiceReport[] = [];
+  const clients: MockClientUser[] = [];
+  const messages: ClientMessage[] = [];
+  const released = monthPeriod(now, -2);
+  const draft = monthPeriod(now, -1);
+  const releasedAt = new Date(new Date(now).getFullYear(), new Date(now).getMonth() - 1, 3, 11, 5).toISOString();
+
+  for (const def of defs) {
+    const random = rng(def.seed);
+    organisations.push({
+      organisation_id: def.id,
+      name: def.name,
+      description: def.description,
+      status: "READY",
+      destination_masked: def.destination,
+      last_tested_at: new Date(now - 26 * 60 * 60_000).toISOString(),
+    });
+    const own = historicalCases(now, random)
+      .filter((_, i) => i % 4 === 0)
+      .map((h) => ({ ...h, organisation_id: def.id }));
+    history.push(...own);
+    const ownDeliveries = own.map((h, i) => {
+      const d = successfulDelivery(h.case_id, h.outcome, h.final_tier, h.completed_at, random, def.id);
+      d.source_url = `https://${def.host}/${4200 + i}`;
+      return d;
+    });
+    if (def.failedDelivery && ownDeliveries.length > 0) {
+      const last = ownDeliveries.length - 1;
+      ownDeliveries[last] = failedDelivery(ownDeliveries[last], DELIVERY_UNAVAILABLE_REASON.replace("CommunityHub", def.name));
+    }
+    deliveries.push(...ownDeliveries);
+
+    // Live cases tagged to this client: a few finished and one still open, so every list has something in it.
+    const eligible = liveCases.filter(
+      (c) => !c.manager_flag && !["AR-2026-00404", "AR-2026-00409", "AR-2026-00399"].includes(c.case_id),
+    );
+    eligible
+      .filter((_c, i) => i % 6 === (def.id === STREAMNEST_ID ? 2 : 4))
+      .forEach((c) => {
+        c.organisation_id = def.id;
+      });
+
+    const metricsSource = {
+      history: own,
+      cases: liveCases.filter((c) => c.organisation_id === def.id),
+      deliveries: ownDeliveries,
+    };
+    reports.push(
+      {
+        report_id: reportIdFor(draft.start, draft.end, 1, def.code),
+        organisation_id: def.id,
+        organisation_name: def.name,
+        period_start: draft.start,
+        period_end: draft.end,
+        status: "DRAFT",
+        version: 1,
+        generated_at: new Date(now - 5 * 60 * 60_000).toISOString(),
+        released_at: null,
+        released_by: null,
+        manager_note: null,
+        metrics: computeMetrics(metricsSource, draft.start, draft.end, now - 5 * 60 * 60_000),
+      },
+      {
+        report_id: reportIdFor(released.start, released.end, 1, def.code),
+        organisation_id: def.id,
+        organisation_name: def.name,
+        period_start: released.start,
+        period_end: released.end,
+        status: "RELEASED",
+        version: 1,
+        generated_at: new Date(Date.parse(releasedAt) - 60 * 60_000).toISOString(),
+        released_at: releasedAt,
+        released_by: "Alex Morgan",
+        manager_note: null,
+        metrics: computeMetrics(metricsSource, released.start, released.end, Date.parse(releasedAt) - 60 * 60_000),
+      },
+    );
+    clients.push({
+      user_id: def.user.id,
+      password: demoPassword,
+      display_name: def.user.name,
+      organisation_id: def.id,
+      role: "REPORTS",
+    });
+    messages.push({
+      message_id: `MSG-${def.code}-01`,
+      organisation_id: def.id,
+      organisation_name: def.name,
+      user_id: def.user.id,
+      display_name: def.user.name,
+      topic: def.id === STREAMNEST_ID ? "DELIVERY_ISSUE" : "REPORT_QUESTION",
+      report_id: null,
+      subject: def.id === STREAMNEST_ID ? "A result is stuck on our side" : "Can we get the report earlier in the month?",
+      body:
+        def.id === STREAMNEST_ID
+          ? "Mock: one result has not appeared in our moderation queue. Could you check the delivery?"
+          : "Mock: our team reviews at the start of the month. Is an earlier release possible?",
+      created_at: new Date(now - (def.id === STREAMNEST_ID ? 75 : 190) * 60_000).toISOString(),
+      status: "SENT",
+      seen_at: null,
+      reply: null,
+    });
+  }
+  return { organisations, history, deliveries, reports, clients, messages };
+}
+
 export interface B2bSeed {
   organisation: MockOrganisation;
+  extraOrganisations: MockOrganisation[];
   caseHistory: MockHistoricalCase[];
   deliveries: MockDelivery[];
   reports: ServiceReport[];
@@ -300,7 +443,17 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
     };
   });
 
-  const metricsSource = { history: caseHistory, cases: liveCases, deliveries };
+  const others = otherClients(now, demoPassword, liveCases);
+  // Live completed cases tagged to another client deliver to that client.
+  for (const d of deliveries) {
+    const owner = liveCases.find((c) => c.case_id === d.case_id)?.organisation_id;
+    if (owner) d.organisation_id = owner;
+  }
+  const metricsSource = {
+    history: caseHistory,
+    cases: liveCases.filter((c) => (c.organisation_id ?? COMMUNITYHUB_ID) === COMMUNITYHUB_ID),
+    deliveries: deliveries.filter((d) => d.organisation_id === COMMUNITYHUB_ID),
+  };
   const released = monthPeriod(now, -2);
   const draft = monthPeriod(now, -1);
   const releasedAt = new Date(new Date(now).getFullYear(), new Date(now).getMonth() - 1, 2, 10, 41).toISOString();
@@ -349,9 +502,10 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       destination_masked: "https://api.communityhub.example/••••••/rcs-results",
       last_tested_at: new Date(now - 3 * 60 * 60_000).toISOString(),
     },
-    caseHistory,
-    deliveries,
-    reports,
+    extraOrganisations: others.organisations,
+    caseHistory: [...caseHistory, ...others.history],
+    deliveries: [...deliveries, ...others.deliveries],
+    reports: [...reports, ...others.reports],
     reportAccess: [
       {
         report_id: releasedId,
@@ -378,6 +532,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       random,
     ),
     clients: [
+      ...others.clients,
       // Least privilege: each CommunityHub account sees only what its job needs.
       {
         user_id: "ch-user-17",
@@ -402,6 +557,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       },
     ],
     clientMessages: [
+      ...others.messages,
       {
         message_id: "MSG-1002",
         organisation_id: COMMUNITYHUB_ID,

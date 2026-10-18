@@ -36,6 +36,8 @@ import { createSeedDb, MOCK_DB_VERSION } from "./seed";
 
 export interface MockCase {
   case_id: string;
+  /** The client whose content this is. Missing means CommunityHub, the original customer. */
+  organisation_id?: string;
   status: InternalCaseStatus;
   assigned_auditor: string | null;
   content_type: "Video" | "Link" | "Screenshot";
@@ -147,6 +149,7 @@ export interface MockOrganisation {
  */
 export interface MockHistoricalCase {
   case_id: string;
+  organisation_id?: string;
   created_at: string;
   completed_at: string;
   ai_tier: SeverityTier;
@@ -205,6 +208,8 @@ export interface MockDb {
 
   // ---- B2B (docs/ux/b2b-end-to-end-flow-spec.md §6) ----
   organisation: MockOrganisation;
+  /** The other clients (CommunityHub is `organisation`). */
+  extraOrganisations?: MockOrganisation[];
   caseHistory: MockHistoricalCase[];
   deliveries: MockDelivery[];
   reports: ServiceReport[];

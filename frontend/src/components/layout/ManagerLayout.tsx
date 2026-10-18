@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { StaffHeader } from "../shell/StaffHeader";
 import { ManagerTopNav } from "../shell/ManagerTopNav";
+import { ClientSwitcher } from "../shell/ClientSwitcher";
+import { ManagerSubNav } from "../shell/ManagerSubNav";
 import { SosAlertBanner } from "../notifications/SosAlertBanner";
 import { StaffPage } from "./StaffPage";
 import { useSosSummary } from "../../hooks/useSosSummary";
@@ -8,7 +10,7 @@ import { useSosSummary } from "../../hooks/useSosSummary";
 interface ManagerLayoutProps {
   children: ReactNode;
   /**
-   * Section pages (Dashboard, Case Oversight, SOS Inbox, Reassignment Queue,
+   * Section pages (Dashboard, Case Oversight, SOS inbox, Reassignment queue,
    * Validation) show the TopNav; drill-down pages use a breadcrumb instead,
    * as in the Figma file.
    */
@@ -16,13 +18,15 @@ interface ManagerLayoutProps {
   /** The persistent SOS banner (MR-SOS-03). Off on SOS detail pages, which already are the alert. */
   showSosBanner?: boolean;
   maxWidth?: number;
+  /** Shows the client selector. On for pages that belong to one client; off for Overview, SOS and Auditors. */
+  clientScope?: boolean;
 }
 
 /**
  * Shared frame for every Manager screen: dark header with the SOS badge, the
  * SOS banner, the section TopNav, then the page body.
  */
-export function ManagerLayout({ children, showNav = true, showSosBanner = true, maxWidth }: ManagerLayoutProps) {
+export function ManagerLayout({ children, showNav = true, showSosBanner = true, maxWidth, clientScope = false }: ManagerLayoutProps) {
   const sos = useSosSummary();
   return (
     <>
@@ -30,7 +34,8 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
       {/* Carbon's header is fixed at 48px; this block sits in normal flow below it. */}
       <div style={{ paddingTop: 48 }}>
         {showSosBanner && <SosAlertBanner summary={sos} />}
-        {showNav && <ManagerTopNav />}
+        {showNav && <ManagerTopNav end={clientScope ? <ClientSwitcher /> : undefined} />}
+        {showNav && <ManagerSubNav sosCount={sos?.unresolved_count ?? 0} />}
       </div>
       <StaffPage clearHeader={false} maxWidth={maxWidth}>
         {children}

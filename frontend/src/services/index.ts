@@ -45,7 +45,7 @@ export const aiChat = delegate("aiChat");
 // Auditor review
 export const getAuditorCases = delegate("getAuditorCases");
 
-// Fallback queue (Super Admin, extra-features 1.6)
+// Fallback queue (Super Auditor, extra-features 1.6)
 export const getAllOpenCases = delegate("getAllOpenCases");
 export const getAvailableCases = delegate("getAvailableCases");
 export const takeCase = delegate("takeCase");
@@ -82,6 +82,7 @@ export const replyClientMessage = delegate("replyClientMessage");
 export const clientListCaseResults = delegate("clientListCaseResults");
 export const clientRecordPlatformAction = delegate("clientRecordPlatformAction");
 export const listClientAccounts = delegate("listClientAccounts");
+export const listClients = delegate("listClients");
 export const getCaseOversight = delegate("getCaseOversight");
 export const listSosAlerts = delegate("listSosAlerts");
 export const getSosAlert = delegate("getSosAlert");

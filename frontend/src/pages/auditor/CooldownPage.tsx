@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
@@ -47,6 +47,7 @@ function introFor(trigger: CooldownState["trigger"]): string {
  */
 export function CooldownPage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { logout, token } = useAuth();
   const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
@@ -58,6 +59,19 @@ export function CooldownPage() {
   }, []);
 
   const cooldown = wellbeing?.cooldown ?? null;
+
+  // "Play block puzzle" on the dashboard lands here: open the game and scroll it into view.
+  const wantsPuzzle = hash === "#take-a-moment" && cooldown !== null;
+  useEffect(() => {
+    if (!wantsPuzzle) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPuzzleOpen(true);
+    const frame = requestAnimationFrame(() => {
+      const section = document.getElementById("take-a-moment");
+      if (typeof section?.scrollIntoView === "function") section.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [wantsPuzzle]);
   const endsAt = cooldown ? Date.parse(cooldown.ends_at) : 0;
   const remainingMs = Math.max(0, endsAt - now);
   const waitingForCheckIn = cooldown !== null && cooldown.requires_check_in && !cooldown.check_in_completed_at;
@@ -161,8 +175,13 @@ export function CooldownPage() {
           className="px-4 py-3"
           style={{ fontSize: 14, color: "var(--cds-text-secondary)", backgroundColor: "var(--cds-layer-01)" }}
         >
-          {formatReviewed(wellbeing.exposure_minutes_today)} reviewed today
-          {wellbeing.cases_reviewed_today !== undefined ? ` across ${wellbeing.cases_reviewed_today} cases` : ""}
+          {wellbeing.exposure_minutes_today < 1 && !wellbeing.cases_reviewed_today
+            ? "Nothing reviewed yet today"
+            : `${formatReviewed(wellbeing.exposure_minutes_today)} reviewed today${
+                wellbeing.cases_reviewed_today !== undefined
+                  ? ` across ${wellbeing.cases_reviewed_today} ${wellbeing.cases_reviewed_today === 1 ? "case" : "cases"}`
+                  : ""
+              }`}
         </p>
 
         {waitingForCheckIn && (
@@ -171,7 +190,7 @@ export function CooldownPage() {
             lowContrast
             hideCloseButton
             title="Your manager will check in before this ends"
-            subtitle="This isn't something you need to trigger — this cooldown includes a mandatory check-in that your manager or support initiates."
+            subtitle="You don't need to do anything. Your manager or support starts the check-in. The options below are extra support if you want it."
             style={{ maxWidth: "100%" }}
           />
         )}

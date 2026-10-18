@@ -89,6 +89,8 @@ export function ReportSheet({
   const decided = m.violation_count + m.no_violation_count;
   const violationRate = decided ? Math.round((m.violation_count / decided) * 100) : 0;
   const month = wholeMonthName(report.period_start, report.period_end);
+  const finished = m.delivery.success + m.delivery.needs_attention;
+  const deliveredRate = finished ? Math.round((m.delivery.success / finished) * 100) : null;
 
   return (
     <article className="rcs-sheet" aria-label="Service report">
@@ -105,6 +107,28 @@ export function ReportSheet({
           {report.released_at ? ` · Released ${formatShortDate(report.released_at)}` : " · Draft, not released"}
         </p>
       </header>
+
+      <section className="rcs-sheet-section" aria-labelledby="summary-title">
+        <h3 id="summary-title" className="rcs-section-title">
+          Summary
+        </h3>
+        <p className="rcs-body">
+          {m.cases_completed === 0
+            ? `RCS completed no cases in this period.`
+            : `RCS completed ${m.cases_completed} ${m.cases_completed === 1 ? "case" : "cases"} from ${m.cases_received} ${m.cases_received === 1 ? "report" : "reports"} received. ${
+                decided ? `${violationRate}% of decided cases were found to violate policy. ` : ""
+              }${deliveredRate === null ? "" : `${deliveredRate}% of results reached ${report.organisation_name}.`}`}
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
+          <BigFigure label="Cases completed" value={m.cases_completed} />
+          <BigFigure label="Policy violations found" value={`${violationRate}%`} helper={decided ? `${m.violation_count} of ${decided} decided` : undefined} />
+          <BigFigure
+            label="Median time to decision"
+            value={m.median_report_to_decision_minutes === null ? "Not stated" : formatMinutes(m.median_report_to_decision_minutes)}
+          />
+          <BigFigure label="Results delivered" value={deliveredRate === null ? "None yet" : `${deliveredRate}%`} />
+        </div>
+      </section>
 
       <SheetSection
         title="Cases"
@@ -161,7 +185,7 @@ export function ReportSheet({
               label: `${t} · ${info.label}`,
               value: m.severity_breakdown[t],
               // S1's tag fill is too light to read as a bar on the track.
-              color: t === "S1" ? "var(--cds-icon-secondary)" : info.background,
+              color: info.bar,
             };
           })}
         />
@@ -194,21 +218,9 @@ export function ReportSheet({
           <p className="rcs-helper">{OVERRIDE_AGGREGATE_NOTE}</p>
         </SheetSection>
 
+        <div className="md:col-span-2">
         <SheetSection
-          title="Workflow"
-          definition={METRIC_DEFINITIONS.workflow}
-          defId="def-workflow"
-          evidence={evidence("workflow")}
-        >
-          <BigFigure
-            label="Declined and reassigned"
-            value={m.declined_reassigned}
-            helper="Decided by a second reviewer"
-          />
-        </SheetSection>
-
-        <SheetSection
-          title="Delivery to CommunityHub"
+          title={`Delivery to ${report.organisation_name}`}
           definition={METRIC_DEFINITIONS.delivery}
           defId="def-delivery"
           evidence={evidence("delivery")}
@@ -232,6 +244,7 @@ export function ReportSheet({
             ]}
           />
         </SheetSection>
+        </div>
       </div>
 
       {report.manager_note && (

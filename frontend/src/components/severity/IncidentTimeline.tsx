@@ -29,7 +29,7 @@ const FALLBACK_WIDTH_PX = 1104;
 const mono = "'IBM Plex Mono', monospace";
 
 /**
- * The proportional incident timeline on the AI Analysis Summary (Figma
+ * The proportional incident timeline on the AI summary (Figma
  * 437:232, Sprint 2 Week 2 Task 78). Every flagged moment sits at its true
  * position along the track:
  * - a point detection (start === end) is a dot with a tick, labelled with

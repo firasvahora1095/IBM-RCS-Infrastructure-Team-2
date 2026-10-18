@@ -1,29 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Button,
-  ContentSwitcher,
+  DefinitionTooltip,
   InlineNotification,
   Layer,
+  Modal,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  Switch,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
 } from "@carbon/react";
 import { SeverityTag } from "../severity/SeverityTag";
 import { StatusTag } from "../ui/StatusTag";
-import { claimCase, getAllOpenCases, getAvailableCases, makeCaseAvailable, takeCase } from "../../services";
+import { claimCase, getAllOpenCases, getAvailableCases, takeCase } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+
+const DECLINED_KEY = "rcs_declined_available_cases";
+
+function readDeclined(): Set<string> {
+  try {
+    return new Set(JSON.parse(sessionStorage.getItem(DECLINED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 } as const;
 
 const VISIBILITY_LABEL: Record<CaseVisibility, string> = {
   ASSIGNED_ONLY: "Assigned",
-  SUPER_ADMIN_ONLY: "Super Admin only",
+  SUPER_ADMIN_ONLY: "Super Auditor only",
   AVAILABLE_TO_AUDITORS: "Available to Auditors",
 };
 
@@ -39,6 +54,38 @@ function ownerLabel(row: FallbackCaseRow): string {
 
 function visibleToLabel(row: FallbackCaseRow): string {
   return row.manager_flag ? "Manager decision" : VISIBILITY_LABEL[row.case_visibility];
+}
+
+/** Why the visibility is what it is, for the tooltip on the tag. */
+function visibleToReason(row: FallbackCaseRow): string {
+  if (row.manager_flag) return "A Manager has to decide what happens to this case.";
+  if (row.case_visibility === "SUPER_ADMIN_ONLY") {
+    return "No Auditor was free when it arrived, so only you can see it. The system places it automatically when one is.";
+  }
+  if (row.case_visibility === "AVAILABLE_TO_AUDITORS") return "A Manager released it, so any eligible Auditor can claim it.";
+  return "It belongs to one Auditor, who is the only person who can open it.";
+}
+
+/** A short reason the case is in this list at all. */
+function reasonLabel(row: FallbackCaseRow): string {
+  if (row.manager_flag === "SOS") return "SOS raised";
+  if (row.manager_flag === "DECLINED") return "Declined by Auditor";
+  if (row.manager_flag === "CAP_REACHED") return "Auditor hit their limit";
+  if (row.assigned_auditor_id === null) return "No Auditor free";
+  return "With an Auditor";
+}
+
+const TIER_ORDER: Record<string, number> = { S1: 1, S2: 2, S3: 3, S4: 4 };
+
+/** "12 min", "3 h 5 min", "2 d": how long the case has been open. */
+function ageLabel(createdAt: string | null | undefined, now: number): string {
+  if (!createdAt) return "Unknown";
+  const minutes = Math.max(0, Math.floor((now - Date.parse(createdAt)) / 60_000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h ${minutes % 60} min`;
+  return `${Math.floor(hours / 24)} d`;
 }
 
 /** "Placed automatically at 2:32 pm" while a parked case waits; nothing once it can never be placed by the system. */
@@ -59,6 +106,8 @@ function statusLabel(row: FallbackCaseRow): string {
   return managerStatusLabel(row.status as InternalCaseStatus, row.manager_flag);
 }
 
+type SortKey = "severity" | "age";
+
 interface SectionProps {
   token: string;
   /** Bumped by the page after a change elsewhere, so this list reloads. */
@@ -70,12 +119,15 @@ interface SectionProps {
 }
 
 /**
- * The Super Admin's fallback queue (extra-features 1.6): every open case with its
+ * The Super Auditor's fallback queue (extra-features 1.6): every open case with its
  * owner and who may see it. Queue metadata only. A case opens in full only for the
  * Auditor who owns it, so seeing a case here never exposes its footage.
  *
- * "Take case" and "Make available" apply to a case nobody owns. The wellbeing blocks
- * that apply to every Auditor apply here too, and say why in plain words.
+ * A case only lands here when no standard Auditor was eligible, and the system places
+ * it by itself as soon as one is. The one thing the Super Auditor can do is take a case
+ * nobody owns, for when it can't wait. The wellbeing blocks that apply to every Auditor
+ * apply here too, and say why in plain words. ("Make available" is gone from this screen:
+ * it only did what automatic placement already does.)
  */
 export function FallbackQueueSection({
   token,
@@ -84,27 +136,31 @@ export function FallbackQueueSection({
   onSessionExpired,
   canTake,
   blockReason,
-}: SectionProps & { canTake: boolean; blockReason: string | null }) {
+  onNeedsReviewerCount,
+}: SectionProps & { canTake: boolean; blockReason: string | null; onNeedsReviewerCount?: (n: number) => void }) {
   const [rows, setRows] = useState<FallbackCaseRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<FallbackCaseRow | null>(null);
   // Default to the cases that need someone, so the list isn't buried under cases already being worked.
   const [view, setView] = useState<"needs" | "all">("needs");
   // Read once per load so the "placed automatically" notes don't change between renders.
   const [clock, setClock] = useState(() => Date.now());
+  const [sort, setSort] = useState<{ key: SortKey; dir: "ASC" | "DESC" } | null>(null);
 
   const load = useCallback(() => {
     getAllOpenCases(token)
       .then((result) => {
         setRows(result);
+        onNeedsReviewerCount?.(result.filter(needsReviewer).length);
         setClock(Date.now());
         setError(null);
       })
       .catch((err: unknown) => {
         if (!onSessionExpired(err)) setError(errorText(err));
       });
-  }, [token, onSessionExpired]);
+  }, [token, onSessionExpired, onNeedsReviewerCount]);
 
   useEffect(load, [load, refreshKey]);
 
@@ -114,42 +170,52 @@ export function FallbackQueueSection({
     return () => window.clearInterval(id);
   }, [load]);
 
-  const shown = (rows ?? []).filter((r) => view === "all" || needsReviewer(r));
+  const filtered = (rows ?? []).filter((r) => view === "all" || needsReviewer(r));
+  const shown = sort
+    ? [...filtered].sort((a, b) => {
+        const diff =
+          sort.key === "severity"
+            ? (TIER_ORDER[a.final_severity_tier ?? a.severity_tier ?? ""] ?? 0) -
+              (TIER_ORDER[b.final_severity_tier ?? b.severity_tier ?? ""] ?? 0)
+            : Date.parse(b.created_at ?? "") - Date.parse(a.created_at ?? ""); // older first when "ascending" age
+        return sort.dir === "ASC" ? diff : -diff;
+      })
+    : filtered;
+  const toggleSort = (key: SortKey) =>
+    setSort((cur) => (cur?.key === key ? { key, dir: cur.dir === "ASC" ? "DESC" : "ASC" } : { key, dir: "DESC" }));
+  const sortProps = (key: SortKey) => ({
+    isSortable: true,
+    isSortHeader: sort?.key === key,
+    sortDirection: sort?.key === key ? sort.dir : ("NONE" as const),
+    onClick: () => toggleSort(key),
+  });
 
-  async function act(row: FallbackCaseRow, kind: "take" | "release") {
+  async function take(row: FallbackCaseRow) {
     setBusy(row.case_id);
     setNotice(null);
     setError(null);
     try {
-      if (kind === "take") {
-        await takeCase(row.case_id, token);
-        setNotice(`${row.case_id} is now in your queue. Open it from your queue below.`);
-        onChanged();
-      } else {
-        await makeCaseAvailable(row.case_id, token);
-        setNotice(`${row.case_id} is now available to eligible Auditors.`);
-      }
+      await takeCase(row.case_id, token);
+      setNotice(`${row.case_id} is now in your queue. Open it from My cases.`);
+      onChanged();
       load();
     } catch (err) {
       if (!onSessionExpired(err)) setError(errorText(err));
     } finally {
       setBusy(null);
+      setConfirming(null);
     }
   }
 
   return (
-    <section aria-labelledby="fallback-title" className="flex flex-col gap-3">
+    <section id="fallback-queue" aria-labelledby="fallback-title" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h2 id="fallback-title" style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
           Fallback queue
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          Every open case, for when no standard Auditor can take one. You see queue details only; the full review opens
-          for the Auditor who owns the case.
-        </p>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          You don&apos;t need to release cases. The system places each one itself, by the usual weighted rule, as soon
-          as a standard Auditor is eligible. Take a case, or make it available for claiming, only to move it sooner.
+          Cases wait here when no Auditor is free, and are placed automatically the moment one is. Take one only if it
+          can&apos;t wait.
         </p>
       </div>
 
@@ -186,16 +252,16 @@ export function FallbackQueueSection({
       )}
 
       {rows && (
-        <div style={{ maxWidth: 420 }}>
-          <ContentSwitcher
-            size="md"
-            selectedIndex={view === "needs" ? 0 : 1}
-            onChange={(e) => setView(e.name === "all" ? "all" : "needs")}
-          >
-            <Switch name="needs" text={`Needs a reviewer (${rows.filter(needsReviewer).length})`} />
-            <Switch name="all" text={`All open cases (${rows.length})`} />
-          </ContentSwitcher>
-        </div>
+        <Tabs selectedIndex={view === "needs" ? 0 : 1} onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}>
+          <TabList aria-label="Fallback queue views" contained fullWidth>
+            <Tab>{`Needs a reviewer (${rows.filter(needsReviewer).length})`}</Tab>
+            <Tab>{`All open cases (${rows.length})`}</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel className="rcs-tab-panel-flush" />
+            <TabPanel className="rcs-tab-panel-flush" />
+          </TabPanels>
+        </Tabs>
       )}
 
       {rows && shown.length === 0 && (
@@ -208,17 +274,17 @@ export function FallbackQueueSection({
 
       {rows && shown.length > 0 && (
         <Layer>
-          <Table aria-label="Fallback queue">
+          <Table aria-label="Fallback queue" className="rcs-actions-end">
             <TableHead>
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
-                <TableHeader>Severity</TableHeader>
+                <TableHeader {...sortProps("severity")}>Severity</TableHeader>
                 <TableHeader>Status</TableHeader>
+                <TableHeader {...sortProps("age")}>Waiting</TableHeader>
+                <TableHeader>Reason</TableHeader>
                 <TableHeader>Owner</TableHeader>
                 <TableHeader>Visible to</TableHeader>
-                <TableHeader>
-                  <span className="cds--visually-hidden">Actions</span>
-                </TableHeader>
+                <TableHeader>Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -236,47 +302,32 @@ export function FallbackQueueSection({
                       )}
                     </TableCell>
                     <TableCell>{statusLabel(row)}</TableCell>
+                    <TableCell>{ageLabel(row.created_at, clock)}</TableCell>
+                    <TableCell>{reasonLabel(row)}</TableCell>
                     <TableCell>{ownerLabel(row)}</TableCell>
                     <TableCell>
-                      {row.case_visibility === "AVAILABLE_TO_AUDITORS" ? (
-                        <StatusTag tone="info" size="sm">
-                          {VISIBILITY_LABEL[row.case_visibility]}
-                        </StatusTag>
-                      ) : (
-                        <>
+                      <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
+                        <StatusTag tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"} size="sm">
                           {visibleToLabel(row)}
-                          {placementNote(row, clock) && (
-                            <span style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                              {placementNote(row, clock)}
-                            </span>
-                          )}
-                        </>
+                        </StatusTag>
+                      </DefinitionTooltip>
+                      {placementNote(row, clock) && (
+                        <span style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                          {placementNote(row, clock)}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
                       {unowned && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            disabled={!canTake || busy !== null}
-                            aria-label={`Take case ${row.case_id}`}
-                            onClick={() => act(row, "take")}
-                          >
-                            Take case
-                          </Button>
-                          {row.case_visibility === "SUPER_ADMIN_ONLY" && (
-                            <Button
-                              kind="ghost"
-                              size="sm"
-                              disabled={busy !== null}
-                              aria-label={`Make available, case ${row.case_id}`}
-                              onClick={() => act(row, "release")}
-                            >
-                              Make available
-                            </Button>
-                          )}
-                        </div>
+                        <Button
+                          kind="tertiary"
+                          size="sm"
+                          disabled={!canTake || busy !== null}
+                          aria-label={`Take case ${row.case_id}`}
+                          onClick={() => setConfirming(row)}
+                        >
+                          Take case
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -286,12 +337,37 @@ export function FallbackQueueSection({
           </Table>
         </Layer>
       )}
+
+      <Modal
+        open={confirming !== null}
+        size="sm"
+        modalHeading={confirming ? `Take case ${confirming.case_id}?` : "Take case?"}
+        primaryButtonText={busy ? "Taking…" : "Take case"}
+        secondaryButtonText="Cancel"
+        primaryButtonDisabled={busy !== null}
+        onRequestClose={() => setConfirming(null)}
+        onRequestSubmit={() => confirming && void take(confirming)}
+      >
+        {confirming && (
+          <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p>
+              Severity:{" "}
+              {(confirming.final_severity_tier ?? confirming.severity_tier) ?? "not yet assessed"}. Status:{" "}
+              {statusLabel(confirming)}.
+            </p>
+            <p>
+              The case moves to your queue and nobody else will be given it. It opens on a content warning, and the
+              time you spend reviewing it counts toward your daily exposure.
+            </p>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }
 
 /**
- * Cases a Manager or the Super Admin released to Auditors. Shown only when there is
+ * Cases a Manager or the Super Auditor released to Auditors. Shown only when there is
  * one. Queue metadata only; claiming adds the case to the Auditor's queue and doesn't
  * open it. Claiming follows the same wellbeing blocks as assignment.
  */
@@ -300,6 +376,18 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Cases this Auditor passed on. Only their own list changes: the case stays available to everyone else.
+  const [declined, setDeclined] = useState<Set<string>>(() => readDeclined());
+
+  function decline(caseId: string) {
+    const next = new Set(declined).add(caseId);
+    setDeclined(next);
+    try {
+      sessionStorage.setItem(DECLINED_KEY, JSON.stringify([...next]));
+    } catch {
+      // The list still updates for this visit.
+    }
+  }
 
   const load = useCallback(() => {
     getAvailableCases(token)
@@ -331,7 +419,8 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
     }
   }
 
-  if (!data || (data.cases.length === 0 && !notice && !error)) return null;
+  const cases = data?.cases.filter((c) => !declined.has(c.case_id)) ?? [];
+  if (!data || (cases.length === 0 && !notice && !error)) return null;
 
   return (
     <section aria-labelledby="available-title" className="flex flex-col gap-3">
@@ -341,7 +430,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           These cases were released because no one could take them. Claiming adds one to your queue; it doesn&apos;t open
-          it.
+          it. Declining only removes it from your list: other Auditors can still claim it.
         </p>
       </div>
 
@@ -370,7 +459,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
         />
       )}
 
-      {data.cases.length > 0 && (
+      {cases.length > 0 && (
         <Layer>
           <Table aria-label="Available to claim">
             <TableHead>
@@ -384,7 +473,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.cases.map((c) => (
+              {cases.map((c) => (
                 <TableRow key={c.case_id}>
                   <TableCell style={MONO}>{c.case_id}</TableCell>
                   <TableCell>
@@ -404,6 +493,15 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
                       onClick={() => claim(c.case_id)}
                     >
                       Claim case
+                    </Button>
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      disabled={busy !== null}
+                      aria-label={`Decline case ${c.case_id}`}
+                      onClick={() => decline(c.case_id)}
+                    >
+                      Decline
                     </Button>
                   </TableCell>
                 </TableRow>

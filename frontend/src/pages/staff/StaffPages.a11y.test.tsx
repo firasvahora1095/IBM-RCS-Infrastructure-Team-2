@@ -90,7 +90,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     await screen.findByRole("slider", { name: "Blur intensity" });
     expect(await axe()).toHaveNoViolations();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
     await screen.findByRole("heading", { name: "Severity & comment" });
     expect(await axe()).toHaveNoViolations();
   });
@@ -150,10 +150,10 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     ["Insights", "/manager/insights", "Insights"],
     ["Auditor Detail", "/manager/auditors/auditor-4", "Reese Patel"],
     ["Cases", "/manager/cases", "Cases"],
-    ["SOS Inbox", "/manager/sos", "SOS Inbox"],
-    ["SOS Alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
+    ["SOS inbox", "/manager/sos", "SOS inbox"],
+    ["SOS alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
     ["SOS Follow-up", "/manager/sos/SOS-demo0003/follow-up", "Log follow-up — Reese Patel"],
-    ["Reassignment Queue", "/manager/reassignment", "Reassignment Queue"],
+    ["Reassignment queue", "/manager/reassignment", "Reassignment queue"],
     ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
     ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
     ["Validation & Audit", "/manager/validation", "Validation & Audit"],

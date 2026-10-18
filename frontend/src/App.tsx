@@ -76,8 +76,8 @@ function PublicLayout() {
  *   "/manager/cases/:caseId/review"     — Case Review Detail
  *   "/manager/cases/:caseId/reassign"   — Reassignment decision
  *   "/manager/cases/:caseId/raw"        — Exceptional raw-content access
- *   "/manager/sos", "/manager/sos/:alertId", "/manager/sos/:alertId/follow-up" — SOS Inbox, detail, follow-up
- *   "/manager/reassignment"             — Declined / Reassignment Queue
+ *   "/manager/sos", "/manager/sos/:alertId", "/manager/sos/:alertId/follow-up" — SOS inbox, detail, follow-up
+ *   "/manager/reassignment"             — Declined / Reassignment queue
  *   "/manager/validation"               — Validation View (placeholder data)
  *
  * Staff pages render their own header (Auditor/Manager variants), because

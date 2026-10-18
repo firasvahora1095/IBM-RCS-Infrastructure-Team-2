@@ -11,6 +11,7 @@ import {
   Outcomes,
   WidgetLoading,
 } from "../../components/manager/IntelligenceWidgets";
+import { GenerateReportDialog } from "../../components/manager/GenerateReportDialog";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
@@ -28,6 +29,7 @@ import { PERIOD_OPTIONS } from "../../utils/periods";
  */
 export function ManagerInsightsPage() {
   const { intel, data, periodKey, setPeriod, periodLabel } = useManagerIntelligence();
+  const [reportOpen, setReportOpen] = useState(false);
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
 
   const evidenceButton = (key: EvidenceKey) => (
@@ -37,13 +39,13 @@ export function ManagerInsightsPage() {
   );
 
   return (
-    <ManagerLayout>
+    <ManagerLayout clientScope>
       <PageHeader
         title="Insights"
         subtitle={
           data
             ? `${data.organisation_name} · ${periodLabel}`
-            : "How work flows, where the AI and Auditors differ, and what reaches CommunityHub."
+            : "How work flows, where the AI and Auditors differ, and what reaches each Client."
         }
         actions={
           <>
@@ -59,9 +61,11 @@ export function ManagerInsightsPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
+            <Button onClick={() => setReportOpen(true)}>Generate report</Button>
           </>
         }
       />
+      <GenerateReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
       <LoadState error={intel.error} loading={false} what="the figures" />
 
       <section aria-label="Figures for the period">
@@ -100,7 +104,7 @@ export function ManagerInsightsPage() {
           <Section
             id="outcomes"
             title="Client outcomes"
-            description="RCS moderation outcomes for cases decided in the period. CommunityHub decides any enforcement on its platform."
+            description="RCS moderation outcomes for cases decided in the period. Each Client decides any enforcement on its own platform."
             actions={evidenceButton("outcomes")}
           >
             {data ? <Outcomes data={data} /> : <WidgetLoading error={intel.error} />}
@@ -109,7 +113,7 @@ export function ManagerInsightsPage() {
         <Column sm={4} md={8} lg={16}>
           <Section
             id="comparison"
-            title="AI and Auditor decisions"
+            title="Auditor overrides"
             description={
               <>
                 {COMPARISON_NOTE} Model accuracy is on{" "}
@@ -127,7 +131,7 @@ export function ManagerInsightsPage() {
         <Column sm={4} md={8} lg={16}>
           <Section
             id="delivery"
-            title="Delivery Health"
+            title="Delivery health"
             description="Results for cases completed in the period. Delivery is separate from moderation: a failed delivery never reopens a case."
             actions={evidenceButton("delivery_success_rate")}
           >

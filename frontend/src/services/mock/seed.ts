@@ -1,8 +1,8 @@
-import type { MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
+import type { MockAuditEntry, MockCase, MockDb, MockSosEvent, MockStaff } from "./store";
 import { createB2bSeed } from "./b2bSeed";
 
 /** Bump when the seed shape changes, so stale demo data from an older build is replaced. */
-export const MOCK_DB_VERSION = 12;
+export const MOCK_DB_VERSION = 13;
 
 /**
  * Synthetic demo data for the mock data source.
@@ -250,7 +250,7 @@ export function createSeedDb(now: number): MockDb {
     staffMember("auditor-5", "auditor", "Marcus Webb", 3, 105, now, 50),
     staffMember("manager-1", "manager", "Alex Morgan", 0, 0, now, null),
     // The fallback reviewer. Never picked by weighted assignment.
-    { ...staffMember("superadmin-1", "auditor", "Casey Admin", 0, 0, now, null), is_super_admin: true },
+    { ...staffMember("superauditor-1", "auditor", "Casey Auditor", 0, 0, now, null), is_super_admin: true },
   ];
 
   const cases: MockCase[] = [
@@ -467,7 +467,7 @@ export function createSeedDb(now: number): MockDb {
     }
   }
 
-  return {
+  const db: MockDb = {
     version: MOCK_DB_VERSION,
     cases,
     staff,
@@ -535,6 +535,44 @@ export function createSeedDb(now: number): MockDb {
     clientSessions: {},
     caseSources: {},
   };
+  db.auditLog = seedAuditLog(db);
+  return db;
+}
+
+/**
+ * A realistic trail for the demo, so the Audit history and the case history panel show what they look like with
+ * records in them: for each past case it was created, assigned, analysed and resolved (and, where it was declined,
+ * declined and reassigned), with the actor and the time of each step.
+ */
+function seedAuditLog(db: MockDb): MockAuditEntry[] {
+  const auditors = db.staff.filter((m) => m.role === "auditor" && !m.is_super_admin).map((m) => m.staff_id);
+  const at = (iso: string, minutesAfter: number) => new Date(Date.parse(iso) + minutesAfter * 60_000).toISOString();
+  const entries: MockAuditEntry[] = [];
+  db.caseHistory.slice(0, 30).forEach((h, i) => {
+    const who = auditors[i % auditors.length];
+    const next = auditors[(i + 1) % auditors.length];
+    entries.push({ at: h.created_at, actor: "System", case_id: h.case_id, action: "CASE_CREATED", detail: "Report received" });
+    entries.push({ at: at(h.created_at, 2), actor: "System", case_id: h.case_id, action: "CASE_ASSIGNED", detail: `Assigned to ${who}` });
+    entries.push({
+      at: at(h.created_at, 6),
+      actor: "System",
+      case_id: h.case_id,
+      action: "AI_ANALYSIS_COMPLETED",
+      detail: `AI severity ${h.ai_tier}`,
+    });
+    if (h.declined_reassigned) {
+      entries.push({ at: at(h.created_at, 20), actor: who, case_id: h.case_id, action: "CASE_DECLINED", detail: "Declined: near exposure limit" });
+      entries.push({ at: at(h.created_at, 26), actor: "manager-1", case_id: h.case_id, action: "CASE_REASSIGNED", detail: `Reassigned to ${next}` });
+    }
+    entries.push({
+      at: h.completed_at,
+      actor: h.declined_reassigned ? next : who,
+      case_id: h.case_id,
+      action: "CASE_RESOLVED",
+      detail: `Final severity ${h.final_tier}`,
+    });
+  });
+  return entries.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }
 
 function staffMember(

@@ -74,9 +74,17 @@ export function ClientMessagesPage() {
               </TableHead>
               <TableBody>
                 {data.map((m) => (
-                  <TableRow key={m.message_id}>
+                  <TableRow
+                    key={m.message_id}
+                    onClick={() => navigate(`/client/messages/${encodeURIComponent(m.message_id)}`)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <TableCell>
-                      <RouterLink className="cds--link" to={`/client/messages/${encodeURIComponent(m.message_id)}`}>
+                      <RouterLink
+                        className="cds--link"
+                        to={`/client/messages/${encodeURIComponent(m.message_id)}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {m.subject}
                       </RouterLink>
                     </TableCell>

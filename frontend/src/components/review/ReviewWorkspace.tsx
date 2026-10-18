@@ -35,7 +35,7 @@ interface ReviewWorkspaceProps {
   /** Receives measured playback exposure every few seconds and when the workspace closes. */
   onExposure?: (sample: ExposureSample) => void;
   onContinue: () => void;
-  /** "Continue to severity & comment" for Auditors; the Manager's exceptional access returns to its decision. */
+  /** "Rate severity" for Auditors; the Manager's exceptional access returns to its decision. */
   continueLabel?: string;
   /** Absent for an AI-failure case, which has no summary to go back to. */
   onBack?: () => void;
@@ -74,7 +74,7 @@ export function ReviewWorkspace({
   pausedReason,
   onExposure,
   onContinue,
-  continueLabel = "Continue to severity & comment",
+  continueLabel = "Rate severity",
   onBack,
   onTalkToManager,
   onSos,
@@ -285,11 +285,9 @@ export function ReviewWorkspace({
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
-        {/* Video column: stays in view while the rail scrolls, so SOS is always reachable.
-            Capped at the viewport height and scrollable inside: on a short laptop screen the
-            pinned column was taller than the window, so its blur controls and Continue button
-            could never be scrolled into view and the page looked frozen. */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+        {/* Video column: one page scroll for the whole screen, no scrolling inside the column. The next step lives in a
+            sticky bar at the bottom, so it is always in view and never has to be scrolled to. */}
+        <div className="flex flex-col gap-4">
           {/* Viewing safety: always above the footage, so it never needs a scroll (AR-PV-03 to 05). */}
           <div className="rcs-player-toolbar" role="group" aria-label="Viewing safety">
             <div className="rcs-inline-control rcs-player-blur">
@@ -552,13 +550,13 @@ export function ReviewWorkspace({
           )}
 
 
-          <div className="flex flex-col items-start gap-4">
-            <Button onClick={onContinue}>{continueLabel}</Button>
+          <div className="rcs-action-bar">
             {onBack && (
               <Button kind="tertiary" onClick={onBack}>
-                ← Back to AI Analysis Summary
+                ← Back to AI summary
               </Button>
             )}
+            <Button onClick={onContinue}>{continueLabel}</Button>
           </div>
         </div>
 
@@ -589,7 +587,7 @@ export function ReviewWorkspace({
           )}
           <div className="flex flex-col gap-2 p-4" style={{ backgroundColor: "var(--cds-layer-01)" }}>
             {aiFailed || !caseDetail.severity_tier ? (
-              <p style={secondaryText}>Severity unknown — AI analysis unavailable for this case</p>
+              <p style={secondaryText}>Severity unknown. AI analysis is unavailable for this case.</p>
             ) : (
               <>
                 <div>
