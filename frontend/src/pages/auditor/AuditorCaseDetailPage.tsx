@@ -473,6 +473,7 @@ export function AuditorCaseDetailPage() {
               setDeclineOpen(true);
             }}
             onClose={() => navigate("/auditor")}
+            closeLabel="Back to dashboard"
           />
           <DeclineReasonModal
             open={declineOpen && !sessionExpired}

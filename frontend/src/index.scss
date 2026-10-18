@@ -449,3 +449,15 @@ html,
 body {
   overflow-x: clip;
 }
+
+// The consent modal is sized to its content: no dead gap between the text and the buttons.
+.rcs-consent .cds--modal-content {
+  margin-block-end: 0;
+  padding-block-end: 1.5rem;
+}
+.rcs-consent .cds--modal-container {
+  block-size: auto;
+}
+.rcs-consent .cds--modal-footer .cds--btn {
+  min-block-size: 3rem;
+}

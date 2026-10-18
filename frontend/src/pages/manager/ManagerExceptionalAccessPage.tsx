@@ -111,7 +111,8 @@ export function ManagerExceptionalAccessPage() {
             onDecline={() => navigate(returnTo)}
             onClose={() => navigate(returnTo)}
             closeLabel={returnLabel}
-            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide — logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
+            declineLabel="Decline"
+            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide, and it is logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
           />
         </>
       )}

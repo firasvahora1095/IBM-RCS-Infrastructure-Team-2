@@ -95,7 +95,7 @@ describe("AuditorCaseDetailPage", () => {
     const proceed = screen.getByRole("button", { name: "Proceed" });
     expect(proceed).toBeDisabled();
     // Declining never needs consent.
-    expect(screen.getByRole("button", { name: "Decline" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Decline and send to Manager" })).toBeEnabled();
 
     await passContentWarning();
     expect(await screen.findByText(/physical altercation between two individuals/)).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe("AuditorCaseDetailPage", () => {
     const decline = vi.spyOn(services, "declineCase").mockResolvedValueOnce({ declined: true });
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Decline" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Decline and send to Manager" }));
     const submit = await screen.findByRole("button", { name: "Submit decline" });
     // AR-DF-03: nothing pre-selected.
     expect(submit).toBeDisabled();
@@ -160,7 +160,7 @@ describe("AuditorCaseDetailPage", () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(AI_FAILED_CASE);
     renderPage("AR-2026-00421");
 
-    expect(await screen.findByText("Severity unknown — AI analysis unavailable for this case")).toBeInTheDocument();
+    expect(await screen.findByText("Severity unknown. AI analysis is unavailable for this case.")).toBeInTheDocument();
     await passContentWarning();
 
     // Straight into the workspace: no summary, no way back to one.

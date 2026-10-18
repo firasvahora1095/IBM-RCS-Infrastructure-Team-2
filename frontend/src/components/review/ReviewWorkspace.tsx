@@ -589,7 +589,7 @@ export function ReviewWorkspace({
           )}
           <div className="flex flex-col gap-2 p-4" style={{ backgroundColor: "var(--cds-layer-01)" }}>
             {aiFailed || !caseDetail.severity_tier ? (
-              <p style={secondaryText}>Severity unknown — AI analysis unavailable for this case</p>
+              <p style={secondaryText}>Severity unknown. AI analysis is unavailable for this case.</p>
             ) : (
               <>
                 <div>

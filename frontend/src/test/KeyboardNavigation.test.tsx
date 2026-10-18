@@ -242,7 +242,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     const gateConsent = await screen.findByRole("checkbox", { name: /I understand this content may be disturbing/ });
     const gate = gateConsent.closest<HTMLElement>("[role=dialog]")!;
-    await tabTo(user, within(gate).getByRole("button", { name: "Decline" }));
+    await tabTo(user, within(gate).getByRole("button", { name: "Decline and send to Manager" }));
     await user.keyboard("{Enter}");
 
     const reason = await screen.findByRole("radio", { name: "Personal Trigger" });
