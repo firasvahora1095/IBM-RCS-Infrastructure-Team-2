@@ -95,7 +95,7 @@ describe("AuditorCaseDetailPage", () => {
     const proceed = screen.getByRole("button", { name: "Proceed" });
     expect(proceed).toBeDisabled();
     // Declining never needs consent.
-    expect(screen.getByRole("button", { name: "Decline and send to Manager" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Decline" })).toBeEnabled();
 
     await passContentWarning();
     expect(await screen.findByText(/physical altercation between two individuals/)).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe("AuditorCaseDetailPage", () => {
     const decline = vi.spyOn(services, "declineCase").mockResolvedValueOnce({ declined: true });
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Decline and send to Manager" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Decline" }));
     const submit = await screen.findByRole("button", { name: "Submit decline" });
     // AR-DF-03: nothing pre-selected.
     expect(submit).toBeDisabled();

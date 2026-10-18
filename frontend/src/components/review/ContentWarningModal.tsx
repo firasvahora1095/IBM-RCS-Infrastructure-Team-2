@@ -12,7 +12,7 @@ import {
   ToggletipButton,
   ToggletipContent,
 } from "@carbon/react";
-import { CircleFilled } from "@carbon/icons-react";
+import { CircleFilled, Information } from "@carbon/icons-react";
 import type { AuditorCaseDetail } from "../../services/types";
 import { SeverityTag } from "../severity/SeverityTag";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -65,7 +65,7 @@ export function ContentWarningModal({
   isProceeding = false,
   footnote,
   closeLabel = "Back to dashboard",
-  declineLabel = "Decline and send to Manager",
+  declineLabel = "Decline",
 }: ContentWarningModalProps) {
   const [consented, setConsented] = useState(false);
   const { wellbeing } = useMyWellbeing();
@@ -135,7 +135,7 @@ export function ContentWarningModal({
               {caseDetail.effective_severity_score !== null && (
                 <Toggletip align="bottom-start">
                   <ToggletipButton label="What is the CVI score?">
-                    <span aria-hidden="true" style={{ fontSize: 12, fontWeight: 600 }}>?</span>
+                    <Information size={16} aria-hidden="true" />
                   </ToggletipButton>
                   <ToggletipContent>
                     <p>The AI&apos;s severity score, from 0 to 100. {CVI_BANDS}</p>
@@ -165,7 +165,7 @@ export function ContentWarningModal({
             {footnote ??
               (aiFailed
                 ? "Proceeding opens the review at maximum blur, whatever the AI suggested, because severity is unknown here, not neutral. There is no AI summary for this case."
-                : "If you decline, the case goes to the Manager to decide. It isn't reassigned automatically.")}
+                : "Declining sends the case to the Manager to decide. It isn't reassigned automatically.")}
           </p>
         </div>
       </ModalBody>

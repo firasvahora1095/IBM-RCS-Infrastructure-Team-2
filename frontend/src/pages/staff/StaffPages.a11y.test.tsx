@@ -76,7 +76,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     // Content warning (16:19) and Decline Reason Modal (25:137).
     const consent = await screen.findByLabelText(/I understand this content may be disturbing/);
     expect(await axe()).toHaveNoViolations();
-    fireEvent.click(screen.getByRole("button", { name: "Decline and send to Manager" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decline" }));
     await screen.findByRole("button", { name: "Submit decline" });
     expect(await axe()).toHaveNoViolations();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

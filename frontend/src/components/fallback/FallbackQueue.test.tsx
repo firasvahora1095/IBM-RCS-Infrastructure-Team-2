@@ -72,7 +72,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
     const row = screen.getByText("DECL-0001").closest("tr") as HTMLElement;
     expect(within(row).getByText("With Manager")).toBeInTheDocument();
     expect(within(row).getByText("Manager decision")).toBeInTheDocument();
-    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Take case/ })).not.toBeInTheDocument();
   });
 
   it("tells the Super Admin the system will place a parked case itself, so there is nothing to do", async () => {
@@ -221,12 +221,12 @@ describe("Auditor dashboard and the fallback sections", () => {
     expect(services.getAllOpenCases).not.toHaveBeenCalled();
   });
 
-  it("shows the Super Admin the fallback queue above their own queue, and no claim list", async () => {
+  it("shows the Super Admin their own cases first, then the fallback queue, and no claim list", async () => {
     sessionStorage.setItem("rcs_staff_super_admin", "1");
     renderDashboard();
     const fallback = await screen.findByRole("heading", { name: "Fallback queue" });
     const mine = await screen.findByText("AR-2026-00417");
-    expect(fallback.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mine.compareDocumentPosition(fallback) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Available to claim" })).not.toBeInTheDocument();
     expect(services.getAvailableCases).not.toHaveBeenCalled();
   });

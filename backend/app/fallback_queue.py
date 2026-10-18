@@ -162,6 +162,7 @@ def queue_row(case: Case) -> dict:
         "assigned_auditor_id": None if case.manager_flag else case.assigned_auditor_id,
         "case_visibility": case.case_visibility,
         "manager_flag": case.manager_flag,
+        "created_at": case.created_at.isoformat() if case.created_at else None,
         # When the system will place it by itself; the Super Admin does not need to act before then.
         "auto_release_at": (auto_release_at(case).isoformat() if auto_release_at(case) else None),
     }

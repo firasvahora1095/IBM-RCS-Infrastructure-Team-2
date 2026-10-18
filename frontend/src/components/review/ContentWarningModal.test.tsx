@@ -38,8 +38,8 @@ describe("ContentWarningModal", () => {
 
   it("says where a declined case goes, and how long the content is", () => {
     setup();
-    expect(screen.getByText("If you decline, the case goes to the Manager to decide. It isn't reassigned automatically.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Decline and send to Manager" })).toBeInTheDocument();
+    expect(screen.getByText("Declining sends the case to the Manager to decide. It isn't reassigned automatically.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Decline" })).toBeInTheDocument();
     expect(screen.getByText(/1:36 long\. Uses up to 2/)).toBeInTheDocument();
     expect(screen.getByText("CVI score (48 of 100)")).toBeInTheDocument();
   });

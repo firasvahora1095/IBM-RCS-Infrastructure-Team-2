@@ -21,7 +21,7 @@ function renderBuddy() {
 }
 
 async function openPanel(user = userEvent.setup()) {
-  await user.click(screen.getByRole("button", { name: "AI Buddy" }));
+  await user.click(screen.getByRole("button", { name: "Open AI Buddy" }));
   return user;
 }
 
@@ -39,16 +39,16 @@ describe("AiBuddy", () => {
   it("renders nothing when nobody is signed in", () => {
     sessionStorage.clear();
     renderBuddy();
-    expect(screen.queryByRole("button", { name: "AI Buddy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open AI Buddy" })).not.toBeInTheDocument();
   });
 
   it("starts closed, opens on the header button and puts focus in the input", async () => {
     renderBuddy();
-    expect(screen.queryByRole("complementary", { name: "AI Buddy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Open AI Buddy" })).not.toBeInTheDocument();
     await openPanel();
     expect(screen.getByRole("complementary", { name: "AI Buddy" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Ask a question")).toHaveFocus());
-    expect(screen.getByText("Preliminary")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Ask AI Buddy")).toHaveFocus());
+    expect(screen.getByText("Beta")).toBeInTheDocument();
   });
 
   it.each(["auditor", "manager"] as const)("offers the four %s starter questions, written in full", async (role) => {
@@ -85,9 +85,9 @@ describe("AiBuddy", () => {
     const chat = vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    await user.type(screen.getByLabelText("Ask a question"), "First question{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "First question{Enter}");
     await screen.findAllByText(/47 minutes/);
-    await user.type(screen.getByLabelText("Ask a question"), "And a follow-up{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "And a follow-up{Enter}");
 
     await waitFor(() => expect(chat).toHaveBeenCalledTimes(2));
     expect(chat.mock.calls[1][2]).toEqual([
@@ -100,7 +100,7 @@ describe("AiBuddy", () => {
     const chat = vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    const input = screen.getByLabelText("Ask a question");
+    const input = screen.getByLabelText("Ask AI Buddy");
     await user.type(input, "line one{Shift>}{Enter}{/Shift}line two");
     expect(chat).not.toHaveBeenCalled();
     expect(input).toHaveValue("line one\nline two");
@@ -127,7 +127,7 @@ describe("AiBuddy", () => {
     });
     renderBuddy();
     const user = await openPanel();
-    await user.type(screen.getByLabelText("Ask a question"), "What is happening with AR-2026-00500?{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "What is happening with AR-2026-00500?{Enter}");
 
     const list = await screen.findByLabelText("Summary of AR-2026-00500");
     expect(within(list).getByText("Final Auditor severity")).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe("AiBuddy", () => {
     });
     renderBuddy();
     const user = await openPanel();
-    await user.type(screen.getByLabelText("Ask a question"), "AR-2026-00417{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "AR-2026-00417{Enter}");
     const list = await screen.findByLabelText("Summary of AR-2026-00417");
     expect(within(list).queryByText("Assigned Auditor")).not.toBeInTheDocument();
     expect(within(list).queryByText("Delivery")).not.toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("AiBuddy", () => {
     });
     renderBuddy();
     const user = await openPanel();
-    await user.type(screen.getByLabelText("Ask a question"), "AR-2026-99999{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "AR-2026-99999{Enter}");
     expect(await screen.findByText("Not enough verified information")).toBeInTheDocument();
     // The same words also go to the hidden live region, so they appear more than once.
     expect(screen.getAllByText(/contact your Manager/).length).toBeGreaterThan(0);
@@ -172,7 +172,7 @@ describe("AiBuddy", () => {
     const chat = vi.spyOn(services, "aiChat").mockRejectedValueOnce(new Error("down")).mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    await user.type(screen.getByLabelText("Ask a question"), "Is it down?{Enter}");
+    await user.type(screen.getByLabelText("Ask AI Buddy"), "Is it down?{Enter}");
     expect(await screen.findByText("Couldn't answer")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
@@ -190,17 +190,17 @@ describe("AiBuddy", () => {
     const user = await openPanel();
     await user.click(screen.getByRole("button", { name: CASE_LOOKUP_PROMPT }));
     expect(chat).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Ask a question")).toHaveValue("What is happening with ");
+    expect(screen.getByLabelText("Ask AI Buddy")).toHaveValue("What is happening with ");
   });
 
   it("closes on Escape and returns focus to the header button", async () => {
     renderBuddy();
     const user = await openPanel();
-    await waitFor(() => expect(screen.getByLabelText("Ask a question")).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText("Ask AI Buddy")).toHaveFocus());
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("complementary", { name: "AI Buddy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Open AI Buddy" })).not.toBeInTheDocument();
     // Focus goes back in an effect, so wait for it rather than assuming it has already run.
-    await waitFor(() => expect(screen.getByRole("button", { name: "AI Buddy" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open AI Buddy" })).toHaveFocus());
   });
 
   it("makes room for the panel on wide screens only while it is open", async () => {
@@ -223,6 +223,8 @@ describe("AiBuddy", () => {
     expect(sessionStorage.getItem(BUDDY_STORAGE_KEY)).toContain("47 minutes");
 
     await user.click(screen.getByRole("button", { name: "Clear conversation" }));
+    expect(sessionStorage.getItem(BUDDY_STORAGE_KEY)).toContain("47 minutes"); // a confirm step first, so it can't wipe by accident
+    await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(sessionStorage.getItem(BUDDY_STORAGE_KEY) ?? "[]").toBe("[]"); // nothing of the conversation is kept
     expect(screen.getByText("How can I help?")).toBeInTheDocument();
   });
@@ -264,7 +266,7 @@ describe("AiBuddy", () => {
       renderBuddy();
       const user = await openPanel();
       if (reply) {
-        await user.type(screen.getByLabelText("Ask a question"), "Question{Enter}");
+        await user.type(screen.getByLabelText("Ask AI Buddy"), "Question{Enter}");
         await waitFor(() => expect(screen.queryByText("Looking that up…")).not.toBeInTheDocument());
       }
       // The panel is portalled to <body>, so check the whole document, not just the render container.

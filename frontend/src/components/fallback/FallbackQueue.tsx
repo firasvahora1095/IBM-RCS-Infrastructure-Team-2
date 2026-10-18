@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Button,
-  ContentSwitcher,
+  DefinitionTooltip,
   InlineNotification,
   Layer,
   Modal,
@@ -11,10 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Switch,
-  Toggletip,
-  ToggletipButton,
-  ToggletipContent,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
 } from "@carbon/react";
 import { SeverityTag } from "../severity/SeverityTag";
 import { StatusTag } from "../ui/StatusTag";
@@ -45,6 +46,38 @@ function visibleToLabel(row: FallbackCaseRow): string {
   return row.manager_flag ? "Manager decision" : VISIBILITY_LABEL[row.case_visibility];
 }
 
+/** Why the visibility is what it is, for the tooltip on the tag. */
+function visibleToReason(row: FallbackCaseRow): string {
+  if (row.manager_flag) return "A Manager has to decide what happens to this case.";
+  if (row.case_visibility === "SUPER_ADMIN_ONLY") {
+    return "No Auditor was free when it arrived, so only you can see it. The system places it automatically when one is.";
+  }
+  if (row.case_visibility === "AVAILABLE_TO_AUDITORS") return "A Manager released it, so any eligible Auditor can claim it.";
+  return "It belongs to one Auditor, who is the only person who can open it.";
+}
+
+/** A short reason the case is in this list at all. */
+function reasonLabel(row: FallbackCaseRow): string {
+  if (row.manager_flag === "SOS") return "SOS raised";
+  if (row.manager_flag === "DECLINED") return "Declined by Auditor";
+  if (row.manager_flag === "CAP_REACHED") return "Auditor hit their limit";
+  if (row.assigned_auditor_id === null) return "No Auditor free";
+  return "With an Auditor";
+}
+
+const TIER_ORDER: Record<string, number> = { S1: 1, S2: 2, S3: 3, S4: 4 };
+
+/** "12 min", "3 h 5 min", "2 d": how long the case has been open. */
+function ageLabel(createdAt: string | null | undefined, now: number): string {
+  if (!createdAt) return "Unknown";
+  const minutes = Math.max(0, Math.floor((now - Date.parse(createdAt)) / 60_000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h ${minutes % 60} min`;
+  return `${Math.floor(hours / 24)} d`;
+}
+
 /** "Placed automatically at 2:32 pm" while a parked case waits; nothing once it can never be placed by the system. */
 function placementNote(row: FallbackCaseRow, now: number): string | null {
   if (!row.auto_release_at || row.assigned_auditor_id !== null) return null;
@@ -62,6 +95,8 @@ function errorText(err: unknown): string {
 function statusLabel(row: FallbackCaseRow): string {
   return managerStatusLabel(row.status as InternalCaseStatus, row.manager_flag);
 }
+
+type SortKey = "severity" | "age";
 
 interface SectionProps {
   token: string;
@@ -91,7 +126,8 @@ export function FallbackQueueSection({
   onSessionExpired,
   canTake,
   blockReason,
-}: SectionProps & { canTake: boolean; blockReason: string | null }) {
+  onNeedsReviewerCount,
+}: SectionProps & { canTake: boolean; blockReason: string | null; onNeedsReviewerCount?: (n: number) => void }) {
   const [rows, setRows] = useState<FallbackCaseRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -101,18 +137,20 @@ export function FallbackQueueSection({
   const [view, setView] = useState<"needs" | "all">("needs");
   // Read once per load so the "placed automatically" notes don't change between renders.
   const [clock, setClock] = useState(() => Date.now());
+  const [sort, setSort] = useState<{ key: SortKey; dir: "ASC" | "DESC" } | null>(null);
 
   const load = useCallback(() => {
     getAllOpenCases(token)
       .then((result) => {
         setRows(result);
+        onNeedsReviewerCount?.(result.filter(needsReviewer).length);
         setClock(Date.now());
         setError(null);
       })
       .catch((err: unknown) => {
         if (!onSessionExpired(err)) setError(errorText(err));
       });
-  }, [token, onSessionExpired]);
+  }, [token, onSessionExpired, onNeedsReviewerCount]);
 
   useEffect(load, [load, refreshKey]);
 
@@ -122,7 +160,25 @@ export function FallbackQueueSection({
     return () => window.clearInterval(id);
   }, [load]);
 
-  const shown = (rows ?? []).filter((r) => view === "all" || needsReviewer(r));
+  const filtered = (rows ?? []).filter((r) => view === "all" || needsReviewer(r));
+  const shown = sort
+    ? [...filtered].sort((a, b) => {
+        const diff =
+          sort.key === "severity"
+            ? (TIER_ORDER[a.final_severity_tier ?? a.severity_tier ?? ""] ?? 0) -
+              (TIER_ORDER[b.final_severity_tier ?? b.severity_tier ?? ""] ?? 0)
+            : Date.parse(b.created_at ?? "") - Date.parse(a.created_at ?? ""); // older first when "ascending" age
+        return sort.dir === "ASC" ? diff : -diff;
+      })
+    : filtered;
+  const toggleSort = (key: SortKey) =>
+    setSort((cur) => (cur?.key === key ? { key, dir: cur.dir === "ASC" ? "DESC" : "ASC" } : { key, dir: "DESC" }));
+  const sortProps = (key: SortKey) => ({
+    isSortable: true,
+    isSortHeader: sort?.key === key,
+    sortDirection: sort?.key === key ? sort.dir : ("NONE" as const),
+    onClick: () => toggleSort(key),
+  });
 
   async function take(row: FallbackCaseRow) {
     setBusy(row.case_id);
@@ -142,7 +198,7 @@ export function FallbackQueueSection({
   }
 
   return (
-    <section aria-labelledby="fallback-title" className="flex flex-col gap-3">
+    <section id="fallback-queue" aria-labelledby="fallback-title" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h2 id="fallback-title" style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
           Fallback queue
@@ -150,18 +206,6 @@ export function FallbackQueueSection({
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           Cases wait here when no Auditor is free, and are placed automatically the moment one is. Take one only if it
           can&apos;t wait.
-          <Toggletip align="bottom-start">
-            <ToggletipButton label="How the fallback queue works">
-              <span aria-hidden="true" style={{ fontSize: 12, fontWeight: 600 }}>?</span>
-            </ToggletipButton>
-            <ToggletipContent>
-              <p>
-                Every new case goes to the Auditor the usual weighted rule picks. If none is eligible (in cooldown, at
-                their daily limit or on an SOS), the case waits here. You see queue details only; footage opens for
-                whoever owns the case.
-              </p>
-            </ToggletipContent>
-          </Toggletip>
         </p>
       </div>
 
@@ -198,16 +242,16 @@ export function FallbackQueueSection({
       )}
 
       {rows && (
-        <div style={{ maxWidth: 420 }}>
-          <ContentSwitcher
-            size="md"
-            selectedIndex={view === "needs" ? 0 : 1}
-            onChange={(e) => setView(e.name === "all" ? "all" : "needs")}
-          >
-            <Switch name="needs" text={`Needs a reviewer (${rows.filter(needsReviewer).length})`} />
-            <Switch name="all" text={`All open cases (${rows.length})`} />
-          </ContentSwitcher>
-        </div>
+        <Tabs selectedIndex={view === "needs" ? 0 : 1} onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}>
+          <TabList aria-label="Fallback queue views" contained fullWidth>
+            <Tab>{`Needs a reviewer (${rows.filter(needsReviewer).length})`}</Tab>
+            <Tab>{`All open cases (${rows.length})`}</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel className="rcs-tab-panel-flush" />
+            <TabPanel className="rcs-tab-panel-flush" />
+          </TabPanels>
+        </Tabs>
       )}
 
       {rows && shown.length === 0 && (
@@ -224,8 +268,10 @@ export function FallbackQueueSection({
             <TableHead>
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
-                <TableHeader>Severity</TableHeader>
+                <TableHeader {...sortProps("severity")}>Severity</TableHeader>
                 <TableHeader>Status</TableHeader>
+                <TableHeader {...sortProps("age")}>Waiting</TableHeader>
+                <TableHeader>Reason</TableHeader>
                 <TableHeader>Owner</TableHeader>
                 <TableHeader>Visible to</TableHeader>
                 <TableHeader>Action</TableHeader>
@@ -246,21 +292,19 @@ export function FallbackQueueSection({
                       )}
                     </TableCell>
                     <TableCell>{statusLabel(row)}</TableCell>
+                    <TableCell>{ageLabel(row.created_at, clock)}</TableCell>
+                    <TableCell>{reasonLabel(row)}</TableCell>
                     <TableCell>{ownerLabel(row)}</TableCell>
                     <TableCell>
-                      {row.case_visibility === "AVAILABLE_TO_AUDITORS" ? (
-                        <StatusTag tone="info" size="sm">
-                          {VISIBILITY_LABEL[row.case_visibility]}
-                        </StatusTag>
-                      ) : (
-                        <>
+                      <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
+                        <StatusTag tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"} size="sm">
                           {visibleToLabel(row)}
-                          {placementNote(row, clock) && (
-                            <span style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                              {placementNote(row, clock)}
-                            </span>
-                          )}
-                        </>
+                        </StatusTag>
+                      </DefinitionTooltip>
+                      {placementNote(row, clock) && (
+                        <span style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                          {placementNote(row, clock)}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>

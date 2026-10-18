@@ -16,13 +16,15 @@ interface StatTileProps {
   to?: string;
   /** Accessible name for the link; defaults to "{label}: {value}". */
   linkLabel?: string;
+  /** Smaller figure, for a strip of tiles that is scanned rather than read. */
+  compact?: boolean;
 }
 
 /**
  * A summary figure in the existing Manager Panel style: white, 1px subtle
  * border, small label over a monospace value (as Figure in ManagerBits).
  */
-export function StatTile({ label, value, helper, tone = "neutral", corner, to, linkLabel }: StatTileProps) {
+export function StatTile({ label, value, helper, tone = "neutral", corner, to, linkLabel, compact }: StatTileProps) {
   const body = (
     <>
       <span className="rcs-stat-label">{label}</span>
@@ -30,7 +32,7 @@ export function StatTile({ label, value, helper, tone = "neutral", corner, to, l
       {helper && <span className="rcs-stat-helper">{helper}</span>}
     </>
   );
-  const className = `rcs-stat-tile rcs-tone-${tone}`;
+  const className = `rcs-stat-tile rcs-tone-${tone}${compact ? " rcs-stat-tile--compact" : ""}`;
   if (to) {
     return (
       <RouterLink

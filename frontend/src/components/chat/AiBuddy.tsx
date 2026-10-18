@@ -3,9 +3,8 @@ import type { KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link as RouterLink } from "react-router-dom";
 import {
-  AILabel,
-  AILabelContent,
   Button,
+  DefinitionTooltip,
   HeaderGlobalAction,
   IconButton,
   InlineLoading,
@@ -115,6 +114,8 @@ export function AiBuddy() {
   const logEndRef = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
   const [announcement, setAnnouncement] = useState("");
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   // Make room for the panel on wide screens; always undo it on close or unmount.
   useEffect(() => {
@@ -182,7 +183,7 @@ export function AiBuddy() {
     <>
       <HeaderGlobalAction
         ref={triggerRef}
-        aria-label="AI Buddy"
+        aria-label={open ? "Close AI Buddy" : "Open AI Buddy"}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         isActive={open}
@@ -197,24 +198,28 @@ export function AiBuddy() {
           <aside id={panelId} className="rcs-buddy" aria-label="AI Buddy" onKeyDown={onKeyDown}>
             <div className="rcs-buddy__head">
               <h2 className="rcs-buddy__title">AI Buddy</h2>
-              <Tag type="gray" size="sm">
-                Preliminary
-              </Tag>
-              <AILabel size="mini" aria-label="About AI Buddy" kind="default">
-                <AILabelContent>
-                  <p style={{ fontSize: 14, lineHeight: 1.43 }}>
-                    AI Buddy is an early version. It explains RCS rules and reads a few live figures. It can make
-                    mistakes, so check anything important on the screen it points to. It can't change anything:
-                    people decide.
-                  </p>
-                </AILabelContent>
-              </AILabel>
+              <DefinitionTooltip definition="AI-generated. Check before acting." openOnHover align="bottom-end">
+                <Tag type="gray" size="sm">
+                  Beta
+                </Tag>
+              </DefinitionTooltip>
               <IconButton label="Close AI Buddy" kind="ghost" size="md" align="bottom-end" onClick={() => setOpen(false)}>
                 <Close />
               </IconButton>
             </div>
 
             <div className="rcs-buddy__log">
+              {!noticeDismissed && (
+                <InlineNotification
+                  kind="info"
+                  lowContrast
+                  title="Early version."
+                  subtitle="I can make mistakes, so check anything important on the screen I point to."
+                  statusIconDescription="Information"
+                  onCloseButtonClick={() => setNoticeDismissed(true)}
+                  style={{ maxInlineSize: "100%", marginBlockEnd: 0 }}
+                />
+              )}
               {empty && (
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>How can I help?</p>
@@ -283,8 +288,9 @@ export function AiBuddy() {
                 <TextArea
                   ref={inputRef}
                   id={`${panelId}-input`}
-                  labelText="Ask a question"
-                  placeholder="Ask about a case or a rule…"
+                  labelText="Ask AI Buddy"
+                  hideLabel
+                  placeholder="Ask about a case or a rule"
                   rows={2}
                   maxLength={2000}
                   value={draft}
@@ -294,7 +300,7 @@ export function AiBuddy() {
                 />
                 <IconButton
                   label="Send"
-                  kind="secondary"
+                  kind="primary"
                   size="lg"
                   align="top-end"
                   disabled={loading || !draft.trim()}
@@ -304,10 +310,28 @@ export function AiBuddy() {
                 </IconButton>
               </div>
               <div className="rcs-buddy__meta">
-                <span>Your guide to RCS. You decide.</span>
-                <Button kind="ghost" size="sm" disabled={empty && !loading} onClick={clear}>
-                  Clear conversation
-                </Button>
+                <span>I can explain and look things up. I can&apos;t take actions.</span>
+                {confirmingClear ? (
+                  <span className="rcs-buddy__confirm">
+                    <Button
+                      kind="danger--ghost"
+                      size="sm"
+                      onClick={() => {
+                        clear();
+                        setConfirmingClear(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button kind="ghost" size="sm" onClick={() => setConfirmingClear(false)}>
+                      Keep
+                    </Button>
+                  </span>
+                ) : (
+                  <Button kind="ghost" size="sm" disabled={empty && !loading} onClick={() => setConfirmingClear(true)}>
+                    Clear conversation
+                  </Button>
+                )}
               </div>
             </div>
           </aside>,

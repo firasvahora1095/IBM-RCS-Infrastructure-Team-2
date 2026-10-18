@@ -786,6 +786,7 @@ export const mockDataService: DataService = {
           assigned_auditor_id: c.manager_flag ? null : c.assigned_auditor,
           case_visibility: c.case_visibility ?? "ASSIGNED_ONLY",
           manager_flag: c.manager_flag,
+          created_at: c.created_at,
           auto_release_at: autoReleaseAt(c) === null ? null : new Date(autoReleaseAt(c)!).toISOString(),
         }));
     });

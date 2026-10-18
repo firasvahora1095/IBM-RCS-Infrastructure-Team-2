@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
@@ -47,6 +47,7 @@ function introFor(trigger: CooldownState["trigger"]): string {
  */
 export function CooldownPage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { logout, token } = useAuth();
   const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
@@ -58,6 +59,19 @@ export function CooldownPage() {
   }, []);
 
   const cooldown = wellbeing?.cooldown ?? null;
+
+  // "Play block puzzle" on the dashboard lands here: open the game and scroll it into view.
+  const wantsPuzzle = hash === "#take-a-moment" && cooldown !== null;
+  useEffect(() => {
+    if (!wantsPuzzle) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPuzzleOpen(true);
+    const frame = requestAnimationFrame(() => {
+      const section = document.getElementById("take-a-moment");
+      if (typeof section?.scrollIntoView === "function") section.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [wantsPuzzle]);
   const endsAt = cooldown ? Date.parse(cooldown.ends_at) : 0;
   const remainingMs = Math.max(0, endsAt - now);
   const waitingForCheckIn = cooldown !== null && cooldown.requires_check_in && !cooldown.check_in_completed_at;

@@ -91,6 +91,8 @@ export interface FallbackCaseRow {
   assigned_auditor_id: string | null;
   case_visibility: CaseVisibility;
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** When the case arrived, so the queue can show how long it has waited. */
+  created_at?: string | null;
   /** When the system will place this case by itself, so the Super Admin need not act. Null if it never will. */
   auto_release_at: string | null;
 }

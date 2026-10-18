@@ -242,7 +242,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     const gateConsent = await screen.findByRole("checkbox", { name: /I understand this content may be disturbing/ });
     const gate = gateConsent.closest<HTMLElement>("[role=dialog]")!;
-    await tabTo(user, within(gate).getByRole("button", { name: "Decline and send to Manager" }));
+    await tabTo(user, within(gate).getByRole("button", { name: "Decline" }));
     await user.keyboard("{Enter}");
 
     const reason = await screen.findByRole("radio", { name: "Personal Trigger" });
@@ -259,7 +259,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     expect(await screen.findByText(/Your manager will review it directly\./)).toBeInTheDocument();
   });
 
-  it("Cooldown: the support options, Send request and Stop my shift are reachable", async () => {
+  it("Cooldown: the support options, Request support and Stop my shift are reachable", async () => {
     const user = userEvent.setup();
     const token = await signIn("auditor-2");
     const { demoScenarios } = await import("../services/mock/demo");
@@ -269,7 +269,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await screen.findByRole("heading", { name: "Cooldown in progress" });
     // A radio group is one tab stop; arrow keys move between its options.
     await tabTo(user, await screen.findByRole("radio", { name: /Talk to my manager/ }));
-    await tabTo(user, screen.getByRole("button", { name: "Send request" }));
+    await tabTo(user, screen.getByRole("button", { name: "Request support" }));
     await tabTo(user, screen.getByRole("button", { name: "Stop my shift" }));
   });
 
