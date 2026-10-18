@@ -11,7 +11,7 @@ import type { DeliveryStatus, ExposureState, ReportStatus, WellbeingRequestStatu
  *   AI override.
  * - info, blue: in progress. Someone or something is already on it. Pending, Retrying, In Review, In progress, Seen.
  * - success, solid green: done and good. Delivered, Released, Approved, Followed up, Connected, Answered.
- * - request, teal: a request that is waiting for a person. Support requests, a new Client message.
+ * - request, magenta: a request that is waiting for a person. Support requests, a new Client message.
  * - neutral, gray: routine, final or informational. Draft, Complete, Within limit, Unavailable, Declined.
  *
  * In a list where every item is already waiting for the Manager, a "Waiting" tag says nothing, so it is left off:

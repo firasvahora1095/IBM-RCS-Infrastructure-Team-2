@@ -145,4 +145,14 @@ describe("CommunityHub portal frame", () => {
     expect(screen.getByRole("searchbox", { name: "Search by month or report ID" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /Period/ })).toBeInTheDocument();
   });
+
+  it("leaves one violation, one clear post and one not reviewed waiting, so Needs action shows every kind", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const table = await screen.findByRole("table", { name: "Case results" });
+    const text = within(table).getAllByRole("row").map((r) => r.textContent).join("|");
+    expect(text).toContain("Policy violation found");
+    expect(text).toContain("No violation found");
+    expect(text).toContain("Not reviewed");
+  });
 });

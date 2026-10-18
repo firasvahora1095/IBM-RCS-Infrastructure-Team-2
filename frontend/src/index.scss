@@ -30,7 +30,7 @@
 
   // The RCS tag palette (docs/ux/tag-colour-system.md). Every pair is a Carbon palette value and passes WCAG AA for
   // tag text (checked in design-tokens/tagPalette.test.ts). Status uses six families, each one meaning:
-  // red = critical, yellow = caution, blue = in progress, green = done, teal = a request for you, gray = routine.
+  // red = critical, yellow = caution, blue = in progress, green = done, magenta = a request waiting for you, gray = routine.
   --rcs-tag-error-bg: #{colors.$red-60};
   --rcs-tag-error-fg: #{colors.$white};
   --rcs-tag-warning-bg: #{colors.$yellow-20};
@@ -39,8 +39,8 @@
   --rcs-tag-info-fg: #{colors.$blue-80};
   --rcs-tag-success-bg: #{colors.$green-60};
   --rcs-tag-success-fg: #{colors.$white};
-  --rcs-tag-request-bg: #{colors.$teal-10};
-  --rcs-tag-request-fg: #{colors.$teal-80};
+  --rcs-tag-request-bg: #{colors.$magenta-20};
+  --rcs-tag-request-fg: #{colors.$magenta-70};
   --rcs-tag-neutral-bg: #{colors.$gray-20};
   --rcs-tag-neutral-fg: #{colors.$gray-100};
   // Severity is an ordered scale, so it is one hue (purple) that darkens as it gets worse. No status uses purple,
