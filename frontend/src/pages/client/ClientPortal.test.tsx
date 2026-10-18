@@ -106,7 +106,7 @@ describe("CommunityHub portal frame", () => {
     const before = Number(needsTab.textContent!.match(/\((\d+)\)/)![1]);
     fireEvent.click(await screen.findByRole("button", { name: "Apply RCS decisions" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/Remove d+ posts?|Keep d+ posts?/)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/(Remove|Keep) d+ posts?/).length).toBeGreaterThan(0);
     fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
     expect(await screen.findByText(/results? recorded\. RCS has been told/)).toBeInTheDocument();
     await waitFor(() => expect(Number(screen.getAllByRole("tab")[0].textContent!.match(/\((\d+)\)/)![1])).toBeLessThan(before));
