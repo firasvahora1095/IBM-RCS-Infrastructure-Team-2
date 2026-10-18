@@ -250,7 +250,7 @@ export function createSeedDb(now: number): MockDb {
     staffMember("auditor-5", "auditor", "Marcus Webb", 3, 105, now, 50),
     staffMember("manager-1", "manager", "Alex Morgan", 0, 0, now, null),
     // The fallback reviewer. Never picked by weighted assignment.
-    { ...staffMember("superadmin-1", "auditor", "Casey Admin", 0, 0, now, null), is_super_admin: true },
+    { ...staffMember("superauditor-1", "auditor", "Casey Auditor", 0, 0, now, null), is_super_admin: true },
   ];
 
   const cases: MockCase[] = [

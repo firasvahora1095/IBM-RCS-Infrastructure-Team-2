@@ -12,7 +12,7 @@ import {
   ToggletipButton,
   ToggletipContent,
 } from "@carbon/react";
-import { CircleFilled, Information } from "@carbon/icons-react";
+import { Information } from "@carbon/icons-react";
 import type { AuditorCaseDetail } from "../../services/types";
 import { SeverityTag } from "../severity/SeverityTag";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -112,17 +112,13 @@ export function ContentWarningModal({
           {aiFailed ? (
             <>
               <InlineNotification
-                kind="error"
+                kind="warning"
                 lowContrast
                 hideCloseButton
-                title="AI analysis unavailable:"
-                subtitle="Severity score and incident timeline are unavailable for this case. Review with extra caution."
+                title="Severity unknown."
+                subtitle="No score or timeline for this case. Review with extra caution."
                 style={{ maxWidth: "100%" }}
               />
-              <p className="flex items-center gap-1.5" style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>
-                <CircleFilled size={8} aria-hidden="true" style={{ fill: "var(--cds-icon-secondary)" }} />
-                Severity unknown. AI analysis is unavailable for this case.
-              </p>
             </>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
@@ -164,7 +160,7 @@ export function ContentWarningModal({
           <p style={helperText}>
             {footnote ??
               (aiFailed
-                ? "Proceeding opens the review at maximum blur, whatever the AI suggested, because severity is unknown here, not neutral. There is no AI summary for this case."
+                ? "The content opens with maximum blur applied because severity is unassessed."
                 : "Declining sends the case to the Manager to decide. It isn't reassigned automatically.")}
           </p>
         </div>

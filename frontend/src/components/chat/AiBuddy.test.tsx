@@ -60,7 +60,7 @@ describe("AiBuddy", () => {
     }
   });
 
-  it("gives a Super Admin the queue questions and no one else", async () => {
+  it("gives a Super Auditor the queue questions and no one else", async () => {
     seedStaffSession("auditor", true);
     renderBuddy();
     await openPanel();
@@ -208,6 +208,8 @@ describe("AiBuddy", () => {
     const user = await openPanel();
     // The attribute is set and removed in effects, which React may run a moment after the click or key press.
     await waitFor(() => expect(document.documentElement).toHaveAttribute("data-ai-buddy", "open"));
+    // Escape is handled by the panel, so focus must have moved into it first (it does, on the next frame).
+    await waitFor(() => expect(screen.getByLabelText("Ask AI Buddy")).toHaveFocus());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(document.documentElement).not.toHaveAttribute("data-ai-buddy"));
   });

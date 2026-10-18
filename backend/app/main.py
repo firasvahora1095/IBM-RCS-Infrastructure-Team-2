@@ -501,10 +501,10 @@ async def create_report(
             decision = await orchestrator.assign_case(case_id)
         except NoEligibleAuditorError:
             # No standard Auditor can take it right now. The report is kept, not
-            # rejected: it waits, unowned, in the Super Admin's fallback queue.
+            # rejected: it waits, unowned, in the Super Auditor's fallback queue.
             decision = None
         if decision is None:
-            logger.info("case %s has no eligible Auditor; queued for the Super Admin", case_id)
+            logger.info("case %s has no eligible Auditor; queued for the Super Auditor", case_id)
             mark_fallback(db, case)
             db.commit()
         else:

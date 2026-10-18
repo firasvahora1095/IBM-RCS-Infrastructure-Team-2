@@ -115,7 +115,7 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
 
     auditors = db.scalars(
         select(Auditor)
-        # The Super Admin is the fallback reviewer, not part of the weighted pool.
+        # The Super Auditor is the fallback reviewer, not part of the weighted pool.
         .where(Auditor.role == "auditor", Auditor.is_super_admin.is_(False))
         .order_by(Auditor.auditor_id)
     ).all()

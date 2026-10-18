@@ -39,7 +39,7 @@ function renderFallback(props: Partial<React.ComponentProps<typeof FallbackQueue
   return { ...view, onChanged };
 }
 
-describe("FallbackQueueSection (Super Admin)", () => {
+describe("FallbackQueueSection (Super Auditor)", () => {
   beforeEach(() => {
     vi.spyOn(services, "getAllOpenCases").mockResolvedValue(rows);
   });
@@ -61,7 +61,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
     await user.click(await screen.findByRole("tab", { name: /All open cases/ }));
     expect(screen.getAllByText("No one yet")).toHaveLength(2);
     expect(screen.getByText("auditor-1")).toBeInTheDocument();
-    expect(screen.getByText("Super Admin only")).toBeInTheDocument();
+    expect(screen.getByText("Super Auditor only")).toBeInTheDocument();
     expect(screen.getByText("Available to Auditors")).toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
     expect(within(row).queryByRole("button", { name: /Take case/ })).not.toBeInTheDocument();
   });
 
-  it("tells the Super Admin the system will place a parked case itself, so there is nothing to do", async () => {
+  it("tells the Super Auditor the system will place a parked case itself, so there is nothing to do", async () => {
     renderFallback();
     expect(await screen.findByText(/placed automatically the moment one is/)).toBeInTheDocument();
     expect(await screen.findByText(/Placed automatically from/)).toBeInTheDocument();
@@ -174,6 +174,18 @@ describe("AvailableCasesSection (standard Auditor)", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument(); // claiming never opens the case
   });
 
+  it("lets an Auditor decline a case they could claim, removing it from their list only", async () => {
+    sessionStorage.removeItem("rcs_declined_available_cases");
+    vi.spyOn(services, "getAvailableCases").mockResolvedValue(available);
+    const claim = vi.spyOn(services, "claimCase");
+    renderAvailable();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Decline case FREE-0002" }));
+    expect(screen.queryByText("FREE-0002")).not.toBeInTheDocument();
+    expect(claim).not.toHaveBeenCalled(); // nothing changes for anyone else
+    sessionStorage.removeItem("rcs_declined_available_cases");
+  });
+
   it("disables Claim during a block and shows the reason", async () => {
     vi.spyOn(services, "getAvailableCases").mockResolvedValue({ ...available, can_claim: false, reason: "You have reached your daily exposure limit." });
     renderAvailable();
@@ -221,7 +233,7 @@ describe("Auditor dashboard and the fallback sections", () => {
     expect(services.getAllOpenCases).not.toHaveBeenCalled();
   });
 
-  it("shows the Super Admin their own cases first, then the fallback queue, and no claim list", async () => {
+  it("shows the Super Auditor their own cases first, then the fallback queue, and no claim list", async () => {
     sessionStorage.setItem("rcs_staff_super_admin", "1");
     renderDashboard();
     const fallback = await screen.findByRole("heading", { name: "Fallback queue" });
@@ -231,7 +243,7 @@ describe("Auditor dashboard and the fallback sections", () => {
     expect(services.getAvailableCases).not.toHaveBeenCalled();
   });
 
-  it("ignores the super admin flag for a Manager session", async () => {
+  it("ignores the super auditor flag for a Manager session", async () => {
     sessionStorage.setItem("rcs_staff_role", "manager");
     sessionStorage.setItem("rcs_staff_super_admin", "1");
     const { readStaffSession } = await import("../../hooks/useAuth");

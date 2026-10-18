@@ -776,7 +776,7 @@ export async function getGovernanceCase(caseId: string, token: string): Promise<
   return parseJsonOrThrow<GovernanceCase>(r);
 }
 
-// ---- Fallback queue (Super Admin, extra-features 1.6) ----
+// ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
 export async function getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/auditor/all-cases`, { headers: bearer(token), cache: "no-store" });

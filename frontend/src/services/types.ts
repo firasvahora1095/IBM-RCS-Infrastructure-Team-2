@@ -82,7 +82,7 @@ export interface StaffLoginResponse {
 /** Who may see a case in a queue, kept apart from who owns it. */
 export type CaseVisibility = "ASSIGNED_ONLY" | "SUPER_ADMIN_ONLY" | "AVAILABLE_TO_AUDITORS";
 
-/** One open case in the Super Admin's fallback queue: queue metadata only. */
+/** One open case in the Super Auditor's fallback queue: queue metadata only. */
 export interface FallbackCaseRow {
   case_id: string;
   status: InternalCaseStatus;
@@ -93,7 +93,7 @@ export interface FallbackCaseRow {
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
   /** When the case arrived, so the queue can show how long it has waited. */
   created_at?: string | null;
-  /** When the system will place this case by itself, so the Super Admin need not act. Null if it never will. */
+  /** When the system will place this case by itself, so the Super Auditor need not act. Null if it never will. */
   auto_release_at: string | null;
 }
 
@@ -393,7 +393,7 @@ export interface ReassignmentContext {
     headroom_minutes: number;
     /** Under 30 minutes of headroom. */
     limited_headroom: boolean;
-    /** The Super Admin Auditor: picked only when no one else can take the case. */
+    /** The Super Auditor: picked only when no one else can take the case. */
     fallback_reviewer?: boolean;
     /** False when at their limit or in a cooldown; such Auditors can't be chosen. */
     available: boolean;
@@ -934,15 +934,15 @@ export interface DataService {
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
-  /** Super Admin: every open case, queue metadata only (extra-features 1.6). */
+  /** Super Auditor: every open case, queue metadata only (extra-features 1.6). */
   getAllOpenCases(token: string): Promise<FallbackCaseRow[]>;
   /** Cases released to standard Auditors to claim, and whether the caller can claim now. */
   getAvailableCases(token: string): Promise<AvailableCases>;
-  /** Super Admin takes a case no one owns. A wellbeing block applies to them too. */
+  /** Super Auditor takes a case no one owns. A wellbeing block applies to them too. */
   takeCase(caseId: string, token: string): Promise<{ taken: true }>;
   /** A standard Auditor claims a released case, if eligible right now. */
   claimCase(caseId: string, token: string): Promise<{ claimed: true }>;
-  /** Super Admin or Manager releases an unowned case to eligible Auditors. */
+  /** Super Auditor or Manager releases an unowned case to eligible Auditors. */
   makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }>;
   /** Read-only guidance for staff. Never changes anything. */
   aiChat(message: string, token: string, history?: BuddyTurn[]): Promise<BuddyReply>;

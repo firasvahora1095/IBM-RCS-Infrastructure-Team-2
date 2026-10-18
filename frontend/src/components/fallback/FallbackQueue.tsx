@@ -24,11 +24,21 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 
+const DECLINED_KEY = "rcs_declined_available_cases";
+
+function readDeclined(): Set<string> {
+  try {
+    return new Set(JSON.parse(sessionStorage.getItem(DECLINED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
 const MONO = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 } as const;
 
 const VISIBILITY_LABEL: Record<CaseVisibility, string> = {
   ASSIGNED_ONLY: "Assigned",
-  SUPER_ADMIN_ONLY: "Super Admin only",
+  SUPER_ADMIN_ONLY: "Super Auditor only",
   AVAILABLE_TO_AUDITORS: "Available to Auditors",
 };
 
@@ -109,12 +119,12 @@ interface SectionProps {
 }
 
 /**
- * The Super Admin's fallback queue (extra-features 1.6): every open case with its
+ * The Super Auditor's fallback queue (extra-features 1.6): every open case with its
  * owner and who may see it. Queue metadata only. A case opens in full only for the
  * Auditor who owns it, so seeing a case here never exposes its footage.
  *
  * A case only lands here when no standard Auditor was eligible, and the system places
- * it by itself as soon as one is. The one thing the Super Admin can do is take a case
+ * it by itself as soon as one is. The one thing the Super Auditor can do is take a case
  * nobody owns, for when it can't wait. The wellbeing blocks that apply to every Auditor
  * apply here too, and say why in plain words. ("Make available" is gone from this screen:
  * it only did what automatic placement already does.)
@@ -264,7 +274,7 @@ export function FallbackQueueSection({
 
       {rows && shown.length > 0 && (
         <Layer>
-          <Table aria-label="Fallback queue">
+          <Table aria-label="Fallback queue" className="rcs-actions-end">
             <TableHead>
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
@@ -274,7 +284,7 @@ export function FallbackQueueSection({
                 <TableHeader>Reason</TableHeader>
                 <TableHeader>Owner</TableHeader>
                 <TableHeader>Visible to</TableHeader>
-                <TableHeader>Action</TableHeader>
+                <TableHeader>Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -357,7 +367,7 @@ export function FallbackQueueSection({
 }
 
 /**
- * Cases a Manager or the Super Admin released to Auditors. Shown only when there is
+ * Cases a Manager or the Super Auditor released to Auditors. Shown only when there is
  * one. Queue metadata only; claiming adds the case to the Auditor's queue and doesn't
  * open it. Claiming follows the same wellbeing blocks as assignment.
  */
@@ -366,6 +376,18 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Cases this Auditor passed on. Only their own list changes: the case stays available to everyone else.
+  const [declined, setDeclined] = useState<Set<string>>(() => readDeclined());
+
+  function decline(caseId: string) {
+    const next = new Set(declined).add(caseId);
+    setDeclined(next);
+    try {
+      sessionStorage.setItem(DECLINED_KEY, JSON.stringify([...next]));
+    } catch {
+      // The list still updates for this visit.
+    }
+  }
 
   const load = useCallback(() => {
     getAvailableCases(token)
@@ -397,7 +419,8 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
     }
   }
 
-  if (!data || (data.cases.length === 0 && !notice && !error)) return null;
+  const cases = data?.cases.filter((c) => !declined.has(c.case_id)) ?? [];
+  if (!data || (cases.length === 0 && !notice && !error)) return null;
 
   return (
     <section aria-labelledby="available-title" className="flex flex-col gap-3">
@@ -407,7 +430,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
           These cases were released because no one could take them. Claiming adds one to your queue; it doesn&apos;t open
-          it.
+          it. Declining only removes it from your list: other Auditors can still claim it.
         </p>
       </div>
 
@@ -436,7 +459,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
         />
       )}
 
-      {data.cases.length > 0 && (
+      {cases.length > 0 && (
         <Layer>
           <Table aria-label="Available to claim">
             <TableHead>
@@ -450,7 +473,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.cases.map((c) => (
+              {cases.map((c) => (
                 <TableRow key={c.case_id}>
                   <TableCell style={MONO}>{c.case_id}</TableCell>
                   <TableCell>
@@ -470,6 +493,15 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
                       onClick={() => claim(c.case_id)}
                     >
                       Claim case
+                    </Button>
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      disabled={busy !== null}
+                      aria-label={`Decline case ${c.case_id}`}
+                      onClick={() => decline(c.case_id)}
+                    >
+                      Decline
                     </Button>
                   </TableCell>
                 </TableRow>

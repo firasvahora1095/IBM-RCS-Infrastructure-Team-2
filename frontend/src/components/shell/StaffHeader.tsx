@@ -33,8 +33,8 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
   const { staffId, displayName, isSuperAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const label = ROLE_LABEL[role];
-  // A Super Admin is an Auditor with extra duties; the header says so, with a name rather than a login ID.
-  const whoLabel = role === "auditor" && isSuperAdmin ? "Super Admin" : label;
+  // A Super Auditor is an Auditor with extra duties; the header says so, with a name rather than a login ID.
+  const whoLabel = role === "auditor" && isSuperAdmin ? "Super Auditor" : label;
   const { wellbeing } = useMyWellbeing();
 
   function handleSignOut() {

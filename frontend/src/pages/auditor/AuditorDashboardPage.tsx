@@ -251,7 +251,7 @@ export function AuditorDashboardPage() {
               // In a cooldown the only thing to do is the cooldown: the support options, the timer and the puzzle.
               <Button onClick={() => navigate("/auditor/cooldown")}>View cooldown</Button>
             ) : isSuperAdmin ? (
-              // A Super Admin manages the flow rather than working every case: the one primary action is the queue.
+              // A Super Auditor manages the flow rather than working every case: the one primary action is the queue.
               <Button href="#fallback-queue">Manage queue</Button>
             ) : (
               nextCase && (
@@ -416,14 +416,14 @@ export function AuditorDashboardPage() {
                 // Layer raises the table one Carbon layer, so rows render white
                 // (as in Figma) instead of the default Gray 10 row fill.
                 <Layer>
-                  <Table aria-label="My cases">
+                  <Table aria-label="My cases" className="rcs-actions-end">
                     <TableHead>
                       <TableRow>
                         <TableHeader>Case ID</TableHeader>
                         <TableHeader>Severity</TableHeader>
                         <TableHeader>Status</TableHeader>
                         {showAssignedColumn && <TableHeader>Assigned</TableHeader>}
-                        <TableHeader>Action</TableHeader>
+                        <TableHeader>Actions</TableHeader>
                       </TableRow>
                     </TableHead>
                     <TableBody>{openCases.map(renderRow)}</TableBody>

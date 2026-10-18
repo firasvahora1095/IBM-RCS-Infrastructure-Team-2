@@ -43,7 +43,7 @@ function attentionOf(row: ManagerCaseRow): Attention {
   if (row.manager_flag === "SOS") return { kind: "blocked", label: "Blocked", action: "Review alert" };
   if (row.manager_flag) return { kind: "reassign", label: "Needs reassignment", action: "Review" };
   // A case with no Auditor yet is never the Manager's to push along: it is released to Auditors automatically
-  // (the Super Admin Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
+  // (the Super Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
   return null;
 }
 const ATTENTION_RANK = { blocked: 0, reassign: 1 } as const;

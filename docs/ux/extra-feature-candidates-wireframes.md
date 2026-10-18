@@ -12,7 +12,7 @@ Seven candidates were shortlisted. Each has one low-fidelity wireframe below, th
 | **C1 AI Buddy** | **Chosen as the HD feature** | Client feedback on 8 Oct: the dashboards are what was expected, so the extra for HD is a generic AI chatbot, framed as preliminary. |
 | C2 Manager Insights Dashboard | Core (built) | "The current dashboard is what was expected of us." |
 | C3 Auditor My Work & Protection | Core (built) | Same. |
-| **C4 Super Admin Auditor + case visibility** | **Required, not built** | Client asked for a fallback that always receives all cases, plus a way to make cases visible to lower-level Auditors. |
+| **C4 Super Auditor + case visibility** | **Required, not built** | Client asked for a fallback that always receives all cases, plus a way to make cases visible to lower-level Auditors. |
 | C5 Cooldown block puzzle | Kept (built) | Small and research-informed; low risk. |
 | C6 CommunityHub handoff + Admin "Remove post" | Core (built; labelled as a simulation) | Closes the loop with the Client. |
 | C7 Client Service Report + portal | Core (built) | Same. |
@@ -124,14 +124,14 @@ No quotas, targets, rankings or speed pressure anywhere on this screen.
 
 ---
 
-## C4. Super Admin Auditor and case visibility (to build)
+## C4. Super Auditor and case visibility (to build)
 
 **Answers:** If no normal Auditor can take a case safely, where does it go, and how do I release it to the others?
 
 ```text
 SUPER ADMIN AUDITOR: Case queue                       (sees every case)
 Case ID   Severity  Status          Visibility               Assigned to   Action
-RCS-184   (S3)      Ready for Review (Super Admin only)       —            [Take case]
+RCS-184   (S3)      Ready for Review (Super Auditor only)       —            [Take case]
                                                                            [Make Available to Auditors]
 RCS-191   (S2)      Ready for Review (Available to Auditors)  Auditor B    —
 RCS-177   (S4)      In Review        (Assigned only)          Auditor A    —
@@ -153,7 +153,7 @@ Auditor it is assigned to can open the full review.
 |---|---|
 | State | **Not built.** Specified in extras §1.6 |
 | Rules from the BA | Normal weighted assignment stays the default. Visibility is separate from the primary assigned Auditor, so a case never has two owners. Never silently assign to someone in cooldown or at the cap |
-| Needs | A visibility field on cases (`SUPER_ADMIN_ONLY` / `AVAILABLE_TO_AUDITORS` / `ASSIGNED_ONLY`), a Super Admin role, one Manager/Super Admin action, an Auditor queue change, tests |
+| Needs | A visibility field on cases (`SUPER_ADMIN_ONLY` / `AVAILABLE_TO_AUDITORS` / `ASSIGNED_ONLY`), a Super Auditor role, one Manager/Super Auditor action, an Auditor queue change, tests |
 | Risk | Medium: touches assignment and role access. The privacy rule (metadata only) must be tested |
 
 ---
@@ -230,7 +230,7 @@ CLIENT: Service reports → September 2026 → view / [Download PDF]
 
 Effort is for what **remains**, not what has been built. "Demo impact" is the BA's reading of the client feedback.
 
-| | C1 AI Buddy | C2 Manager dashboard | C3 Auditor dashboard | C4 Super Admin | C5 Puzzle | C6 Handoff + Admin | C7 Report + portal |
+| | C1 AI Buddy | C2 Manager dashboard | C3 Auditor dashboard | C4 Super Auditor | C5 Puzzle | C6 Handoff + Admin | C7 Report + portal |
 |---|---|---|---|---|---|---|---|
 | Answers the client's feedback | **Yes (HD)** | Expected | Expected | **Yes (fallback)** | n/a | Yes (framing) | Expected |
 | State | On `test`, not `main` | Live | Live | Not built | Live | Live | Live |
@@ -242,7 +242,7 @@ Effort is for what **remains**, not what has been built. "Demo impact" is the BA
 ## Recommended order
 
 1. **C1 AI Buddy:** merge `feature/ai-chatbot` to `main`, add the BA's "must not" rules and fallback wording, add a keyboard-and-screen-reader pass, replace hard-coded styling with Carbon. It is the HD feature, so it is the one that must be solid.
-2. **C4 Super Admin Auditor:** the client's explicit fallback requirement and the only feature not yet built.
+2. **C4 Super Auditor:** the client's explicit fallback requirement and the only feature not yet built.
 3. **C6 wording:** the "simulated Client platform" statement, a small change with high effect on how the demo is read.
 4. Apply the BA's tag standard across C2, C3, C6 and C7 (separate task).
 
@@ -250,7 +250,7 @@ Effort is for what **remains**, not what has been built. "Demo impact" is the BA
 
 1. Is the AI Buddy a floating window (built) or a side panel (BA wording)? A side panel keeps it clear of the page's own actions.
 2. Should the Manager dashboard show routine "talk" requests (product owner) or leave them in Auditor View Details (BA standard)?
-3. Does the Super Admin Auditor take cases by default, or only when no Auditor is eligible?
+3. Does the Super Auditor take cases by default, or only when no Auditor is eligible?
 
 ## Not shortlisted
 

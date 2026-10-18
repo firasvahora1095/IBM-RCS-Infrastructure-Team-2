@@ -175,9 +175,9 @@ function selectAuditor(db: MockDb): string | null {
 }
 
 /**
- * How long a parked case waits for the Super Admin before the system places it. The team decided on
+ * How long a parked case waits for the Super Auditor before the system places it. The team decided on
  * none, as in the backend (FALLBACK_HOLD_MINUTES defaults to 0): a case is placed as soon as a
- * standard Auditor is eligible, unless the Super Admin has already taken it.
+ * standard Auditor is eligible, unless the Super Auditor has already taken it.
  */
 export const FALLBACK_HOLD_MS = 0;
 
@@ -222,7 +222,7 @@ function requireSession(db: MockDb, token: string, role: "auditor" | "manager") 
   return session;
 }
 
-/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Admin too. */
+/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Auditor too. */
 function unavailableReason(db: MockDb, member: MockStaff): string | null {
   if (exposureMinutes(member) >= member.exposure_limit_minutes) return "You have reached your daily exposure limit.";
   if (inCooldown(member)) return "You are in a mandatory cooldown.";
@@ -235,7 +235,7 @@ function unavailableReason(db: MockDb, member: MockStaff): string | null {
 function requireSuperAdmin(db: MockDb, token: string): MockStaff {
   const session = requireSession(db, token, "auditor");
   const member = staffById(db, session.staffId);
-  if (!member.is_super_admin) throw new ApiError("Super Admin access required", 403);
+  if (!member.is_super_admin) throw new ApiError("Super Auditor access required", 403);
   return member;
 }
 
@@ -767,7 +767,7 @@ export const mockDataService: DataService = {
     });
   },
 
-  // ---- Fallback queue (Super Admin, extra-features 1.6) ----
+  // ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
   async getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
     await delay();
@@ -833,7 +833,7 @@ export const mockDataService: DataService = {
       if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
       const reason = unavailableReason(db, admin);
       if (reason) throw new ApiError(reason, 409);
-      assignUnownedCase(db, c, admin, "taken by the Super Admin");
+      assignUnownedCase(db, c, admin, "taken by the Super Auditor");
       return { taken: true };
     });
   },
