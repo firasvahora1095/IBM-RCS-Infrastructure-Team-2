@@ -96,6 +96,7 @@ export const apiDataService: DataService = {
   getClientMessage: http.getClientMessage,
   replyClientMessage: http.replyClientMessage,
   clientListCaseResults: http.clientListCaseResults,
+  clientCaseResultsSummary: http.clientCaseResultsSummary,
   clientRecordPlatformAction: http.clientRecordPlatformAction,
   listClientAccounts: http.listClientAccounts,
   listClients: http.listClients,

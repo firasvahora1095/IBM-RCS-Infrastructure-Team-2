@@ -24,7 +24,7 @@ The same meaning showed up in different colours on different screens, and differ
 | Yellow | Caution: a limit is near or something needs a look | Yellow 20, Gray 100 | Warning | Near limit, Needs Reassignment, Awaiting release, AI Override |
 | Blue | In progress: someone or something is already on it | Blue 20, Blue 80 | In progress | Pending, Retrying, In Review, In progress (SOS), Cooldown, Seen |
 | Green, solid | Done and good | Green 60, white | Check | Delivered, Released, Approved, Followed up, Connected, Answered, Available |
-| Teal | A request that is waiting for a person | Teal 10, Teal 80 | none | Support requests, a new Client message |
+| Magenta | A request that is waiting for a person | Magenta 20, Magenta 70 | none | Support requests, a new Client message |
 | Gray | Routine, final or informational | Gray 20, Gray 100 | none | Draft, Complete, Within limit, Unavailable, Declined, Limit reached (queue), Pattern flagged, AI Match |
 
 ## Severity palette (separate scale)
@@ -44,7 +44,7 @@ Chart bars use the same ramp (`--rcs-sev-*-bar`). The "Demo data" badge in the h
 |---|---|---|
 | Within limit / Near limit / Limit reached | Gray / Yellow / Red | Auditors table (Daily limit), Auditor record |
 | Available / Cooldown / Unavailable (limit) / Unavailable (SOS) | Plain text / Blue / Gray / Gray | Auditors table |
-| N support requests waiting | Teal | Auditor record header |
+| N support requests waiting | Magenta | Auditor record header |
 | Pattern flagged | Gray | Auditor record header |
 | Break approved / Followed up | Green | Support request, once resolved (an open request has no tag: the button beside it is the signal) |
 | Unacknowledged / In progress / Resolved | Red / Blue / Green | SOS alert, SOS history |
@@ -53,7 +53,7 @@ Chart bars use the same ramp (`--rcs-sev-*-bar`). The "Demo data" badge in the h
 | Blocked / Needs Reassignment / Awaiting release | Red / Yellow / Yellow | Cases, "Needs you" table |
 | Delivered / Pending / Retrying / Failed | Green / Blue / Blue / Red | Deliveries |
 | Draft / Released | Gray / Green | Reports |
-| New / Seen / Answered | Teal / Blue / Green | Client messages |
+| New / Seen / Answered | Magenta / Blue / Green | Client messages |
 | AI Override / AI Match | Yellow / Gray | Auditor overrides |
 | Received / Failed / Legacy demo | Green / Red / Gray | AI call log |
 | Connected / Needs attention | Green / Red | CommunityHub connection |

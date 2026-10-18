@@ -430,24 +430,39 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
   deliveries.forEach((d, i) => {
     d.source_url ??= `https://communityhub.example/post/${3100 + i}`;
   });
-  // CommunityHub's moderators have dealt with everything except the newest few results.
-  const delivered = deliveries
-    .filter((d) => d.delivery_status === "SUCCESS")
-    .sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at));
-  delivered.slice(0, -4).forEach((d, i) => {
-    d.platform_action = {
-      action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
-      note: i % 9 === 0 && d.outcome === "POLICY_VIOLATION_FOUND" ? "Mock: removed and the account warned." : null,
-      at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
-      by: "ch-mod-04",
-    };
-  });
-
   const others = otherClients(now, demoPassword, liveCases);
   // Live completed cases tagged to another client deliver to that client.
   for (const d of deliveries) {
     const owner = liveCases.find((c) => c.case_id === d.case_id)?.organisation_id;
     if (owner) d.organisation_id = owner;
+  }
+  // Each client's moderators have dealt with everything except its newest few results, and the newest of each outcome,
+  // so Needs action shows a violation, a clear post and one RCS did not review.
+  const byClient = new Map<string, typeof deliveries>();
+  for (const d of deliveries.filter((x) => x.delivery_status === "SUCCESS")) {
+    byClient.set(d.organisation_id, [...(byClient.get(d.organisation_id) ?? []), d]);
+  }
+  for (const delivered of byClient.values()) {
+    delivered.sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at));
+    const waiting = new Set(delivered.slice(-2));
+    for (const outcome of ["POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT"] as const) {
+      // Three of each, so the list has several of every kind to look at.
+      [...delivered]
+        .reverse()
+        .filter((d) => d.outcome === outcome)
+        .slice(0, 3)
+        .forEach((d) => waiting.add(d));
+    }
+    delivered
+      .filter((d) => !waiting.has(d))
+      .forEach((d, n) => {
+        d.platform_action = {
+          action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
+          note: n % 9 === 0 && d.outcome === "POLICY_VIOLATION_FOUND" ? "Mock: removed and the account warned." : null,
+          at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
+          by: "ch-mod-04",
+        };
+      });
   }
   const metricsSource = {
     history: caseHistory,

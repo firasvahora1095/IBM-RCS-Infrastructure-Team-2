@@ -22,7 +22,18 @@ export const MANAGER_MESSAGE_STATUS_LABEL: Record<ClientMessageStatus, string> =
   ANSWERED: "Answered",
 };
 
+/** The Manager's colours: a new message is magenta because it is waiting for them. */
 export const MESSAGE_TONE: Record<ClientMessageStatus, StatusTone> = CLIENT_MESSAGE_TONE;
+
+/**
+ * The client's colours for their own messages. Magenta is for something waiting on the person looking at the screen, and
+ * a sent message is waiting on RCS, not on them, so Sent is neutral. Seen by RCS is in progress; Answered is done.
+ */
+export const CLIENT_VIEW_MESSAGE_TONE: Record<ClientMessageStatus, StatusTone> = {
+  SENT: "neutral",
+  SEEN: "info",
+  ANSWERED: "success",
+};
 
 /** Said wherever a client contacts RCS, so they know what to expect. */
 export const MESSAGE_RESPONSE_PROMISE = "RCS replies within one working day. Urgent safety concerns should still go through your platform's own processes.";

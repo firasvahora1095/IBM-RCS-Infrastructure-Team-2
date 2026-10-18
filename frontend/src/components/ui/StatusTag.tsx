@@ -21,6 +21,7 @@ const TONE: Record<StatusTone, CSSProperties> = {
   success: { backgroundColor: "var(--rcs-tag-success-bg)", color: "var(--rcs-tag-success-fg)" },
   request: { backgroundColor: "var(--rcs-tag-request-bg)", color: "var(--rcs-tag-request-fg)" },
   neutral: { backgroundColor: "var(--rcs-tag-neutral-bg)", color: "var(--rcs-tag-neutral-fg)" },
+  action: { backgroundColor: "var(--rcs-tag-action-bg)", color: "var(--rcs-tag-action-fg)" },
 };
 
 /** A small icon per state, so the meaning does not rest on colour (UR-NFR-01). Neutral and request have none. */
@@ -59,7 +60,13 @@ export function StatusTag(props: StatusTagProps) {
     label = MODERATION_COMPLETE_LABEL;
   }
   return (
-    <Tag type="gray" size={props.size ?? "md"} renderIcon={TONE_ICON[tone]} style={{ ...BASE, ...TONE[tone] }}>
+    <Tag
+      type="gray"
+      size={props.size ?? "md"}
+      className="rcs-status-tag"
+      renderIcon={TONE_ICON[tone]}
+      style={{ ...BASE, ...TONE[tone] }}
+    >
       {label}
     </Tag>
   );

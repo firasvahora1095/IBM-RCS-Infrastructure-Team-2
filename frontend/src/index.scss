@@ -30,7 +30,7 @@
 
   // The RCS tag palette (docs/ux/tag-colour-system.md). Every pair is a Carbon palette value and passes WCAG AA for
   // tag text (checked in design-tokens/tagPalette.test.ts). Status uses six families, each one meaning:
-  // red = critical, yellow = caution, blue = in progress, green = done, teal = a request for you, gray = routine.
+  // red = critical, yellow = caution, blue = in progress, green = done, magenta = a request waiting for you, gray = routine.
   --rcs-tag-error-bg: #{colors.$red-60};
   --rcs-tag-error-fg: #{colors.$white};
   --rcs-tag-warning-bg: #{colors.$yellow-20};
@@ -39,8 +39,11 @@
   --rcs-tag-info-fg: #{colors.$blue-80};
   --rcs-tag-success-bg: #{colors.$green-60};
   --rcs-tag-success-fg: #{colors.$white};
-  --rcs-tag-request-bg: #{colors.$teal-10};
-  --rcs-tag-request-fg: #{colors.$teal-80};
+  --rcs-tag-request-bg: #{colors.$magenta-20};
+  --rcs-tag-request-fg: #{colors.$magenta-70};
+  // Waiting on the person looking at the screen: Carbon's interactive blue, solid, the same blue as the primary button.
+  --rcs-tag-action-bg: #{colors.$blue-60};
+  --rcs-tag-action-fg: #{colors.$white};
   --rcs-tag-neutral-bg: #{colors.$gray-20};
   --rcs-tag-neutral-fg: #{colors.$gray-100};
   // Severity is an ordered scale, so it is one hue (purple) that darkens as it gets worse. No status uses purple,
@@ -562,4 +565,24 @@ body {
 .rcs-tab-panel-flush {
   padding: 0;
   background: transparent;
+}
+
+// The small icon in a status tag sits centred in its own square, the same size for every icon, with an even gap to
+// the text. Carbon's default leaves a filled triangle looking pushed to one side of the pill.
+.rcs-status-tag {
+  .cds--tag__custom-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline: 0 0.25rem;
+    svg {
+      inline-size: 0.875rem;
+      block-size: 0.875rem;
+      // A triangle's weight is at its base, so lift it a hair to look centred beside the text.
+      transform: translateY(-0.5px);
+    }
+  }
 }

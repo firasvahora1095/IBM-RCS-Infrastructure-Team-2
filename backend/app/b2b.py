@@ -1574,6 +1574,55 @@ class PlatformActionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=300)
 
 
+def case_results_summary(rows: list[Delivery]) -> dict:
+    """What a client wants at a glance, worked out once on the server so every screen shows the same numbers.
+
+    Only results that have reached the client count: how RCS delivers is not their concern, and a result still on
+    its way cannot be acted on. `decided` leaves out results RCS did not review. Rates are None when there is
+    nothing to divide by, never a made-up 0%.
+    """
+    delivered = [d for d in rows if d.delivery_status == "SUCCESS"]
+    waiting = [d for d in delivered if not d.platform_action]
+    violations = [d for d in delivered if d.outcome == "POLICY_VIOLATION_FOUND"]
+    not_reviewed = [d for d in delivered if d.outcome == "CLOSED_NO_REASSIGNMENT"]
+    removed = [d for d in delivered if d.platform_action == "REMOVED"]
+    kept = [d for d in delivered if d.platform_action == "KEPT"]
+    decided = len(delivered) - len(not_reviewed)
+
+    def rate(part: int, whole: int) -> float | None:
+        return round(part / whole, 4) if whole else None
+
+    return {
+        "delivered": len(delivered),
+        "needs_action": len(waiting),
+        "needs_action_by_outcome": {
+            outcome: sum(1 for d in waiting if d.outcome == outcome)
+            for outcome in ("POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT")
+        },
+        "violations": len(violations),
+        "decided": decided,
+        "not_reviewed": len(not_reviewed),
+        "actioned": len(removed) + len(kept),
+        "removed": len(removed),
+        "kept": len(kept),
+        "violation_rate": rate(len(violations), decided),
+        "removal_rate": rate(len(removed), len(violations)),
+        "actioned_rate": rate(len(removed) + len(kept), len(delivered)),
+    }
+
+
+@router.get("/api/client/case-results/summary")
+async def client_case_results_summary(
+    user: ClientUser = Depends(require_client),
+    db: Session = Depends(get_db),
+):
+    _require_role(user, CASE_ROLES)
+    advance_deliveries(db, datetime.now(timezone.utc))
+    db.commit()
+    rows = db.scalars(select(Delivery).where(Delivery.organisation_id == user.organisation_id)).all()
+    return case_results_summary(list(rows))
+
+
 @router.get("/api/client/case-results")
 async def client_list_case_results(
     user: ClientUser = Depends(require_client),

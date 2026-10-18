@@ -106,7 +106,7 @@ def _attempt(n: int, at: datetime, ok: bool, reason: str | None = None) -> dict:
 
 
 def _delivered(
-    case_id: str, outcome: str, tier: str, completed: datetime, retried: bool, organisation_id: str = COMMUNITYHUB_ID
+    case_id: str, outcome: str, tier: str | None, completed: datetime, retried: bool, organisation_id: str = COMMUNITYHUB_ID
 ) -> Delivery:
     """A delivery that reached CommunityHub, sometimes after one automatic retry."""
     attempts = (
@@ -332,17 +332,32 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             case.case_id, case.final_outcome, final_tier_of(case) or "S1", case.completed_at, False,
             case.organisation_id or COMMUNITYHUB_ID,
         ))
+    # One result RCS could not review (a Manager closed the case without a decision), so the demo shows all three
+    # outcomes a client can be asked to act on.
+    if not any(d.outcome == "CLOSED_NO_REASSIGNMENT" for d in deliveries):
+        deliveries.append(_delivered("RCS-C10S-ED01", "CLOSED_NO_REASSIGNMENT", None, now - timedelta(hours=3), False))
     # Reports came from CommunityHub posts, so each result carries its post link.
     for i, d in enumerate(deliveries):
         d.source_url = d.source_url or f"https://communityhub.example/post/{3100 + i}"
-    # CommunityHub's moderators have dealt with everything except the newest few results.
-    delivered = sorted((d for d in deliveries if d.delivery_status == "SUCCESS"), key=lambda d: d.completed_at)
-    for i, d in enumerate(delivered[:-4]):
-        violation = d.outcome == "POLICY_VIOLATION_FOUND"
-        d.platform_action = "REMOVED" if violation else "KEPT"
-        d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
-        d.platform_action_at = d.completed_at + timedelta(minutes=25)
-        d.platform_action_by = "ch-mod-04"
+    # Each client's moderators have dealt with everything except its newest few results, and the newest of each
+    # outcome, so Needs action shows a violation, a clear post and one that was not reviewed.
+    by_client: dict[str, list[Delivery]] = {}
+    for d in deliveries:
+        if d.delivery_status == "SUCCESS":
+            by_client.setdefault(d.organisation_id, []).append(d)
+    for delivered in by_client.values():
+        delivered.sort(key=lambda d: d.completed_at)
+        waiting = {id(d) for d in delivered[-2:]}
+        for outcome in ("POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT"):
+            # Three of each, so the list has several of every kind to look at.
+            for d in [x for x in reversed(delivered) if x.outcome == outcome][:3]:
+                waiting.add(id(d))
+        for i, d in enumerate(d for d in delivered if id(d) not in waiting):
+            violation = d.outcome == "POLICY_VIOLATION_FOUND"
+            d.platform_action = "REMOVED" if violation else "KEPT"
+            d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
+            d.platform_action_at = d.completed_at + timedelta(minutes=25)
+            d.platform_action_by = "ch-mod-04"
     db.add_all(deliveries)
     db.flush()
 

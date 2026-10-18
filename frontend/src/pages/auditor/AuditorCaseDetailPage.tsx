@@ -569,11 +569,6 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 className="cds--visually-hidden">Review Workspace</h1>
-          <div>
-            <Button kind="ghost" size="sm" onClick={() => navigate("/auditor")}>
-              ← Back to dashboard
-            </Button>
-          </div>
           <ReviewWorkspace
             caseDetail={caseDetail}
             settings={viewer}

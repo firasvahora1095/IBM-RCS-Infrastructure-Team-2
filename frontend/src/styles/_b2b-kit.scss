@@ -504,6 +504,16 @@ a.rcs-stat-tile .rcs-stat-helper {
     border: none;
     padding: 0;
   }
+  // The charts are drawn with background fills, which a browser leaves out of a printed page or a saved PDF unless
+  // told otherwise (the "Background graphics" option). Without this the bars and segments come out empty.
+  .rcs-sheet,
+  .rcs-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .rcs-sheet {
+    break-inside: auto;
+  }
 }
 
 // Optional cooldown block puzzle (components/wellbeing/BlockPuzzle.tsx):

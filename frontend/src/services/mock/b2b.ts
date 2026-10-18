@@ -1,6 +1,8 @@
 import { ApiError } from "../types";
 import type {
   CaseResult,
+  CaseResultsSummary,
+  DeliveredOutcome,
   ComparisonRow,
   ClientAccount,
   ClientOrganisation,
@@ -184,6 +186,37 @@ function toDelivery(db: MockDb, d: MockDelivery): Delivery {
 }
 
 /** The client-safe view of a delivery: agreed facts only, never delivery errors. */
+/** Mirrors backend/app/b2b.py case_results_summary, so both data sources give the same numbers. */
+export function summariseCaseResults(rows: MockDelivery[]): CaseResultsSummary {
+  const delivered = rows.filter((d) => d.delivery_status === "SUCCESS");
+  const waiting = delivered.filter((d) => !d.platform_action);
+  const violations = delivered.filter((d) => d.outcome === "POLICY_VIOLATION_FOUND");
+  const notReviewed = delivered.filter((d) => d.outcome === "CLOSED_NO_REASSIGNMENT");
+  const removed = delivered.filter((d) => d.platform_action?.action === "REMOVED");
+  const kept = delivered.filter((d) => d.platform_action?.action === "KEPT");
+  const decided = delivered.length - notReviewed.length;
+  const rate = (part: number, whole: number) => (whole ? Math.round((part / whole) * 10000) / 10000 : null);
+  const waitingOf = (outcome: DeliveredOutcome) => waiting.filter((d) => d.outcome === outcome).length;
+  return {
+    delivered: delivered.length,
+    needs_action: waiting.length,
+    needs_action_by_outcome: {
+      POLICY_VIOLATION_FOUND: waitingOf("POLICY_VIOLATION_FOUND"),
+      NO_VIOLATION_FOUND: waitingOf("NO_VIOLATION_FOUND"),
+      CLOSED_NO_REASSIGNMENT: waitingOf("CLOSED_NO_REASSIGNMENT"),
+    },
+    violations: violations.length,
+    decided,
+    not_reviewed: notReviewed.length,
+    actioned: removed.length + kept.length,
+    removed: removed.length,
+    kept: kept.length,
+    violation_rate: rate(violations.length, decided),
+    removal_rate: rate(removed.length, violations.length),
+    actioned_rate: rate(removed.length + kept.length, delivered.length),
+  };
+}
+
 function toCaseResult(d: MockDelivery): CaseResult {
   const delivered = d.attempts.find((a) => a.result === "SUCCESS");
   return {
@@ -421,6 +454,7 @@ export const b2bMockOps: Pick<
   | "getClientMessage"
   | "replyClientMessage"
   | "clientListCaseResults"
+  | "clientCaseResultsSummary"
   | "clientRecordPlatformAction"
   | "listClientAccounts"
   | "listClients"
@@ -889,6 +923,15 @@ export const b2bMockOps: Pick<
         .filter((d) => d.organisation_id === session.organisationId)
         .sort((a, b) => Date.parse(b.completed_at) - Date.parse(a.completed_at))
         .map(toCaseResult);
+    });
+  },
+
+  async clientCaseResultsSummary(token: string): Promise<CaseResultsSummary> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireClient(db, token, CASE_ROLES);
+      advanceDeliveries(db);
+      return summariseCaseResults(db.deliveries.filter((d) => d.organisation_id === session.organisationId));
     });
   },
 

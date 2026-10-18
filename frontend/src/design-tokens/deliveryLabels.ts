@@ -19,7 +19,7 @@ export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
 
 /** The machine-readable outcome value as it travels in the payload, shown in plain words for staff. */
 export const PAYLOAD_OUTCOME_LABEL: Record<DeliveredOutcome, string> = {
-  CLOSED_NO_REASSIGNMENT: "Closed without a decision",
+  CLOSED_NO_REASSIGNMENT: "Not reviewed",
   POLICY_VIOLATION_FOUND: "Policy violation found",
   NO_VIOLATION_FOUND: "No violation found",
 };
