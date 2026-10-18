@@ -208,6 +208,7 @@ describe("AiBuddy", () => {
     const user = await openPanel();
     // The attribute is set and removed in effects, which React may run a moment after the click or key press.
     await waitFor(() => expect(document.documentElement).toHaveAttribute("data-ai-buddy", "open"));
+    await waitFor(() => expect(screen.getByLabelText("Ask AI Buddy")).toHaveFocus());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(document.documentElement).not.toHaveAttribute("data-ai-buddy"));
   });
