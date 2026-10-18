@@ -31,7 +31,7 @@ import { useClientQuery } from "../../hooks/useClientQuery";
 import {
   MESSAGE_RESPONSE_PROMISE,
   MESSAGE_STATUS_LABEL,
-  MESSAGE_TONE,
+  CLIENT_VIEW_MESSAGE_TONE,
   MESSAGE_TOPIC_LABEL,
 } from "../../design-tokens/messageLabels";
 import { formatShortDate } from "../../utils/formatPeriod";
@@ -153,7 +153,7 @@ export function ClientMessagesPage() {
                     <TableCell>{MESSAGE_TOPIC_LABEL[m.topic]}</TableCell>
                     <TableCell>{formatShortDate(m.created_at)}</TableCell>
                     <TableCell>
-                      <StatusTag tone={MESSAGE_TONE[m.status]}>{MESSAGE_STATUS_LABEL[m.status]}</StatusTag>
+                      <StatusTag tone={CLIENT_VIEW_MESSAGE_TONE[m.status]}>{MESSAGE_STATUS_LABEL[m.status]}</StatusTag>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -7,7 +7,7 @@ import { StatusTag } from "../../components/ui/StatusTag";
 import { MessageThread } from "../../components/messages/MessageThread";
 import { clientGetMessage } from "../../services";
 import { useClientQuery } from "../../hooks/useClientQuery";
-import { MESSAGE_STATUS_LABEL, MESSAGE_TONE } from "../../design-tokens/messageLabels";
+import { MESSAGE_STATUS_LABEL, CLIENT_VIEW_MESSAGE_TONE } from "../../design-tokens/messageLabels";
 
 /** One message to RCS, as the client sees it: where it is, and the reply when it comes. */
 export function ClientMessagePage() {
@@ -21,7 +21,7 @@ export function ClientMessagePage() {
       <PageHeader
         breadcrumb={<ManagerBreadcrumb trail={[{ label: "Messages", to: "/client/messages" }, { label: messageId }]} />}
         title="Your message"
-        meta={data && <StatusTag tone={MESSAGE_TONE[data.status]}>{MESSAGE_STATUS_LABEL[data.status]}</StatusTag>}
+        meta={data && <StatusTag tone={CLIENT_VIEW_MESSAGE_TONE[data.status]}>{MESSAGE_STATUS_LABEL[data.status]}</StatusTag>}
         actions={<Button onClick={() => navigate("/client/messages/new")}>New message</Button>}
       />
       {params.get("sent") && data && data.status === "SENT" && (
