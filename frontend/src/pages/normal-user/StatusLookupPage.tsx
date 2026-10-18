@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { TextInput, Button, InlineNotification, ProgressIndicator, ProgressStep, Tag } from "@carbon/react";
-import { CheckmarkFilled, RadioButtonChecked, RadioButton as RadioButtonIcon } from "@carbon/icons-react";
+import { CheckmarkFilled, Incomplete } from "@carbon/icons-react";
 import { PublicPage } from "../../components/layout/PublicPage";
 import { getStatus } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
@@ -233,7 +233,8 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
             }}
           >
             <div className="flex gap-4">
-              <RadioButtonChecked
+              {/* The same half-filled circle the progress steps use for the current stage. */}
+              <Incomplete
                 size={24}
                 style={{ fill: "var(--cds-icon-interactive)", flexShrink: 0, marginTop: 2 }}
                 aria-hidden="true"
@@ -247,25 +248,10 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
                 </p>
               </div>
             </div>
-            <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-00)", margin: 0 }} />
-            <p style={{ fontSize: 12, fontWeight: 500, color: "var(--cds-text-helper)" }}>Coming up</p>
-            <div className="flex gap-3">
-              <RadioButtonIcon
-                size={16}
-                style={{ fill: "var(--cds-icon-secondary)", flexShrink: 0, marginTop: 2 }}
-                aria-hidden="true"
-              />
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 500, color: "var(--cds-text-primary)" }}>Complete</p>
-                <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  You&apos;ll see the outcome here, and it&apos;ll be saved to this case.
-                </p>
-              </div>
-            </div>
           </section>
 
           <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-            Estimated review time: 3–5 business days (indicative).
+            Estimated review time: 3 to 5 business days.
           </p>
           <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
             We don&apos;t share who is reviewing your case or how it&apos;s being handled internally — only the stage
@@ -275,9 +261,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
           <div className="flex flex-col gap-2">
             {/* UR-NTH-05: add follow-up context to this case (Figma 80:31). */}
             <div>
-              <Button kind="tertiary" onClick={() => setAddInfoOpen(true)}>
-                Add more information to this case
-              </Button>
+              <Button onClick={() => setAddInfoOpen(true)}>Add more information to this case</Button>
             </div>
             <p style={{ fontSize: 11, lineHeight: "15px", color: "var(--cds-text-secondary)" }}>
               Use your case ID to attach follow-up evidence or details after submitting.
@@ -364,7 +348,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
 /** One label/value row of the "Case details" block (Figma 86:46). */
 function DetailRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-4 pb-3" style={{ borderBlockEnd: "1px solid var(--cds-border-subtle-01)" }}>
       <dt style={{ width: 140, flexShrink: 0, fontSize: 12, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
         {label}
       </dt>

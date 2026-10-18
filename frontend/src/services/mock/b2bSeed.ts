@@ -229,8 +229,8 @@ function governanceLog(now: number, caseIds: string[], random: () => number): Go
       tokens_in: 1800 + Math.round(random() * 1400),
       tokens_out: success ? 220 + Math.round(random() * 260) : 0,
       reasoning: success
-        ? "Mock: frame-level analysis returned tags and a severity score with a short reasoning string."
-        : "Mock: the model call timed out; the case was flagged for the AI-failure path.",
+        ? "frame-level analysis returned tags and a severity score with a short reasoning string."
+        : "the model call timed out; the case was flagged for the AI-failure path.",
     };
   });
 }
@@ -365,8 +365,8 @@ function otherClients(now: number, demoPassword: string, liveCases: MockCase[]) 
       subject: def.id === STREAMNEST_ID ? "A result is stuck on our side" : "Can we get the report earlier in the month?",
       body:
         def.id === STREAMNEST_ID
-          ? "Mock: one result has not appeared in our moderation queue. Could you check the delivery?"
-          : "Mock: our team reviews at the start of the month. Is an earlier release possible?",
+          ? "one result has not appeared in our moderation queue. Could you check the delivery?"
+          : "our team reviews at the start of the month. Is an earlier release possible?",
       created_at: new Date(now - (def.id === STREAMNEST_ID ? 75 : 190) * 60_000).toISOString(),
       status: "SENT",
       seen_at: null,
@@ -458,7 +458,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
       .forEach((d, n) => {
         d.platform_action = {
           action: d.outcome === "POLICY_VIOLATION_FOUND" ? "REMOVED" : "KEPT",
-          note: n % 9 === 0 && d.outcome === "POLICY_VIOLATION_FOUND" ? "Mock: removed and the account warned." : null,
+          note: n % 9 === 0 && d.outcome === "POLICY_VIOLATION_FOUND" ? "removed and the account warned." : null,
           at: new Date(Date.parse(d.completed_at) + 25 * 60_000).toISOString(),
           by: "ch-mod-04",
         };
@@ -582,7 +582,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
         topic: "DELIVERY_ISSUE",
         report_id: null,
         subject: "One result hasn't reached us",
-        body: "Mock: our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+        body: "our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
         created_at: new Date(now - 40 * 60_000).toISOString(),
         status: "SENT",
         seen_at: null,
@@ -597,12 +597,12 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
         topic: "REPORT_QUESTION",
         report_id: reports[1].report_id,
         subject: "What counts as an override?",
-        body: "Mock: the report lists an override rate. Does that mean RCS changed a decision after review?",
+        body: "the report lists an override rate. Does that mean RCS changed a decision after review?",
         created_at: new Date(Date.parse(releasedAt) + 30 * 60 * 60_000).toISOString(),
         status: "ANSWERED",
         seen_at: new Date(Date.parse(releasedAt) + 31 * 60 * 60_000).toISOString(),
         reply: {
-          body: "Mock: no. An override is when the reviewer's final severity differs from the AI's first estimate. The reviewer's decision is always final; it's never changed afterwards.",
+          body: "no. An override is when the reviewer's final severity differs from the AI's first estimate. The reviewer's decision is always final; it's never changed afterwards.",
           at: new Date(Date.parse(releasedAt) + 32 * 60 * 60_000).toISOString(),
           by: "Alex Morgan",
         },

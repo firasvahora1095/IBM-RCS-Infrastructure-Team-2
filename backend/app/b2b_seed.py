@@ -164,9 +164,9 @@ def _governance_log(now: datetime, case_ids: list[str], rng: random.Random) -> l
             tokens_in=1800 + round(rng.random() * 1400),
             tokens_out=220 + round(rng.random() * 260) if success else 0,
             reasoning=(
-                "Mock: frame-level analysis returned tags and a severity score with a short reasoning string."
+                "frame-level analysis returned tags and a severity score with a short reasoning string."
                 if success
-                else "Mock: the model call timed out; the case was flagged for the AI-failure path."
+                else "the model call timed out; the case was flagged for the AI-failure path."
             ),
         ))
     return entries
@@ -267,9 +267,9 @@ def _seed_other_clients(db: Session, now: datetime, live_cases: list[Case], clie
             topic="DELIVERY_ISSUE" if streamnest else "REPORT_QUESTION",
             subject="A result is stuck on our side" if streamnest else "Can we get the report earlier in the month?",
             body=(
-                "Mock: one result has not appeared in our moderation queue. Could you check the delivery?"
+                "one result has not appeared in our moderation queue. Could you check the delivery?"
                 if streamnest
-                else "Mock: our team reviews at the start of the month. Is an earlier release possible?"
+                else "our team reviews at the start of the month. Is an earlier release possible?"
             ),
             status="SENT", created_at=now - timedelta(minutes=75 if streamnest else 190),
         ))
@@ -355,7 +355,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         for i, d in enumerate(d for d in delivered if id(d) not in waiting):
             violation = d.outcome == "POLICY_VIOLATION_FOUND"
             d.platform_action = "REMOVED" if violation else "KEPT"
-            d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
+            d.platform_action_note = "removed and the account warned." if violation and i % 9 == 0 else None
             d.platform_action_at = d.completed_at + timedelta(minutes=25)
             d.platform_action_by = "ch-mod-04"
     db.add_all(deliveries)
@@ -418,12 +418,12 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             topic="REPORT_QUESTION",
             report_id=released.report_id,
             subject="What counts as an override?",
-            body="Mock: the report lists an override rate. Does that mean RCS changed a decision after review?",
+            body="the report lists an override rate. Does that mean RCS changed a decision after review?",
             status="ANSWERED",
             created_at=released_at + timedelta(hours=30),
             seen_at=released_at + timedelta(hours=31),
             reply_body=(
-                "Mock: no. An override is when the reviewer's final severity differs from the AI's first "
+                "no. An override is when the reviewer's final severity differs from the AI's first "
                 "estimate. The reviewer's decision is always final; it's never changed afterwards."
             ),
             reply_at=released_at + timedelta(hours=32),
@@ -435,7 +435,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             user_id=CLIENT_USER_ID,
             topic="DELIVERY_ISSUE",
             subject="One result hasn't reached us",
-            body="Mock: our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+            body="our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
             status="SENT",
             created_at=now - timedelta(minutes=40),
         ),
@@ -446,7 +446,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             request_id="WB-demo0001",
             auditor_id="auditor-03",
             kind="TALK_TO_MANAGER",
-            reason="Mock: a few of today's cases have stayed with me. I'd like a quick chat.",
+            reason="a few of today's cases have stayed with me. I'd like a quick chat.",
             status="OPEN",
             created_at=now - timedelta(minutes=150),
         ),
@@ -461,7 +461,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             request_id="WB-demo0003",
             auditor_id="auditor-02",
             kind="BREAK_REQUEST",
-            reason="Mock: back-to-back S3 cases this morning.",
+            reason="back-to-back S3 cases this morning.",
             status="APPROVED",
             created_at=now - timedelta(minutes=95),
             resolved_at=now - timedelta(minutes=88),

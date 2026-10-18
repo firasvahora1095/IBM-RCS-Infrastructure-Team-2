@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   InlineNotification,
-  ContentSwitcher,
-  Switch,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Tag,
   TextArea,
   RadioButtonGroup,
   RadioButton,
@@ -11,7 +15,7 @@ import {
   Checkbox,
   Button,
 } from "@carbon/react";
-import { Locked } from "@carbon/icons-react";
+import { Close, Link as LinkIcon, Locked } from "@carbon/icons-react";
 import { VideoDropZone, ScreenshotDropZone } from "../../components/forms/VideoDropZone";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { TrustBanner } from "../../components/notifications/TrustBanner";
@@ -48,6 +52,12 @@ const CONSENT_LABEL: Record<EvidenceType, string> = {
   screenshot:
     "I understand my screenshot and any details I provide will be used only to review this report, in line with the privacy notice.",
 };
+
+/** "Post 3208" from a post link; the link itself if it has no recognisable ID. */
+function linkedPostLabel(url: string): string {
+  const match = url.match(/post\/([\w-]+)/);
+  return match ? `Post ${match[1]}` : url;
+}
 
 function isPublicWebLink(value: string): boolean {
   try {
@@ -177,7 +187,7 @@ export function UploadPage() {
       saveCaseId(result.case_id);
       // Also pass the ID through navigation state, so the confirmation page
       // can still show it if this browser blocks localStorage.
-      navigate("/case-confirmation", { state: { caseId: result.case_id } });
+      navigate("/report/confirmation", { state: { caseId: result.case_id } });
     } catch (err) {
       if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
         // UR-VU-04 — a specific, fixable problem with what was submitted
@@ -215,101 +225,108 @@ export function UploadPage() {
     );
   }
 
+  const videoPanel = (
+    <div className="flex flex-col gap-3" style={{ paddingBlockStart: 16 }}>
+      <VideoDropZone onFileSelected={handleVideoSelected} />
+      {videoFile && <SelectedFile name={videoFile.name} onRemove={() => setVideoFile(null)} />}
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+        Accepted formats: MP4, MOV, WEBM or AVI. Maximum file size: 500 MB.
+      </p>
+    </div>
+  );
+  const linkPanel = (
+    <div className="flex flex-col gap-3" style={{ paddingBlockStart: 16 }}>
+      <TextInput
+        id="report-link"
+        type="url"
+        labelText="Link to the content"
+        placeholder="https://..."
+        autoComplete="off"
+        value={link}
+        onChange={(e) => {
+          setLink(e.target.value);
+          setEvidenceError(null);
+        }}
+      />
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+        Paste a public link to the video (not a private or password-protected page). We&apos;ll review the linked
+        content the same way as an uploaded video.
+      </p>
+    </div>
+  );
+  const screenshotPanel = (
+    <div className="flex flex-col gap-3" style={{ paddingBlockStart: 16 }}>
+      <ScreenshotDropZone onFileSelected={handleImageSelected} />
+      {imageFile && <SelectedFile name={imageFile.name} onRemove={() => setImageFile(null)} />}
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+        Accepted formats: PNG or JPG. Maximum file size: 10 MB.
+      </p>
+    </div>
+  );
+
   return (
     <PublicPage cardWidth={720}>
-      <div className="flex flex-col gap-2">
-        {/* B2B context (spec S2): the report reaches RCS from CommunityHub, without a sales surface. */}
-        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>
-          Reporting content from CommunityHub · Reviewed by RCS
-        </p>
-        <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Report content for review</h1>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          You don&apos;t need an account. Tell us what happened and we&apos;ll take it from here.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-col gap-2">
+          {/* B2B context (spec S2): the report reaches RCS from CommunityHub, without a sales surface. */}
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>
+            {fromPlatform ? "Reporting content from CommunityHub · Reviewed by RCS" : "Reviewed by RCS"}
+          </p>
+          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Report content for review</h1>
+          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+            Send us a video, link or screenshot that you think breaks the rules. It takes about two minutes. You
+            don&apos;t need an account.
+          </p>
+        </div>
       </div>
 
-      {fromPlatform && sourceLink && (
-        <InlineNotification
-          kind="info"
-          lowContrast
-          hideCloseButton
-          title="Reporting a CommunityHub post."
-          subtitle="We've attached the post's link for you. Upload the video below to continue."
-          style={{ maxWidth: "100%" }}
-        />
+      {/* One banner, not two: when the report comes from a platform post, that context joins the trust message. */}
+      <TrustBanner
+        heading={fromPlatform && sourceLink ? "Reporting a CommunityHub post" : undefined}
+        body={
+          fromPlatform && sourceLink
+            ? "We've linked the post to this report. Reports are reviewed confidentially against our content policy and privacy notice."
+            : undefined
+        }
+      />
+
+      {/* Proof of the linked post, so "we've attached it" is something you can see. */}
+      {sourceLink.trim() && (
+        <p className="flex flex-wrap items-center gap-2" style={{ fontSize: 14 }}>
+          <span style={{ color: "var(--cds-text-secondary)" }}>Linked post</span>
+          <Tag type="blue" size="md" renderIcon={LinkIcon} title={sourceLink}>
+            {linkedPostLabel(sourceLink)}
+          </Tag>
+        </p>
       )}
 
-      {/* UR-NFR-02 — the trust/privacy banner comes before any form field. */}
-      <TrustBanner />
-
-      <div className="flex flex-col gap-3">
-        <p id="report-method-label" style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-          How would you like to report this? (video is fastest to review)
-        </p>
-        <ContentSwitcher
+      <div className="flex flex-col gap-4">
+        <StepHeading
+          step={1}
+          title="Choose what to send"
+          hint="Pick one. A video is the quickest for us to review."
+          labelId="report-method-label"
+        />
+        <Tabs
           selectedIndex={EVIDENCE_TYPES.indexOf(evidenceType)}
-          onChange={({ name: selected }) => {
-            setEvidenceType(selected as EvidenceType);
+          onChange={({ selectedIndex }) => {
+            setEvidenceType(EVIDENCE_TYPES[selectedIndex]);
             setEvidenceError(null);
             setSubmitError(null);
           }}
-          aria-labelledby="report-method-label"
         >
-          <Switch name="video" text="Upload video" />
-          <Switch name="link" text="Paste a link instead" />
-          <Switch name="screenshot" text="Add a screenshot" />
-        </ContentSwitcher>
+          <TabList aria-labelledby="report-method-label">
+            <Tab>Video</Tab>
+            <Tab>Link</Tab>
+            <Tab>Screenshot</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel className="rcs-tab-panel-flush">{evidenceType === "video" && videoPanel}</TabPanel>
+            <TabPanel className="rcs-tab-panel-flush">{evidenceType === "link" && linkPanel}</TabPanel>
+            <TabPanel className="rcs-tab-panel-flush">{evidenceType === "screenshot" && screenshotPanel}</TabPanel>
+          </TabPanels>
+        </Tabs>
       </div>
-
-      {evidenceType === "video" && (
-        <div className="flex flex-col gap-3">
-          <VideoDropZone onFileSelected={handleVideoSelected} />
-          {videoFile && (
-            <p style={{ fontSize: 14, color: "var(--cds-text-primary)" }}>
-              Selected: <strong>{videoFile.name}</strong>
-            </p>
-          )}
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-            Accepted formats: MP4, MOV, WEBM, AVI. Typical length: about 10–15 minutes for Sprint 2 testing (this is a
-            target, not a hard maximum). Max file size: 500MB.
-          </p>
-        </div>
-      )}
-
-      {evidenceType === "link" && (
-        <div className="flex flex-col gap-3">
-          <TextInput
-            id="report-link"
-            type="url"
-            labelText="Link to the content"
-            placeholder="https://..."
-            autoComplete="off"
-            value={link}
-            onChange={(e) => {
-              setLink(e.target.value);
-              setEvidenceError(null);
-            }}
-          />
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-            Paste a public link to the video (not a private or password-protected page). We&apos;ll review the linked
-            content the same way as an uploaded video.
-          </p>
-        </div>
-      )}
-
-      {evidenceType === "screenshot" && (
-        <div className="flex flex-col gap-3">
-          <ScreenshotDropZone onFileSelected={handleImageSelected} />
-          {imageFile && (
-            <p style={{ fontSize: 14, color: "var(--cds-text-primary)" }}>
-              Selected: <strong>{imageFile.name}</strong>
-            </p>
-          )}
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-            Accepted formats: PNG, JPG. Max size: 10MB.
-          </p>
-        </div>
-      )}
 
       {evidenceError && (
         <InlineNotification
@@ -322,11 +339,11 @@ export function UploadPage() {
         />
       )}
 
-      {evidenceType !== "link" && (
+      {evidenceType !== "link" && fromPlatform && (
         <TextInput
           id="source-link"
-          labelText="Link or ID of the post on CommunityHub (optional)"
-          helperText="Helps CommunityHub find the original post. You can leave this blank."
+          labelText="Link to the post on CommunityHub"
+          helperText="Already filled in for you. It helps CommunityHub find the original post."
           placeholder="e.g. https://communityhub.example/post/4721"
           autoComplete="off"
           value={sourceLink}
@@ -334,10 +351,16 @@ export function UploadPage() {
         />
       )}
 
+      <StepHeading
+        step={2}
+        title="Tell us more (optional)"
+        hint="Anything that helps us understand what happened. You can skip this."
+      />
+
       <TextArea
         id="description"
-        labelText="Add more detail (optional)"
-        placeholder="Please add any detail that may help with review. For example, when this happened or where you saw it."
+        labelText="Describe what happened"
+        placeholder="For example: when it happened, or where you saw it."
         maxCount={500}
         enableCounter
         rows={3}
@@ -348,8 +371,8 @@ export function UploadPage() {
       <div className="flex flex-col gap-4">
         <RadioButtonGroup
           name="reporting-choice"
-          legendText="How would you like to submit this report?"
-          helperText="You don't need to share your identity to report — but you can if you'd like us to be able to follow up with you directly."
+          legendText="Do you want us to be able to contact you?"
+          helperText="You don't have to share anything about yourself. Share your name and email only if you want us to follow up with you."
           orientation="vertical"
           valueSelected={reportingChoice}
           onChange={(value) => {
@@ -358,8 +381,8 @@ export function UploadPage() {
             setEmailError(false);
           }}
         >
-          <RadioButton id="reporting-anonymous" labelText="Report anonymously" value="anonymous" />
-          <RadioButton id="reporting-identified" labelText="Include my name & email" value="identified" />
+          <RadioButton id="reporting-anonymous" labelText="No, keep my report anonymous" value="anonymous" />
+          <RadioButton id="reporting-identified" labelText="Yes, include my name and email" value="identified" />
         </RadioButtonGroup>
         {reportingChoice === "identified" && (
           // Figma 418:72 sizes the name and email fields to about half the card.
@@ -407,19 +430,19 @@ export function UploadPage() {
         />
       )}
 
+      <StepHeading step={3} title="Confirm and send" />
+
       <div className="flex flex-col gap-3">
-        <div className="p-3" style={{ border: "1px solid var(--cds-border-subtle-00)" }}>
-          <Checkbox
-            id="consent-checkbox"
-            labelText={CONSENT_LABEL[evidenceType]}
-            checked={consentGiven}
-            invalid={consentError}
-            onChange={(_, { checked }) => {
-              setConsentGiven(checked);
-              if (checked) setConsentError(false);
-            }}
-          />
-        </div>
+        <Checkbox
+          id="consent-checkbox"
+          labelText={CONSENT_LABEL[evidenceType]}
+          checked={consentGiven}
+          invalid={consentError}
+          onChange={(_, { checked }) => {
+            setConsentGiven(checked);
+            if (checked) setConsentError(false);
+          }}
+        />
         {consentError && (
           <InlineNotification
             kind="error"
@@ -438,6 +461,11 @@ export function UploadPage() {
         </Button>
       </div>
 
+      <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+        What happens next: you&apos;ll get a case ID straight away. Keep it safe. You&apos;ll use it on the Check case
+        status page to see how your report is going.
+      </p>
+
       <p
         className="flex items-center gap-2"
         style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}
@@ -445,10 +473,44 @@ export function UploadPage() {
         <Locked size={14} aria-hidden="true" />
         Your report is encrypted and securely processed.
       </p>
-
-      <RouterLink to="/status" className="cds--link">
-        Already have a case ID? Check your case status
-      </RouterLink>
     </PublicPage>
+  );
+}
+
+/** The chosen file, with a clear way to take it back out: Remove, so a wrong file is never stuck. */
+function SelectedFile({ name, onRemove }: { name: string; onRemove: () => void }) {
+  return (
+    <div
+      className="flex items-center justify-between gap-3 px-4 py-2"
+      style={{ border: "1px solid var(--cds-border-subtle-01)", backgroundColor: "var(--cds-layer-01)" }}
+    >
+      <span style={{ fontSize: 14, overflowWrap: "anywhere" }}>
+        Selected: <strong>{name}</strong>
+      </span>
+      <Button
+        kind="ghost"
+        size="sm"
+        hasIconOnly
+        renderIcon={Close}
+        iconDescription={`Remove ${name}`}
+        tooltipPosition="left"
+        onClick={onRemove}
+      />
+    </div>
+  );
+}
+
+/** "Step 1 of 3" and what to do in it, so a first-time reporter always knows where they are and what is expected. */
+function StepHeading({ step, title, hint, labelId }: { step: number; title: string; hint?: string; labelId?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p style={{ fontSize: 12, lineHeight: "16px", fontWeight: 600, color: "var(--cds-text-secondary)" }}>
+        Step {step} of 3
+      </p>
+      <h2 id={labelId} style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>
+        {title}
+      </h2>
+      {hint && <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{hint}</p>}
+    </div>
   );
 }

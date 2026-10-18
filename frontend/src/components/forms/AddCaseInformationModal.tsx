@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Add, Close, Document } from "@carbon/icons-react";
 import { Button, InlineNotification, Modal, TextArea } from "@carbon/react";
 import { useFocusOnOpen } from "../../hooks/useFocusOnOpen";
 import { addCaseInformation } from "../../services";
@@ -9,6 +10,18 @@ interface AddCaseInformationModalProps {
   open: boolean;
   onClose: () => void;
   onAdded: () => void;
+}
+
+/** "PDF file", "PNG file", "MP4 file": the file's own ending, so the tile says what it is. */
+function fileKind(file: File): string {
+  const dot = file.name.lastIndexOf(".");
+  return dot >= 0 && dot < file.name.length - 1 ? `${file.name.slice(dot + 1).toUpperCase()} file` : "File";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -23,20 +36,20 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
   const [details, setDetails] = useState("");
   // The status page mounts this modal already open, so Carbon never moves focus into it.
   useFocusOnOpen(open, detailsRef);
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = (details.trim() !== "" || attachment !== null) && !isSubmitting;
+  const canSubmit = (details.trim() !== "" || attachments.length > 0) && !isSubmitting;
 
   async function handleSubmit() {
     if (!canSubmit) return;
     setIsSubmitting(true);
     setError(null);
     try {
-      await addCaseInformation(caseId, details, attachment ?? undefined);
+      await addCaseInformation(caseId, details, attachments.length > 0 ? attachments : undefined);
       setDetails("");
-      setAttachment(null);
+      setAttachments([]);
       onAdded();
     } catch (err) {
       setError(
@@ -74,42 +87,66 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
           onChange={(e) => setDetails(e.target.value)}
         />
 
-        <div
-          className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-          style={{ border: "1px dashed var(--cds-border-subtle-00)" }}
-        >
-          <Button kind="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
-            + Attach a file (optional)
-          </Button>
-          {attachment && (
-            <span style={{ fontSize: 12, color: "var(--cds-text-primary)" }}>
-              {attachment.name}{" "}
-              <button
-                type="button"
-                className="cds--link"
-                style={{ background: "none", border: "none", padding: 0, fontSize: 12, cursor: "pointer" }}
-                onClick={() => setAttachment(null)}
+        {attachments.length > 0 && (
+          <ul className="flex flex-col gap-2" aria-label="Attached files">
+            {attachments.map((file, index) => (
+              <li
+                key={`${file.name}-${index}`}
+                className="flex items-center gap-3 px-4 py-3"
+                style={{ backgroundColor: "var(--cds-layer-01)", border: "1px solid var(--cds-border-subtle-01)" }}
               >
-                Remove
-              </button>
-            </span>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            aria-label="Attach a file"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              setAttachment(e.target.files?.[0] ?? null);
-              e.target.value = "";
-            }}
-          />
+                <Document size={24} style={{ fill: "var(--cds-icon-secondary)", flexShrink: 0 }} aria-hidden="true" />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span
+                    title={file.name}
+                    style={{
+                      fontSize: 14,
+                      lineHeight: "20px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {file.name}
+                  </span>
+                  <span style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+                    {fileKind(file)} · {formatFileSize(file.size)}
+                  </span>
+                </div>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  hasIconOnly
+                  renderIcon={Close}
+                  iconDescription={`Remove ${file.name}`}
+                  tooltipPosition="left"
+                  onClick={() => setAttachments((cur) => cur.filter((_, i) => i !== index))}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {/* Secondary, never primary: Submit update is the dialog's one primary action. */}
+        <div>
+          <Button kind="tertiary" size="md" renderIcon={Add} onClick={() => fileInputRef.current?.click()}>
+            {attachments.length > 0 ? "Attach another file" : "Attach files (optional)"}
+          </Button>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          aria-label="Attach files"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []);
+            if (picked.length > 0) setAttachments((cur) => [...cur, ...picked]);
+            e.target.value = "";
+          }}
+        />
 
         <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-          This only adds to your case — it can&apos;t be used to delete or withdraw content you already submitted
-          (that&apos;s out of scope for this flow; case records are handled under the data-retention policy, not
-          user-side edits).
+          Information added here is attached to your case. Once submitted, it can&apos;t be edited or removed.
         </p>
 
         {error && (

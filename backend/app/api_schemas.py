@@ -40,7 +40,7 @@ class MockAiResultRequest(BaseModel):
     effective_severity_score: int = Field(default=72, ge=0, le=100)
     severity_tier: SeverityTier = SeverityTier.S3
     narrative_summary: str = Field(
-        default="Mock: physical altercation detected between two people.",
+        default="physical altercation detected between two people.",
         min_length=1,
         max_length=5000,
     )

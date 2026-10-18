@@ -61,12 +61,12 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Upload: switches evidence type with arrow keys, shows the consent error, then submits a link", async () => {
     const user = userEvent.setup();
-    renderAt("/");
+    renderAt("/report");
 
-    const videoTab = await screen.findByRole("tab", { name: "Upload video" });
+    const videoTab = await screen.findByRole("tab", { name: "Video" });
     await tabTo(user, videoTab);
     await user.keyboard("{ArrowRight}");
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Paste a link instead" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Link" })).toHaveFocus());
     await user.keyboard("{Enter}");
 
     const link = await screen.findByLabelText("Link to the content");
@@ -92,8 +92,8 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Case ID confirmation: copy button, update fields and the status link are all reachable", async () => {
     const user = userEvent.setup();
-    renderAt("/");
-    await tabTo(user, await screen.findByRole("tab", { name: "Upload video" }));
+    renderAt("/report");
+    await tabTo(user, await screen.findByRole("tab", { name: "Video" }));
     await user.keyboard("{ArrowRight}{Enter}");
     await tabTo(user, await screen.findByLabelText("Link to the content"));
     await user.keyboard("https://example.com/video/456");
@@ -107,7 +107,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByLabelText("Email (optional)"));
     await user.keyboard("reporter@example.com");
     await tabTo(user, screen.getByLabelText("Phone (optional)"));
-    const statusLink = screen.getByRole("link", { name: "Check case status" });
+    const statusLink = screen.getAllByRole("link", { name: "Check case status" }).find((l) => l.className.includes("cds--btn"))!;
     await tabTo(user, statusLink);
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("heading", { name: "Check your case status" })).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Status lookup: Enter looks up, focus moves to the result, and the add-information dialog opens and closes", async () => {
     const user = userEvent.setup();
-    renderAt("/status");
+    renderAt("/report/status");
 
     const input = await screen.findByLabelText("Case ID");
     await tabTo(user, input);

@@ -70,10 +70,7 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
             />
           )}
           {role === "manager" && sosSummary && sosSummary.unresolved_count > 0 && (
-            <RouterLink
-              to="/manager/sos"
-              style={{ textDecoration: "none" }}
-            >
+            <RouterLink to="/manager/sos" style={{ textDecoration: "none" }}>
               <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0, whiteSpace: "nowrap" }}>
                 {sosSummary.unresolved_count} SOS
                 <span className="hidden sm:inline">{sosSummary.unresolved_count === 1 ? " alert" : " alerts"}</span>

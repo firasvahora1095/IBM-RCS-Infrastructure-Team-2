@@ -586,3 +586,34 @@ body {
     }
   }
 }
+
+// Placeholder text meets 4.5:1 on the field fill. Carbon's default placeholder grey is lighter than WCAG AA allows.
+.cds--text-input::placeholder,
+.cds--text-area::placeholder,
+.cds--search-input::placeholder {
+  color: var(--cds-text-secondary);
+  opacity: 1;
+}
+
+// A control that opens a dialog but is written like a link: same look, with a real button's keyboard behaviour.
+.rcs-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+// Every text field keeps Carbon's bottom stroke, so the click target is always visible on its grey fill.
+.cds--text-input,
+.cds--text-area,
+.cds--select-input,
+.cds--dropdown {
+  border-block-end: 1px solid var(--cds-border-strong-01);
+}
+
+// Report reasons sit on Carbon's 16px step, so each option is its own easy target.
+.rcs-radio-spaced .cds--radio-button-wrapper {
+  margin-block-end: 0.5rem;
+}

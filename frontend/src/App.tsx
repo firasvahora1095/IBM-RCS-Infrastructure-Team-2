@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
+import { PublicTabs } from "./components/shell/PublicTabs";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
 import { ScrollToTop } from "./components/shell/ScrollToTop";
 import { UploadPage } from "./pages/normal-user/UploadPage";
 import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
+import { ContactPage } from "./pages/normal-user/ContactPage";
 import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
 import { AuditorCaseDetailPage } from "./pages/auditor/AuditorCaseDetailPage";
@@ -53,6 +55,7 @@ function PublicLayout() {
   return (
     <>
       <AppHeader />
+      <PublicTabs />
       <Outlet />
     </>
   );
@@ -61,9 +64,11 @@ function PublicLayout() {
 /**
  * Routes for the Sprint 2 P0 scope (Task 58's five, plus the flow's own
  * confirmation step):
- *   "/"                  — public upload (no account needed)
- *   "/case-confirmation" — public case ID confirmation after an upload
- *   "/status"            — public status lookup by Case ID
+ *   "/"                  — the RCS landing page
+ *   "/report"            — public upload (no account needed)
+ *   "/report/confirmation" — public case ID confirmation after an upload
+ *   "/report/status"     — public status lookup by Case ID
+ *   "/report/contact"    — contact us, with help
  *   "/staff/login"       — shared staff login; no header, matching Figma
  *   "/auditor"           — Auditor dashboard (auditor role only)
  *   "/auditor/cases/:id" — Auditor case review: content warning → summary → workspace → severity → confirmation
@@ -88,10 +93,15 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<UploadPage />} />
-        <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
-        <Route path="/status" element={<StatusLookupPage />} />
+        <Route path="/report" element={<UploadPage />} />
+        <Route path="/report/confirmation" element={<CaseIdConfirmationPage />} />
+        <Route path="/report/status" element={<StatusLookupPage />} />
+        <Route path="/report/contact" element={<ContactPage />} />
       </Route>
+      {/* The front door is the RCS page; the old public addresses keep working. */}
+      <Route path="/" element={<RcsLandingPage />} />
+      <Route path="/status" element={<Navigate to="/report/status" replace />} />
+      <Route path="/case-confirmation" element={<Navigate to="/report/confirmation" replace />} />
       {/* B2B front (flow stages 1–3): the RCS product page, organisation set-up,
           and a simulated CommunityHub page with the report button. /flow is the demo guide. */}
       <Route path="/rcs" element={<RcsLandingPage />} />

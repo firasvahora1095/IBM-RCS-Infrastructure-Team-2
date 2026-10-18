@@ -60,7 +60,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
       watson_severity_score: 71,
       effective_severity_score: 71,
       severity_tier: "S3",
-      narrative_summary: "Mock: physical altercation detected between two people.",
+      narrative_summary: "physical altercation detected between two people.",
       incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
       transcript: [{ time: 13, text: "[raised voices]" }],
       audio_intensity: [0.2, 0.6, 0.3],
@@ -83,7 +83,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
 
     fireEvent.click(consent);
     fireEvent.click(screen.getByRole("button", { name: "Proceed" }));
-    await screen.findByText("Mock: physical altercation detected between two people.");
+    await screen.findByText("physical altercation detected between two people.");
     expect(await axe()).toHaveNoViolations();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
@@ -113,7 +113,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
       watson_severity_score: 71,
       effective_severity_score: 71,
       severity_tier: "S3",
-      narrative_summary: "Mock: physical altercation detected between two people.",
+      narrative_summary: "physical altercation detected between two people.",
       incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
       flag_reason: "Graphic violence",
     });

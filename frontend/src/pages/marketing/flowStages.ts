@@ -37,14 +37,14 @@ export const STAGES: Stage[] = [
     title: "Report and case ID",
     body: "Upload the video, stay anonymous, get a case ID.",
     persona: "Reporter",
-    to: "/",
+    to: "/report",
   },
   {
     n: "05",
     title: "Check case status",
     body: "Received, Being Reviewed, Complete, and a plain outcome.",
     persona: "Reporter",
-    to: "/status",
+    to: "/report/status",
   },
   {
     n: "06",
