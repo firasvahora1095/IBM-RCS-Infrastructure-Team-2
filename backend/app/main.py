@@ -993,7 +993,7 @@ async def manager_dashboard(
         if ends_at and ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         in_cooldown = bool(ends_at and ends_at > now)
-        requires_check_in = a.cooldown_trigger == "SOS"
+        requires_check_in = a.cooldown_trigger in ("S4", "SOS")
         check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
         cooldown = None
         if in_cooldown and ends_at:
@@ -1045,7 +1045,7 @@ async def get_my_wellbeing(
         ends_at = row.cooldown_ends_at
         if ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
-        requires_check_in = row.cooldown_trigger == "SOS"
+        requires_check_in = row.cooldown_trigger in ("S4", "SOS")
         check_in_done = bool(row.cooldown_check_in_done)
         if ends_at > now or (requires_check_in and not check_in_done):
             cooldown = {
@@ -1360,7 +1360,7 @@ def _auditor_cooldown_payload(row: Auditor) -> dict | None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
     if ends_at <= datetime.now(timezone.utc):
         return None
-    requires_check_in = row.cooldown_trigger == "SOS"
+    requires_check_in = row.cooldown_trigger in ("S4", "SOS")
     check_in_done = bool(row.cooldown_check_in_done)
     return {
         "ends_at": ends_at.isoformat(),

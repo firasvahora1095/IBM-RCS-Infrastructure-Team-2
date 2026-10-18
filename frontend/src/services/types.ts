@@ -212,9 +212,9 @@ export interface CooldownState {
   started_at?: string;
   /** ISO 8601 time the cooldown ends. */
   ends_at: string;
-  /** What triggered it: a severity tier (AR-WB-12) or an SOS. */
+  /** What triggered it: a tier (AR-WB-12) or an SOS, which follows the S4 protocol. */
   trigger: SeverityTier | "SOS";
-  /** SOS requires a Manager check-in before the auditor can return (AR-WB-12). */
+  /** S4 and SOS require a Manager/support check-in (AR-WB-12). */
   requires_check_in: boolean;
   /** When the Manager recorded that check-in; the queue stays locked until then. */
   check_in_completed_at?: string | null;

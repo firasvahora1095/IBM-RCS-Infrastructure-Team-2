@@ -240,7 +240,7 @@ export function AuditorCaseDetailPage() {
     [caseId, handleSessionError],
   );
 
-  /** Notifies the Manager that the case is paused and starts an SOS cooldown (AR-WB-12). */
+  /** Notifies the Manager that the case is paused. Both causes follow the S4 protocol (AR-WB-12). */
   const sendSos = useCallback(
     function send(cause: PauseCause) {
       if (!tokenRef.current) {
