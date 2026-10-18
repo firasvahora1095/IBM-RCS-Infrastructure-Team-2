@@ -119,8 +119,9 @@ export function ClientCaseResultsPage() {
               <StatTile label="All results" value={data.length} helper="Sent to CommunityHub" />
             </Column>
           </Grid>
-          <div className="flex flex-wrap items-end gap-4">
-            <div style={{ minWidth: 320 }}>
+          {/* Wide enough that every label and its count reads in full: four filters need room, not 320px. */}
+          <div style={{ width: "100%", maxWidth: 720 }}>
+            <div>
               <ContentSwitcher
                 size="md"
                 selectedIndex={FILTERS.findIndex((f) => f.key === filter)}
