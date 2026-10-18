@@ -20,7 +20,7 @@ import type { DeliveryStatus, ExposureState, ReportStatus, WellbeingRequestStatu
  * Severity (S1 to S4) is a separate ordered scale in purple and is never used for a status. The state is always
  * written out and the tags with a state carry an icon, so colour is never the only signal.
  */
-export type StatusTone = "success" | "info" | "warning" | "error" | "request" | "neutral";
+export type StatusTone = "success" | "info" | "warning" | "error" | "request" | "neutral" | "action";
 
 export const DELIVERY_TONE: Record<DeliveryStatus, StatusTone> = {
   SUCCESS: "success",

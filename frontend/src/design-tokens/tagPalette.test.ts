@@ -19,6 +19,7 @@ const PAIRS: Record<string, [string, string]> = {
   success: [c.green60, c.white],
   request: [c.magenta20, c.magenta70],
   neutral: [c.gray20, c.gray100],
+  action: [c.blue60, c.white],
   "severity S1": [c.gray20, c.gray100],
   "severity S2": [c.purple30, c.purple90],
   "severity S3": [c.purple60, c.white],
@@ -31,7 +32,7 @@ describe("tag palette", () => {
   });
 
   it("gives every status family its own background", () => {
-    const status = ["error", "warning", "info", "success", "request", "neutral"].map((k) => PAIRS[k][0]);
+    const status = ["error", "warning", "info", "success", "request", "neutral", "action"].map((k) => PAIRS[k][0]);
     expect(new Set(status).size).toBe(status.length);
   });
 

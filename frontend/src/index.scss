@@ -41,6 +41,9 @@
   --rcs-tag-success-fg: #{colors.$white};
   --rcs-tag-request-bg: #{colors.$magenta-20};
   --rcs-tag-request-fg: #{colors.$magenta-70};
+  // Waiting on the person looking at the screen: Carbon's interactive blue, solid, the same blue as the primary button.
+  --rcs-tag-action-bg: #{colors.$blue-60};
+  --rcs-tag-action-fg: #{colors.$white};
   --rcs-tag-neutral-bg: #{colors.$gray-20};
   --rcs-tag-neutral-fg: #{colors.$gray-100};
   // Severity is an ordered scale, so it is one hue (purple) that darkens as it gets worse. No status uses purple,

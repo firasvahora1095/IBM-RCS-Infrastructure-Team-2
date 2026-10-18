@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Column,
   Grid,
@@ -49,7 +49,7 @@ import { safeHttpUrl } from "../../utils/safeUrl";
 const OUTCOME_TONE = {
   POLICY_VIOLATION_FOUND: "error",
   NO_VIOLATION_FOUND: "neutral",
-  CLOSED_NO_REASSIGNMENT: "request",
+  CLOSED_NO_REASSIGNMENT: "warning",
 } as const;
 
 /** The post's own ID, readable in a table, from CommunityHub's post link. */
@@ -82,6 +82,20 @@ export function ClientCaseResultsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [followAll, setFollowAll] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  // Selecting like a mail list: drag down the tick boxes to sweep a run of rows, or click one and shift-click another.
+  const drag = useRef<{ anchor: number; value: boolean; base: Set<string>; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const lastTicked = useRef<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    const stop = () => {
+      if (drag.current?.moved) suppressClick.current = true; // the click that ends a drag must not also toggle
+      drag.current = null;
+      setDragging(false);
+    };
+    window.addEventListener("mouseup", stop);
+    return () => window.removeEventListener("mouseup", stop);
+  }, []);
 
   // Only results that have reached CommunityHub: how RCS gets a result there is not the client's concern, and a result
   // that is still travelling can't be acted on yet. It appears here the moment it arrives.
@@ -234,7 +248,7 @@ export function ClientCaseResultsPage() {
           </div>
           <Layer>
             <TableContainer>
-              <Table aria-label="Case results" className="rcs-actions-end">
+              <Table aria-label="Case results">
                 <TableHead>
                   <TableRow>
                     {onNeeds && (
@@ -266,11 +280,10 @@ export function ClientCaseResultsPage() {
                     <TableHeader>Final severity</TableHeader>
                     <TableHeader>Decided</TableHeader>
                     <TableHeader>Your team&apos;s action</TableHeader>
-                    <TableHeader>Actions</TableHeader>
                   </TableRow>
                 </TableHead>
-                <TableBody>
-                  {paged.rows.map((r: CaseResult) => (
+                <TableBody style={{ userSelect: dragging ? "none" : undefined }}>
+                  {paged.rows.map((r: CaseResult, index: number) => (
                     <TableRow
                       key={r.delivery_id}
                       // A delivered result has something to open: record the action, or see what was recorded.
@@ -283,6 +296,28 @@ export function ClientCaseResultsPage() {
                           : undefined
                       }
                       style={{ cursor: r.status === "DELIVERED" ? "pointer" : "default" }}
+                      onMouseDown={(e) => {
+                        if (!onNeeds || !(e.target as HTMLElement).closest(".cds--table-column-checkbox")) return;
+                        drag.current = {
+                          anchor: index,
+                          value: !selected.has(r.delivery_id),
+                          base: new Set(selected),
+                          moved: false,
+                        };
+                        setDragging(true);
+                      }}
+                      onMouseEnter={() => {
+                        const d = drag.current;
+                        if (!d || !onNeeds || index === d.anchor) return;
+                        d.moved = true;
+                        const [from, to] = d.anchor < index ? [d.anchor, index] : [index, d.anchor];
+                        const next = new Set(d.base);
+                        for (const row of paged.rows.slice(from, to + 1)) {
+                          if (d.value) next.add(row.delivery_id);
+                          else next.delete(row.delivery_id);
+                        }
+                        setSelected(next);
+                      }}
                     >
                       {onNeeds && (
                         <TableSelectRow
@@ -290,14 +325,30 @@ export function ClientCaseResultsPage() {
                           name={`select-${r.delivery_id}`}
                           ariaLabel={`Select ${r.case_id}`}
                           checked={selected.has(r.delivery_id)}
-                          onSelect={() =>
+                          onSelect={(event: unknown) => {
+                            if (suppressClick.current) {
+                              suppressClick.current = false;
+                              return;
+                            }
+                            const shift = Boolean(
+                              (event as { nativeEvent?: { shiftKey?: boolean } })?.nativeEvent?.shiftKey,
+                            );
+                            const turnOn = !selected.has(r.delivery_id);
                             setSelected((cur) => {
                               const next = new Set(cur);
-                              if (next.has(r.delivery_id)) next.delete(r.delivery_id);
-                              else next.add(r.delivery_id);
+                              const anchor = lastTicked.current;
+                              const rows =
+                                shift && anchor !== null
+                                  ? paged.rows.slice(Math.min(anchor, index), Math.max(anchor, index) + 1)
+                                  : [r];
+                              for (const row of rows) {
+                                if (turnOn) next.add(row.delivery_id);
+                                else next.delete(row.delivery_id);
+                              }
                               return next;
-                            })
-                          }
+                            });
+                            lastTicked.current = index;
+                          }}
                         />
                       )}
                       <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
@@ -329,31 +380,32 @@ export function ClientCaseResultsPage() {
                       </TableCell>
                       <TableCell>{formatShortDateTime(r.completed_at)}</TableCell>
 
+                      {/* The status and its one action sit together, so a row reads left to right with no gap between them. */}
                       <TableCell>
-                        {r.platform_action ? (
-                          <StatusTag tone={r.platform_action.action === "REMOVED" ? "success" : "neutral"}>
-                            {PLATFORM_ACTION_LABEL[r.platform_action.action]}
-                          </StatusTag>
-                        ) : r.status === "DELIVERED" ? (
-                          <StatusTag tone="warning">Needs action</StatusTag>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {r.status === "DELIVERED" && !r.platform_action && (
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            aria-label={`Record action for ${r.case_id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              open(r);
-                            }}
-                          >
-                            Record action
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {r.platform_action ? (
+                            <StatusTag tone={r.platform_action.action === "REMOVED" ? "success" : "neutral"}>
+                              {PLATFORM_ACTION_LABEL[r.platform_action.action]}
+                            </StatusTag>
+                          ) : r.status === "DELIVERED" ? (
+                            <>
+                              <StatusTag tone="action">Needs action</StatusTag>
+                              <Button
+                                kind="tertiary"
+                                size="sm"
+                                aria-label={`Record action for ${r.case_id}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  open(r);
+                                }}
+                              >
+                                Record action
+                              </Button>
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -155,4 +155,24 @@ describe("CommunityHub portal frame", () => {
     expect(text).toContain("No violation found");
     expect(text).toContain("Not reviewed");
   });
+
+  it("selects a run of rows by dragging down the tick boxes, and by shift-click, like a mail list", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const table = await screen.findByRole("table", { name: "Case results" });
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows.length).toBeGreaterThanOrEqual(4);
+    const cell = (row: HTMLElement) => row.querySelector(".cds--table-column-checkbox") as HTMLElement;
+
+    fireEvent.mouseDown(cell(rows[0]));
+    fireEvent.mouseEnter(rows[1]);
+    fireEvent.mouseEnter(rows[2]);
+    fireEvent.mouseUp(window);
+    expect(await screen.findByText("3 selected")).toBeInTheDocument();
+
+    // Shift-click extends from the last ticked row.
+    const boxes = within(table).getAllByRole("checkbox", { name: /^Select AR-/ });
+    fireEvent.click(boxes[3], { shiftKey: true });
+    expect(await screen.findByText(/selected/)).toBeInTheDocument();
+  });
 });
