@@ -36,19 +36,19 @@ export const MESSAGE_MAX_SUBJECT = 120;
  */
 export const REPLY_TEMPLATES: Record<ClientMessageTopic, { label: string; body: string }> = {
   REPORT_QUESTION: {
-    label: "Answer a report question",
+    label: "Use template",
     body: "Thank you for your question about the report. The figures are aggregate and come from completed case records. [Your answer.]",
   },
   DELIVERY_ISSUE: {
-    label: "Reply about a delivery",
+    label: "Use template",
     body: "Thank you for flagging this. We checked the delivery to CommunityHub and [what you found]. Results are retried automatically, and we will confirm once it has been received.",
   },
   ACCOUNT_ACCESS: {
-    label: "Reply about access",
+    label: "Use template",
     body: "Thank you for getting in touch about access. [What you have done, or what you need from them.]",
   },
   OTHER: {
-    label: "Start a reply",
+    label: "Use template",
     body: "Thank you for your message. [Your reply.]",
   },
 };
