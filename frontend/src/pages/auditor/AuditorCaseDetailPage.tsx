@@ -109,6 +109,12 @@ export function AuditorCaseDetailPage() {
   const [caseDetail, setCaseDetail] = useState<AuditorCaseDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Every step opens at the top. Without this the page keeps the dashboard's scroll position (or wherever focus
+  // landed), so a case opens part-way down with its header and controls cut off.
+  useEffect(() => {
+    window.scrollTo?.({ top: 0, left: 0 });
+  }, [step]);
+
   const [gateError, setGateError] = useState<string | null>(null);
   const [isProceeding, setIsProceeding] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
