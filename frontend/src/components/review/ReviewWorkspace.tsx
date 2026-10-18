@@ -253,9 +253,11 @@ export function ReviewWorkspace({
       ? "Playback paused — session timed out"
       : offline
         ? "Playback paused — reconnecting"
-        : settings.blur >= 80
-          ? "Blurred — lower the blur above to view"
-          : null;
+        : buffering && isPlaying
+          ? "Loading"
+          : settings.blur >= 80
+            ? "Blurred preview. Lower the blur above to view."
+            : null;
 
   // Marks are drawn against the footage's real length. A flagged moment past
   // the end of this video can't be shown on its timeline, so it isn't drawn
@@ -278,9 +280,8 @@ export function ReviewWorkspace({
       )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (
-          {formatDuration(totals.active_seconds)} active, {formatDuration(totals.replay_seconds)} replay) ·{" "}
-          {isPlaying ? (buffering ? "○ Buffering" : "● Counting") : "○ Paused"}
+          Exposure this case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (replays count) ·{" "}
+          {isPlaying ? (buffering ? "○ Buffering" : "● Counting") : "○ Playback paused"}
         </p>
       )}
 
@@ -324,11 +325,27 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)", marginTop: -8 }}>
-            {aiFailed || !caseDetail.severity_tier
-              ? "No AI blur suggestion: severity is unknown for this case."
-              : `AI-suggested blur: ${SUGGESTED_BLUR[caseDetail.severity_tier]}%. You decide what's comfortable.`}
-          </p>
+          <div className="flex flex-wrap items-center gap-2" style={{ marginTop: -8 }}>
+            {aiFailed || !caseDetail.severity_tier ? (
+              <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+                No AI blur suggestion: severity is unknown for this case.
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+                  AI suggests {SUGGESTED_BLUR[caseDetail.severity_tier]}% blur. You decide what&apos;s comfortable.
+                </p>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  disabled={settings.blur === SUGGESTED_BLUR[caseDetail.severity_tier]}
+                  onClick={() => onSettingsChange({ ...settings, blur: SUGGESTED_BLUR[caseDetail.severity_tier!] })}
+                >
+                  Use {SUGGESTED_BLUR[caseDetail.severity_tier]}%
+                </Button>
+              </>
+            )}
+          </div>
 
           <div
             className="rcs-player-frame relative w-full shrink-0 overflow-hidden"
@@ -445,6 +462,24 @@ export function ReviewWorkspace({
                   role="group"
                   aria-label="Flagged moments"
                 >
+                  {timeline
+                    .filter((entry) => entry.end > entry.start)
+                    .map((entry, i) => (
+                      <span
+                        key={`range-${i}`}
+                        aria-hidden="true"
+                        title={`Flagged section ${formatTimestamp(entry.start)} to ${formatTimestamp(Math.min(entry.end, duration))}`}
+                        style={{
+                          position: "absolute",
+                          insetBlockStart: 4,
+                          insetInlineStart: `${(Math.min(entry.start, duration) / duration) * 100}%`,
+                          inlineSize: `${((Math.min(entry.end, duration) - Math.min(entry.start, duration)) / duration) * 100}%`,
+                          blockSize: 6,
+                          backgroundColor: getSeverityInfo(entry.severity_tier).background,
+                          opacity: 0.85,
+                        }}
+                      />
+                    ))}
                   {timeline.map((entry, i) => {
                     const info = getSeverityInfo(entry.severity_tier);
                     const range =
@@ -516,6 +551,15 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
+          {timeline.length > 0 && (
+            <p className="flex items-center gap-2" style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+              <span
+                aria-hidden="true"
+                style={{ display: "inline-block", inlineSize: 16, blockSize: 6, backgroundColor: "var(--rcs-sev-3-bg)" }}
+              />
+              Flagged section. Select a marker to jump to it.
+            </p>
+          )}
           {hiddenMarks > 0 && (
             <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
               {hiddenMarks} flagged moment{hiddenMarks === 1 ? " is" : "s are"} after the end of this video, so{" "}
@@ -568,7 +612,7 @@ export function ReviewWorkspace({
               <div>
                 <p className="rcs-support-guide-title">Wellbeing check-in: not urgent</p>
                 <p className="rcs-helper">
-                  Talk to your manager or ask for a break. Your case stays open and nothing is paused.
+                  Talk to your manager or ask for a break. Your case stays open.
                 </p>
                 {onTalkToManager && (
                   <Button kind="tertiary" size="sm" onClick={onTalkToManager} style={{ marginTop: 8 }}>
@@ -608,17 +652,17 @@ export function ReviewWorkspace({
                 </AccordionItem>
               )}
               {caseDetail.flagged_entities && caseDetail.flagged_entities.length > 0 && (
-                <AccordionItem title="Flagged entities" open>
+                <AccordionItem title="Flagged entities">
                   <EntityPills entities={caseDetail.flagged_entities} />
                 </AccordionItem>
               )}
               {caseDetail.transcript && caseDetail.transcript.length > 0 && (
-                <AccordionItem title="Transcript" open>
+                <AccordionItem title="Transcript">
                   <TranscriptList transcript={caseDetail.transcript} currentTime={position} />
                 </AccordionItem>
               )}
               {caseDetail.audio_intensity && caseDetail.audio_intensity.length > 0 && (
-                <AccordionItem title="Audio intensity" open>
+                <AccordionItem title="Audio intensity">
                   <AudioIntensityGraph values={caseDetail.audio_intensity} durationSeconds={duration} />
                 </AccordionItem>
               )}

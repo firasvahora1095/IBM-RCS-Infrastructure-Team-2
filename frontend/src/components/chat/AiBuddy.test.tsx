@@ -70,6 +70,16 @@ describe("AiBuddy", () => {
     expect(suggestedQuestions("manager", true)).toEqual(suggestedQuestions("manager", false));
   });
 
+  it("offers case questions while an Auditor is on a case, and the usual ones elsewhere", () => {
+    expect(suggestedQuestions("auditor", false, true)).toEqual([
+      "What does S2 mean?",
+      "What happens if I decline this case?",
+      "What if I disagree with the AI severity?",
+    ]);
+    expect(suggestedQuestions("auditor", false, false)).not.toContain("What does S2 mean?");
+    expect(suggestedQuestions("manager", false, true)).toEqual(suggestedQuestions("manager", false, false));
+  });
+
   it("sends a starter question with the session token and shows the answer with its live time", async () => {
     const chat = vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
