@@ -1,6 +1,7 @@
 import { Header, HeaderGlobalBar, HeaderMenuItem, HeaderName, HeaderNavigation, Theme } from "@carbon/react";
 import { Link as RouterLink } from "react-router-dom";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { RcsMark } from "../brand/RcsMark";
 
 /**
  * Header for the RCS product site (landing and organisation set-up, B2B flow
@@ -12,7 +13,11 @@ export function MarketingHeader() {
   return (
     <Theme theme="g100">
       <Header aria-label="IBM Responsible Content Safety">
-        <HeaderName as={RouterLink} to="/rcs" prefix="IBM">
+        {/* The mark sits with the name, so the product is recognisable at a glance on every page of the site. */}
+        <span className="flex items-center pl-4" aria-hidden="true">
+          <RcsMark size={20} />
+        </span>
+        <HeaderName as={RouterLink} to="/rcs" prefix="IBM" style={{ paddingInlineStart: "0.5rem" }}>
           Responsible Content Safety
         </HeaderName>
         <HeaderNavigation aria-label="RCS">
@@ -24,6 +29,9 @@ export function MarketingHeader() {
           </HeaderMenuItem>
           <HeaderMenuItem as={RouterLink} to="/rcs#integration">
             Integration
+          </HeaderMenuItem>
+          <HeaderMenuItem as={RouterLink} to="/rcs#team">
+            Meet the team
           </HeaderMenuItem>
           <HeaderMenuItem as={RouterLink} to="/rcs#faq">
             FAQ

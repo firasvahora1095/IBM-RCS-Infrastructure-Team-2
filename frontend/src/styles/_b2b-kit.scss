@@ -20,8 +20,17 @@
 // Type matches the existing Manager screens (components/manager/managerStyles.ts):
 // 28/36 semibold page titles, 16/22 semibold panel titles, 14/20 secondary text.
 .rcs-eyebrow {
-  @include type.type-style("label-01");
-  color: var(--cds-text-secondary);
+  // heading-compact-01 rather than label-01: the 12px grey label read as decoration and failed to carry its section.
+  @include type.type-style("heading-compact-01");
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--cds-text-primary);
+  letter-spacing: 0.02em;
+}
+// The one eyebrow that carries the brand mark, in the hero.
+.rcs-eyebrow--brand {
+  color: var(--cds-text-primary);
 }
 .rcs-page-title {
   font-size: 1.75rem;
