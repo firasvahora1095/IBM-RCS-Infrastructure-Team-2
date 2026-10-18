@@ -90,7 +90,7 @@ export function ManagerCaseReviewPage() {
           {data.status !== "COMPLETE" && (data.manager_flag === "DECLINED" || data.manager_flag === "CAP_REACHED") && (
             <div>
               <Button onClick={() => navigate(`/manager/cases/${encodeURIComponent(caseId)}/reassign`)}>
-                Continue to reassignment decision
+                Reassign case
               </Button>
             </div>
           )}

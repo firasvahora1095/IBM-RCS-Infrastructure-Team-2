@@ -724,6 +724,10 @@ html {
     outline-offset: -2px;
   }
 }
+.rcs-subnav-count.rcs-subnav-count--neutral {
+  background-color: var(--cds-background-inverse);
+  color: var(--cds-text-inverse);
+}
 .rcs-subnav-count {
   min-inline-size: 1.25rem;
   padding-inline: 0.375rem;

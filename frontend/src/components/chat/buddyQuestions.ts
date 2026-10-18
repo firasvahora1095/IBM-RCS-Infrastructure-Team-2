@@ -30,6 +30,14 @@ const CHIPS: Record<StaffRole | "superadmin", string[]> = {
   ],
 };
 
-export function suggestedQuestions(role: StaffRole, isSuperAdmin: boolean): string[] {
+/** On a case, the questions that matter while looking at it. */
+const CASE_CHIPS = [
+  "What does S2 mean?",
+  "What happens if I decline this case?",
+  "What if I disagree with the AI severity?",
+];
+
+export function suggestedQuestions(role: StaffRole, isSuperAdmin: boolean, onCase = false): string[] {
+  if (onCase && role === "auditor") return CASE_CHIPS;
   return CHIPS[role === "auditor" && isSuperAdmin ? "superadmin" : role];
 }

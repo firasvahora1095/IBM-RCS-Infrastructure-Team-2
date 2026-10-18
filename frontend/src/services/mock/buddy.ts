@@ -46,6 +46,11 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 const TOPICS: Topic[] = [
   {
+    match: /what does s([1-4]) mean|what is s([1-4])|s([1-4]).*(mean|tier)/i,
+    answer: () =>
+      "S1 Low (CVI 0 to 39): minimal or negligible signs of violence or harm. S2 Moderate (40 to 64): aggressive or confrontational behaviour with some potential for harm, but nothing clearly serious. S3 High (65 to 84): clear violence, a credible threat or visible injury. S4 Critical (85 to 100): serious violence or a clear, immediate risk of serious harm. The case takes the highest tier any flagged moment reaches.",
+  },
+  {
     match: /fallback|wait.*(queue|reviewer)|take (a )?case/i,
     answer: () =>
       "A case waits in the fallback queue when no Auditor is free: everyone is in cooldown, at their daily limit or on an SOS. The system places it automatically the moment one is eligible. Take it yourself only if it can't wait. It then opens on a content warning and counts toward your exposure.",

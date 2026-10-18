@@ -281,12 +281,13 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     const nav = await screen.findByRole("navigation", { name: "Manager sections" });
     const names = within(nav)
       .getAllByRole("link")
-      .map((l) => l.textContent);
+      .map((l) => (l.textContent ?? "").replace(/\d+$/, ""));
     expect(names).toEqual(["Overview", "Cases", "Deliveries", "Reports", "Insights", "Validation"]);
     const order: string[] = [];
     await tabTo(user, within(nav).getByRole("link", { name: "Overview" }));
     for (let i = 0; i < names.length; i++) {
-      order.push(document.activeElement?.textContent ?? "");
+      // A count badge on a tab is read with its name, so compare names without it.
+      order.push((document.activeElement?.textContent ?? "").replace(/\d+$/, ""));
       await user.tab();
     }
     expect(order).toEqual(names);
@@ -329,7 +330,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     const first = radios.find((r) => (r as HTMLInputElement).checked)!;
     await tabTo(user, first);
     await user.keyboard("{ArrowDown}");
-    const confirm = screen.getByRole("button", { name: /^Reassign to / });
+    const confirm = screen.getByRole("button", { name: "Reassign" });
     await tabTo(user, confirm);
     await user.keyboard("{Enter}");
     expect(await screen.findByText(/Reassigned AR-2026-00398 to /)).toBeInTheDocument();

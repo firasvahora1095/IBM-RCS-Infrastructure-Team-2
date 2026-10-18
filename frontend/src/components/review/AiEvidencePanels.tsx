@@ -145,8 +145,19 @@ export function AudioIntensityGraph({
           />
         ))}
       </div>
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-        Timestamped audio-intensity graph, not an emotion graph.
+      {durationSeconds ? (
+        <div
+          aria-hidden="true"
+          className="flex justify-between"
+          style={{ maxWidth: 600, fontFamily: mono, fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}
+        >
+          <span>{formatTimestamp(0)}</span>
+          <span>{formatTimestamp(durationSeconds / 2)}</span>
+          <span>{formatTimestamp(durationSeconds)}</span>
+        </div>
+      ) : null}
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+        Audio intensity, not an emotion graph.
       </p>
     </div>
   );

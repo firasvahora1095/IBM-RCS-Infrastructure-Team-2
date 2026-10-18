@@ -158,7 +158,7 @@ export function ManagerReassignmentPage() {
           )}
           <div className="flex flex-wrap items-center gap-3">
             <Button disabled={!target || pending !== null} onClick={confirmReassignment}>
-              {pending === "reassign" ? "Reassigning…" : target ? `Reassign to ${target.name}` : "Reassign"}
+              {pending === "reassign" ? "Reassigning…" : "Reassign"}
             </Button>
             <Button kind="tertiary" onClick={() => setShowNoReassign((v) => !v)} aria-expanded={showNoReassign}>
               No reassignment needed
@@ -176,7 +176,7 @@ export function ManagerReassignmentPage() {
               />
               <div>
                 <Button kind="tertiary" disabled={!note.trim() || pending !== null} onClick={confirmNoReassignment}>
-                  {pending === "close" ? "Confirming…" : "Confirm no reassignment"}
+                  {pending === "close" ? "Confirming…" : "Confirm"}
                 </Button>
               </div>
             </div>

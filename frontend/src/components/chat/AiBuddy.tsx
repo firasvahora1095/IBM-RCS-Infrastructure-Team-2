@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 import {
   Button,
   DefinitionTooltip,
@@ -105,6 +105,8 @@ function BuddyBubble({ message, onNavigate }: { message: BuddyMessage; onNavigat
  */
 export function AiBuddy() {
   const { token, role, isSuperAdmin } = useAuth();
+  const { pathname } = useLocation();
+  const onCasePage = /^\/auditor\/cases\//.test(pathname);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const { messages, loading, send, retry, clear } = useBuddyConversation(token);
@@ -228,7 +230,7 @@ export function AiBuddy() {
                     I can explain RCS rules, your limits and your cases. You make the final call.
                   </p>
                   <div className="rcs-buddy__suggestions">
-                    {suggestedQuestions(role, isSuperAdmin).map((question) => (
+                    {suggestedQuestions(role, isSuperAdmin, onCasePage).map((question) => (
                       <Button
                         key={question}
                         kind="tertiary"
