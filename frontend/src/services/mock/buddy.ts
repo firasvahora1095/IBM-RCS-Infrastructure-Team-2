@@ -46,6 +46,11 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 const TOPICS: Topic[] = [
   {
+    match: /fallback|wait.*(queue|reviewer)|take (a )?case/i,
+    answer: () =>
+      "A case waits in the fallback queue when no Auditor is free: everyone is in cooldown, at their daily limit or on an SOS. The system places it automatically the moment one is eligible. Take it yourself only if it can't wait. It then opens on a content warning and counts toward your exposure.",
+  },
+  {
     match: /(what|how).*(exposure).*(today|so far|used|have)|my exposure/i,
     answer: (l, role) => {
       if (role !== "auditor" || l.exposureMinutes === undefined || l.exposureLimit === undefined) return null;

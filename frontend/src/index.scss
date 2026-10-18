@@ -417,6 +417,11 @@ $rcs-buddy-width: 25rem;
     inline-size: 100%;
     justify-content: flex-start;
     text-align: start;
+    // Full questions wrap instead of being cut off.
+    white-space: normal;
+    min-block-size: 3rem;
+    block-size: auto;
+    padding-block: 0.75rem;
   }
 }
 

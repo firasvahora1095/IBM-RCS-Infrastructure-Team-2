@@ -7,7 +7,7 @@ import * as services from "../../services";
 import type { BuddyReply } from "../../services/types";
 import { seedStaffSession } from "../../test/renderForA11y";
 import { AiBuddy } from "./AiBuddy";
-import { CASE_LOOKUP_PROMPT, SUGGESTED_LABELS, SUGGESTED_QUESTIONS } from "./buddyQuestions";
+import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
 import { BUDDY_STORAGE_KEY } from "./useBuddyConversation";
 
 const plain: BuddyReply = { reply: "You have 47 minutes of exposure today.", live_as_of: "2026-10-17T08:42:00Z", case: null, links: [], fallback: false };
@@ -51,23 +51,32 @@ describe("AiBuddy", () => {
     expect(screen.getByText("Preliminary")).toBeInTheDocument();
   });
 
-  it.each(["auditor", "manager"] as const)("offers the four %s starter questions", async (role) => {
+  it.each(["auditor", "manager"] as const)("offers the four %s starter questions, written in full", async (role) => {
     seedStaffSession(role);
     renderBuddy();
     await openPanel();
-    for (const question of SUGGESTED_QUESTIONS[role]) {
-      // The button reads the short name; the full question is its tooltip and what gets sent.
-      expect(screen.getByRole("button", { name: SUGGESTED_LABELS[question] })).toBeInTheDocument();
+    for (const question of suggestedQuestions(role, false)) {
+      expect(screen.getByRole("button", { name: question })).toBeInTheDocument();
     }
+  });
+
+  it("gives a Super Admin the queue questions and no one else", async () => {
+    seedStaffSession("auditor", true);
+    renderBuddy();
+    await openPanel();
+    expect(screen.getByRole("button", { name: "When should I take a case myself?" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "What happens to a case if I decline it?" })).not.toBeInTheDocument();
+    expect(suggestedQuestions("auditor", false)).not.toContain("When should I take a case myself?");
+    expect(suggestedQuestions("manager", true)).toEqual(suggestedQuestions("manager", false));
   });
 
   it("sends a starter question with the session token and shows the answer with its live time", async () => {
     const chat = vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    await user.click(screen.getByRole("button", { name: "My exposure today" }));
+    await user.click(screen.getByRole("button", { name: "What happens to a case if I decline it?" }));
 
-    expect(chat).toHaveBeenCalledWith("What is my exposure today?", "test-token", []);
+    expect(chat).toHaveBeenCalledWith("What happens to a case if I decline it?", "test-token", []);
     expect(await screen.findAllByText(/47 minutes of exposure today/)).not.toHaveLength(0);
     expect(screen.getByText(/Live data, read at/)).toBeInTheDocument();
   });
@@ -179,7 +188,7 @@ describe("AiBuddy", () => {
     const chat = vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    await user.click(screen.getByRole("button", { name: SUGGESTED_LABELS[CASE_LOOKUP_PROMPT] }));
+    await user.click(screen.getByRole("button", { name: CASE_LOOKUP_PROMPT }));
     expect(chat).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Ask a question")).toHaveValue("What is happening with ");
   });
@@ -209,7 +218,7 @@ describe("AiBuddy", () => {
     renderBuddy();
     const user = await openPanel();
     expect(localStorage.getItem(BUDDY_STORAGE_KEY)).toBeNull();
-    await user.click(screen.getByRole("button", { name: "My exposure today" }));
+    await user.click(screen.getByRole("button", { name: "What happens to a case if I decline it?" }));
     await screen.findAllByText(/47 minutes/);
     expect(sessionStorage.getItem(BUDDY_STORAGE_KEY)).toContain("47 minutes");
 
@@ -222,7 +231,7 @@ describe("AiBuddy", () => {
     vi.spyOn(services, "aiChat").mockResolvedValue(plain);
     renderBuddy();
     const user = await openPanel();
-    await user.click(screen.getByRole("button", { name: "My exposure today" }));
+    await user.click(screen.getByRole("button", { name: "What happens to a case if I decline it?" }));
     await screen.findAllByText(/47 minutes/);
     const panel = screen.getByRole("complementary", { name: "AI Buddy" });
     const names = within(panel)

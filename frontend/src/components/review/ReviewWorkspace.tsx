@@ -556,7 +556,7 @@ export function ReviewWorkspace({
             <Button onClick={onContinue}>{continueLabel}</Button>
             {onBack && (
               <Button kind="tertiary" onClick={onBack}>
-                Back to AI summary
+                ← Back to AI summary
               </Button>
             )}
           </div>

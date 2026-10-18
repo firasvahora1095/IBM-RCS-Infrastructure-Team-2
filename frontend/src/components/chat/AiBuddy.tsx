@@ -17,7 +17,7 @@ import {
 import { Chat, Close, Send } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
-import { CASE_LOOKUP_PROMPT, SUGGESTED_LABELS, SUGGESTED_QUESTIONS } from "./buddyQuestions";
+import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
 import { useBuddyConversation, type BuddyMessage } from "./useBuddyConversation";
 
 const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }[] = [
@@ -105,7 +105,7 @@ function BuddyBubble({ message, onNavigate }: { message: BuddyMessage; onNavigat
  * makes room for it (see index.scss) so it can't cover SOS.
  */
 export function AiBuddy() {
-  const { token, role } = useAuth();
+  const { token, role, isSuperAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const { messages, loading, send, retry, clear } = useBuddyConversation(token);
@@ -222,10 +222,9 @@ export function AiBuddy() {
                     I can explain RCS rules, your limits and your cases. You make the final call.
                   </p>
                   <div className="rcs-buddy__suggestions">
-                    {SUGGESTED_QUESTIONS[role].map((question) => (
+                    {suggestedQuestions(role, isSuperAdmin).map((question) => (
                       <Button
                         key={question}
-                        title={question === CASE_LOOKUP_PROMPT ? "Ask about a case by its ID" : question}
                         kind="tertiary"
                         size="md"
                         disabled={loading}
@@ -238,7 +237,7 @@ export function AiBuddy() {
                           }
                         }}
                       >
-                        {SUGGESTED_LABELS[question] ?? question}
+                        {question}
                       </Button>
                     ))}
                   </div>
