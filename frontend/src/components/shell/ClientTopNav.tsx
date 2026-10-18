@@ -1,7 +1,11 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { canSee, useClientAuth } from "../../hooks/useClientAuth";
 import { useClientQuery } from "../../hooks/useClientQuery";
 import { clientListCaseResults } from "../../services";
+
+/** Fired when a case result is actioned, so the count on the Case results tab refreshes. */
+export const CLIENT_RESULTS_CHANGED_EVENT = "rcs:client-results-changed";
 
 /** The same tab bar the Manager has: a light row under the header, an underline on the section you are in. */
 const tabBase = {
@@ -37,6 +41,11 @@ export function ClientTopNav() {
   const { session } = useClientAuth();
   const showsCases = canSee(session?.role, "cases");
   const results = useClientQuery(showsCases ? clientListCaseResults : () => Promise.resolve([]));
+  const { reload } = results;
+  useEffect(() => {
+    window.addEventListener(CLIENT_RESULTS_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(CLIENT_RESULTS_CHANGED_EVENT, reload);
+  }, [reload]);
   const waiting = (results.data ?? []).filter((r) => r.status === "DELIVERED" && !r.platform_action).length;
 
   return (

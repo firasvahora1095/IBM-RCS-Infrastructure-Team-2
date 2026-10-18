@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppRoutes } from "../../App";
@@ -65,5 +65,30 @@ describe("CommunityHub portal frame", () => {
       "Policy violations",
       "Released",
     ]);
+  });
+
+  it("opens Case results on what needs action, and recording an action closes that loop", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const switcher = await screen.findByRole("tablist", { name: "Case result views" }).catch(() => null);
+    const needsTab = switcher
+      ? within(switcher).getAllByRole("tab")[0]
+      : await screen.findByRole("tab", { name: /^Needs action \(\d+\)$/ });
+    expect(needsTab).toHaveAttribute("aria-selected", "true");
+    const before = Number(needsTab.textContent!.match(/\((\d+)\)/)![1]);
+    expect(before).toBeGreaterThan(0);
+
+    const table = await screen.findByRole("table", { name: "Case results" });
+    fireEvent.click(within(table).getAllByRole("button", { name: /^Record action for / })[0]);
+    const dialog = await screen.findByRole("dialog");
+    const record = within(dialog).getByRole("button", { name: "Record action" });
+    expect(record).toBeDisabled(); // a choice is needed first
+    fireEvent.click(within(dialog).getByLabelText("Post removed"));
+    fireEvent.click(record);
+
+    expect(await screen.findByText(/RCS has been told/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getAllByRole("tab")[0].textContent).toContain(`(${before - 1})`),
+    );
   });
 });
