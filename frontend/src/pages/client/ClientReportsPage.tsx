@@ -1,7 +1,11 @@
+import { useMemo, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   InlineNotification,
   Layer,
+  Search,
+  Select,
+  SelectItem,
   SkeletonText,
   Table,
   TableBody,
@@ -15,10 +19,13 @@ import { TablePagination, usePagination } from "../../components/ui/TablePaginat
 import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState } from "../../components/ui/Blocks";
 import { clientListReports } from "../../services";
+import type { ServiceReport as ClientReport } from "../../services/types";
 import { useClientQuery } from "../../hooks/useClientQuery";
 import { useClientAuth } from "../../hooks/useClientAuth";
 import { ACCESS_DISCLOSURE, CLIENT_EMPTY } from "../../design-tokens/reportLabels";
 import { formatPeriod, formatShortDate, wholeMonthName } from "../../utils/formatPeriod";
+
+type SortKey = "period" | "cases" | "violations" | "released";
 
 /**
  * CommunityHub reports (B2B spec S12a): the reports RCS has released to the
@@ -29,7 +36,53 @@ export function ClientReportsPage() {
   const navigate = useNavigate();
   const { session } = useClientAuth();
   const { data, error } = useClientQuery(clientListReports);
-  const paged = usePagination(data ?? []);
+  const [year, setYear] = useState("ALL");
+  const [query, setQuery] = useState("");
+  // Newest first by default, the order a reader wants; any column can be sorted.
+  const [sort, setSort] = useState<{ key: SortKey; dir: "ASC" | "DESC" }>({ key: "period", dir: "DESC" });
+
+  const years = useMemo(
+    () => [...new Set((data ?? []).map((r) => r.period_start.slice(0, 4)))].sort().reverse(),
+    [data],
+  );
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const value = (r: ClientReport): number | string => {
+      switch (sort.key) {
+        case "period":
+          return r.period_start;
+        case "cases":
+          return r.metrics.cases_completed;
+        case "violations":
+          return r.metrics.violation_count;
+        case "released":
+          return r.released_at ?? "";
+      }
+    };
+    return (data ?? [])
+      .filter((r) => year === "ALL" || r.period_start.startsWith(year))
+      .filter(
+        (r) =>
+          !q ||
+          r.report_id.toLowerCase().includes(q) ||
+          (wholeMonthName(r.period_start, r.period_end) ?? formatPeriod(r.period_start, r.period_end))
+            .toLowerCase()
+            .includes(q),
+      )
+      .sort((a, b) => {
+        const x = value(a);
+        const y = value(b);
+        const diff = x < y ? -1 : x > y ? 1 : 0;
+        return sort.dir === "ASC" ? diff : -diff;
+      });
+  }, [data, year, query, sort]);
+  const paged = usePagination(rows, `${year}|${query}|${sort.key}|${sort.dir}`);
+  const sortProps = (key: SortKey) => ({
+    isSortable: true,
+    isSortHeader: sort.key === key,
+    sortDirection: sort.key === key ? sort.dir : ("NONE" as const),
+    onClick: () => setSort((cur) => ({ key, dir: cur.key === key && cur.dir === "DESC" ? "ASC" : "DESC" })),
+  });
 
   return (
     <ClientLayout maxWidth={1056}>
@@ -52,15 +105,40 @@ export function ClientReportsPage() {
       {data && data.length === 0 && <EmptyState title="No reports yet" body={CLIENT_EMPTY} />}
       {data && data.length > 0 && (
         <>
+          <div className="flex flex-wrap items-end gap-4">
+            <div style={{ minWidth: 180 }}>
+              <Select
+                id="report-year"
+                size="md"
+                labelText="Year"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+              >
+                <SelectItem value="ALL" text="All years" />
+                {years.map((y) => (
+                  <SelectItem key={y} value={y} text={y} />
+                ))}
+              </Select>
+            </div>
+            <div style={{ flex: "1 1 260px", maxWidth: 420 }}>
+              <Search
+                size="md"
+                labelText="Search by month or report ID"
+                placeholder="Search by month or report ID"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
           <Layer>
             <Table aria-label="Released reports">
               <TableHead>
                 <TableRow>
-                  <TableHeader>Period</TableHeader>
+                  <TableHeader {...sortProps("period")}>Period</TableHeader>
                   <TableHeader>Report</TableHeader>
-                  <TableHeader>Cases completed</TableHeader>
-                  <TableHeader>Policy violations</TableHeader>
-                  <TableHeader>Released</TableHeader>
+                  <TableHeader {...sortProps("cases")}>Cases completed</TableHeader>
+                  <TableHeader {...sortProps("violations")}>Policy violations</TableHeader>
+                  <TableHeader {...sortProps("released")}>Released</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -94,6 +172,7 @@ export function ClientReportsPage() {
             </Table>
           </Layer>
           <TablePagination paged={paged} />
+          {rows.length === 0 && <p className="rcs-helper">No reports match these filters.</p>}
         </>
       )}
       <p className="rcs-helper">{ACCESS_DISCLOSURE}</p>

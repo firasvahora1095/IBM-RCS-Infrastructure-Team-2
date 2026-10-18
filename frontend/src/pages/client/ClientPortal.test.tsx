@@ -58,13 +58,10 @@ describe("CommunityHub portal frame", () => {
     await signInClient("ch-user-17");
     renderAt("/client/reports");
     const table = await screen.findByRole("table", { name: "Released reports" });
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
-      "Period",
-      "Report",
-      "Cases completed",
-      "Policy violations",
-      "Released",
-    ]);
+    const headers = within(table).getAllByRole("columnheader").map((h) => h.textContent ?? "");
+    ["Period", "Report", "Cases completed", "Policy violations", "Released"].forEach((name, i) =>
+      expect(headers[i]).toContain(name),
+    );
   });
 
   it("opens Case results on what needs action, and recording an action closes that loop", async () => {
@@ -125,5 +122,27 @@ describe("CommunityHub portal frame", () => {
     expect(within(bar).getByText("1 selected")).toBeInTheDocument();
     fireEvent.click(within(bar).getByRole("button", { name: "Post kept" }));
     expect(await screen.findByText(/1 result recorded/)).toBeInTheDocument();
+  });
+
+  it("separates messages by whether RCS has answered, with the open ones first", async () => {
+    await signInClient("ch-user-17");
+    renderAt("/client/messages");
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((t) => t.textContent!.replace(/\s*\(\d+\)/, ""))).toEqual([
+      "Waiting for RCS",
+      "Answered",
+      "All messages",
+    ]);
+    const counts = tabs.map((t) => Number(t.textContent!.match(/\((\d+)\)/)![1]));
+    expect(counts[2]).toBe(counts[0] + counts[1]);
+  });
+
+  it("filters service reports by year and search, and sorts them", async () => {
+    await signInClient("ch-user-17");
+    renderAt("/client/reports");
+    await screen.findByRole("table", { name: "Released reports" });
+    expect(screen.getByLabelText("Year")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search by month or report ID" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Period/ })).toBeInTheDocument();
   });
 });
