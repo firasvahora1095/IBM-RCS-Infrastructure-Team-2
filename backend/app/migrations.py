@@ -7,7 +7,7 @@ from app.models import Base
 VERSION = 2
 
 
-def migrate(engine):
+def _bootstrap(engine):
     if engine.dialect.name != "postgresql":
         raise RuntimeError("Production migrations require PostgreSQL")
     with engine.begin() as connection:
@@ -55,6 +55,45 @@ def migrate(engine):
         for name, columns in (("idx_governance_run", "run_id"), ("idx_governance_case_time", "case_id, at")):
             connection.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON governance_log ({columns})"))
         connection.execute(text("INSERT INTO schema_migrations(version) VALUES (:version)"), {"version": VERSION})
+
+
+RENAME_VERSION = 3
+OLD_SUPER_AUDITOR_ID = "superadmin-01"
+NEW_SUPER_AUDITOR_ID = "superauditor-01"
+
+
+def rename_super_auditor(connection) -> bool:
+    """The fallback reviewer's login was `superadmin-01`; it is now `superauditor-01`.
+
+    Keeps the account and everything it owns: a new row is made from the old one, the live references are
+    pointed at it, then the old row is removed (the case foreign key has no ON UPDATE CASCADE, so the key
+    can't simply be renamed). Audit log entries are NOT rewritten: they record who acted at the time.
+    Does nothing if the old account is absent or the new one already exists. Returns whether it renamed.
+    """
+    old, new = OLD_SUPER_AUDITOR_ID, NEW_SUPER_AUDITOR_ID
+    exists = "SELECT 1 FROM auditors WHERE auditor_id = :id"
+    if not connection.scalar(text(exists), {"id": old}) or connection.scalar(text(exists), {"id": new}):
+        return False
+    columns = [c["name"] for c in inspect(connection).get_columns("auditors") if c["name"] != "auditor_id"]
+    listed = ", ".join(columns)
+    connection.execute(
+        text(f"INSERT INTO auditors (auditor_id, {listed}) SELECT :new, {listed} FROM auditors WHERE auditor_id = :old"),
+        {"new": new, "old": old},
+    )
+    connection.execute(text("UPDATE cases SET assigned_auditor_id = :new WHERE assigned_auditor_id = :old"), {"new": new, "old": old})
+    connection.execute(text("UPDATE wellbeing_requests SET auditor_id = :new WHERE auditor_id = :old"), {"new": new, "old": old})
+    connection.execute(text("DELETE FROM auditors WHERE auditor_id = :old"), {"old": old})
+    return True
+
+
+def migrate(engine):
+    _bootstrap(engine)
+    with engine.begin() as connection:
+        connection.execute(text("SELECT pg_advisory_xact_lock(72100832)"))
+        if connection.scalar(text("SELECT 1 FROM schema_migrations WHERE version=:version"), {"version": RENAME_VERSION}):
+            return
+        rename_super_auditor(connection)
+        connection.execute(text("INSERT INTO schema_migrations(version) VALUES (:version)"), {"version": RENAME_VERSION})
 
 
 if __name__ == "__main__":
