@@ -17,6 +17,7 @@ import {
   TableRow,
   TextArea,
 } from "@carbon/react";
+import { Download } from "@carbon/icons-react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -122,9 +123,10 @@ export function ManagerReportDetailPage() {
     <ManagerLayout>
       <PageHeader
         breadcrumb={
-          <ManagerBreadcrumb trail={[{ label: "Client reports", to: "/manager/reports" }, { label: reportId }]} />
+          <ManagerBreadcrumb trail={[{ label: "Reports", to: "/manager/reports" }, { label: `Client report ${reportId}` }]} />
         }
-        title={data ? formatPeriod(data.period_start, data.period_end) : "Report"}
+        eyebrow={data ? `Client report · ${data.organisation_name}` : undefined}
+        title={data ? formatPeriod(data.period_start, data.period_end) : "Client report"}
         meta={data && <StatusTag kind="report" value={data.status} />}
         subtitle={
           data &&
@@ -195,8 +197,8 @@ export function ManagerReportDetailPage() {
                     included.
                   </p>
                   <Button onClick={() => setConfirmOpen(true)}>Approve and release</Button>
-                  <Button kind="ghost" onClick={() => window.print()}>
-                    Download draft as PDF
+                  <Button kind="tertiary" renderIcon={Download} onClick={() => window.print()}>
+                    Download PDF
                   </Button>
                 </section>
               ) : (
@@ -211,8 +213,8 @@ export function ManagerReportDetailPage() {
                   <Button kind="tertiary" onClick={newVersion}>
                     Create a new version
                   </Button>
-                  <Button kind="ghost" onClick={() => window.print()}>
-                    Download as PDF
+                  <Button kind="tertiary" renderIcon={Download} onClick={() => window.print()}>
+                    Download PDF
                   </Button>
                 </section>
               )}

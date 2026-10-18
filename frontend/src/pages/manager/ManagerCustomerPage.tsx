@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Button, CodeSnippet, Column, Grid, InlineLoading, InlineNotification } from "@carbon/react";
+import { Accordion, AccordionItem, Button, CodeSnippet, InlineLoading, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -67,150 +67,156 @@ export function ManagerCustomerPage() {
       />
       <LoadState error={error} loading={!data && !error} what="this customer" />
       {data && (
-        <Grid className="rcs-grid">
-          <Column sm={4} md={8} lg={10} className="flex flex-col gap-6">
-            <section className="rcs-section" aria-labelledby="connection-heading">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+        // One column, in the order a Manager asks the questions: is it connected, is it delivering, what was reported,
+        // then how it works and who can see it.
+        <div className="flex flex-col gap-6" style={{ maxWidth: 960 }}>
+          <Section
+            id="connection"
+            title="Connection"
+            description="Whether RCS can send completed results to CommunityHub."
+            actions={<StatusTag tone={ready ? "success" : "error"}>{ready ? "Connected" : "Needs attention"}</StatusTag>}
+          >
+            <dl className="rcs-glance">
+              <div className="flex flex-col gap-1">
+                <dt className="rcs-stat-label">Last tested</dt>
+                <dd>{data.last_tested_at ? formatShortDateTime(data.last_tested_at) : "Not tested yet"}</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="rcs-stat-label">Last result delivered</dt>
+                <dd>{data.last_delivery_at ? formatShortDateTime(data.last_delivery_at) : "None yet"}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap items-center gap-3">
+              {testing ? (
+                <InlineLoading description="Sending a test result…" status="active" />
+              ) : (
+                <Button kind={ready ? "tertiary" : "primary"} onClick={runTest}>
+                  {ready ? "Test connection" : "Retest connection"}
+                </Button>
+              )}
+              <span className="rcs-helper">Sends one test result to CommunityHub and reports whether it was accepted.</span>
+            </div>
+            {/* Where the outcome of the test appears. */}
+            <div aria-live="polite">
+              {result && (
+                <InlineNotification
+                  kind={result.ok ? "success" : "error"}
+                  lowContrast
+                  title={result.ok ? `${result.message}.` : "Test failed."}
+                  subtitle={result.ok ? `Responded in ${result.latency_ms} ms.` : result.message}
+                  onClose={() => setResult(null)}
+                />
+              )}
+              {testError && (
+                <InlineNotification kind="error" lowContrast role="alert" title="Couldn't run the test." subtitle={testError} />
+              )}
+            </div>
+            {!ready && <p className="rcs-body">Results keep retrying automatically until the connection is fixed.</p>}
+          </Section>
+
+          <Section
+            id="delivery-health"
+            title="Delivery health"
+            description="What happened to the results sent to CommunityHub."
+            actions={
+              <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/deliveries">
+                View deliveries
+              </Button>
+            }
+          >
+            <SegmentedBar
+              label="Delivery health"
+              segments={[
+                { key: "ok", label: "Delivered", value: data.health.success, color: "var(--cds-support-success)" },
+                { key: "pending", label: "Pending", value: data.health.pending, color: "var(--cds-border-strong-01)" },
+                { key: "retry", label: "Retrying", value: data.health.retrying, color: "var(--cds-support-info)" },
+                { key: "attention", label: "Failed", value: data.health.needs_attention, color: "var(--cds-support-error)" },
+              ]}
+            />
+          </Section>
+
+          <Section
+            id="service-reports"
+            title="Service reports"
+            description="The summary reports shared with CommunityHub."
+            actions={
+              <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/reports">
+                View reports
+              </Button>
+            }
+          >
+            {latestReleased ? (
+              <div className="flex flex-col gap-2">
+                <div className="rcs-align-row">
+                  <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(latestReleased.report_id)}`}>
+                    {formatPeriod(latestReleased.period_start, latestReleased.period_end)}
+                  </RouterLink>
+                  <StatusTag kind="report" value="RELEASED" size="sm" />
+                </div>
+                <p className="rcs-helper">
+                  Latest released report · {latestReleased.metrics.cases_completed} cases completed
+                </p>
+              </div>
+            ) : (
+              <p className="rcs-helper">No report has been released yet.</p>
+            )}
+          </Section>
+
+          <Section
+            id="client-accounts"
+            title="Client accounts"
+            description="Who at CommunityHub can see what. Each account sees only what its role needs."
+          >
+            {accounts.data ? (
+              <ul className="flex flex-col">
+                {accounts.data.map((a) => (
+                  <li key={a.user_id} className="rcs-account-row">
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{a.display_name}</span>
+                    <StatusTag tone="neutral" size="sm">
+                      {CLIENT_ROLE_LABEL[a.role]}
+                    </StatusTag>
+                    <span className="rcs-helper">{CLIENT_ROLE_SCOPE[a.role]}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
+            )}
+            <p className="rcs-helper">{RESPONSIBILITY_BOUNDARY}</p>
+          </Section>
+
+          {/* The set-up detail is for whoever maintains the connection, so it is one step away rather than on the page. */}
+          <Accordion>
+            <AccordionItem title="Technical details for the integration owner">
+              <div className="flex flex-col gap-6">
+                <p className="rcs-body">
+                  Each completed result is sent automatically to CommunityHub. A failed send is retried, and every result
+                  carries a unique ID, so CommunityHub never processes the same result twice.
+                </p>
+                <KeyValueList
+                  mono={["Destination"]}
+                  items={[
+                    { label: "Destination", value: data.destination_masked },
+                    { label: "Method", value: data.method },
+                    { label: "Authentication", value: data.auth_method },
+                    { label: "Retry policy", value: data.retry_policy },
+                    { label: "Duplicate protection", value: data.idempotency },
+                  ]}
+                />
                 <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 id="connection-heading" className="rcs-section-title">
-                      CommunityHub connection
-                    </h2>
-                    <StatusTag tone={ready ? "success" : "error"}>{ready ? "Connected" : "Needs attention"}</StatusTag>
-                  </div>
+                  <h3 className="rcs-subheading">Example of what CommunityHub receives</h3>
+                  <CodeSnippet type="multi" feedback="Copied" aria-label="Example result payload" wrapText>
+                    {SAMPLE_PAYLOAD}
+                  </CodeSnippet>
                   <p className="rcs-helper">
-                    {data.last_tested_at ? `Last tested ${formatShortDateTime(data.last_tested_at)}` : "Not tested yet"}
-                    {data.last_delivery_at && ` · Last result delivered ${formatShortDateTime(data.last_delivery_at)}`}
+                    A source link is added only when the Reporter gave one. Narrative summaries, footage, Auditor identity
+                    and wellbeing information are never sent.
                   </p>
                 </div>
-                {testing ? (
-                  <InlineLoading description="Sending a test delivery…" status="active" />
-                ) : (
-                  <Button kind={ready ? "tertiary" : "primary"} onClick={runTest}>
-                    {ready ? "Test connection" : "Retest connection"}
-                  </Button>
-                )}
               </div>
-              <div aria-live="polite">
-                {result && (
-                  <InlineNotification
-                    kind={result.ok ? "success" : "error"}
-                    lowContrast
-                    title={result.ok ? `${result.message}.` : "Test failed."}
-                    subtitle={result.ok ? `Responded in ${result.latency_ms} ms.` : result.message}
-                    onClose={() => setResult(null)}
-                  />
-                )}
-                {testError && (
-                  <InlineNotification kind="error" lowContrast role="alert" title="Couldn't run the test." subtitle={testError} />
-                )}
-              </div>
-              {!ready && (
-                <p className="rcs-body">Deliveries keep retrying automatically until the connection is fixed.</p>
-              )}
-            </section>
-
-            <Section title="How results are delivered" description="Set up once with CommunityHub. A simulated destination in this prototype.">
-              <KeyValueList
-                mono={["Destination"]}
-                items={[
-                  { label: "Destination", value: data.destination_masked },
-                  { label: "Method", value: data.method },
-                  { label: "Authentication", value: data.auth_method },
-                  { label: "Retry policy", value: data.retry_policy },
-                  { label: "Duplicate protection", value: data.idempotency },
-                ]}
-              />
-            </Section>
-
-            <Section
-              title="What CommunityHub receives"
-              description="Sent automatically when an Auditor completes a case. No Manager approval step."
-            >
-              <CodeSnippet type="multi" feedback="Copied" aria-label="Example result payload" wrapText>
-                {SAMPLE_PAYLOAD}
-              </CodeSnippet>
-              <p className="rcs-helper">
-                A source link is added only when the Reporter gave one. It's never required. Narrative summaries,
-                footage, Auditor identity and wellbeing information are never sent.
-              </p>
-            </Section>
-          </Column>
-
-          <Column sm={4} md={8} lg={6} className="flex flex-col gap-6">
-            <Section
-              title="Client accounts"
-              description="Who at CommunityHub can see what. Each account sees only what its role needs."
-            >
-              {accounts.data ? (
-                <ul className="flex flex-col gap-3">
-                  {accounts.data.map((a) => (
-                    <li key={a.user_id} className="flex flex-col gap-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{a.display_name}</span>
-                        <StatusTag tone="neutral" size="sm">
-                          {CLIENT_ROLE_LABEL[a.role]}
-                        </StatusTag>
-                      </span>
-                      <span className="rcs-helper">
-                        <span className="rcs-mono">{a.user_id}</span> · {CLIENT_ROLE_SCOPE[a.role]}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
-              )}
-            </Section>
-            <Section title="Who decides what">
-              <p className="rcs-body">{RESPONSIBILITY_BOUNDARY}</p>
-            </Section>
-
-            <Section
-              title="Delivery health"
-              actions={
-                <RouterLink className="cds--link" to="/manager/deliveries">
-                  View deliveries
-                </RouterLink>
-              }
-            >
-              <SegmentedBar
-                label="Delivery health"
-                segments={[
-                  { key: "ok", label: "Delivered", value: data.health.success, color: "var(--cds-support-success)" },
-                  { key: "pending", label: "Pending", value: data.health.pending, color: "var(--cds-border-strong-01)" },
-                  { key: "retry", label: "Retrying", value: data.health.retrying, color: "var(--cds-support-info)" },
-                  { key: "attention", label: "Failed", value: data.health.needs_attention, color: "var(--cds-support-error)" },
-                ]}
-              />
-            </Section>
-
-            <Section
-              title="Service reports"
-              actions={
-                <RouterLink className="cds--link" to="/manager/reports">
-                  View reports
-                </RouterLink>
-              }
-            >
-              {latestReleased ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(latestReleased.report_id)}`}>
-                      {formatPeriod(latestReleased.period_start, latestReleased.period_end)}
-                    </RouterLink>
-                    <StatusTag kind="report" value="RELEASED" />
-                  </div>
-                  <p className="rcs-helper">
-                    Latest released report · {latestReleased.metrics.cases_completed} cases completed
-                  </p>
-                </div>
-              ) : (
-                <p className="rcs-helper">No report has been released yet.</p>
-              )}
-            </Section>
-          </Column>
-        </Grid>
+            </AccordionItem>
+          </Accordion>
+        </div>
       )}
     </ManagerLayout>
   );

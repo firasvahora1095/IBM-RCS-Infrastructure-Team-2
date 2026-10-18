@@ -75,7 +75,7 @@ export function ManagerDeliveriesPage() {
   const [query, setQuery] = useState("");
   const needle = query.trim().toUpperCase();
   const filtered = needle
-    ? rows.filter((d) => d.case_id.toUpperCase().includes(needle) || d.delivery_id.toUpperCase().includes(needle))
+    ? rows.filter((d) => d.case_id.toUpperCase().includes(needle))
     : rows;
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
@@ -154,8 +154,8 @@ export function ManagerDeliveriesPage() {
                   <TableToolbarContent>
                     <TableToolbarSearch
                       persistent
-                      labelText="Search deliveries"
-                      placeholder="Search by case or delivery ID"
+                      labelText="Search by Case ID"
+                      placeholder="Search by Case ID"
                       onChange={(e) => {
                         setPage(1);
                         setQuery(typeof e === "string" ? e : (e?.target as HTMLInputElement | undefined)?.value ?? "");

@@ -4,7 +4,6 @@ import {
   Button,
   DismissibleTag,
   Dropdown,
-  InlineNotification,
   Layer,
   Search,
   Table,
@@ -20,11 +19,9 @@ import { Section } from "../../components/ui/Blocks";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { getCaseOversight, makeCaseAvailable } from "../../services";
+import { getCaseOversight } from "../../services";
 import type { ManagerCaseRow } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
-import { useAuth } from "../../hooks/useAuth";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
 import { caseStatusTone } from "../../design-tokens/statusTones";
 import { StatusTag } from "../../components/ui/StatusTag";
@@ -35,25 +32,26 @@ const ALL_STATUSES = "All statuses";
 
 type SortKey = "severity" | "status" | "auditor" | "case";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "severity", label: "Severity, most severe first" },
-  { key: "status", label: "Status" },
-  { key: "auditor", label: "Auditor" },
-  { key: "case", label: "Case ID" },
+  { key: "severity", label: "Severity, high to low" },
+  { key: "status", label: "Status, in workflow order" },
+  { key: "auditor", label: "Auditor, A to Z" },
+  { key: "case", label: "Case ID, newest first" },
 ];
+/** The order a case moves through, so a status sort reads as a pipeline rather than alphabetically. */
+const STATUS_ORDER = ["Processing", "Ready for Review", "In Review", "Complete"];
 
 /** What a case needs from the Manager, in the order to work through them. `null` means nothing. */
-type Attention = { kind: "blocked" | "reassign" | "held"; label: string; action: string } | null;
+type Attention = { kind: "blocked" | "reassign"; label: string; action: string } | null;
 
 function attentionOf(row: ManagerCaseRow): Attention {
   if (row.status === "COMPLETE") return null;
   if (row.manager_flag === "SOS") return { kind: "blocked", label: "Blocked", action: "Review alert" };
   if (row.manager_flag) return { kind: "reassign", label: "Needs Reassignment", action: "Review" };
-  // Held back: no Auditor, and still visible only to the Super Admin Auditor.
-  if (row.auditor_name === null && row.case_visibility === "SUPER_ADMIN_ONLY")
-    return { kind: "held", label: "Awaiting release", action: "Release to Auditors" };
+  // A case with no Auditor yet is never the Manager's to push along: it is released to Auditors automatically
+  // (the Super Admin Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
   return null;
 }
-const ATTENTION_RANK = { blocked: 0, reassign: 1, held: 2 } as const;
+const ATTENTION_RANK = { blocked: 0, reassign: 1 } as const;
 const SEVERITY_RANK: Record<string, number> = { S4: 0, S3: 1, S2: 2, S1: 3 };
 const tierOf = (row: ManagerCaseRow) => row.final_severity_tier ?? row.severity_tier;
 
@@ -75,29 +73,7 @@ function detailHref(row: ManagerCaseRow): string {
  */
 export function ManagerCaseOversightPage() {
   const navigate = useNavigate();
-  const { data, error, reload } = useStaffQuery(getCaseOversight);
-  const { token } = useAuth();
-  const [releasing, setReleasing] = useState<string | null>(null);
-  const [releaseNotice, setReleaseNotice] = useState<string | null>(null);
-  const [releaseError, setReleaseError] = useState<string | null>(null);
-
-  // A held-back case is made visible to Auditors so one of them can take it. With the automatic release on, this
-  // is rare: it is a safety valve for a case that has been waiting, not a routine step (extra-features 1.6).
-  async function release(caseId: string) {
-    if (!token) return;
-    setReleasing(caseId);
-    setReleaseNotice(null);
-    setReleaseError(null);
-    try {
-      await makeCaseAvailable(caseId, token);
-      setReleaseNotice(`${caseId} can now be taken by eligible Auditors.`);
-      reload();
-    } catch (err) {
-      setReleaseError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
-    } finally {
-      setReleasing(null);
-    }
-  }
+  const { data, error } = useStaffQuery(getCaseOversight);
   // The dashboard opens this list on a stage (?stage=) or a case (?search=).
   const [params, setParams] = useSearchParams();
   const rawStage = params.get("stage");
@@ -131,11 +107,14 @@ export function ManagerCaseOversightPage() {
     .sort((a, b) => {
       switch (sortKey) {
         case "status":
-          return managerStatusLabel(a.status, a.manager_flag).localeCompare(managerStatusLabel(b.status, b.manager_flag));
+          return (
+            STATUS_ORDER.indexOf(managerStatusLabel(a.status, a.manager_flag)) -
+            STATUS_ORDER.indexOf(managerStatusLabel(b.status, b.manager_flag))
+          );
         case "auditor":
           return (a.auditor_name ?? "~").localeCompare(b.auditor_name ?? "~");
         case "case":
-          return a.case_id.localeCompare(b.case_id);
+          return b.case_id.localeCompare(a.case_id);
         default:
           return (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9);
       }
@@ -184,20 +163,6 @@ export function ManagerCaseOversightPage() {
           />
         </div>
       )}
-      {releaseNotice && (
-        <InlineNotification kind="success" lowContrast hideCloseButton title="Done." subtitle={releaseNotice} style={{ maxWidth: "100%" }} />
-      )}
-      {releaseError && (
-        <InlineNotification
-          kind="error"
-          lowContrast
-          hideCloseButton
-          role="alert"
-          title="That didn't work."
-          subtitle={releaseError}
-          style={{ maxWidth: "100%" }}
-        />
-      )}
       <LoadState error={error} loading={!data && !error} what="cases" />
       {data && needing.length > 0 && (
         <Section
@@ -221,12 +186,12 @@ export function ManagerCaseOversightPage() {
               <TableBody>
                 {needing.map((row) => {
                   const need = attentionOf(row)!;
-                  const href = need.kind === "held" ? null : detailHref(row);
+                  const href = detailHref(row);
                   return (
                     <TableRow
                       key={row.case_id}
-                      onClick={href ? () => navigate(href) : undefined}
-                      style={{ cursor: href ? "pointer" : undefined }}
+                      onClick={() => navigate(href)}
+                      style={{ cursor: "pointer" }}
                     >
                       <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
                       <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
@@ -237,21 +202,9 @@ export function ManagerCaseOversightPage() {
                         </StatusTag>
                       </TableCell>
                       <TableCell style={{ textAlign: "end" }} onClick={(e) => e.stopPropagation()}>
-                        {need.kind === "held" ? (
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            disabled={releasing !== null}
-                            aria-label={`Release to Auditors, case ${row.case_id}`}
-                            onClick={() => void release(row.case_id)}
-                          >
-                            Release to Auditors
-                          </Button>
-                        ) : (
-                          <Button kind="tertiary" size="sm" onClick={() => navigate(href!)}>
-                            {need.action}
-                          </Button>
-                        )}
+                        <Button kind="tertiary" size="sm" onClick={() => navigate(href!)}>
+                          {need.action}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -299,10 +252,6 @@ export function ManagerCaseOversightPage() {
                       <TableCell>{row.auditor_name ?? "Unassigned"}</TableCell>
                       <TableCell style={{ color: "var(--cds-text-secondary)" }}>
                         {label}
-                        {/* Open and unowned but visible to Auditors: they can take it, nothing for the Manager to do. */}
-                        {row.auditor_name === null && row.case_visibility === "AVAILABLE_TO_AUDITORS" && row.status !== "COMPLETE"
-                          ? " · waiting for an Auditor"
-                          : ""}
                       </TableCell>
                     </TableRow>
                   );

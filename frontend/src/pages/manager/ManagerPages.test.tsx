@@ -344,15 +344,10 @@ describe("Manager screens", () => {
       expect(within(all).queryByText("Needs Reassignment")).not.toBeInTheDocument();
     });
 
-    it("offers Release to Auditors only for a case held back from them", async () => {
-      updateDb((db) => {
-        const c = db.cases.find((x) => x.status !== "COMPLETE" && !x.manager_flag && x.assigned_auditor === null);
-        if (c) c.case_visibility = "SUPER_ADMIN_ONLY";
-      });
+    it("has no manual release button: cases are released to Auditors automatically", async () => {
       renderAt("/manager/cases");
       await screen.findByRole("table", { name: "All cases" });
-      const held = readDb().cases.filter((c) => c.case_visibility === "SUPER_ADMIN_ONLY" && c.assigned_auditor === null && c.status !== "COMPLETE" && !c.manager_flag);
-      await waitFor(() => expect(screen.queryAllByRole("button", { name: /^Release to Auditors, case / })).toHaveLength(held.length));
+      expect(screen.queryByRole("button", { name: /Release to Auditors|Make available/ })).not.toBeInTheDocument();
     });
   });
 

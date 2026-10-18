@@ -1,20 +1,19 @@
 import { useCallback, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Column, Dropdown, Grid, InlineLoading, InlineNotification } from "@carbon/react";
+import { Button, Column, Dropdown, Grid, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { AuditorProtectionTable } from "../../components/manager/AuditorProtectionTable";
 import { NeedsYouInbox } from "../../components/manager/NeedsYouInbox";
 import { evidenceValue } from "../../components/manager/evidenceValue";
+import { GenerateReportButton } from "../../components/manager/GenerateReportButton";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
 import { StatTile } from "../../components/ui/StatTile";
-import { generateReport, getAuditorOverview } from "../../services";
-import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
+import { getAuditorOverview } from "../../services";
 import type { EvidenceKey } from "../../services/types";
-import { useAuth } from "../../hooks/useAuth";
-import { ORGANISATION_ID, REFRESH_MS, useManagerIntelligence } from "../../hooks/useManagerIntelligence";
+import { REFRESH_MS, useManagerIntelligence } from "../../hooks/useManagerIntelligence";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { noticeFrom } from "./managerNotice";
 import { PERIOD_OPTIONS } from "../../utils/periods";
@@ -37,12 +36,10 @@ const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
 export function ManagerOversightDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token } = useAuth();
   const { intel, data, periodKey, setPeriod, start, end, periodLabel, now } = useManagerIntelligence();
   const overview = useStaffQuery(getAuditorOverview, "", { refreshMs: REFRESH_MS });
 
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   const { reload: reloadIntel } = intel;
@@ -53,19 +50,6 @@ export function ManagerOversightDashboardPage() {
   }, [reloadIntel, reloadOverview]);
 
   const notice = noticeFrom(location.state);
-
-  async function handleGenerate() {
-    if (!token) return;
-    setGenerating(true);
-    setGenerateError(null);
-    try {
-      const report = await generateReport(token, ORGANISATION_ID, start, end);
-      navigate(`/manager/reports/${encodeURIComponent(report.report_id)}`);
-    } catch (err) {
-      setGenerateError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
-      setGenerating(false);
-    }
-  }
 
   const evidenceButton = (key: EvidenceKey) => (
     <Button kind="ghost" size="sm" className="rcs-evidence-button" onClick={() => setEvidenceKey(key)}>
@@ -92,13 +76,7 @@ export function ManagerOversightDashboardPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
-            {generating ? (
-              <InlineLoading description="Generating the report…" />
-            ) : (
-              <Button onClick={handleGenerate} disabled={!data}>
-                Generate Report
-              </Button>
-            )}
+            <GenerateReportButton start={start} end={end} disabled={!data} onError={setGenerateError} />
           </>
         }
       />

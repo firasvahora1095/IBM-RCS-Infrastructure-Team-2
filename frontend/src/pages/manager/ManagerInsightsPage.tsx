@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Button, Column, Dropdown, Grid } from "@carbon/react";
+import { Button, Column, Dropdown, Grid, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { evidenceValue } from "../../components/manager/evidenceValue";
@@ -11,6 +11,7 @@ import {
   Outcomes,
   WidgetLoading,
 } from "../../components/manager/IntelligenceWidgets";
+import { GenerateReportButton } from "../../components/manager/GenerateReportButton";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { EvidenceDialog } from "../../components/ui/EvidenceDialog";
@@ -27,7 +28,8 @@ import { PERIOD_OPTIONS } from "../../utils/periods";
  * not a queue. Every figure still has its evidence (Sprint 3 extras §1.4).
  */
 export function ManagerInsightsPage() {
-  const { intel, data, periodKey, setPeriod, periodLabel } = useManagerIntelligence();
+  const { intel, data, periodKey, setPeriod, periodLabel, start, end } = useManagerIntelligence();
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [evidenceKey, setEvidenceKey] = useState<EvidenceKey | null>(null);
 
   const evidenceButton = (key: EvidenceKey) => (
@@ -59,9 +61,21 @@ export function ManagerInsightsPage() {
                 if (selectedItem) setPeriod(selectedItem);
               }}
             />
+            <GenerateReportButton start={start} end={end} disabled={!data} onError={setGenerateError} />
           </>
         }
       />
+      {generateError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          role="alert"
+          title="Couldn't generate the report."
+          subtitle={generateError}
+          onClose={() => setGenerateError(null)}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       <LoadState error={intel.error} loading={false} what="the figures" />
 
       <section aria-label="Figures for the period">

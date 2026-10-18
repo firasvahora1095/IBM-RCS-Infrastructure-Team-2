@@ -816,3 +816,19 @@ html {
   @include type.type-style("body-02");
   white-space: pre-line;
 }
+
+// A person, their role and what the role allows, on one aligned line.
+.rcs-account-row {
+  display: grid;
+  grid-template-columns: 12rem 8rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.625rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(md) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    > :last-child {
+      grid-column: 1 / -1;
+    }
+  }
+}
