@@ -476,19 +476,31 @@ export function ClientCaseResultsPage() {
           onRequestClose={() => setFollowAll(false)}
           onRequestSubmit={() => void applyMany(suggested)}
         >
-          <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
-            <p>
-              {toRemove > 0 && `Remove ${toRemove} post${toRemove === 1 ? "" : "s"} RCS found in violation. `}
-              {toKeep > 0 && `Keep ${toKeep} post${toKeep === 1 ? "" : "s"} RCS found no violation in.`}
-            </p>
+          <div className="flex flex-col gap-4" style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p>Your team will record these actions, matching what RCS decided:</p>
+            <ul className="flex flex-col gap-2" style={{ paddingInlineStart: 20, listStyle: "disc" }}>
+              {toRemove > 0 && (
+                <li>
+                  <strong>Remove {toRemove === 1 ? "1 post" : `${toRemove} posts`}</strong> that RCS found in violation
+                  of policy.
+                </li>
+              )}
+              {toKeep > 0 && (
+                <li>
+                  <strong>Keep {toKeep === 1 ? "1 post" : `${toKeep} posts`}</strong> that RCS found no violation in.{" "}
+                  {toKeep === 1 ? "It stays" : "They stay"} published.
+                </li>
+              )}
+            </ul>
             {notReviewed > 0 && (
               <p className="rcs-helper" style={{ fontSize: 14 }}>
-                {notReviewed} {notReviewed === 1 ? "result was" : "results were"} not reviewed, so{" "}
-                {notReviewed === 1 ? "it stays" : "they stay"} here for your team to decide.
+                {notReviewed === 1 ? "1 result was" : `${notReviewed} results were`} not reviewed by RCS, so{" "}
+                {notReviewed === 1 ? "it stays" : "they stay"} in Needs action for your team to decide.
               </p>
             )}
             <p className="rcs-helper" style={{ fontSize: 14 }}>
-              RCS is told once this is recorded. Open any result afterwards to see what was recorded.
+              RCS is notified of each decision when you apply. You can open any result afterwards to see what was
+              recorded.
             </p>
           </div>
         </Modal>
