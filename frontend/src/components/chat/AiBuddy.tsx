@@ -148,7 +148,8 @@ export function AiBuddy() {
   }, [lastId]);
 
   useEffect(() => {
-    if (open && typeof logEndRef.current?.scrollIntoView === "function") {
+    // Follow the conversation, but never on an empty panel: there the notice and questions must stay in view from the top.
+    if (open && lastId !== undefined && typeof logEndRef.current?.scrollIntoView === "function") {
       logEndRef.current.scrollIntoView({ block: "end" });
     }
   }, [open, lastId, loading]);
