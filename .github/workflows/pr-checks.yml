@@ -58,10 +58,9 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # The API contract suites run against an in-memory SQLite database.
-      # The storage and video-analysis suites need cloud storage and media
-      # tooling that CI doesn't have, so they aren't run here.
-      - name: API contract tests
+      # API and governance regression suites use isolated SQLite and fake providers.
+      # No IBM credentials or external storage are needed for these checks.
+      - name: API and governance regression tests
         env:
           DATABASE_URL: sqlite+pysqlite://
-        run: python -m pytest tests/test_api.py tests/test_b2b.py -q
+        run: python -m pytest tests/test_api.py tests/test_b2b.py tests/test_governance_fallback.py -q
