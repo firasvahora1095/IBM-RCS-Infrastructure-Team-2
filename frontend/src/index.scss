@@ -518,3 +518,48 @@ body {
     margin-inline-start: auto;
   }
 }
+
+// A strip of tiles read at a glance: the figure is smaller so it doesn't outweigh the tables below.
+.rcs-stat-tile--compact .rcs-stat-value {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+// AI Buddy input: no resize handle; the box grows with the text up to about four lines.
+.rcs-buddy__input-row textarea {
+  resize: none;
+  field-sizing: content;
+  max-block-size: 6.5rem;
+  min-block-size: 3rem;
+}
+.rcs-buddy__input-row .cds--btn {
+  align-self: flex-end;
+}
+// A disabled Send still reads as a button: icon and fill keep 3:1 against the panel.
+.rcs-buddy__input-row .cds--btn:disabled,
+.rcs-buddy__input-row .cds--btn.cds--btn--disabled {
+  background-color: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+  svg {
+    fill: var(--cds-text-secondary);
+  }
+}
+.rcs-buddy__meta .cds--btn--ghost:disabled {
+  color: var(--cds-text-secondary);
+}
+.rcs-buddy__confirm {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+@media (max-width: 41.98rem) {
+  .rcs-buddy .cds--btn,
+  .rcs-buddy .cds--btn--sm {
+    min-block-size: 2.75rem;
+  }
+}
+
+// A tab panel that holds a table: the table is the content, so the panel adds no padding or fill of its own.
+.rcs-tab-panel-flush {
+  padding: 0;
+  background: transparent;
+}

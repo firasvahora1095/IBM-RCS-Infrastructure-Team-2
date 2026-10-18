@@ -62,7 +62,8 @@ function visibleToReason(row: FallbackCaseRow): string {
   if (row.case_visibility === "SUPER_ADMIN_ONLY") {
     return "No Auditor was free when it arrived, so only you can see it. The system places it automatically when one is.";
   }
-  if (row.case_visibility === "AVAILABLE_TO_AUDITORS") return "A Manager released it, so any eligible Auditor can claim it.";
+  if (row.case_visibility === "AVAILABLE_TO_AUDITORS")
+    return "A Manager released it, so any eligible Auditor can claim it.";
   return "It belongs to one Auditor, who is the only person who can open it.";
 }
 
@@ -252,90 +253,195 @@ export function FallbackQueueSection({
       )}
 
       {rows && (
-        <Tabs selectedIndex={view === "needs" ? 0 : 1} onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}>
+        <Tabs
+          selectedIndex={view === "needs" ? 0 : 1}
+          onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}
+        >
           <TabList aria-label="Fallback queue views" contained fullWidth>
             <Tab>{`Needs a reviewer (${rows.filter(needsReviewer).length})`}</Tab>
             <Tab>{`All open cases (${rows.length})`}</Tab>
           </TabList>
           <TabPanels>
-            <TabPanel className="rcs-tab-panel-flush" />
-            <TabPanel className="rcs-tab-panel-flush" />
+            <TabPanel className="rcs-tab-panel-flush">
+              {view === "needs" && (
+                <>
+                  {rows && shown.length === 0 && (
+                    <div
+                      className="flex items-center justify-center px-4 py-6"
+                      style={{ backgroundColor: "var(--cds-layer-01)" }}
+                    >
+                      <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
+                        {view === "needs" ? "No cases need a reviewer right now." : "No open cases."}
+                      </p>
+                    </div>
+                  )}
+
+                  {rows && shown.length > 0 && (
+                    <Layer>
+                      <Table aria-label="Fallback queue" className="rcs-actions-end">
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader>Case ID</TableHeader>
+                            <TableHeader {...sortProps("severity")}>Severity</TableHeader>
+                            <TableHeader>Status</TableHeader>
+                            <TableHeader {...sortProps("age")}>Waiting</TableHeader>
+                            <TableHeader>Reason</TableHeader>
+                            <TableHeader>Owner</TableHeader>
+                            <TableHeader>Visible to</TableHeader>
+                            <TableHeader>Actions</TableHeader>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {shown.map((row) => {
+                            const tier = row.final_severity_tier ?? row.severity_tier;
+                            const unowned = needsReviewer(row);
+                            return (
+                              <TableRow key={row.case_id}>
+                                <TableCell style={MONO}>{row.case_id}</TableCell>
+                                <TableCell>
+                                  {tier ? (
+                                    <SeverityTag tier={tier} />
+                                  ) : (
+                                    <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
+                                      Not yet assessed
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{statusLabel(row)}</TableCell>
+                                <TableCell>{ageLabel(row.created_at, clock)}</TableCell>
+                                <TableCell>{reasonLabel(row)}</TableCell>
+                                <TableCell>{ownerLabel(row)}</TableCell>
+                                <TableCell>
+                                  <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
+                                    <StatusTag
+                                      tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"}
+                                      size="sm"
+                                    >
+                                      {visibleToLabel(row)}
+                                    </StatusTag>
+                                  </DefinitionTooltip>
+                                  {placementNote(row, clock) && (
+                                    <span
+                                      style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}
+                                    >
+                                      {placementNote(row, clock)}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {unowned && (
+                                    <Button
+                                      kind="tertiary"
+                                      size="sm"
+                                      disabled={!canTake || busy !== null}
+                                      aria-label={`Take case ${row.case_id}`}
+                                      onClick={() => setConfirming(row)}
+                                    >
+                                      Take case
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </Layer>
+                  )}
+                </>
+              )}
+            </TabPanel>
+            <TabPanel className="rcs-tab-panel-flush">
+              {view === "all" && (
+                <>
+                  {rows && shown.length === 0 && (
+                    <div
+                      className="flex items-center justify-center px-4 py-6"
+                      style={{ backgroundColor: "var(--cds-layer-01)" }}
+                    >
+                      <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
+                        No open cases.
+                      </p>
+                    </div>
+                  )}
+
+                  {rows && shown.length > 0 && (
+                    <Layer>
+                      <Table aria-label="Fallback queue" className="rcs-actions-end">
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader>Case ID</TableHeader>
+                            <TableHeader {...sortProps("severity")}>Severity</TableHeader>
+                            <TableHeader>Status</TableHeader>
+                            <TableHeader {...sortProps("age")}>Waiting</TableHeader>
+                            <TableHeader>Reason</TableHeader>
+                            <TableHeader>Owner</TableHeader>
+                            <TableHeader>Visible to</TableHeader>
+                            <TableHeader>Actions</TableHeader>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {shown.map((row) => {
+                            const tier = row.final_severity_tier ?? row.severity_tier;
+                            const unowned = needsReviewer(row);
+                            return (
+                              <TableRow key={row.case_id}>
+                                <TableCell style={MONO}>{row.case_id}</TableCell>
+                                <TableCell>
+                                  {tier ? (
+                                    <SeverityTag tier={tier} />
+                                  ) : (
+                                    <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
+                                      Not yet assessed
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{statusLabel(row)}</TableCell>
+                                <TableCell>{ageLabel(row.created_at, clock)}</TableCell>
+                                <TableCell>{reasonLabel(row)}</TableCell>
+                                <TableCell>{ownerLabel(row)}</TableCell>
+                                <TableCell>
+                                  <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
+                                    <StatusTag
+                                      tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"}
+                                      size="sm"
+                                    >
+                                      {visibleToLabel(row)}
+                                    </StatusTag>
+                                  </DefinitionTooltip>
+                                  {placementNote(row, clock) && (
+                                    <span
+                                      style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}
+                                    >
+                                      {placementNote(row, clock)}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {unowned && (
+                                    <Button
+                                      kind="tertiary"
+                                      size="sm"
+                                      disabled={!canTake || busy !== null}
+                                      aria-label={`Take case ${row.case_id}`}
+                                      onClick={() => setConfirming(row)}
+                                    >
+                                      Take case
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </Layer>
+                  )}
+                </>
+              )}
+            </TabPanel>
           </TabPanels>
         </Tabs>
-      )}
-
-      {rows && shown.length === 0 && (
-        <div className="flex items-center justify-center px-4 py-6" style={{ backgroundColor: "var(--cds-layer-01)" }}>
-          <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
-            {view === "needs" ? "No cases need a reviewer right now." : "No open cases."}
-          </p>
-        </div>
-      )}
-
-      {rows && shown.length > 0 && (
-        <Layer>
-          <Table aria-label="Fallback queue" className="rcs-actions-end">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Case ID</TableHeader>
-                <TableHeader {...sortProps("severity")}>Severity</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader {...sortProps("age")}>Waiting</TableHeader>
-                <TableHeader>Reason</TableHeader>
-                <TableHeader>Owner</TableHeader>
-                <TableHeader>Visible to</TableHeader>
-                <TableHeader>Actions</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {shown.map((row) => {
-                const tier = row.final_severity_tier ?? row.severity_tier;
-                const unowned = needsReviewer(row);
-                return (
-                  <TableRow key={row.case_id}>
-                    <TableCell style={MONO}>{row.case_id}</TableCell>
-                    <TableCell>
-                      {tier ? (
-                        <SeverityTag tier={tier} />
-                      ) : (
-                        <span style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>Not yet assessed</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{statusLabel(row)}</TableCell>
-                    <TableCell>{ageLabel(row.created_at, clock)}</TableCell>
-                    <TableCell>{reasonLabel(row)}</TableCell>
-                    <TableCell>{ownerLabel(row)}</TableCell>
-                    <TableCell>
-                      <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
-                        <StatusTag tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"} size="sm">
-                          {visibleToLabel(row)}
-                        </StatusTag>
-                      </DefinitionTooltip>
-                      {placementNote(row, clock) && (
-                        <span style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                          {placementNote(row, clock)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {unowned && (
-                        <Button
-                          kind="tertiary"
-                          size="sm"
-                          disabled={!canTake || busy !== null}
-                          aria-label={`Take case ${row.case_id}`}
-                          onClick={() => setConfirming(row)}
-                        >
-                          Take case
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Layer>
       )}
 
       <Modal
@@ -351,13 +457,12 @@ export function FallbackQueueSection({
         {confirming && (
           <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
             <p>
-              Severity:{" "}
-              {(confirming.final_severity_tier ?? confirming.severity_tier) ?? "not yet assessed"}. Status:{" "}
+              Severity: {confirming.final_severity_tier ?? confirming.severity_tier ?? "not yet assessed"}. Status:{" "}
               {statusLabel(confirming)}.
             </p>
             <p>
-              The case moves to your queue and nobody else will be given it. It opens on a content warning, and the
-              time you spend reviewing it counts toward your daily exposure.
+              The case moves to your queue and nobody else will be given it. It opens on a content warning, and the time
+              you spend reviewing it counts toward your daily exposure.
             </p>
           </div>
         )}
@@ -429,8 +534,8 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
           Available to claim
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          These cases were released because no one could take them. Claiming adds one to your queue; it doesn&apos;t open
-          it. Declining only removes it from your list: other Auditors can still claim it.
+          These cases were released because no one could take them. Claiming adds one to your queue; it doesn&apos;t
+          open it. Declining only removes it from your list: other Auditors can still claim it.
         </p>
       </div>
 
@@ -445,7 +550,14 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
         />
       )}
       {notice && (
-        <InlineNotification kind="success" lowContrast hideCloseButton title="Done." subtitle={notice} style={{ maxWidth: "100%" }} />
+        <InlineNotification
+          kind="success"
+          lowContrast
+          hideCloseButton
+          title="Done."
+          subtitle={notice}
+          style={{ maxWidth: "100%" }}
+        />
       )}
       {error && (
         <InlineNotification
