@@ -24,7 +24,7 @@ The same meaning showed up in different colours on different screens, and differ
 | Yellow | Caution: a limit is near or something needs a look | Yellow 20, Gray 100 | Warning | Near limit, Needs Reassignment, Awaiting release, AI Override |
 | Blue | In progress: someone or something is already on it | Blue 20, Blue 80 | In progress | Pending, Retrying, In Review, In progress (SOS), Cooldown, Seen |
 | Green, solid | Done and good | Green 60, white | Check | Delivered, Released, Approved, Followed up, Connected, Answered, Available |
-| Teal | A request that is waiting for a person | Teal 20, Teal 80 | none | Support requests, a new Client message |
+| Teal | A request that is waiting for a person | Teal 10, Teal 80 | none | Support requests, a new Client message |
 | Gray | Routine, final or informational | Gray 20, Gray 100 | none | Draft, Complete, Within limit, Unavailable, Declined, Limit reached (queue), Pattern flagged, AI Match |
 
 ## Severity palette (separate scale)

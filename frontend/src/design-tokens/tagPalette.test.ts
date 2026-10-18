@@ -17,7 +17,7 @@ const PAIRS: Record<string, [string, string]> = {
   warning: [c.yellow20, c.gray100],
   info: [c.blue20, c.blue80],
   success: [c.green60, c.white],
-  request: [c.teal20, c.teal80],
+  request: [c.teal10, c.teal80],
   neutral: [c.gray20, c.gray100],
   "severity S1": [c.gray20, c.gray100],
   "severity S2": [c.purple30, c.purple90],
