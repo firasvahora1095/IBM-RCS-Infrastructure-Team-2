@@ -91,4 +91,14 @@ describe("CommunityHub portal frame", () => {
       expect(screen.getAllByRole("tab")[0].textContent).toContain(`(${before - 1})`),
     );
   });
+
+  it("opens the same dialog from clicking anywhere on a row as from its button", async () => {
+    await signInClient("ch-mod-04");
+    renderAt("/client/cases");
+    const table = await screen.findByRole("table", { name: "Case results" });
+    const row = within(table).getAllByRole("button", { name: /^Record action for / })[0].closest("tr") as HTMLElement;
+    fireEvent.click(within(row).getAllByRole("cell")[2]);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Record action" })).toBeDisabled();
+  });
 });

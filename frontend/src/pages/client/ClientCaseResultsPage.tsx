@@ -176,13 +176,24 @@ export function ClientCaseResultsPage() {
                 </TableHead>
                 <TableBody>
                   {paged.rows.map((r: CaseResult) => (
-                    <TableRow key={r.delivery_id}>
+                    <TableRow
+                      key={r.delivery_id}
+                      // A delivered result has something to open: record the action, or see what was recorded.
+                      onClick={r.status === "DELIVERED" ? () => open(r) : undefined}
+                      style={{ cursor: r.status === "DELIVERED" ? "pointer" : "default" }}
+                    >
                       <TableCell style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>
                         {r.case_id}
                       </TableCell>
                       <TableCell>
                         {safeHttpUrl(r.post_url) ? (
-                          <a className="cds--link" href={safeHttpUrl(r.post_url)!} target="_blank" rel="noreferrer">
+                          <a
+                            className="cds--link"
+                            href={safeHttpUrl(r.post_url)!}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {postLabel(r.post_url)}
                           </a>
                         ) : r.post_url ? (
@@ -225,7 +236,10 @@ export function ClientCaseResultsPage() {
                             kind="tertiary"
                             size="sm"
                             aria-label={`Record action for ${r.case_id}`}
-                            onClick={() => open(r)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              open(r);
+                            }}
                           >
                             Record action
                           </Button>
@@ -307,44 +321,77 @@ export function ClientCaseResultsPage() {
       <Modal
         open={acting !== null}
         size="sm"
-        modalHeading={acting ? `Record action for ${acting.case_id}` : "Record action"}
+        // An actioned result opens read-only: what was recorded, by whom and when.
+        passiveModal={Boolean(acting?.platform_action)}
+        modalHeading={
+          acting?.platform_action
+            ? `${acting.case_id}`
+            : acting
+              ? `Record action for ${acting.case_id}`
+              : "Record action"
+        }
         primaryButtonText={saving ? "Recording…" : "Record action"}
         secondaryButtonText="Cancel"
         primaryButtonDisabled={!choice || saving}
         onRequestClose={() => setActing(null)}
         onRequestSubmit={() => void record()}
       >
-        <div className="flex flex-col gap-5">
-          <RadioButtonGroup
-            name="platform-action"
-            legendText="What did your team do with the post?"
-            orientation="vertical"
-            valueSelected={choice ?? undefined}
-            onChange={(value) => setChoice(value as PlatformAction["action"])}
-          >
-            <RadioButton id="action-removed" value="REMOVED" labelText={PLATFORM_ACTION_LABEL.REMOVED} />
-            <RadioButton id="action-kept" value="KEPT" labelText={PLATFORM_ACTION_LABEL.KEPT} />
-          </RadioButtonGroup>
-          <TextArea
-            id="action-note"
-            labelText="Note (optional)"
-            helperText="Only your team and RCS see this."
-            rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          {saveError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title="That wasn't recorded."
-              subtitle={saveError}
-              style={{ maxWidth: "100%" }}
+        {acting?.platform_action ? (
+          <dl className="flex flex-col gap-3" style={{ fontSize: 14 }}>
+            <div>
+              <dt className="rcs-helper">RCS result</dt>
+              <dd>{PAYLOAD_OUTCOME_LABEL[acting.outcome]}</dd>
+            </div>
+            <div>
+              <dt className="rcs-helper">Your team&apos;s action</dt>
+              <dd>{PLATFORM_ACTION_LABEL[acting.platform_action.action]}</dd>
+            </div>
+            <div>
+              <dt className="rcs-helper">Recorded</dt>
+              <dd>
+                {formatShortDateTime(acting.platform_action.at)} by {acting.platform_action.by}
+              </dd>
+            </div>
+            {acting.platform_action.note && (
+              <div>
+                <dt className="rcs-helper">Note</dt>
+                <dd>{acting.platform_action.note}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          <div className="flex flex-col gap-5">
+            <RadioButtonGroup
+              name="platform-action"
+              legendText="What did your team do with the post?"
+              orientation="vertical"
+              valueSelected={choice ?? undefined}
+              onChange={(value) => setChoice(value as PlatformAction["action"])}
+            >
+              <RadioButton id="action-removed" value="REMOVED" labelText={PLATFORM_ACTION_LABEL.REMOVED} />
+              <RadioButton id="action-kept" value="KEPT" labelText={PLATFORM_ACTION_LABEL.KEPT} />
+            </RadioButtonGroup>
+            <TextArea
+              id="action-note"
+              labelText="Note (optional)"
+              helperText="Only your team and RCS see this."
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
-          )}
-        </div>
+            {saveError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                hideCloseButton
+                role="alert"
+                title="That wasn't recorded."
+                subtitle={saveError}
+                style={{ maxWidth: "100%" }}
+              />
+            )}
+          </div>
+        )}
       </Modal>
       <p className="rcs-helper">
         Results include only the case ID, the post link, the outcome, the final severity and when it was decided. RCS
