@@ -191,13 +191,25 @@ export function ManagerDeliveryDetailPage() {
                   title="Failure reason:"
                   subtitle={data.failure_reason ?? "Unknown"}
                 />
-                {data.escalated_at && (
-                  <p className="rcs-helper">Escalated {formatShortDateTime(data.escalated_at)}.</p>
+                {data.escalated_at ? (
+                  // The loop has a way out: the owner fixes it, the Manager retries, it is delivered. If nobody
+                  // answers, it comes back to Needs you after a day.
+                  <>
+                    <p className="rcs-body">
+                      <strong>With the integration owner</strong> since {formatShortDateTime(data.escalated_at)}.
+                    </p>
+                    <ol className="flex flex-col gap-1" style={{ paddingInlineStart: "1.25rem", listStyle: "decimal", fontSize: 14 }}>
+                      <li>The integration owner fixes the problem at {clientName}.</li>
+                      <li>When they confirm, retry the delivery. A delivered result closes this.</li>
+                      <li>If there is no answer within a day, this returns to Needs you as overdue.</li>
+                    </ol>
+                  </>
+                ) : (
+                  <p className="rcs-body">
+                    Recommended: retry the delivery first. A timeout or a 503 error usually indicates a temporary
+                    outage at the Client. If the retry fails, escalate with a note for the integration owner.
+                  </p>
                 )}
-                <p className="rcs-body">
-                  Recommended: retry the delivery first. A timeout or a 503 error usually indicates a temporary
-                  outage at the Client. If the retry fails, escalate with a note for the integration owner.
-                </p>
                 <div className="flex flex-wrap items-center gap-3">
                   {retrying ? (
                     <InlineLoading description="Retrying delivery…" status="active" />
@@ -206,9 +218,11 @@ export function ManagerDeliveryDetailPage() {
                       Retry delivery
                     </Button>
                   )}
-                  <Button kind="tertiary" onClick={() => setEscalating(true)}>
-                    Escalate issue
-                  </Button>
+                  {!data.escalated_at && (
+                    <Button kind="tertiary" onClick={() => setEscalating(true)}>
+                      Escalate issue
+                    </Button>
+                  )}
                 </div>
                 <Accordion>
                   <AccordionItem title="View technical details">

@@ -163,7 +163,9 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
           kind: "Delivery failed",
           subject: d.case_id,
           detail: `${d.attempts} attempts${d.reason ? ` · ${d.reason}` : ""}`,
-          status: { label: deliveryFailureKind(d.reason), tone: "error" },
+          status: d.escalation_overdue
+            ? { label: "Escalation overdue", tone: "warning" }
+            : { label: deliveryFailureKind(d.reason), tone: "error" },
           open: { label: "View delivery", to: `/manager/deliveries/${encodeURIComponent(d.delivery_id)}` },
         });
       }

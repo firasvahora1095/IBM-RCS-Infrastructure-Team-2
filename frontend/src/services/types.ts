@@ -631,6 +631,8 @@ export interface FailedDeliveryRow {
   attempts: number;
   reason: string | null;
   last_attempt_at: string | null;
+  /** Set when the failure is with the integration owner but has gone unanswered for too long. */
+  escalation_overdue?: boolean;
 }
 
 export interface ManagerIntelligence {

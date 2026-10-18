@@ -330,6 +330,9 @@ def _find_organisation(db: Session, organisation_id: str) -> Organisation:
 
 ALL_CLIENTS = "ALL"
 
+# An escalation the integration owner has not answered in this long comes back to the Manager.
+ESCALATION_FOLLOW_UP_HOURS = 24
+
 # The short code in a client's report IDs (RPT-CH-..., RPT-SN-...).
 REPORT_CODES = {"COMMUNITYHUB": "CH", "STREAMNEST": "SN", "PIXELCIRCLE": "PC"}
 
@@ -676,7 +679,12 @@ def compute_intelligence(
         delivery_query = delivery_query.where(Delivery.organisation_id == client_id)
     deliveries = list(db.scalars(delivery_query).all())
     # An escalated failure is with the integration owner now, so it is no longer the Manager's to act on.
-    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION" and d.escalated_at is None]
+    failed = [
+        d
+        for d in deliveries
+        if d.delivery_status == "NEEDS_ATTENTION"
+        and (d.escalated_at is None or now - utc(d.escalated_at) > timedelta(hours=ESCALATION_FOLLOW_UP_HOURS))
+    ]
     support = open_support_request_counts(db)
     attention = [
         {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
@@ -739,6 +747,7 @@ def compute_intelligence(
                 "attempts": len(d.attempts or []),
                 "reason": d.failure_reason,
                 "last_attempt_at": last_attempt(d),
+                "escalation_overdue": d.escalated_at is not None,
             }
             for d in failed
         ),
