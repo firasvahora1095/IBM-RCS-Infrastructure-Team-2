@@ -165,8 +165,8 @@ export function ClientCaseResultsPage() {
     <div className="flex flex-col gap-4" style={{ paddingBlockStart: 16 }}>
       {onNeeds && (
         <p className="rcs-helper" style={{ fontSize: 14 }}>
-          Delivered results your team hasn&apos;t acted on yet. Follow RCS to apply the usual action to all of them, or
-          select some, or open one. RCS is told, and each result moves to All results as actioned.
+          Delivered results your team hasn&apos;t acted on yet. Apply RCS decisions to remove violations and keep clear
+          posts in one go, or select some, or open one. RCS is told, and each result moves to All results as actioned.
         </p>
       )}
 
@@ -375,7 +375,7 @@ export function ClientCaseResultsPage() {
         actions={
           suggested.length > 0 ? (
             <Button disabled={saving} onClick={() => setFollowAll(true)}>
-              Follow RCS on all
+              Apply RCS decisions
             </Button>
           ) : undefined
         }
@@ -466,8 +466,8 @@ export function ClientCaseResultsPage() {
         <Modal
           open
           size="sm"
-          modalHeading="Follow RCS on all?"
-          primaryButtonText={saving ? "Recording…" : "Follow RCS"}
+          modalHeading="Apply RCS decisions?"
+          primaryButtonText={saving ? "Recording…" : "Apply"}
           secondaryButtonText="Cancel"
           primaryButtonDisabled={saving}
           onRequestClose={() => setFollowAll(false)}

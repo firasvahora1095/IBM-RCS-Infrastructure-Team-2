@@ -102,15 +102,15 @@ describe("CommunityHub portal frame", () => {
     expect(within(dialog).getByRole("button", { name: "Record action" })).toBeDisabled();
   });
 
-  it("clears many results at once: Follow RCS on all, with what it will do spelled out", async () => {
+  it("clears many results at once: Apply RCS decisions, with what it will do spelled out", async () => {
     await signInClient("ch-mod-04");
     renderAt("/client/cases");
     const needsTab = await screen.findByRole("tab", { name: /^Needs action \(\d+\)$/ });
     const before = Number(needsTab.textContent!.match(/\((\d+)\)/)![1]);
-    fireEvent.click(await screen.findByRole("button", { name: "Follow RCS on all" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply RCS decisions" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/Keep \d+ posts? RCS found no violation in|Remove \d+ posts?/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Follow RCS" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
     expect(await screen.findByText(/results? recorded\. RCS has been told/)).toBeInTheDocument();
     await waitFor(() => expect(Number(screen.getAllByRole("tab")[0].textContent!.match(/\((\d+)\)/)![1])).toBeLessThan(before));
   });
