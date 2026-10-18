@@ -208,7 +208,12 @@ export function ManagerDeliveriesPage() {
                             <StatusTag kind="moderation" value="COMPLETE" />
                           </TableCell>
                           <TableCell>
-                            <StatusTag kind="delivery" value={d.delivery_status} />
+                            {d.delivery_status === "NEEDS_ATTENTION" && d.escalated_at ? (
+                              // With the integration owner now: no longer the Manager's to act on.
+                              <StatusTag tone="info">Escalated</StatusTag>
+                            ) : (
+                              <StatusTag kind="delivery" value={d.delivery_status} />
+                            )}
                           </TableCell>
                           <TableCell className="rcs-mono">{d.attempts.length === 0 ? "—" : d.attempts.length}</TableCell>
                           <TableCell>{last ? formatDayTime(last.at, now) : "Scheduled"}</TableCell>

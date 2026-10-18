@@ -8,6 +8,9 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableExpandHeader,
+  TableExpandRow,
+  TableExpandedRow,
   TableHead,
   TableHeader,
   TableRow,
@@ -15,6 +18,9 @@ import {
 } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { KeyValueList } from "../../components/ui/Blocks";
+import { TablePagination, usePagination } from "../../components/ui/TablePagination";
+import { formatShortDateTime } from "../../utils/formatPeriod";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { useAuth } from "../../hooks/useAuth";
@@ -25,6 +31,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditLogHistory, AuditLogQuery } from "../../services/types";
 
 export function ManagerAuditHistoryPage() {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
   // "Audit trail" links elsewhere (e.g. Validation & Audit) open this already filtered to one case.
@@ -32,9 +39,10 @@ export function ManagerAuditHistoryPage() {
   const linkedCase = params.get("case")?.trim() ?? "";
   const [caseId, setCaseId] = useState(linkedCase);
   const [action, setAction] = useState("");
-  const [query, setQuery] = useState<AuditLogQuery>({ limit: 25, case_id: linkedCase || undefined });
+  const [query, setQuery] = useState<AuditLogQuery>({ limit: 100, case_id: linkedCase || undefined });
   const [history, setHistory] = useState<AuditLogHistory | null>(null);
   const [loading, setLoading] = useState(true);
+  const paged = usePagination(history?.entries ?? [], `${query.case_id}|${query.action}|${query.before_id}|${history?.entries.length}`);
   const [error, setError] = useState<string | null>(null);
 
   function loadHistory(nextQuery: AuditLogQuery) {
@@ -88,7 +96,7 @@ export function ManagerAuditHistoryPage() {
           loadHistory({
             case_id: caseId.trim() || undefined,
             action: action.trim() || undefined,
-            limit: 25,
+            limit: 100,
           });
         }}
       >
@@ -167,57 +175,52 @@ export function ManagerAuditHistoryPage() {
             </p>
           )}
           {history.entries.length > 0 && (
-            <Layer>
-              <div style={{ overflowX: "auto" }}>
-                <Table aria-label="Stored audit history">
+            <>
+              <Layer>
+                <Table aria-label="Audit history">
                   <TableHead>
                     <TableRow>
-                      <TableHeader>Entry ID</TableHeader>
-                      <TableHeader>Case ID</TableHeader>
-                      <TableHeader>Action</TableHeader>
-                      <TableHeader>Actor</TableHeader>
-                      <TableHeader>Recorded</TableHeader>
-                      <TableHeader>Stored values</TableHeader>
+                      <TableExpandHeader aria-label="Expand to see what changed" />
+                      <TableHeader>Time</TableHeader>
+                      <TableHeader>Event</TableHeader>
+                      <TableHeader>Case</TableHeader>
+                      <TableHeader>By</TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {history.entries.map((entry) => (
-                      <TableRow key={entry.audit_log_id}>
-                        <TableCell style={mono}>{entry.audit_log_id}</TableCell>
-                        <TableCell style={mono}>{entry.case_id}</TableCell>
-                        <TableCell>
-                          <span style={{ display: "block" }}>{auditActionLabel(entry.action)}</span>
-                          <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                            {entry.action}
-                          </span>
-                        </TableCell>
-                        <TableCell>{entry.actor}</TableCell>
-                        <TableCell>
-                          <time dateTime={entry.created_at} title={entry.created_at}>
-                            {new Date(entry.created_at).toLocaleString(undefined, { timeZoneName: "short" })}
-                          </time>
-                        </TableCell>
-                        <TableCell>
-                          <details>
-                            <summary className="cds--link">View stored values</summary>
-                            <dl style={{ marginTop: 12 }}>
-                              <dt>Before</dt>
-                              <dd>
-                                <StoredValue value={entry.before_value} />
-                              </dd>
-                              <dt>After</dt>
-                              <dd>
-                                <StoredValue value={entry.after_value} />
-                              </dd>
-                            </dl>
-                          </details>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {paged.rows.flatMap((entry) => {
+                      const open = expanded.has(entry.audit_log_id);
+                      const toggle = () =>
+                        setExpanded((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(entry.audit_log_id)) next.delete(entry.audit_log_id);
+                          else next.add(entry.audit_log_id);
+                          return next;
+                        });
+                      return [
+                        <TableExpandRow
+                          key={entry.audit_log_id}
+                          isExpanded={open}
+                          aria-label={`Show what changed: ${auditActionLabel(entry.action)}`}
+                          onExpand={toggle}
+                        >
+                          <TableCell>{formatShortDateTime(entry.created_at)}</TableCell>
+                          <TableCell>{auditActionLabel(entry.action)}</TableCell>
+                          <TableCell style={mono}>{entry.case_id || "—"}</TableCell>
+                          <TableCell>{auditActorLabel(entry.actor)}</TableCell>
+                        </TableExpandRow>,
+                        open && (
+                          <TableExpandedRow key={`${entry.audit_log_id}-details`} colSpan={5}>
+                            <WhatChanged before={entry.before_value} after={entry.after_value} />
+                          </TableExpandedRow>
+                        ),
+                      ];
+                    })}
                   </TableBody>
                 </Table>
-              </div>
-            </Layer>
+              </Layer>
+              <TablePagination paged={paged} />
+            </>
           )}
           <div className="flex flex-wrap gap-4" style={{ marginTop: 16 }}>
             {query.before_id !== undefined && (
@@ -245,19 +248,44 @@ export function ManagerAuditHistoryPage() {
   );
 }
 
-function StoredValue({ value }: { value: unknown }) {
+/** What an entry recorded, as plain facts: no JSON. A single detail is one line; several values are a list. */
+function WhatChanged({ before, after }: { before: unknown; after: unknown }) {
+  const beforeFacts = facts(before);
+  const afterFacts = facts(after);
+  if (beforeFacts.length === 0 && afterFacts.length === 0) {
+    return <p className="rcs-helper">Nothing further was recorded for this event.</p>;
+  }
   return (
-    <pre
-      style={{
-        ...mono,
-        fontSize: 12,
-        maxWidth: "36rem",
-        whiteSpace: "pre-wrap",
-        overflowWrap: "anywhere",
-        marginBottom: 12,
-      }}
-    >
-      {JSON.stringify(value, null, 2)}
-    </pre>
+    <div className="rcs-call-details">
+      {beforeFacts.length > 0 && (
+        <section aria-label="Before">
+          <h4 className="rcs-subheading">Before</h4>
+          <KeyValueList items={beforeFacts} />
+        </section>
+      )}
+      {afterFacts.length > 0 && (
+        <section aria-label={beforeFacts.length > 0 ? "After" : "Recorded"}>
+          <h4 className="rcs-subheading">{beforeFacts.length > 0 ? "After" : "Recorded"}</h4>
+          <KeyValueList items={afterFacts} />
+        </section>
+      )}
+    </div>
   );
+}
+
+/** "detail" and other stored fields as label and value, with the field name made readable. */
+function facts(value: unknown): { label: string; value: string }[] {
+  if (value === null || value === undefined) return [];
+  if (typeof value !== "object") return [{ label: "Detail", value: String(value) }];
+  return Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([key, v]) => ({
+      label: key === "detail" ? "Detail" : key.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase()),
+      value: typeof v === "object" ? JSON.stringify(v) : String(v),
+    }));
+}
+
+/** System actors read as words; staff IDs are shown as they are. */
+function auditActorLabel(actor: string): string {
+  return actor.toLowerCase() === "system" ? "System" : actor;
 }

@@ -27,8 +27,22 @@ export const AUDIT_ACTIONS: ReadonlyArray<{ code: string; label: string }> = [
   { code: "SHIFT_STOPPED", label: "Shift stopped" },
   { code: "SHIFT_STOPPED_CASE_RETURNED", label: "Case returned when shift stopped" },
   { code: "MOCK_AI_RESULT_INSERTED", label: "Test AI result inserted" },
+  { code: "CLIENT_MESSAGE_SEEN", label: "Client message opened" },
+  { code: "CLIENT_MESSAGE_REPLIED", label: "Client message answered" },
+  { code: "DELIVERY_RETRIED", label: "Delivery retried" },
+  { code: "DELIVERY_ESCALATED", label: "Delivery escalated" },
+  { code: "REPORT_GENERATED", label: "Report generated" },
+  { code: "REPORT_REGENERATED", label: "Report refreshed" },
+  { code: "REPORT_RELEASED", label: "Report released" },
+  { code: "INTEGRATION_TESTED", label: "Connection tested" },
 ];
 
 export function auditActionLabel(code: string): string {
-  return AUDIT_ACTIONS.find((a) => a.code === code)?.label ?? code;
+  return AUDIT_ACTIONS.find((a) => a.code === code)?.label ?? readable(code);
+}
+
+/** An action nobody has named yet still reads as words, not as a code: CLIENT_MESSAGE_SEEN becomes "Client message seen". */
+function readable(code: string): string {
+  const words = code.toLowerCase().replaceAll("_", " ");
+  return words.replace(/^./, (c) => c.toUpperCase());
 }

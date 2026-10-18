@@ -675,7 +675,8 @@ def compute_intelligence(
     if client_id is not None:
         delivery_query = delivery_query.where(Delivery.organisation_id == client_id)
     deliveries = list(db.scalars(delivery_query).all())
-    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION"]
+    # An escalated failure is with the integration owner now, so it is no longer the Manager's to act on.
+    failed = [d for d in deliveries if d.delivery_status == "NEEDS_ATTENTION" and d.escalated_at is None]
     support = open_support_request_counts(db)
     attention = [
         {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},

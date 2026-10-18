@@ -151,7 +151,11 @@ export function ManagerDeliveryDetailPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="rcs-stat-label">Delivery status</span>
-                  <StatusTag kind="delivery" value={data.delivery_status} />
+                  {data.delivery_status === "NEEDS_ATTENTION" && data.escalated_at ? (
+                    <StatusTag tone="info">Escalated</StatusTag>
+                  ) : (
+                    <StatusTag kind="delivery" value={data.delivery_status} />
+                  )}
                   <span className="rcs-helper">
                     {data.delivery_status === "SUCCESS"
                       ? `${clientName} has the result.`

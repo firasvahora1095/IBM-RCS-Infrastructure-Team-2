@@ -192,7 +192,9 @@ export function computeIntelligence(
     source.organisation.organisation_id === "ALL"
       ? source.deliveries
       : source.deliveries.filter((d) => d.organisation_id === source.organisation.organisation_id);
-  const failed = deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION");
+  // Once a failure has been escalated to the integration owner it is no longer the Manager's to act on, so it
+  // leaves "Needs you" (it still counts as failed in Delivery health, and Deliveries tags it Escalated).
+  const failed = deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION" && !d.escalated_at);
   const attention: { kind: AttentionKind; count: number }[] = [
     { kind: "SOS", count: source.openSosAuditors },
     {
