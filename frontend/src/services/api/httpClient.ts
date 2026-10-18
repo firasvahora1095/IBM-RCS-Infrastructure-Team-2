@@ -12,6 +12,7 @@ import type {
   BuddyReply,
   BuddyTurn,
   CaseResult,
+  CaseResultsSummary,
   ClientAccount,
   ClientLoginResponse,
   PlatformAction,
@@ -734,6 +735,11 @@ export async function replyClientMessage(messageId: string, token: string, body:
 export async function clientListCaseResults(token: string): Promise<CaseResult[]> {
   const r = await fetch(`${API_BASE_URL}/api/client/case-results`, { headers: bearer(token) });
   return parseJsonOrThrow<CaseResult[]>(r);
+}
+
+export async function clientCaseResultsSummary(token: string): Promise<CaseResultsSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/client/case-results/summary`, { headers: bearer(token) });
+  return parseJsonOrThrow<CaseResultsSummary>(r);
 }
 
 export async function clientRecordPlatformAction(

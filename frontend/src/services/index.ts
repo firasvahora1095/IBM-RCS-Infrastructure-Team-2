@@ -80,6 +80,7 @@ export const listClientMessages = delegate("listClientMessages");
 export const getClientMessage = delegate("getClientMessage");
 export const replyClientMessage = delegate("replyClientMessage");
 export const clientListCaseResults = delegate("clientListCaseResults");
+export const clientCaseResultsSummary = delegate("clientCaseResultsSummary");
 export const clientRecordPlatformAction = delegate("clientRecordPlatformAction");
 export const listClientAccounts = delegate("listClientAccounts");
 export const listClients = delegate("listClients");

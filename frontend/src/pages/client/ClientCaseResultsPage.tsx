@@ -35,7 +35,7 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState } from "../../components/ui/Blocks";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { SeverityTag } from "../../components/severity/SeverityTag";
-import { clientListCaseResults, clientRecordPlatformAction } from "../../services";
+import { clientCaseResultsSummary, clientListCaseResults, clientRecordPlatformAction } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { CaseResult, DeliveredOutcome, PlatformAction } from "../../services/types";
 import { useClientQuery } from "../../hooks/useClientQuery";
@@ -68,6 +68,8 @@ function postLabel(url: string | null): string {
 export function ClientCaseResultsPage() {
   const { token } = useClientAuth();
   const { data, error, reload } = useClientQuery(clientListCaseResults);
+  // The key figures come from the data source, worked out once, so they match everywhere they appear.
+  const summary = useClientQuery(clientCaseResultsSummary);
   const [outcome, setOutcome] = useState<"ALL" | DeliveredOutcome>("ALL");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<"needs" | "all" | null>(null);
@@ -85,11 +87,8 @@ export function ClientCaseResultsPage() {
   // that is still travelling can't be acted on yet. It appears here the moment it arrives.
   const results = (data ?? []).filter((r) => r.status === "DELIVERED");
   const needsAction = results.filter((r) => !r.platform_action);
-  const violations = results.filter((r) => r.outcome === "POLICY_VIOLATION_FOUND");
-  const decided = results.filter((r) => r.outcome !== "CLOSED_NO_REASSIGNMENT").length;
-  const removed = results.filter((r) => r.platform_action?.action === "REMOVED").length;
-  const actioned = results.filter((r) => r.platform_action).length;
-  const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : "0%");
+  const sum = summary.data;
+  const pct = (rate: number | null | undefined) => (rate == null ? "–" : `${Math.round(rate * 100)}%`);
   // Opens on what is waiting for the team, as the Manager's Deliveries opens on what needs attention.
   const view = picked ?? (needsAction.length > 0 ? "needs" : "all");
   // What RCS found points at the usual action: a violation is removed, a clear post is kept. A post RCS could not
@@ -131,6 +130,7 @@ export function ClientCaseResultsPage() {
       setNotice(`${acting.case_id}: ${PLATFORM_ACTION_LABEL[choice].toLowerCase()}. RCS has been told.`);
       setActing(null);
       reload();
+      summary.reload();
       window.dispatchEvent(new Event(CLIENT_RESULTS_CHANGED_EVENT));
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
@@ -152,6 +152,7 @@ export function ClientCaseResultsPage() {
       setSelected(new Set());
       setFollowAll(false);
       reload();
+      summary.reload();
       window.dispatchEvent(new Event(CLIENT_RESULTS_CHANGED_EVENT));
     } catch (err) {
       setBulkError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
@@ -334,7 +335,7 @@ export function ClientCaseResultsPage() {
                             {PLATFORM_ACTION_LABEL[r.platform_action.action]}
                           </StatusTag>
                         ) : r.status === "DELIVERED" ? (
-                          <StatusTag tone="request">Needs action</StatusTag>
+                          <StatusTag tone="warning">Needs action</StatusTag>
                         ) : (
                           "—"
                         )}
@@ -424,22 +425,24 @@ export function ClientCaseResultsPage() {
             <Column sm={4} md={2} lg={5}>
               <StatTile
                 label="Violations found"
-                value={violations.length}
-                helper={`${share(violations.length, decided)} of ${decided} decided`}
+                value={sum ? sum.violations : "–"}
+                helper={sum ? `${pct(sum.violation_rate)} of ${sum.decided} decided` : undefined}
               />
             </Column>
             <Column sm={4} md={3} lg={5}>
               <StatTile
                 label="Posts removed"
-                value={removed}
-                helper={`${share(removed, violations.length)} of violations`}
+                value={sum ? sum.removed : "–"}
+                helper={sum ? `${pct(sum.removal_rate)} of violations` : undefined}
               />
             </Column>
             <Column sm={4} md={3} lg={6}>
               <StatTile
                 label="Team has acted on"
-                value={`${actioned} of ${results.length}`}
-                helper={needsAction.length ? `${needsAction.length} still need action` : "All caught up"}
+                value={sum ? `${sum.actioned} of ${sum.delivered}` : "–"}
+                helper={
+                  sum ? (sum.needs_action ? `${sum.needs_action} still need action` : "All caught up") : undefined
+                }
               />
             </Column>
           </Grid>

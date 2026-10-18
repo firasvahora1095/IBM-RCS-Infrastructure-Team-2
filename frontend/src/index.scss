@@ -563,3 +563,23 @@ body {
   padding: 0;
   background: transparent;
 }
+
+// The small icon in a status tag sits centred in its own square, the same size for every icon, with an even gap to
+// the text. Carbon's default leaves a filled triangle looking pushed to one side of the pill.
+.rcs-status-tag {
+  .cds--tag__custom-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline: 0 0.25rem;
+    svg {
+      inline-size: 0.875rem;
+      block-size: 0.875rem;
+      // A triangle's weight is at its base, so lift it a hair to look centred beside the text.
+      transform: translateY(-0.5px);
+    }
+  }
+}

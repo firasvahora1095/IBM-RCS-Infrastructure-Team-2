@@ -59,7 +59,13 @@ export function StatusTag(props: StatusTagProps) {
     label = MODERATION_COMPLETE_LABEL;
   }
   return (
-    <Tag type="gray" size={props.size ?? "md"} renderIcon={TONE_ICON[tone]} style={{ ...BASE, ...TONE[tone] }}>
+    <Tag
+      type="gray"
+      size={props.size ?? "md"}
+      className="rcs-status-tag"
+      renderIcon={TONE_ICON[tone]}
+      style={{ ...BASE, ...TONE[tone] }}
+    >
       {label}
     </Tag>
   );

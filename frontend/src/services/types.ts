@@ -516,6 +516,26 @@ export interface CaseResult {
   platform_action: PlatformAction | null;
 }
 
+/**
+ * The client's key figures, worked out by the data source so every screen shows the same numbers. Only results
+ * that have reached CommunityHub count. A rate is null when there is nothing to divide by.
+ */
+export interface CaseResultsSummary {
+  delivered: number;
+  needs_action: number;
+  needs_action_by_outcome: Record<DeliveredOutcome, number>;
+  violations: number;
+  /** Delivered results RCS reached a decision on (not "Not reviewed"). */
+  decided: number;
+  not_reviewed: number;
+  actioned: number;
+  removed: number;
+  kept: number;
+  violation_rate: number | null;
+  removal_rate: number | null;
+  actioned_rate: number | null;
+}
+
 /** What a CommunityHub account may see (least privilege). */
 export type ClientRole = "REPORTS" | "TRUST_SAFETY" | "ADMIN";
 
@@ -1059,6 +1079,7 @@ export interface DataService {
 
   // Per-case results (Trust & Safety and Admin client roles only)
   clientListCaseResults(token: string): Promise<CaseResult[]>;
+  clientCaseResultsSummary(token: string): Promise<CaseResultsSummary>;
   /** CommunityHub's moderator acted on a delivered result. A second action replaces the first. */
   clientRecordPlatformAction(
     deliveryId: string,

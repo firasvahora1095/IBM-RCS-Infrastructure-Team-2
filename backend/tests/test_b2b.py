@@ -632,6 +632,19 @@ class B2bContractTests(unittest.TestCase):
         )
         self.assertEqual(results[0]["status"], "DELIVERED")
 
+    def test_summary_endpoint_matches_the_list_and_follows_the_roles(self) -> None:
+        delivery_id = self.deliver("RCS-CRES-0009")
+        moderator = self.client_headers("ch-mod-04")
+        before = self.client.get("/api/client/case-results/summary", headers=moderator).json()
+        results = self.client.get("/api/client/case-results", headers=moderator).json()
+        self.assertEqual(before["delivered"], sum(1 for r in results if r["status"] == "DELIVERED"))
+        self.assertEqual(before["needs_action"], sum(1 for r in results if r["status"] == "DELIVERED" and not r["platform_action"]))
+        self.client.post(f"/api/client/case-results/{delivery_id}/action", json={"action": "KEPT"}, headers=moderator)
+        after = self.client.get("/api/client/case-results/summary", headers=moderator).json()
+        self.assertEqual(after["needs_action"], before["needs_action"] - 1)
+        self.assertEqual(after["actioned"], before["actioned"] + 1)
+        self.assertEqual(self.client.get("/api/client/case-results/summary", headers=self.client_headers("ch-user-17")).status_code, 403)
+
     def test_moderator_action_is_recorded_and_shown_to_the_manager(self) -> None:
         delivery_id = self.deliver("RCS-CRES-0002")
         moderator = self.client_headers("ch-mod-04")
