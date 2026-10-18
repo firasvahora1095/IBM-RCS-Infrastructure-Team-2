@@ -350,8 +350,8 @@ export function AuditorDashboardPage() {
             hideCloseButton
             actionButtonLabel="View cooldown"
             onActionButtonClick={() => navigate("/auditor/cooldown")}
-            title="Cooldown in progress — new assignments paused."
-            subtitle="You can still see your Dashboard and past case metadata. Raw footage from earlier cases can't be reopened until the cooldown ends."
+            title="Cooldown in progress."
+            subtitle={`New assignments are paused${isSuperAdmin ? ", and you can't take a case" : ""}. Raw footage from earlier cases can't be reopened until the cooldown ends.`}
             style={{ maxWidth: "100%" }}
           />
         )}
@@ -394,7 +394,7 @@ export function AuditorDashboardPage() {
                 onChanged={reloadAfterCaseChange}
                 onSessionExpired={handleSessionExpiry}
                 canTake={takeBlockReason === null}
-                blockReason={takeBlockReason}
+                blockReason={inCooldown ? null : takeBlockReason}
               />
             )}
 
@@ -449,7 +449,9 @@ export function AuditorDashboardPage() {
             {/* Empty-state panels (Figma 36:146, 36:189, 34:121). */}
             {openCases.length === 0 ? (
               <EmptyPanel>
-                No cases assigned right now — new cases are assigned automatically as they come in.
+                {isSuperAdmin
+                  ? "You have no cases of your own right now."
+                  : "No cases assigned right now. New cases are assigned automatically as they come in."}
               </EmptyPanel>
             ) : inCooldown ? (
               <EmptyPanel>No new Ready cases during cooldown.</EmptyPanel>

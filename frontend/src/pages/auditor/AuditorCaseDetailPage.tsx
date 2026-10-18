@@ -86,7 +86,7 @@ function isNetworkFailure(err: unknown): boolean {
  * Auditor case review: one route, stepping through the Figma click-through.
  *
  *   Content warning (16:19, or 25:212 when AI failed)
- *     → AI Analysis Summary (18:26; skipped when AI failed)
+ *     → AI summary (18:26; skipped when AI failed)
  *     → Review Workspace (20:35) ⇄ Wellbeing check-in (31:188)
  *     → Severity & comment (25:53; 42:405 when sending fails)
  *     → Submission Confirmation (25:280) → Cooldown (31:99) when earned
@@ -487,7 +487,7 @@ export function AuditorCaseDetailPage() {
       {step === "summary" && (
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
-          <h1 style={pageTitle}>AI Analysis Summary</h1>
+          <h1 style={pageTitle}>AI summary</h1>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -571,7 +571,7 @@ export function AuditorCaseDetailPage() {
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
           <div>
             <Button kind="tertiary" onClick={() => setStep("workspace")}>
-              ← Return to Review Workspace
+              ← Back to review
             </Button>
           </div>
         </StaffPage>
@@ -633,7 +633,7 @@ export function AuditorCaseDetailPage() {
             <p style={secondaryText}>
               {aiScore === null
                 ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
-                : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis Summary for the model's original pre-floor score."}
+                : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI summary for the model's original pre-floor score."}
             </p>
             <CviRatingSlider
               initialValue={auditorScore}
@@ -728,7 +728,7 @@ export function AuditorCaseDetailPage() {
               )}
             </div>
             <Button kind="tertiary" onClick={() => setStep("workspace")}>
-              ← Back to Review Workspace
+              ← Back to review
             </Button>
           </div>
         </StaffPage>

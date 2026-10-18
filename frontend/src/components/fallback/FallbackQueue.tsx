@@ -4,6 +4,7 @@ import {
   ContentSwitcher,
   InlineNotification,
   Layer,
+  Modal,
   Table,
   TableBody,
   TableCell,
@@ -11,10 +12,13 @@ import {
   TableHeader,
   TableRow,
   Switch,
+  Toggletip,
+  ToggletipButton,
+  ToggletipContent,
 } from "@carbon/react";
 import { SeverityTag } from "../severity/SeverityTag";
 import { StatusTag } from "../ui/StatusTag";
-import { claimCase, getAllOpenCases, getAvailableCases, makeCaseAvailable, takeCase } from "../../services";
+import { claimCase, getAllOpenCases, getAvailableCases, takeCase } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
@@ -74,8 +78,11 @@ interface SectionProps {
  * owner and who may see it. Queue metadata only. A case opens in full only for the
  * Auditor who owns it, so seeing a case here never exposes its footage.
  *
- * "Take case" and "Make available" apply to a case nobody owns. The wellbeing blocks
- * that apply to every Auditor apply here too, and say why in plain words.
+ * A case only lands here when no standard Auditor was eligible, and the system places
+ * it by itself as soon as one is. The one thing the Super Admin can do is take a case
+ * nobody owns, for when it can't wait. The wellbeing blocks that apply to every Auditor
+ * apply here too, and say why in plain words. ("Make available" is gone from this screen:
+ * it only did what automatic placement already does.)
  */
 export function FallbackQueueSection({
   token,
@@ -89,6 +96,7 @@ export function FallbackQueueSection({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<FallbackCaseRow | null>(null);
   // Default to the cases that need someone, so the list isn't buried under cases already being worked.
   const [view, setView] = useState<"needs" | "all">("needs");
   // Read once per load so the "placed automatically" notes don't change between renders.
@@ -116,24 +124,20 @@ export function FallbackQueueSection({
 
   const shown = (rows ?? []).filter((r) => view === "all" || needsReviewer(r));
 
-  async function act(row: FallbackCaseRow, kind: "take" | "release") {
+  async function take(row: FallbackCaseRow) {
     setBusy(row.case_id);
     setNotice(null);
     setError(null);
     try {
-      if (kind === "take") {
-        await takeCase(row.case_id, token);
-        setNotice(`${row.case_id} is now in your queue. Open it from your queue below.`);
-        onChanged();
-      } else {
-        await makeCaseAvailable(row.case_id, token);
-        setNotice(`${row.case_id} is now available to eligible Auditors.`);
-      }
+      await takeCase(row.case_id, token);
+      setNotice(`${row.case_id} is now in your queue. Open it from My cases.`);
+      onChanged();
       load();
     } catch (err) {
       if (!onSessionExpired(err)) setError(errorText(err));
     } finally {
       setBusy(null);
+      setConfirming(null);
     }
   }
 
@@ -144,12 +148,20 @@ export function FallbackQueueSection({
           Fallback queue
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          Every open case, for when no standard Auditor can take one. You see queue details only; the full review opens
-          for the Auditor who owns the case.
-        </p>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          You don&apos;t need to release cases. The system places each one itself, by the usual weighted rule, as soon
-          as a standard Auditor is eligible. Take a case, or make it available for claiming, only to move it sooner.
+          Cases wait here when no Auditor is free, and are placed automatically the moment one is. Take one only if it
+          can&apos;t wait.
+          <Toggletip align="bottom-start">
+            <ToggletipButton label="How the fallback queue works">
+              <span aria-hidden="true" style={{ fontSize: 12, fontWeight: 600 }}>?</span>
+            </ToggletipButton>
+            <ToggletipContent>
+              <p>
+                Every new case goes to the Auditor the usual weighted rule picks. If none is eligible (in cooldown, at
+                their daily limit or on an SOS), the case waits here. You see queue details only; footage opens for
+                whoever owns the case.
+              </p>
+            </ToggletipContent>
+          </Toggletip>
         </p>
       </div>
 
@@ -216,9 +228,7 @@ export function FallbackQueueSection({
                 <TableHeader>Status</TableHeader>
                 <TableHeader>Owner</TableHeader>
                 <TableHeader>Visible to</TableHeader>
-                <TableHeader>
-                  <span className="cds--visually-hidden">Actions</span>
-                </TableHeader>
+                <TableHeader>Action</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -255,28 +265,15 @@ export function FallbackQueueSection({
                     </TableCell>
                     <TableCell>
                       {unowned && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            disabled={!canTake || busy !== null}
-                            aria-label={`Take case ${row.case_id}`}
-                            onClick={() => act(row, "take")}
-                          >
-                            Take case
-                          </Button>
-                          {row.case_visibility === "SUPER_ADMIN_ONLY" && (
-                            <Button
-                              kind="ghost"
-                              size="sm"
-                              disabled={busy !== null}
-                              aria-label={`Make available, case ${row.case_id}`}
-                              onClick={() => act(row, "release")}
-                            >
-                              Make available
-                            </Button>
-                          )}
-                        </div>
+                        <Button
+                          kind="tertiary"
+                          size="sm"
+                          disabled={!canTake || busy !== null}
+                          aria-label={`Take case ${row.case_id}`}
+                          onClick={() => setConfirming(row)}
+                        >
+                          Take case
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -286,6 +283,31 @@ export function FallbackQueueSection({
           </Table>
         </Layer>
       )}
+
+      <Modal
+        open={confirming !== null}
+        size="sm"
+        modalHeading={confirming ? `Take case ${confirming.case_id}?` : "Take case?"}
+        primaryButtonText={busy ? "Taking…" : "Take case"}
+        secondaryButtonText="Cancel"
+        primaryButtonDisabled={busy !== null}
+        onRequestClose={() => setConfirming(null)}
+        onRequestSubmit={() => confirming && void take(confirming)}
+      >
+        {confirming && (
+          <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
+            <p>
+              Severity:{" "}
+              {(confirming.final_severity_tier ?? confirming.severity_tier) ?? "not yet assessed"}. Status:{" "}
+              {statusLabel(confirming)}.
+            </p>
+            <p>
+              The case moves to your queue and nobody else will be given it. It opens on a content warning, and the
+              time you spend reviewing it counts toward your daily exposure.
+            </p>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }

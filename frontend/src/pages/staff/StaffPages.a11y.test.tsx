@@ -90,7 +90,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     await screen.findByRole("slider", { name: "Blur intensity" });
     expect(await axe()).toHaveNoViolations();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
     await screen.findByRole("heading", { name: "Severity & comment" });
     expect(await axe()).toHaveNoViolations();
   });

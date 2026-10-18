@@ -161,8 +161,13 @@ export function CooldownPage() {
           className="px-4 py-3"
           style={{ fontSize: 14, color: "var(--cds-text-secondary)", backgroundColor: "var(--cds-layer-01)" }}
         >
-          {formatReviewed(wellbeing.exposure_minutes_today)} reviewed today
-          {wellbeing.cases_reviewed_today !== undefined ? ` across ${wellbeing.cases_reviewed_today} cases` : ""}
+          {wellbeing.exposure_minutes_today < 1 && !wellbeing.cases_reviewed_today
+            ? "Nothing reviewed yet today"
+            : `${formatReviewed(wellbeing.exposure_minutes_today)} reviewed today${
+                wellbeing.cases_reviewed_today !== undefined
+                  ? ` across ${wellbeing.cases_reviewed_today} ${wellbeing.cases_reviewed_today === 1 ? "case" : "cases"}`
+                  : ""
+              }`}
         </p>
 
         {waitingForCheckIn && (
@@ -170,8 +175,8 @@ export function CooldownPage() {
             kind="warning"
             lowContrast
             hideCloseButton
-            title="A manager check-in is required before you return"
-            subtitle="Your SOS has been flagged. Your manager will check in with you before new cases resume."
+            title="Your manager will check in with you before you return."
+            subtitle="You don't need to do anything. New cases resume once they have. The options below are extra support if you want it."
             style={{ maxWidth: "100%" }}
           />
         )}

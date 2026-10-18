@@ -75,6 +75,8 @@ export interface StaffLoginResponse {
   role: StaffRole;
   /** The fallback reviewer (Sprint 3). Still an Auditor; the server re-checks this on every call. */
   is_super_admin?: boolean;
+  /** A readable name, where the data source has one. The header falls back to the login ID without it. */
+  display_name?: string;
 }
 
 /** Who may see a case in a queue, kept apart from who owns it. */

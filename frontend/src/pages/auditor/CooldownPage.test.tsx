@@ -66,7 +66,7 @@ describe("CooldownPage (Figma 31:99)", () => {
     });
     renderPage();
 
-    expect(await screen.findByText("A manager check-in is required before you return")).toBeInTheDocument();
+    expect(await screen.findByText("Your manager will check in with you before you return.")).toBeInTheDocument();
   });
 
   it("keeps the queue locked after the timer until the manager has checked in", async () => {

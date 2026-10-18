@@ -118,7 +118,7 @@ export function ManagerExceptionalAccessPage() {
 
       {data && step === "summary" && (
         <>
-          <PageHeader title="AI Analysis Summary" />
+          <PageHeader title="AI summary" />
           <div className="flex flex-wrap items-center gap-3">
             {data.severity_tier && <SeverityTag tier={data.severity_tier} />}
             {data.effective_severity_score !== null && (

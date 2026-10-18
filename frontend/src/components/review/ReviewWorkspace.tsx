@@ -35,7 +35,7 @@ interface ReviewWorkspaceProps {
   /** Receives measured playback exposure every few seconds and when the workspace closes. */
   onExposure?: (sample: ExposureSample) => void;
   onContinue: () => void;
-  /** "Continue to severity & comment" for Auditors; the Manager's exceptional access returns to its decision. */
+  /** "Rate severity" for Auditors; the Manager's exceptional access returns to its decision. */
   continueLabel?: string;
   /** Absent for an AI-failure case, which has no summary to go back to. */
   onBack?: () => void;
@@ -74,7 +74,7 @@ export function ReviewWorkspace({
   pausedReason,
   onExposure,
   onContinue,
-  continueLabel = "Continue to severity & comment",
+  continueLabel = "Rate severity",
   onBack,
   onTalkToManager,
   onSos,
@@ -556,7 +556,7 @@ export function ReviewWorkspace({
             <Button onClick={onContinue}>{continueLabel}</Button>
             {onBack && (
               <Button kind="tertiary" onClick={onBack}>
-                ← Back to AI Analysis Summary
+                Back to AI summary
               </Button>
             )}
           </div>

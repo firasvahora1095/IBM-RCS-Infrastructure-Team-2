@@ -758,7 +758,12 @@ export const mockDataService: DataService = {
       delete db.loginAttempts[key];
       const token = newToken();
       db.sessions[token] = { staffId: member.staff_id, role: member.role };
-      return { token, role: member.role, is_super_admin: member.role === "auditor" && member.is_super_admin === true };
+      return {
+        token,
+        role: member.role,
+        is_super_admin: member.role === "auditor" && member.is_super_admin === true,
+        display_name: member.display_name,
+      };
     });
   },
 

@@ -64,7 +64,7 @@ async function openWorkspace() {
 
 async function goToSeverityStep() {
   await openWorkspace();
-  fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+  fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
   await screen.findByRole("heading", { name: "Severity & comment" });
 }
 
@@ -165,9 +165,9 @@ describe("AuditorCaseDetailPage", () => {
 
     // Straight into the workspace: no summary, no way back to one.
     expect(await screen.findByRole("slider", { name: "Blur intensity" })).toHaveAttribute("aria-valuenow", "100");
-    expect(screen.queryByRole("button", { name: /Back to AI Analysis Summary/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Back to AI summary/ })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
     fireEvent.click(await screen.findByLabelText("No Violation Found"));
     expect(screen.getByText("Set your CVI rating to continue.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue to submit" })).toBeDisabled();

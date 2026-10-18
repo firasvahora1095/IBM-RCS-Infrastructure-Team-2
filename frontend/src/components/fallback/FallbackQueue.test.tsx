@@ -77,7 +77,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
 
   it("tells the Super Admin the system will place a parked case itself, so there is nothing to do", async () => {
     renderFallback();
-    expect(await screen.findByText(/You don't need to release cases/)).toBeInTheDocument();
+    expect(await screen.findByText(/placed automatically the moment one is/)).toBeInTheDocument();
     expect(await screen.findByText(/Placed automatically from/)).toBeInTheDocument();
     // A case the system will never place (hand-seeded, or already released for claiming) carries no such note.
     const row = screen.getByText("FREE-0002").closest("tr") as HTMLElement;
@@ -93,30 +93,25 @@ describe("FallbackQueueSection (Super Admin)", () => {
     expect(screen.queryByRole("button", { name: "Take case OWNED-001" })).not.toBeInTheDocument();
   });
 
-  it("offers Make available only while the case is Super Admin only", async () => {
-    renderFallback();
-    await screen.findByText("FREE-0001");
-    expect(screen.getByRole("button", { name: "Make available, case FREE-0001" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Make available, case FREE-0002" })).not.toBeInTheDocument();
-  });
-
-  it("takes a case, confirms in words and tells the page to reload its own queue", async () => {
+  it("shows what is being taken and only takes the case once confirmed", async () => {
     const take = vi.spyOn(services, "takeCase").mockResolvedValue({ taken: true });
     const { onChanged } = renderFallback();
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Take case FREE-0001" }));
+    expect(take).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Take case FREE-0001?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/opens on a content warning/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Take case" }));
     expect(take).toHaveBeenCalledWith("FREE-0001", "t");
     expect(await screen.findByText(/FREE-0001 is now in your queue/)).toBeInTheDocument();
     expect(onChanged).toHaveBeenCalled();
   });
 
-  it("makes a case available and confirms", async () => {
-    const release = vi.spyOn(services, "makeCaseAvailable").mockResolvedValue({ available: true });
+  it("offers no Make available: automatic placement already does that", async () => {
     renderFallback();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Make available, case FREE-0001" }));
-    expect(release).toHaveBeenCalledWith("FREE-0001", "t");
-    expect(await screen.findByText(/FREE-0001 is now available to eligible Auditors/)).toBeInTheDocument();
+    await screen.findByText("FREE-0001");
+    expect(screen.queryByRole("button", { name: /Make available/ })).not.toBeInTheDocument();
   });
 
   it("disables Take case during a wellbeing block and says why, without blaming", async () => {
@@ -132,6 +127,7 @@ describe("FallbackQueueSection (Super Admin)", () => {
     renderFallback();
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Take case FREE-0001" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Take case" }));
     expect(await screen.findByText(/already has an Auditor/)).toBeInTheDocument();
   });
 

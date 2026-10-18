@@ -81,7 +81,7 @@ describe("AuditorDashboardPage", () => {
     vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([]);
     renderPage();
     expect(
-      await screen.findByText("No cases assigned right now — new cases are assigned automatically as they come in."),
+      await screen.findByText("No cases assigned right now. New cases are assigned automatically as they come in."),
     ).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe("AuditorDashboardPage", () => {
     ]);
     renderPage();
 
-    expect(await screen.findByText("Cooldown in progress — new assignments paused.")).toBeInTheDocument();
+    expect(await screen.findByText("Cooldown in progress.")).toBeInTheDocument();
     expect(await screen.findByText("Locked during cooldown")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ready for review" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("AR-2026-00417"));

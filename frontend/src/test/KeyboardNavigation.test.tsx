@@ -186,7 +186,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByRole("button", { name: /^(Mute|Unmute)$/ }));
     await tabTo(user, screen.getByRole("button", { name: /^SOS/ }));
 
-    await tabTo(user, screen.getByRole("button", { name: "Continue to severity & comment" }));
+    await tabTo(user, screen.getByRole("button", { name: "Rate severity" }));
     await user.keyboard("{Enter}");
     await screen.findByRole("heading", { name: "Severity & comment" });
 
