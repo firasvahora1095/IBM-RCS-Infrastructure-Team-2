@@ -10,7 +10,11 @@ import {
   Breadcrumb,
   BreadcrumbItem,
   SkeletonText,
+  Toggletip,
+  ToggletipButton,
+  ToggletipContent,
 } from "@carbon/react";
+import { Information } from "@carbon/icons-react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
@@ -500,12 +504,19 @@ export function AuditorCaseDetailPage() {
             <div className="flex flex-wrap items-center gap-3">
               <SeverityTag tier={caseDetail.severity_tier!} />
               <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>CVI {aiScore} / 100</span>
-              <span style={secondaryText}>AI&apos;s own pre-screen figure — may be adjusted after your review</span>
+              <span style={secondaryText}>AI pre-screen</span>
+              <Toggletip align="bottom-start">
+                <ToggletipButton label="About this score">
+                  <Information size={16} aria-hidden="true" />
+                </ToggletipButton>
+                <ToggletipContent>
+                  <p>
+                    The effective score, after the weapon-detection floor where it applies. The model&apos;s original
+                    score is kept separately in the audit log and never overwritten. You can adjust it after your review.
+                  </p>
+                </ToggletipContent>
+              </Toggletip>
             </div>
-            <p style={secondaryText}>
-              This is the effective score — reflects the weapon-detection floor rule where it applies. The model&apos;s
-              original, pre-floor score is preserved separately in the case&apos;s audit log, never overwritten.
-            </p>
           </div>
 
           <section
@@ -542,7 +553,10 @@ export function AuditorCaseDetailPage() {
             durationSeconds={caseDetail.video_duration_seconds}
           />
 
-          <div>
+          <div className="rcs-action-bar">
+            <Button kind="tertiary" onClick={() => navigate("/auditor")}>
+              ← Back to dashboard
+            </Button>
             <Button onClick={() => setStep("workspace")}>Continue to review</Button>
           </div>
         </StaffPage>
@@ -552,6 +566,11 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 className="cds--visually-hidden">Review Workspace</h1>
+          <div>
+            <Button kind="ghost" size="sm" onClick={() => navigate("/auditor")}>
+              ← Back to dashboard
+            </Button>
+          </div>
           <ReviewWorkspace
             caseDetail={caseDetail}
             settings={viewer}
@@ -611,132 +630,131 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>Severity &amp; comment</h1>
+          {/* The form sits in the middle of the page; the breadcrumb and heading stay where they always are. */}
+          <div className="mx-auto flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
+            {submitError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                hideCloseButton
+                role="alert"
+                title={submitError.network ? "Error:" : "This case wasn't submitted."}
+                subtitle={submitError.message}
+                style={{ maxWidth: "100%" }}
+              />
+            )}
 
-          {submitError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title={submitError.network ? "Error:" : "This case wasn't submitted."}
-              subtitle={submitError.message}
-              style={{ maxWidth: "100%" }}
-            />
-          )}
-
-          <section
-            aria-labelledby="cvi-rating-title"
-            className="flex flex-col gap-3 p-5"
-            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
-                CVI rating
-              </h2>
-              <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                {aiScore === null ? "No AI suggestion" : `AI-suggested: ${aiScore}`}
-              </span>
-            </div>
-            <p style={secondaryText}>
-              {aiScore === null
-                ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
-                : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI summary for the model's original pre-floor score."}
-            </p>
-            <CviRatingSlider
-              initialValue={auditorScore}
-              onChange={(score) => {
-                setAuditorScore(score);
-                setRatingTouched(true);
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-2" aria-live="polite">
-              {ratingMissing ? (
-                <span style={secondaryText}>Your rating: not set yet</span>
-              ) : (
-                <>
-                  <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>Your rating: {auditorScore} / 100</span>
-                  <SeverityTag tier={scoreToTier(auditorScore)} />
-                  {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
-                </>
-              )}
-            </div>
-          </section>
-
-          <div style={{ maxWidth: 600 }}>
-            <TextArea
-              id="auditor-comment"
-              labelText={
-                scoreWasChanged ? (
-                  <>
-                    Comment <span style={{ color: "var(--cds-text-error)", fontWeight: 600 }}>*</span> required — you
-                    changed the AI&apos;s rating
-                  </>
-                ) : (
-                  "Comment (optional)"
-                )
-              }
-              rows={4}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-          </div>
-
-          <section
-            aria-labelledby="outcome-title"
-            className="flex flex-col gap-2.5 px-5 py-4"
-            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
-          >
-            <p className="flex items-center gap-1.5">
-              <span id="outcome-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
-                Final case outcome
-              </span>
-              <span style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>required for standard cases</span>
-            </p>
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-              This determines what the reporting user sees when their case reaches Complete. Only applies if this case
-              has no SOS or Decline flag — otherwise your manager decides the outcome.
-            </p>
-            {/* No option is pre-selected: a default would nudge the Auditor
-                towards one outcome, so the decision has to be explicit. */}
-            <RadioButtonGroup
-              name="final-outcome"
-              legendText={<span className="cds--visually-hidden">Final case outcome</span>}
-              orientation="vertical"
-              valueSelected={outcome ?? undefined}
-              onChange={(value) => setOutcome(value as FinalOutcome)}
-            >
-              {OUTCOME_OPTIONS.map((option) => (
-                <RadioButton
-                  key={option.value}
-                  id={`outcome-${option.value}`}
-                  labelText={option.label}
-                  value={option.value}
-                />
-              ))}
-            </RadioButtonGroup>
-          </section>
-
-          <div className="flex flex-col items-start gap-4">
-            <div className="flex flex-col gap-2">
-              <div>
-                <Button disabled={!canSubmit || isSubmitting} onClick={handleResolve}>
-                  {isSubmitting ? "Submitting…" : submitError?.network ? "Retry submit" : "Continue to submit"}
-                </Button>
-              </div>
-              {/* A disabled button can't explain itself, so say what's missing. */}
-              {!canSubmit && (
-                <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  {ratingMissing
-                    ? "Set your CVI rating to continue."
-                    : commentMissing
-                      ? "Add a comment explaining why you changed the AI's rating to continue."
-                      : "Choose a final case outcome to continue."}
+            {/* One bordered card with three sections divided by lines, not three grey boxes. */}
+            <div style={{ border: "1px solid var(--cds-border-subtle-01)" }}>
+              <section aria-labelledby="cvi-rating-title" className="flex flex-col gap-3 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
+                    CVI rating
+                  </h2>
+                  <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                    {aiScore === null ? "No AI suggestion" : `AI-suggested: ${aiScore}`}
+                  </span>
+                </div>
+                <p style={secondaryText}>
+                  {aiScore === null
+                    ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
+                    : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) See the AI summary for the model's original score."}
                 </p>
-              )}
+                <CviRatingSlider
+                  initialValue={auditorScore}
+                  onChange={(score) => {
+                    setAuditorScore(score);
+                    setRatingTouched(true);
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+                  {ratingMissing ? (
+                    <span style={secondaryText}>Your rating: not set yet</span>
+                  ) : (
+                    <>
+                      <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>
+                        Your rating: {auditorScore} / 100
+                      </span>
+                      <SeverityTag tier={scoreToTier(auditorScore)} />
+                      {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
+                    </>
+                  )}
+                </div>
+              </section>
+
+              <div className="p-6" style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}>
+                <TextArea
+                  id="auditor-comment"
+                  labelText={
+                    scoreWasChanged ? (
+                      <>
+                        Comment <span style={{ color: "var(--cds-text-error)", fontWeight: 600 }}>*</span> required —
+                        you changed the AI&apos;s rating
+                      </>
+                    ) : (
+                      "Comment (optional)"
+                    )
+                  }
+                  rows={4}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+              </div>
+
+              <section
+                aria-labelledby="outcome-title"
+                className="flex flex-col gap-2.5 p-6"
+                style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}
+              >
+                <p className="flex items-center gap-1.5">
+                  <span id="outcome-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
+                    Final case outcome
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>required for standard cases</span>
+                </p>
+                <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+                  This determines what the reporting user sees when their case reaches Complete. Only applies if this
+                  case has no SOS or Decline flag — otherwise your manager decides the outcome.
+                </p>
+                {/* No option is pre-selected: a default would nudge the Auditor
+                towards one outcome, so the decision has to be explicit. */}
+                <RadioButtonGroup
+                  name="final-outcome"
+                  legendText={<span className="cds--visually-hidden">Final case outcome</span>}
+                  orientation="vertical"
+                  valueSelected={outcome ?? undefined}
+                  onChange={(value) => setOutcome(value as FinalOutcome)}
+                >
+                  {OUTCOME_OPTIONS.map((option) => (
+                    <RadioButton
+                      key={option.value}
+                      id={`outcome-${option.value}`}
+                      labelText={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </RadioButtonGroup>
+              </section>
             </div>
-            <Button kind="tertiary" onClick={() => setStep("workspace")}>
-              ← Back to review
-            </Button>
+
+            {/* A disabled button can't explain itself, so say what's missing. */}
+            {!canSubmit && (
+              <p style={{ fontSize: 12, color: "var(--cds-text-secondary)", textAlign: "end" }}>
+                {ratingMissing
+                  ? "Set your CVI rating to continue."
+                  : commentMissing
+                    ? "Add a comment explaining why you changed the AI's rating to continue."
+                    : "Choose a final case outcome to continue."}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button kind="tertiary" onClick={() => setStep("workspace")}>
+                ← Back to review
+              </Button>
+              <Button disabled={!canSubmit || isSubmitting} onClick={handleResolve}>
+                {isSubmitting ? "Submitting…" : submitError?.network ? "Retry submit" : "Continue to submit"}
+              </Button>
+            </div>
           </div>
         </StaffPage>
       )}

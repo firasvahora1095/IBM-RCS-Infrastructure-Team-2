@@ -150,6 +150,9 @@ export function AuditorDashboardPage() {
   const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
   const cooldownCause =
     cooldown?.trigger === "SOS" ? "Started after your SOS" : `Triggered by ${cooldown?.trigger ?? ""} exposure`;
+  // A break the Auditor has asked for, or the Manager has approved, changes what Status says.
+  const breakRequested = (wellbeing?.requests ?? []).some((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN");
+  const onBreak = (wellbeing?.requests ?? []).some((r) => r.kind === "BREAK_REQUEST" && r.status === "APPROVED");
   const waitingForCheckIn = Boolean(cooldown?.requires_check_in && !cooldown.check_in_completed_at);
   // Ready to review means AI analysis is finished and the Auditor hasn't started yet (§1.5).
   const readyCount = openCases.filter((c) => c.status === "READY_FOR_REVIEW").length;
@@ -344,8 +347,19 @@ export function AuditorDashboardPage() {
                   Status
                 </span>
                 <span className="rcs-stat-value" style={{ fontFamily: "inherit" }}>
-                  <StatusTag tone="success">Available</StatusTag>
+                  {onBreak ? (
+                    <StatusTag tone="info">On break</StatusTag>
+                  ) : breakRequested ? (
+                    <StatusTag tone="neutral">Break requested</StatusTag>
+                  ) : (
+                    <StatusTag tone="success">Available</StatusTag>
+                  )}
                 </span>
+                {(onBreak || breakRequested) && (
+                  <span className="rcs-stat-helper">
+                    {onBreak ? "Approved by your manager. No new cases until you're back." : "Waiting for your manager."}
+                  </span>
+                )}
               </div>
             )}
           </div>

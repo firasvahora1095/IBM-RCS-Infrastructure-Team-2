@@ -20,7 +20,7 @@ const tabBase = {
  * a reassignment decision) keep the section they belong to marked with
  * aria-current="page".
  */
-export function ManagerTopNav({ end }: { end?: ReactNode }) {
+export function ManagerTopNav({ end, counts = {} }: { end?: ReactNode; counts?: Record<string, number> }) {
   const active = activeSection(useLocation().pathname);
   return (
     <div
@@ -46,6 +46,11 @@ export function ManagerTopNav({ end }: { end?: ReactNode }) {
               }}
             >
               {tab.label}
+              {(counts[tab.path] ?? 0) > 0 && (
+                <span className="rcs-subnav-count rcs-subnav-count--neutral" style={{ marginInlineStart: 8 }}>
+                  {counts[tab.path]}
+                </span>
+              )}
             </Link>
           );
         })}

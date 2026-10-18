@@ -56,7 +56,7 @@ export function ManagerOversightDashboardPage() {
         actions={
           <>
             {data && data.kpis.needs_manager_action > 0 && (
-              <Button href="#needs-attention">{`Needs you (${data.kpis.needs_manager_action})`}</Button>
+              <Button href="#needs-attention">Needs you</Button>
             )}
             <Dropdown
               id="dashboard-period"

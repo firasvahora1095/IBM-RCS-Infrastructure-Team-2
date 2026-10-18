@@ -7,7 +7,7 @@ import { SosAlertBanner } from "../notifications/SosAlertBanner";
 import { StaffPage } from "./StaffPage";
 import { useSosSummary } from "../../hooks/useSosSummary";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
-import { listClientMessages, listDeclinedCases } from "../../services";
+import { listClientMessages, listDeclinedCases, listDeliveries } from "../../services";
 
 interface ManagerLayoutProps {
   children: ReactNode;
@@ -32,6 +32,9 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
   const sos = useSosSummary();
   // The counts on the work-queue tabs: cases waiting for a new Auditor and Client messages not yet answered.
   const declined = useStaffQuery(listDeclinedCases, "", { refreshMs: 30_000 });
+  // Deliveries that failed and need a person. Cases has no count of its own: what needs you there is the SOS and
+  // reassignment items, already counted on their own tabs, so a second number would count the same work twice.
+  const deliveries = useStaffQuery(listDeliveries, "", { refreshMs: 30_000 });
   const messages = useStaffQuery(listClientMessages, "", { refreshMs: 30_000 });
   return (
     <>
@@ -39,7 +42,12 @@ export function ManagerLayout({ children, showNav = true, showSosBanner = true, 
       {/* Carbon's header is fixed at 48px; this block sits in normal flow below it. */}
       <div style={{ paddingTop: 48 }}>
         {showSosBanner && <SosAlertBanner summary={sos} />}
-        {showNav && <ManagerTopNav end={clientScope ? <ClientSwitcher /> : undefined} />}
+        {showNav && <ManagerTopNav
+            end={clientScope ? <ClientSwitcher /> : undefined}
+            counts={{
+              "/manager/deliveries": deliveries.data?.filter((d) => d.delivery_status === "NEEDS_ATTENTION").length ?? 0,
+            }}
+          />}
         {showNav && <ManagerSubNav
             sosCount={sos?.unresolved_count ?? 0}
             reassignmentCount={declined.data?.length ?? 0}

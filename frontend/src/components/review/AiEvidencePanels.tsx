@@ -157,7 +157,7 @@ export function AudioIntensityGraph({
         </div>
       ) : null}
       <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-        Louder sounds are taller. Time runs left to right. This is an audio-intensity graph, not an emotion graph.
+        Audio intensity, not an emotion graph.
       </p>
     </div>
   );
