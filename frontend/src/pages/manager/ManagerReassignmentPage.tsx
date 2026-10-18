@@ -169,7 +169,7 @@ export function ManagerReassignmentPage() {
               <TextArea
                 id="no-reassignment-note"
                 labelText="Note for the audit trail (required)"
-                helperText="Closes the case as Complete with no reassignment."
+                helperText="Closes the case with no policy decision. The Client is told it was closed without one, and decides for itself what to do with the post."
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
