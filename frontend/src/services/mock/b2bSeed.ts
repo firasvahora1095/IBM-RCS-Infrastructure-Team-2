@@ -446,8 +446,12 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
     delivered.sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at));
     const waiting = new Set(delivered.slice(-2));
     for (const outcome of ["POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT"] as const) {
-      const newest = [...delivered].reverse().find((d) => d.outcome === outcome);
-      if (newest) waiting.add(newest);
+      // Three of each, so the list has several of every kind to look at.
+      [...delivered]
+        .reverse()
+        .filter((d) => d.outcome === outcome)
+        .slice(0, 3)
+        .forEach((d) => waiting.add(d));
     }
     delivered
       .filter((d) => !waiting.has(d))

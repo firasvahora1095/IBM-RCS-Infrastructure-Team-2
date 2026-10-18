@@ -349,9 +349,9 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         delivered.sort(key=lambda d: d.completed_at)
         waiting = {id(d) for d in delivered[-2:]}
         for outcome in ("POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT"):
-            newest = next((d for d in reversed(delivered) if d.outcome == outcome), None)
-            if newest is not None:
-                waiting.add(id(newest))
+            # Three of each, so the list has several of every kind to look at.
+            for d in [x for x in reversed(delivered) if x.outcome == outcome][:3]:
+                waiting.add(id(d))
         for i, d in enumerate(d for d in delivered if id(d) not in waiting):
             violation = d.outcome == "POLICY_VIOLATION_FOUND"
             d.platform_action = "REMOVED" if violation else "KEPT"
