@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { activeSection, WORK_QUEUES } from "./managerSections";
 
 /**
- * The work queues, one step under Overview: the pages a Manager opens many times a day (SOS Inbox, Reassignment
+ * The work queues, one step under Overview: the pages a Manager opens many times a day (SOS inbox, Reassignment
  * Queue, Client messages), so they are always one click away and never hidden behind a list. They sit in a
  * second, quieter row so the main bar stays at six sections, and appear only on Overview and its sub-pages
  * because that is where this work happens.

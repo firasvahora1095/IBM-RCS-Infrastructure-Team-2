@@ -25,7 +25,7 @@ function nextStepText(status: string, name: string): string {
 }
 
 /**
- * SOS Alert Detail (Manager Figma 103:197): the affected Auditor's exposure
+ * SOS alert Detail (Manager Figma 103:197): the affected Auditor's exposure
  * and the triggering case's AI context, as text only — no footage, no
  * thumbnail (MR-SOS-05). Acknowledging records that follow-up has begun
  * (MR-SOS-04). Raw content stays behind a separate, deliberate,
@@ -62,7 +62,7 @@ export function ManagerSosAlertPage() {
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
       <ManagerBreadcrumb
-        trail={[{ label: "Overview", to: "/manager" }, { label: "SOS Inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
+        trail={[{ label: "Overview", to: "/manager" }, { label: "SOS inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
       />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && (

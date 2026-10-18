@@ -10,7 +10,7 @@ import { useSosSummary } from "../../hooks/useSosSummary";
 interface ManagerLayoutProps {
   children: ReactNode;
   /**
-   * Section pages (Dashboard, Case Oversight, SOS Inbox, Reassignment Queue,
+   * Section pages (Dashboard, Case Oversight, SOS inbox, Reassignment queue,
    * Validation) show the TopNav; drill-down pages use a breadcrumb instead,
    * as in the Figma file.
    */

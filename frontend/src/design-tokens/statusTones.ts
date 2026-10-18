@@ -7,8 +7,8 @@ import type { DeliveryStatus, ExposureState, ReportStatus, WellbeingRequestStatu
  *
  * - error, solid red: critical. Something failed or someone is at risk. SOS, Unacknowledged, Failed, Timed out,
  *   Limit reached, Blocked.
- * - warning, yellow: caution. A limit is near or something needs a look. Near limit, Needs Reassignment,
- *   AI Override.
+ * - warning, yellow: caution. A limit is near or something needs a look. Near limit, Needs reassignment,
+ *   AI override.
  * - info, blue: in progress. Someone or something is already on it. Pending, Retrying, In Review, In progress, Seen.
  * - success, solid green: done and good. Delivered, Released, Approved, Followed up, Connected, Answered.
  * - request, teal: a request that is waiting for a person. Support requests, a new Client message.
@@ -76,10 +76,10 @@ export function caseStatusTone(label: string): StatusTone {
   switch (label) {
     case "Blocked":
       return "error";
-    case "Needs Reassignment":
+    case "Needs reassignment":
     case "Awaiting release":
       return "warning";
-    case "In Review":
+    case "In review":
     case "Processing":
       return "info";
     default:

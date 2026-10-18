@@ -122,7 +122,7 @@ export function Comparison({ data }: { data: ManagerIntelligence }) {
     <div className="rcs-comparison">
       <div className="flex flex-col gap-4">
         <StatTile
-          label="AI Override"
+          label="AI override"
           value={percent(comparison.override_rate)}
           helper={`The AI and the Auditor disagreed in ${comparison.overrides} of ${comparison.eligible} decided cases`}
         />

@@ -62,7 +62,7 @@ export function ManagerSosFollowUpPage() {
       <ManagerBreadcrumb
         trail={[
           { label: "Overview", to: "/manager" },
-          { label: "SOS Inbox", to: "/manager/sos" },
+          { label: "SOS inbox", to: "/manager/sos" },
           { label: name, to: `/manager/sos/${encodeURIComponent(alertId)}` },
           { label: "Follow-up" },
         ]}
@@ -80,7 +80,7 @@ export function ManagerSosFollowUpPage() {
             style={{ maxWidth: "100%" }}
           />
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/manager/sos")}>Return to SOS Inbox</Button>
+            <Button onClick={() => navigate("/manager/sos")}>Return to SOS inbox</Button>
             {data.auditor_id && (
               <Button kind="tertiary" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
                 View {name}&apos;s record
@@ -129,7 +129,7 @@ export function ManagerSosFollowUpPage() {
             {outcome === "NO_FURTHER_ACTION" &&
               "You spoke with the Auditor and they are well enough to keep working. This resolves the alert."}
             {outcome === "REASSIGNED_REMAINING_CASES" &&
-              "The Auditor keeps working, but you are handing their remaining cases to other Auditors. Choose who takes them in the Reassignment Queue."}
+              "The Auditor keeps working, but you are handing their remaining cases to other Auditors. Choose who takes them in the Reassignment queue."}
             {outcome === "AUDITOR_STOPPED_SHIFT" &&
               "The Auditor has stopped for the day. Their open cases will need new Auditors."}
             {!outcome && "Choose what happened after you spoke with the Auditor. Your notes and this choice are kept in the audit trail."}
@@ -155,7 +155,7 @@ export function ManagerSosFollowUpPage() {
               </p>
             )}
             <Button kind="tertiary" onClick={() => navigate(`/manager/sos/${encodeURIComponent(alertId)}`)}>
-              ← Back to SOS Alert Detail
+              ← Back to SOS alert detail
             </Button>
           </div>
         </Panel>

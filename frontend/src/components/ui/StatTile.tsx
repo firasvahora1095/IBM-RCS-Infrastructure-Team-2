@@ -8,7 +8,7 @@ interface StatTileProps {
   value: ReactNode;
   /** One line under the value, e.g. "All clear" or "View deliveries". */
   helper?: ReactNode;
-  /** "error" adds the 3px red accent the SOS Inbox uses for rows that need action. */
+  /** "error" adds the 3px red accent the SOS inbox uses for rows that need action. */
   tone?: Tone;
   /** A control for the tile, e.g. "Evidence", always in the top-right corner. */
   corner?: ReactNode;

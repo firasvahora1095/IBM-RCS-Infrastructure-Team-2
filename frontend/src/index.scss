@@ -83,7 +83,6 @@
 }
 .rcs-player-bar {
   gap: 0.5rem;
-  overflow-x: clip;
   // Never wider than its column: the timeline gives up width first, so the
   // reviewer never has to scroll sideways mid-review.
   inline-size: 100%;
@@ -176,11 +175,11 @@
   min-block-size: 10rem;
 }
 .rcs-player-volume {
-  // Room for the slider thumb, which overhangs the track by half its width at 0% and 100%; without it the thumb
-  // pushed the page sideways at full volume.
-  flex: 0 0 4.75rem;
+  // Room at both ends for the thumb and its "100%" tooltip, which hang past the track by half their width. Without
+  // it the tooltip was cut off at full volume and the thumb pushed the page sideways.
+  flex: 0 0 6.5rem;
   min-inline-size: 0;
-  padding-inline: 0.5rem;
+  padding-inline: 0.5rem 2rem;
   // On narrow screens mute alone controls sound, so the bar still fits.
   @media (max-width: 671px) {
     display: none;

@@ -101,7 +101,7 @@ describe("Manager labels (Manager Figma prototype 0qMhTLDlozGkcdqcgbwyse)", () =
     });
   });
 
-  it("uses the SOS Inbox status column wording (103:151)", () => {
+  it("uses the SOS inbox status column wording (103:151)", () => {
     expect(SOS_STATUS_LABEL.IN_PROGRESS).toBe("In progress");
     expect(SOS_STATUS_LABEL.RESOLVED).toBe("Resolved");
   });

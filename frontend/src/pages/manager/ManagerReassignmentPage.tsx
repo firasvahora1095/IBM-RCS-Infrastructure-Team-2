@@ -96,7 +96,7 @@ export function ManagerReassignmentPage() {
 
   const trail = [
     { label: "Overview", to: "/manager" },
-    { label: "Reassignment Queue", to: "/manager/reassignment" },
+    { label: "Reassignment queue", to: "/manager/reassignment" },
     { label: `Case ${caseId}`, to: `/manager/cases/${encodeURIComponent(caseId)}/review` },
     { label: "Decision" },
   ];

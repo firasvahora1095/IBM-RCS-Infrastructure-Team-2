@@ -33,7 +33,7 @@ const ALL_STATUSES = "All statuses";
 
 type SortKey = "severity" | "status" | "auditor" | "case";
 /** The order a case moves through, so a status sort reads as a pipeline rather than alphabetically. */
-const STATUS_ORDER = ["Processing", "Ready for Review", "In Review", "Complete"];
+const STATUS_ORDER = ["Processing", "Ready for review", "In review", "Complete"];
 
 /** What a case needs from the Manager, in the order to work through them. `null` means nothing. */
 type Attention = { kind: "blocked" | "reassign"; label: string; action: string } | null;
@@ -41,7 +41,7 @@ type Attention = { kind: "blocked" | "reassign"; label: string; action: string }
 function attentionOf(row: ManagerCaseRow): Attention {
   if (row.status === "COMPLETE") return null;
   if (row.manager_flag === "SOS") return { kind: "blocked", label: "Blocked", action: "Review alert" };
-  if (row.manager_flag) return { kind: "reassign", label: "Needs Reassignment", action: "Review" };
+  if (row.manager_flag) return { kind: "reassign", label: "Needs reassignment", action: "Review" };
   // A case with no Auditor yet is never the Manager's to push along: it is released to Auditors automatically
   // (the Super Admin Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
   return null;

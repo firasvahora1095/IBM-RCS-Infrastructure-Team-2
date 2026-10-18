@@ -21,10 +21,10 @@ import { formatShortDateTime } from "../../utils/formatPeriod";
 
 const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
 const ALL = "All";
-const RESULT_FILTERS = [ALL, "AI Override", "AI Match"] as const;
+const RESULT_FILTERS = [ALL, "AI override", "AI match"] as const;
 
 /** The labels the BA standard uses (extra-features §11.1). "AI wrong" and "Auditor wrong" are never used. */
-const RESULT_LABEL = { override: "AI Override", match: "AI Match" } as const;
+const RESULT_LABEL = { override: "AI override", match: "AI match" } as const;
 
 const delta = (n: number | null) => (n === null ? "—" : n > 0 ? `+${n}` : String(n));
 
@@ -49,8 +49,8 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
       data.comparisons.filter((r) => {
         const q = query.trim().toLowerCase();
         if (q && !r.case_id.toLowerCase().includes(q)) return false;
-        if (result === "AI Override" && !r.override) return false;
-        if (result === "AI Match" && r.override) return false;
+        if (result === "AI override" && !r.override) return false;
+        if (result === "AI match" && r.override) return false;
         if (aiTier !== ALL && r.ai_tier !== aiTier) return false;
         if (finalTier !== ALL && r.final_tier !== finalTier) return false;
         return true;

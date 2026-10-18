@@ -24,13 +24,13 @@ const VISIBLE_ROWS = 10;
 const SUGGESTED_LOOKUPS = 6;
 
 type InboxKind =
-  | "SOS Alert"
-  | "Break Request"
-  | "Talk Request"
+  | "SOS alert"
+  | "Break request"
+  | "Talk request"
   | "Reassignment"
-  | "Exposure Limit"
-  | "Delivery Failed"
-  | "Client Message";
+  | "Exposure limit"
+  | "Delivery failed"
+  | "Client message";
 
 interface InboxRow {
   key: string;
@@ -51,7 +51,7 @@ interface Props {
   overview: AuditorOverviewRow[] | null;
 }
 
-const CASE_KINDS: InboxKind[] = ["Reassignment", "Exposure Limit", "Delivery Failed"];
+const CASE_KINDS: InboxKind[] = ["Reassignment", "Exposure limit", "Delivery failed"];
 
 /**
  * "Needs you": the Manager's inbox on the Overview. Each row says what it is and has one button that opens the
@@ -93,7 +93,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
       );
 
       const next: InboxRow[] = [];
-      // One row for all open SOS alerts, not one per alert: the SOS Inbox lists each. A single alert opens directly.
+      // One row for all open SOS alerts, not one per alert: the SOS inbox lists each. A single alert opens directly.
       const openSos = sos
         .filter((a) => a.status !== "RESOLVED")
         .sort((a, b) => Date.parse(b.triggered_at) - Date.parse(a.triggered_at));
@@ -102,7 +102,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
         const unacknowledged = openSos.some((a) => a.status === "UNACKNOWLEDGED");
         next.push({
           key: "sos",
-          kind: "SOS Alert",
+          kind: "SOS alert",
           subject: names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "),
           detail: `${openSos.length > 1 ? "Latest " : ""}${formatRelativeTime(openSos[0].triggered_at)}`,
           urgent: true,
@@ -120,7 +120,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
         for (const request of detail.wellbeing_requests.filter((w) => w.status === "OPEN")) {
           next.push({
             key: `req-${request.id}`,
-            kind: request.kind === "BREAK_REQUEST" ? "Break Request" : "Talk Request",
+            kind: request.kind === "BREAK_REQUEST" ? "Break request" : "Talk request",
             subject: detail.display_name,
             detail: formatRelativeTime(request.created_at),
             open: { label: "View request", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
@@ -134,7 +134,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
         const best = suggestions[i]?.candidates.find((cand) => cand.available);
         next.push({
           key: `case-${c.case_id}`,
-          kind: capped ? "Exposure Limit" : "Reassignment",
+          kind: capped ? "Exposure limit" : "Reassignment",
           subject: c.case_id,
           detail: [c.organisation_name, best ? `${c.auditor_name} · Suggested: ${best.name}` : c.auditor_name]
             .filter(Boolean)
@@ -151,7 +151,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
       if (waitingMessages.length > 0) {
         next.push({
           key: "messages",
-          kind: "Client Message",
+          kind: "Client message",
           subject: `${waitingMessages.length} waiting`,
           detail: `Oldest ${formatRelativeTime(waitingMessages[0].created_at)}`,
           open: { label: "View messages", to: "/manager/messages" },
@@ -160,7 +160,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
       for (const d of failed ?? []) {
         next.push({
           key: `del-${d.delivery_id}`,
-          kind: "Delivery Failed",
+          kind: "Delivery failed",
           subject: d.case_id,
           detail: `${d.attempts} attempts${d.reason ? ` · ${d.reason}` : ""}`,
           status: { label: deliveryFailureKind(d.reason), tone: "error" },

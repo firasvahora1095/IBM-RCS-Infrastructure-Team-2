@@ -31,7 +31,7 @@ export function ManagerCaseReviewPage() {
   return (
     <ManagerLayout showNav={false}>
       <ManagerBreadcrumb
-        trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment Queue", to: "/manager/reassignment" }, { label: `Case ${caseId}` }]}
+        trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment queue", to: "/manager/reassignment" }, { label: `Case ${caseId}` }]}
       />
       <PageHeader title={`Case ${caseId}`} />
       <LoadState error={error} loading={!data && !error} what="this case" />

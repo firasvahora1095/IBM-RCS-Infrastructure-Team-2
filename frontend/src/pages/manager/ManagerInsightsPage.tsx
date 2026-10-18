@@ -131,7 +131,7 @@ export function ManagerInsightsPage() {
         <Column sm={4} md={8} lg={16}>
           <Section
             id="delivery"
-            title="Delivery Health"
+            title="Delivery health"
             description="Results for cases completed in the period. Delivery is separate from moderation: a failed delivery never reopens a case."
             actions={evidenceButton("delivery_success_rate")}
           >

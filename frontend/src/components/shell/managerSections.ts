@@ -1,6 +1,6 @@
 /**
- * The Manager sections. Six, not eight: the work queues (SOS Inbox,
- * Reassignment Queue) are reached from the Overview's "Needs you" inbox. Analytics
+ * The Manager sections. Six, not eight: the work queues (SOS inbox,
+ * Reassignment queue) are reached from the Overview's "Needs you" inbox. Analytics
  * live under Insights; Validation (with the audit history) has its own tab.
  * Routes are unchanged; each sub-page keeps its owning section highlighted
  * (docs/ux/manager-ux-audit-and-redesign.md §4).
@@ -43,7 +43,7 @@ export function activeSection(pathname: string): string | undefined {
 /** The work queues shown under Overview. The first is the Overview page itself (figures, inbox and Auditors). */
 export const WORK_QUEUES: readonly NavTab[] = [
   { label: "Needs you", path: "/manager", owns: [/^\/manager$/] },
-  { label: "SOS Inbox", path: "/manager/sos", owns: [/^\/manager\/sos(\/|$)/] },
-  { label: "Reassignment Queue", path: "/manager/reassignment", owns: [/^\/manager\/reassignment(\/|$)/] },
+  { label: "SOS inbox", path: "/manager/sos", owns: [/^\/manager\/sos(\/|$)/] },
+  { label: "Reassignment queue", path: "/manager/reassignment", owns: [/^\/manager\/reassignment(\/|$)/] },
   { label: "Client messages", path: "/manager/messages", owns: [/^\/manager\/messages(\/|$)/] },
 ];

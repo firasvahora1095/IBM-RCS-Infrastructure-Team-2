@@ -15,7 +15,7 @@ import { SOS_TONE } from "../../design-tokens/statusTones";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
- * SOS Inbox (Manager Figma 103:151, MR-SOS-01): the alerts in three groups, in the order to work in. Unacknowledged
+ * SOS inbox (Manager Figma 103:151, MR-SOS-01): the alerts in three groups, in the order to work in. Unacknowledged
  * first, with the red edge, then the ones in progress, then the resolved record (paged). Every row opens the alert's
  * context before anything is recorded; acknowledging is a step on that page, so nothing here is a destructive or
  * one-click action.
@@ -93,9 +93,9 @@ export function ManagerSosInboxPage() {
 
   return (
     <ManagerLayout>
-      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "SOS Inbox" }]} />
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "SOS inbox" }]} />
       <PageHeader
-        title="SOS Inbox"
+        title="SOS inbox"
         subtitle="Open an alert to read the context, then acknowledge it and log your follow-up."
       />
       <LoadState error={error} loading={!data && !error} what="SOS alerts" />

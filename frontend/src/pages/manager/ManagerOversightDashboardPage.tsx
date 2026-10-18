@@ -25,7 +25,7 @@ const percent = (share: number) => `${(share * 100).toFixed(1)}%`;
  * two questions: what needs me now (the "Needs you" inbox, each row with its
  * action in place) and who is protected (the Auditors table). Three quiet
  * figures sit above for context. Case flow, AI and Auditor decisions, Client
- * outcomes and Delivery Health moved to Insights.
+ * outcomes and Delivery health moved to Insights.
  *
  * Overview has no primary button: every action in the inbox is a secondary one, and
  * Generate report lives on Insights and Reports. The header's "Demo data" badge already labels seeded

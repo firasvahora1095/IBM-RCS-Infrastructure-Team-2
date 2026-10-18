@@ -57,14 +57,14 @@ export function protectionNeed(row: AuditorOverviewRow): number {
  * Case flow stages, in the BA's wording (extra-features §11.1). Two stages are
  * both "Processing" in the standard, so the chart says which part: a case still
  * queued, and one the AI is working on. Cases waiting on the Manager are
- * Needs Reassignment or Blocked.
+ * Needs reassignment or Blocked.
  */
 export const OPEN_BUCKET_LABEL: Record<OpenBucket, string> = {
   SUBMITTED: "Processing (queued)",
   AI_PROCESSING: "Processing (AI)",
-  READY_FOR_REVIEW: "Ready for Review",
-  AUDITOR_REVIEW: "In Review",
-  MANAGER_ACTION: "Needs Reassignment or Blocked",
+  READY_FOR_REVIEW: "Ready for review",
+  AUDITOR_REVIEW: "In review",
+  MANAGER_ACTION: "Needs reassignment or Blocked",
 };
 
 export const OPEN_BUCKET_ORDER: readonly OpenBucket[] = [

@@ -19,7 +19,7 @@ export const EXPOSURE_STATE_LABEL: Record<ExposureState, string> = {
   AT_LIMIT: "Limit reached",
 };
 
-/** SOS Inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
+/** SOS inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
 export const SOS_STATUS_LABEL: Record<SosAlertStatus, string> = {
   UNACKNOWLEDGED: "Unacknowledged",
   IN_PROGRESS: "In progress",
@@ -27,7 +27,7 @@ export const SOS_STATUS_LABEL: Record<SosAlertStatus, string> = {
 };
 
 /**
- * What raised an SOS alert, on SOS Alert Detail. Figma 103:197 only designs the
+ * What raised an SOS alert, on SOS alert Detail. Figma 103:197 only designs the
  * Auditor's own SOS; AR-AI-11 failures use the same alert (Auditor Figma 25:212
  * annotation), so the Manager is told which one it was.
  */
@@ -46,7 +46,7 @@ export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label:
 /**
  * Case status on the Manager screens, in the BA's UI wording standard
  * (docs/ba/extra-features.md §11.1): Processing, Ready for Review, In Review,
- * Complete, Needs Reassignment, Blocked.
+ * Complete, Needs reassignment, Blocked.
  *
  * Why this and not RT-02's staff column: RT-02 fixes the internal-to-PUBLIC
  * mapping, which is unchanged, and says staff screens "may use human-readable
@@ -54,22 +54,22 @@ export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label:
  * this audience, and names the two states a Manager acts on. So the Manager
  * screens use §11.1; the Auditor screens and the public status keep RT-02.
  *
- * Needs Reassignment and Blocked are derived from the case's flag, not new
+ * Needs reassignment and Blocked are derived from the case's flag, not new
  * status values: a declined case or one stopped at the exposure cap needs a new
  * Auditor; a case with an open SOS is blocked until the Manager has followed up.
  */
 export function managerStatusLabel(status: InternalCaseStatus, managerFlag: "DECLINED" | "SOS" | "CAP_REACHED" | null): string {
   if (status === "COMPLETE") return "Complete";
   if (managerFlag === "SOS") return "Blocked";
-  if (managerFlag) return "Needs Reassignment";
+  if (managerFlag) return "Needs reassignment";
   switch (status) {
     case "SUBMITTED":
     case "AI_PROCESSING":
       return "Processing";
     case "READY_FOR_REVIEW":
-      return "Ready for Review";
+      return "Ready for review";
     case "AUDITOR_REVIEW":
-      return "In Review";
+      return "In review";
     default:
       return mapStatusToStaffLabel(status);
   }

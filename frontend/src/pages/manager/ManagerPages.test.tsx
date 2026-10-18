@@ -31,8 +31,8 @@ function renderAt(path: string) {
 const HEADINGS: Record<string, string> = {
   "/manager": "Overview",
   "/manager/cases": "Cases",
-  "/manager/sos": "SOS Inbox",
-  "/manager/reassignment": "Reassignment Queue",
+  "/manager/sos": "SOS inbox",
+  "/manager/reassignment": "Reassignment queue",
   "/manager/deliveries": "Deliveries",
   "/manager/reports": "Client reports",
   "/manager/insights": "Insights",
@@ -80,7 +80,7 @@ describe("Manager screens", () => {
     it("names every result in words and never calls the AI or an Auditor wrong", async () => {
       renderAt("/manager/validation?view=ai-vs-auditor");
       const table = await screen.findByRole("table", { name: /AI severity against final Auditor severity/ });
-      const results = within(table).getAllByText(/^AI (Override|Match)$/);
+      const results = within(table).getAllByText(/^AI (override|match)$/);
       expect(results.length).toBeGreaterThan(0);
       expect(document.body.textContent).not.toMatch(/AI wrong|Auditor wrong|poor Auditor/i);
     });
@@ -94,9 +94,9 @@ describe("Manager screens", () => {
       Element.prototype.scrollIntoView = () => {};
       try {
         fireEvent.click(screen.getByRole("combobox", { name: /Result/ }));
-        fireEvent.click(await screen.findByRole("option", { name: "AI Override" }));
-        await waitFor(() => expect(within(table).queryByText("AI Match")).not.toBeInTheDocument());
-        expect(within(table).queryAllByText("AI Override").length).toBeGreaterThan(0);
+        fireEvent.click(await screen.findByRole("option", { name: "AI override" }));
+        await waitFor(() => expect(within(table).queryByText("AI match")).not.toBeInTheDocument());
+        expect(within(table).queryAllByText("AI override").length).toBeGreaterThan(0);
       } finally {
         Element.prototype.scrollIntoView = original;
       }
@@ -197,13 +197,13 @@ describe("Manager screens", () => {
       const list = await screen.findByRole("list", { name: "Items that need you" });
       const showAll = screen.queryByRole("button", { name: /^Show all/ });
       if (showAll) fireEvent.click(showAll);
-      // One row for all open SOS alerts, not one identical row each; it opens the SOS Inbox.
-      expect(within(list).getAllByText("SOS Alert")).toHaveLength(1);
+      // One row for all open SOS alerts, not one identical row each; it opens the SOS inbox.
+      expect(within(list).getAllByText("SOS alert")).toHaveLength(1);
       expect(within(list).getByRole("button", { name: "View alerts" })).toBeInTheDocument();
-      expect(within(list).getAllByText("Break Request").length).toBeGreaterThan(0);
-      expect(within(list).getAllByText("Talk Request").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Break request").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Talk request").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Reassignment").length).toBeGreaterThan(0);
-      expect(within(list).getAllByText("Delivery Failed").length).toBeGreaterThan(0);
+      expect(within(list).getAllByText("Delivery failed").length).toBeGreaterThan(0);
       // Every row has exactly one button, and none of them decides anything from the list.
       for (const row of within(list).getAllByRole("listitem")) expect(within(row).getAllByRole("button")).toHaveLength(1);
       expect(within(list).queryByRole("button", { name: /^(Approve|Retry|Follow up|Reassign)/ })).not.toBeInTheDocument();
@@ -211,7 +211,7 @@ describe("Manager screens", () => {
 
     it("opens a request instead of acting on it, so the Manager reads why first", async () => {
       renderAt("/manager");
-      const row = (await screen.findByText("Break Request")).closest("li")!;
+      const row = (await screen.findByText("Break request")).closest("li")!;
       fireEvent.click(within(row).getByRole("button", { name: "View request" }));
       expect(await screen.findByRole("heading", { level: 1, name: "Reese Patel" })).toBeInTheDocument();
       expect(
@@ -237,11 +237,11 @@ describe("Manager screens", () => {
       expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
     });
 
-    it("keeps the SOS Inbox, Reassignment Queue and Client messages one click away, in a row under Overview", async () => {
+    it("keeps the SOS inbox, Reassignment queue and Client messages one click away, in a row under Overview", async () => {
       renderAt("/manager");
       const links = await screen.findByRole("navigation", { name: "Work queues" });
-      expect(within(links).getByRole("link", { name: /^SOS Inbox/ })).toHaveAttribute("href", "/manager/sos");
-      expect(within(links).getByRole("link", { name: "Reassignment Queue" })).toHaveAttribute("href", "/manager/reassignment");
+      expect(within(links).getByRole("link", { name: /^SOS inbox/ })).toHaveAttribute("href", "/manager/sos");
+      expect(within(links).getByRole("link", { name: "Reassignment queue" })).toHaveAttribute("href", "/manager/reassignment");
       expect(within(links).getByRole("link", { name: "Client messages" })).toHaveAttribute("href", "/manager/messages");
     });
 
@@ -253,7 +253,7 @@ describe("Manager screens", () => {
       await screen.findByRole("list", { name: "Items that need you" });
       const showAll = screen.queryByRole("button", { name: /^Show all/ });
       if (showAll) fireEvent.click(showAll);
-      const row = (await screen.findAllByText("Delivery Failed"))[0].closest("li")!;
+      const row = (await screen.findAllByText("Delivery failed"))[0].closest("li")!;
       fireEvent.click(within(row).getByRole("button", { name: "View delivery" }));
       expect(await screen.findByRole("button", { name: "Retry delivery" })).toBeInTheDocument();
     });
@@ -280,7 +280,7 @@ describe("Manager screens", () => {
 
     it("Insights holds the analytics that left the Overview", async () => {
       renderAt("/manager/insights");
-      for (const title of ["Case flow", "Client outcomes", "Auditor overrides", "Delivery Health"]) {
+      for (const title of ["Case flow", "Client outcomes", "Auditor overrides", "Delivery health"]) {
         expect(await screen.findByRole("heading", { level: 2, name: title })).toBeInTheDocument();
       }
       // Validation is a tab of its own, and Insights points to it from the accuracy note.
@@ -292,7 +292,7 @@ describe("Manager screens", () => {
     it("the Overview no longer repeats the analytics or the evidence link six times", async () => {
       renderAt("/manager");
       await screen.findByRole("list", { name: "Items that need you" });
-      for (const title of ["Case flow", "Client outcomes", "Delivery Health"]) {
+      for (const title of ["Case flow", "Client outcomes", "Delivery health"]) {
         expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
       }
       expect(screen.queryByRole("button", { name: "View evidence" })).not.toBeInTheDocument();
@@ -306,7 +306,7 @@ describe("Manager screens", () => {
 
     it("Case Oversight opens filtered to the stage chosen on the dashboard", async () => {
       renderAt("/manager/cases?stage=MANAGER_ACTION");
-      expect(await screen.findByText("Stage: Needs Reassignment or Blocked")).toBeInTheDocument();
+      expect(await screen.findByText("Stage: Needs reassignment or Blocked")).toBeInTheDocument();
       const table = await screen.findByRole("table", { name: "Cases that need you" });
       const flagged = readDb().cases.filter((c) => c.manager_flag && c.status !== "COMPLETE").length;
       await waitFor(() => expect(within(table).getAllByRole("row")).toHaveLength(flagged + 1));
@@ -316,13 +316,13 @@ describe("Manager screens", () => {
       renderAt("/manager/cases");
       const needs = await screen.findByRole("table", { name: "Cases that need you" });
       const all = screen.getByRole("table", { name: "All cases" });
-      // Blocked (an open SOS) comes before Needs Reassignment.
-      const tags = within(needs).getAllByText(/^(Blocked|Needs Reassignment|Held back)$/).map((n) => n.textContent);
-      const firstReassign = tags.indexOf("Needs Reassignment");
+      // Blocked (an open SOS) comes before Needs reassignment.
+      const tags = within(needs).getAllByText(/^(Blocked|Needs reassignment|Held back)$/).map((n) => n.textContent);
+      const firstReassign = tags.indexOf("Needs reassignment");
       if (firstReassign > -1) expect(tags.slice(firstReassign)).not.toContain("Blocked");
       // Nothing that needs the Manager is repeated in the long list.
       expect(within(all).queryByText("Blocked")).not.toBeInTheDocument();
-      expect(within(all).queryByText("Needs Reassignment")).not.toBeInTheDocument();
+      expect(within(all).queryByText("Needs reassignment")).not.toBeInTheDocument();
     });
 
     it("has no manual release button: cases are released to Auditors automatically", async () => {

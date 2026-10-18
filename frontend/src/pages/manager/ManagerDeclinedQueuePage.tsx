@@ -11,7 +11,7 @@ import { declineReasonLabel } from "../../design-tokens/declineReasons";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
- * Declined / Reassignment Queue (Manager Figma 119:289): declined cases
+ * Declined / Reassignment queue (Manager Figma 119:289): declined cases
  * awaiting a Manager decision, with the structured decline reason (MR-CR-02,
  * MR-CR-04). There is deliberately no per-Auditor decline-count column:
  * declining is a supported wellbeing action, not something to scrutinise
@@ -23,8 +23,8 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment Queue" }]} />
-      <PageHeader title="Reassignment Queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment queue" }]} />
+      <PageHeader title="Reassignment queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (

@@ -6,7 +6,7 @@ import { formatRelativeTime } from "../../utils/formatRelativeTime";
 /**
  * The persistent SOS alert banner (Manager Figma 103:6 / 103:294, MR-SOS-03):
  * one line on every Manager section while any SOS is unresolved, linking
- * straight to the SOS Inbox. Urgency is carried by the icon and the words, not
+ * straight to the SOS inbox. Urgency is carried by the icon and the words, not
  * only colour (UR-NFR-01). It is a calm tint with a red edge rather than a solid
  * red bar: a bar that is always there turns into wallpaper, and the tint keeps
  * dark text well above AA contrast.
