@@ -257,7 +257,7 @@ export function FallbackQueueSection({
           selectedIndex={view === "needs" ? 0 : 1}
           onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}
         >
-          <TabList aria-label="Fallback queue views" contained fullWidth>
+          <TabList aria-label="Fallback queue views">
             <Tab>{`Needs a Reviewer (${rows.filter(needsReviewer).length})`}</Tab>
             <Tab>{`All open cases (${rows.length})`}</Tab>
           </TabList>

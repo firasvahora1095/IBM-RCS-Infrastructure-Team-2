@@ -124,7 +124,7 @@ export function ManagerValidationPage() {
         selectedIndex={VIEWS.indexOf(view)}
         onChange={({ selectedIndex }) => setParams({ view: VIEWS[selectedIndex].key }, { replace: true })}
       >
-        <TabList aria-label="Validation and audit views" contained>
+        <TabList aria-label="Validation and audit views">
           {VIEWS.map((v) => (
             <Tab key={v.key}>{v.label}</Tab>
           ))}
