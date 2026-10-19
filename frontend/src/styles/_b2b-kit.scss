@@ -865,3 +865,16 @@ html {
   cursor: pointer;
   text-align: start;
 }
+
+// Row actions in a table: one right-aligned group with a fixed gap, the column sized to its buttons.
+.rcs-actions-col {
+  inline-size: 1%;
+  white-space: nowrap;
+  text-align: end;
+}
+.rcs-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

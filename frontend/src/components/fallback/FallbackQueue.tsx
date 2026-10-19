@@ -359,9 +359,7 @@ export function FallbackQueueSection({
                       className="flex items-center justify-center px-4 py-6"
                       style={{ backgroundColor: "var(--cds-layer-01)" }}
                     >
-                      <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
-                        No open cases.
-                      </p>
+                      <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>No open cases.</p>
                     </div>
                   )}
 
@@ -579,9 +577,7 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
                 <TableHeader>Case ID</TableHeader>
                 <TableHeader>Severity</TableHeader>
                 <TableHeader>Status</TableHeader>
-                <TableHeader>
-                  <span className="cds--visually-hidden">Actions</span>
-                </TableHeader>
+                <TableHeader className="rcs-actions-col">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -596,25 +592,28 @@ export function AvailableCasesSection({ token, refreshKey, onChanged, onSessionE
                     )}
                   </TableCell>
                   <TableCell>{c.ready ? "Ready for review" : "AI analysis in progress"}</TableCell>
-                  <TableCell>
-                    <Button
-                      kind="tertiary"
-                      size="sm"
-                      disabled={!data.can_claim || busy !== null}
-                      aria-label={`Claim case ${c.case_id}`}
-                      onClick={() => claim(c.case_id)}
-                    >
-                      Claim case
-                    </Button>
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      disabled={busy !== null}
-                      aria-label={`Decline case ${c.case_id}`}
-                      onClick={() => decline(c.case_id)}
-                    >
-                      Decline
-                    </Button>
+                  <TableCell className="rcs-actions-col">
+                    {/* Both actions in one right-aligned group, so they sit together at the row's end. */}
+                    <span className="rcs-row-actions">
+                      <Button
+                        kind="tertiary"
+                        size="sm"
+                        disabled={!data.can_claim || busy !== null}
+                        aria-label={`Claim case ${c.case_id}`}
+                        onClick={() => claim(c.case_id)}
+                      >
+                        Claim case
+                      </Button>
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        disabled={busy !== null}
+                        aria-label={`Decline case ${c.case_id}`}
+                        onClick={() => decline(c.case_id)}
+                      >
+                        Decline
+                      </Button>
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
