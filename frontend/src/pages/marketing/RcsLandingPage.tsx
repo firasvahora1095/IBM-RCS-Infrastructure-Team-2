@@ -671,7 +671,7 @@ export function RcsLandingPage() {
               <Column sm={4} md={3} lg={6} className="lp-cta-actions">
                 <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
                 <RouterLink className="cds--link" to="/flow">
-                  Open the demo guide
+                  Demo guide
                 </RouterLink>
               </Column>
             </Grid>

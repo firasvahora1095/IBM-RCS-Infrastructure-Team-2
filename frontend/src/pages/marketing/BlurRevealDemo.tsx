@@ -177,8 +177,7 @@ export function BlurRevealDemo() {
                 id="reveal-grayscale"
                 size="sm"
                 labelText="Grayscale"
-                labelA="Off"
-                labelB="On"
+                hideLabel
                 toggled={grayscale}
                 onToggle={setGrayscale}
               />

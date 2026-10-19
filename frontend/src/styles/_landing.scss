@@ -338,10 +338,19 @@
     max-inline-size: none;
   }
 }
+// The grayscale switch (inline label) and Cover again share one centred line, flush with the slider's edges.
 .rcs-reveal-controls-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  .cds--toggle {
+    display: flex;
+    align-items: center;
+  }
+  .cds--btn--ghost {
+    margin-inline-end: -1rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .rcs-reveal-art {
