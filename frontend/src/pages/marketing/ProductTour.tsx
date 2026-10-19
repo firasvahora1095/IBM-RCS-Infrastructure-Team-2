@@ -5,6 +5,7 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
  * data mode, 1440x900 at 2x, saved under public/landing). Footage stays at 100% blur and every person and case is
  * synthetic. The bullet points describe only what the screenshot shows.
  */
+/** Bump `v` whenever the screenshots are retaken, so browsers never show a cached older capture. */
 const VIEWS = [
   {
     tab: "Reviewer workspace",
@@ -15,7 +16,7 @@ const VIEWS = [
       "Today's viewing time against the daily limit stays in the header",
       "A wellbeing check-in is one click away, and the case stays open",
     ],
-    image: "/landing/reviewer-workspace.webp",
+    image: "/landing/reviewer-workspace.webp?v=3",
     window: "RCS · Review workspace",
     alt: "The RCS Reviewer workspace for case AR-2026-00417: the video is fully blurred at 100% with grayscale on and a red SOS button over it, the AI summary and S3 High severity are on the right, and the header shows 62 of 120 minutes of exposure used today.",
   },
@@ -28,7 +29,7 @@ const VIEWS = [
       "Failed deliveries to a Client, with the reason",
       "Open cases, completed cases and delivery success for the period",
     ],
-    image: "/landing/manager-overview.webp",
+    image: "/landing/manager-overview.webp?v=3",
     window: "RCS · Manager overview",
     alt: "The RCS Manager overview: an SOS banner, figures for open cases, completed cases and delivery success, and a Needs you list led by an unacknowledged SOS alert, then break and talk requests and declined cases awaiting reassignment.",
   },
@@ -41,7 +42,7 @@ const VIEWS = [
       "Apply RCS decisions in one go, or record an action post by post",
       "Never footage, summaries or who reviewed a case",
     ],
-    image: "/landing/client-case-results.webp",
+    image: "/landing/client-case-results.webp?v=3",
     window: "RCS · Client portal",
     alt: "The RCS Client portal case results for CommunityHub: figures for violations found, posts removed and results acted on, and a Needs action table listing each case ID, post, RCS result, final severity and a Record action button.",
   },
