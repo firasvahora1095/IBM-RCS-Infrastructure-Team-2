@@ -1012,3 +1012,22 @@ html {
   white-space: normal;
   text-align: start;
 }
+
+// Unread message, inbox style: a Carbon-blue dot before a bold subject. Every subject cell in the waiting list (and
+// its header) keeps the dot's space, so read and unread rows line up.
+.rcs-msg-subject {
+  position: relative;
+  padding-inline-start: 2rem !important;
+}
+.rcs-msg-unread > a {
+  font-weight: 600;
+}
+.rcs-unread-dot {
+  position: absolute;
+  inset-inline-start: 0.875rem;
+  inset-block-start: 1.125rem;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--cds-interactive);
+}
