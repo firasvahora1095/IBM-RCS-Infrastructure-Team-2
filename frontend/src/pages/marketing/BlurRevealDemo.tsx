@@ -6,7 +6,7 @@ type Stage = "warning" | "reviewing" | "declined" | "sos";
 
 const ANNOUNCE: Record<Stage, string> = {
   warning: "Content warning shown. Nothing from this case is visible yet.",
-  reviewing: "Footage shown at 100 percent blur, in grayscale. Lower the blur to see more.",
+  reviewing: "Footage shown at 100 percent blur. Lower the blur to see more, or turn on grayscale.",
   declined: "Case declined. Your Manager decides what happens next.",
   sos: "SOS sent. The content is hidden and your Manager has been alerted.",
 };
@@ -28,7 +28,8 @@ export function BlurRevealDemo() {
   const [stage, setStage] = useState<Stage>("warning");
   const [consent, setConsent] = useState(false);
   const [blur, setBlur] = useState(100);
-  const [grayscale, setGrayscale] = useState(true);
+  // Off by default here: the drawn sample frame reads better blurred in colour. The real workspace opens in grayscale.
+  const [grayscale, setGrayscale] = useState(false);
   const card = useRef<HTMLDivElement>(null);
   const lastStage = useRef<Stage>(stage);
 
@@ -45,7 +46,7 @@ export function BlurRevealDemo() {
 
   function restart() {
     setBlur(100);
-    setGrayscale(true);
+    setGrayscale(false);
     setConsent(false);
     setStage("warning");
   }
