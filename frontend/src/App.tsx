@@ -47,7 +47,7 @@ import { ClientReportsPage } from "./pages/client/ClientReportsPage";
 import { ClientReportViewPage } from "./pages/client/ClientReportViewPage";
 
 /**
- * Public pages share the IBM Content Safety Reporting header through this
+ * Public pages share the RCS — Reporting header through this
  * layout route. It stays mounted while moving between public pages, so the
  * header doesn't flicker on navigation.
  */

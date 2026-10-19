@@ -4,13 +4,13 @@ import { describe, it, expect } from "vitest";
 import { AppHeader } from "./AppHeader";
 
 describe("AppHeader", () => {
-  it("shows the IBM product name", () => {
+  it("shows the RCS product name", () => {
     render(
       <MemoryRouter>
         <AppHeader />
       </MemoryRouter>,
     );
-    expect(screen.getByText("Content Safety Reporting")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "RCS — Reporting" })).toHaveAttribute("href", "/report");
   });
 
   it("has an accessible Help action", () => {
