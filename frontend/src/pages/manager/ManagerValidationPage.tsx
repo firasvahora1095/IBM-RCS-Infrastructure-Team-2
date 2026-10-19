@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Button, InlineNotification, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem, Tab, TabList, TabPanel, TabPanels, Tabs, Select, SelectItem, TextInput, Modal, TableExpandHeader, TableExpandRow, TableExpandedRow } from "@carbon/react";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
+import { Button, Tag, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Accordion, AccordionItem, Tab, TabList, TabPanel, TabPanels, Tabs, Select, SelectItem, TextInput, Modal, TableExpandHeader, TableExpandRow, TableExpandedRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AiAuditorComparison } from "../../components/manager/AiAuditorComparison";
@@ -13,42 +13,43 @@ import { TablePagination, usePagination } from "../../components/ui/TablePaginat
 import { getGovernanceSummary, getValidationSummary, getGovernanceCase, getAuditHistory } from "../../services";
 import type { GovernanceSummary, GovernanceQuery, GovernanceLogRow, ValidationSummary } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { Search } from "@carbon/icons-react";
 import { ALL_CLIENTS, useClients } from "../../hooks/useClientScope";
 import { formatShortDateTime } from "../../utils/formatPeriod";
 
 /** The three views, in the order shown. Auditor overrides is the landing view: it changes with every completed case and is the one a Manager returns to. The accuracy test runs on a fixed reference set, so it is checked far less often. */
 const VIEWS = [
-  { key: "ai-vs-auditor", label: "Auditor overrides" },
-  { key: "ai-vs-ground-truth", label: "AI accuracy test" },
-  { key: "audit-log", label: "AI call log" },
+  { key: "ai-vs-auditor", label: "Reviewer overrides" },
+  { key: "ai-vs-ground-truth", label: "AI accuracy" },
+  { key: "audit-history", label: "Audit history" },
+  { key: "audit-log", label: "Technical log" },
 ] as const;
 type ViewKey = (typeof VIEWS)[number]["key"];
 
-/** What each view is for, in words a first-time reader can act on. Shown at the top of its tab. */
+/** What each view is for, in one plain sentence a Manager can act on. Shown at the top of its tab. */
 const PURPOSE: Record<ViewKey, { shows: string; use: string }> = {
+  "audit-history": {
+    shows: "Every action recorded in RCS: who did what to which case, and when.",
+    use: "Use it to trace a decision from report to delivered result.",
+  },
   "ai-vs-auditor": {
-    shows: "Completed cases in which an Auditor's final severity differs from the AI's initial rating.",
-    use: "Use this view to identify where reviewers and the AI disagree. A difference does not indicate an error by either, and it is not a measure of the AI's accuracy.",
+    shows: "Cases where the Reviewer's final severity differs from the AI's first rating.",
+    use: "A difference isn't a mistake by either side; it's a reason to look closer. Select a case to see its history.",
   },
   "ai-vs-ground-truth": {
-    shows: "How closely the AI's severity ratings match a reference set of footage that reviewers labelled in advance.",
-    use: "Use this view to assess whether the AI's ratings can be relied upon. It does not include live cases.",
+    shows: "How often the AI rates severity the same way our team did, on a set of test videos the team rated first.",
+    use: "Use it to judge how far to rely on the AI's ratings. It uses test videos only, never live cases.",
   },
   "audit-log": {
-    shows: "Each request RCS sent to the AI model, the checks applied to its response, and the sources it drew on.",
-    use: "Use this view to trace how a result was produced or to investigate a failed request.",
+    shows: "Every request RCS sent to the AI, and the checks run on what came back.",
+    use: "For technical follow-up: select a row to see its details, or to trace a request that failed.",
   },
 };
 
 function Purpose({ view }: { view: ViewKey }) {
   return (
-    <span className="rcs-purpose">
-      <span>
-        <strong>Scope.</strong> {PURPOSE[view].shows}
-      </span>
-      <span>
-        <strong>Purpose.</strong> {PURPOSE[view].use}
-      </span>
+    <span className="rcs-purpose-line">
+      {PURPOSE[view].shows} {PURPOSE[view].use}
     </span>
   );
 }
@@ -85,6 +86,7 @@ export function ManagerValidationPage() {
   );
 
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const view = VIEWS.find((v) => v.key === params.get("view")) ?? VIEWS[0];
 
   const filters = (
@@ -106,19 +108,56 @@ export function ManagerValidationPage() {
     <ManagerLayout clientScope>
       <PageHeader
         title="Validation & Audit"
-        subtitle="Assess the reliability of the AI and trace how each result was produced. The AI accuracy test covers the AI itself; the other two views follow the selected client."
+        subtitle="Can you trust the AI, and can every decision be traced? The AI accuracy test covers the AI itself; the other views follow the selected Client."
+        actions={
+          // The most common reason to open this page: find what happened to a case.
+          <Button renderIcon={Search} onClick={() => navigate("/manager/audit-logs")}>
+            Search audit history
+          </Button>
+        }
       />
 
-      {data?.is_placeholder && (
-        <InlineNotification
-          kind="warning"
-          lowContrast
-          hideCloseButton
-          title="Placeholder / mock data — not real validation results."
-          subtitle="The ground-truth validation section contains illustrative values. Live governance and Auditor comparisons are separate."
-          style={{ maxWidth: "100%" }}
-        />
-      )}
+      {/* The answers first, in plain words; each tab below holds the detail. */}
+      <dl className="rcs-val-summary">
+        <div>
+          <dt>Reviewer overrides</dt>
+          <dd>
+            {governance.data
+              ? `${governance.data.comparisons.filter((c) => c.override).length} of ${governance.data.compared_cases}`
+              : "—"}
+          </dd>
+          <p>Cases where the Reviewer changed the AI&apos;s severity.</p>
+        </div>
+        <div>
+          <dt>
+            AI accuracy
+            {data?.is_placeholder && (
+              <Tag type="warm-gray" size="sm">
+                Illustrative
+              </Tag>
+            )}
+          </dt>
+          <dd>{data ? `${data.match_rate_pct}%` : "—"}</dd>
+          <p>
+            {data
+              ? `The AI rated severity the same as our team on ${data.validation_set_size} test videos.`
+              : "How often the AI agrees with our team's ratings."}
+          </p>
+        </div>
+        <div>
+          <dt>AI couldn&apos;t analyse</dt>
+          <dd>
+            {governance.data
+              ? `${governance.data.failed_calls} ${governance.data.failed_calls === 1 ? "time" : "times"}`
+              : "—"}
+          </dd>
+          <p>
+            {governance.data && governance.data.failed_calls === 0
+              ? "The AI analysed every video."
+              : "Each time, the Reviewer saw a warning and the footage opened at full blur."}
+          </p>
+        </div>
+      </dl>
 
       <Tabs
         selectedIndex={VIEWS.indexOf(view)}
@@ -157,6 +196,11 @@ export function ManagerValidationPage() {
             </Section>
           </TabPanel>
           <TabPanel>
+            <Section id="audit-history" description={<Purpose view="audit-history" />}>
+              <RecentAuditHistory />
+            </Section>
+          </TabPanel>
+          <TabPanel>
             <Section id="audit-log" description={<Purpose view="audit-log" />}>
               {filters}
               <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
@@ -177,6 +221,59 @@ export function ManagerValidationPage() {
         </TabPanels>
       </Tabs>
     </ManagerLayout>
+  );
+}
+
+/** The latest recorded actions in plain words, and a way into the full, filterable history. */
+function RecentAuditHistory() {
+  const navigate = useNavigate();
+  const { data, error } = useStaffQuery((token) => getAuditHistory(token, { limit: 10 }), "recent-audit");
+  return (
+    <>
+      <LoadState error={error} loading={!data && !error} what="the audit history" />
+      {data && (
+        <Layer>
+          <Table aria-label="Latest recorded actions" size="md">
+            <TableHead>
+              <TableRow>
+                <TableHeader>When</TableHeader>
+                <TableHeader>What happened</TableHeader>
+                <TableHeader>Case</TableHeader>
+                <TableHeader>By</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data.entries.map((e) => (
+                <TableRow
+                  key={e.audit_log_id}
+                  onClick={() => navigate(`/manager/audit-logs?case=${encodeURIComponent(e.case_id)}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <TableCell>{formatShortDateTime(e.created_at)}</TableCell>
+                  <TableCell>{auditActionLabel(e.action)}</TableCell>
+                  <TableCell>
+                    <RouterLink
+                      className="cds--link"
+                      style={mono}
+                      to={`/manager/audit-logs?case=${encodeURIComponent(e.case_id)}`}
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      {e.case_id}
+                    </RouterLink>
+                  </TableCell>
+                  <TableCell>{e.actor}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Layer>
+      )}
+      <div>
+        <Button kind="tertiary" onClick={() => navigate("/manager/audit-logs")}>
+          Open the full audit history
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -378,36 +475,37 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
             {rows.flatMap((row) => {
               const open = expanded.has(row.entry_id);
               const failed = row.outcome && row.outcome !== "RECEIVED";
+              const toggle = () =>
+                setExpanded((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(row.entry_id)) next.delete(row.entry_id);
+                  else next.add(row.entry_id);
+                  return next;
+                });
               return [
                 <TableExpandRow
                   key={row.entry_id}
                   isExpanded={open}
                   aria-label={`Show details for the call at ${formatShortDateTime(row.at)}`}
-                  onExpand={() =>
-                    setExpanded((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(row.entry_id)) next.delete(row.entry_id);
-                      else next.add(row.entry_id);
-                      return next;
-                    })
-                  }
+                  onExpand={toggle}
                   // A call that did not come back clean carries the same red edge as other rows that need a look.
-                  style={failed ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : undefined}
+                  style={{ cursor: "pointer", ...(failed ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : {}) }}
                 >
-                  <TableCell>{formatShortDateTime(row.at)}</TableCell>
-                  <TableCell style={mono}>{row.case_id || "Test call"}</TableCell>
-                  <TableCell>
+                  {/* Every cell opens the details, so the whole row works like every other row that leads somewhere. */}
+                  <TableCell onClick={toggle}>{formatShortDateTime(row.at)}</TableCell>
+                  <TableCell style={mono} onClick={toggle}>{row.case_id || "Test call"}</TableCell>
+                  <TableCell onClick={toggle}>
                     {row.model_id}
                     <span className="rcs-helper" style={{ display: "block" }}>
                       {row.prompt_version}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={toggle}>
                     <StatusTag tone={row.outcome === "RECEIVED" ? "success" : row.outcome ? "error" : "neutral"} size="sm">
                       {row.outcome === "RECEIVED" ? "Received" : row.outcome ? "Failed" : "Legacy demo"}
                     </StatusTag>
                   </TableCell>
-                  <TableCell>{row.validation_status ?? "Not recorded"}</TableCell>
+                  <TableCell onClick={toggle}>{row.validation_status ?? "Not recorded"}</TableCell>
                 </TableExpandRow>,
                 open && (
                   <TableExpandedRow key={`${row.entry_id}-details`} colSpan={6}>

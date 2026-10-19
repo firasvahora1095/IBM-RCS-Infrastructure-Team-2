@@ -294,11 +294,18 @@ a.rcs-stat-tile .rcs-stat-helper {
 
 
 // Inline figures inside a widget (median time, oldest unresolved, override rate).
+// A row of figures, each in its own small box: the label on top, the value under it, every box the same width.
 .rcs-figure-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1px;
   margin: 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  > div {
+    padding: 1rem 1.25rem;
+    background-color: var(--cds-background);
+  }
 }
 
 // AI-to-final severity matrix. Agreement is neutral; change is a blue tint
@@ -1292,5 +1299,76 @@ html {
   align-self: center;
   .cds--tag {
     margin: 0;
+  }
+}
+
+// Validation & Audit: three answers in plain words above the tabs.
+.rcs-val-summary {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--cds-background);
+  }
+  dt {
+    @include type.type-style("heading-compact-01");
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--cds-text-primary);
+    .cds--tag {
+      margin: 0;
+    }
+  }
+  dd {
+    @include type.type-style("fluid-heading-04", true);
+    margin: 0.25rem 0 0;
+    color: var(--cds-text-primary);
+  }
+  p {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+  }
+}
+// One plain sentence at the top of each Validation view.
+.rcs-purpose-line {
+  @include type.type-style("body-01");
+  max-inline-size: 72ch;
+  color: var(--cds-text-secondary);
+}
+
+// A severity tag and its score on one line in a table cell.
+.rcs-tier-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  .cds--tag {
+    margin: 0;
+  }
+}
+// Long free text in a table cell: one line, cut with an ellipsis, the full text in its title.
+.rcs-cell-clip {
+  display: block;
+  max-inline-size: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// A list row that opens something: pointer and the layer hover, like a clickable table row.
+.rcs-row-link {
+  cursor: pointer;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
   }
 }

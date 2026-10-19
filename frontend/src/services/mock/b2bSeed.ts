@@ -81,6 +81,43 @@ export function reportIdFor(start: string, end: string, version: number, code = 
   return version > 1 ? `${base}-v${version}` : base;
 }
 
+/** The CVI bands from the severity scale. */
+const CVI_BAND: Record<SeverityTier, [number, number]> = { S1: [5, 39], S2: [40, 64], S3: [65, 84], S4: [85, 99] };
+
+const RAISED_REASONS = [
+  "Weapon visible earlier than the AI marked.",
+  "Injury looks more serious than the summary suggests.",
+  "The audio makes the threat clearer.",
+];
+const LOWERED_REASONS = [
+  "Staged sports footage, not a real fight.",
+  "Brief contact and no visible injury.",
+  "Context shows a training exercise.",
+];
+
+/**
+ * Scores for a historical demo case, derived from its ID so they never disturb the seeded random sequence (every other
+ * demo figure stays the same). A score sits inside its tier's CVI band; a changed tier carries a short reason.
+ */
+function historicalScores(
+  caseId: string,
+  aiTier: SeverityTier,
+  finalTier: SeverityTier,
+): Pick<MockHistoricalCase, "ai_score" | "final_score" | "override_reason"> {
+  let h = 2166136261;
+  for (const ch of caseId) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const at = (salt: number, [lo, hi]: [number, number]) => lo + (((h >>> salt) & 0xffff) % (hi - lo + 1));
+  const ai = at(0, CVI_BAND[aiTier]);
+  const final = aiTier === finalTier ? ai : at(7, CVI_BAND[finalTier]);
+  const raised = TIERS.indexOf(finalTier) > TIERS.indexOf(aiTier);
+  const reasons = raised ? RAISED_REASONS : LOWERED_REASONS;
+  return {
+    ai_score: ai,
+    final_score: final,
+    override_reason: aiTier === finalTier ? null : reasons[h % reasons.length],
+  };
+}
+
 function historicalCases(now: number, random: () => number): MockHistoricalCase[] {
   const startOfWindow = new Date(new Date(now).getFullYear(), new Date(now).getMonth() - 2, 1).getTime();
   const result: MockHistoricalCase[] = [];
@@ -129,6 +166,7 @@ function historicalCases(now: number, random: () => number): MockHistoricalCase[
         final_tier: finalTier,
         outcome,
         declined_reassigned: random() < 0.05,
+        ...historicalScores(id, aiTier, finalTier),
       });
     }
   }

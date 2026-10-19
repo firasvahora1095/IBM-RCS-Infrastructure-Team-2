@@ -156,6 +156,10 @@ export interface MockHistoricalCase {
   final_tier: SeverityTier;
   outcome: FinalOutcome;
   declined_reassigned: boolean;
+  /** CVI scores (0–100) and, when the Reviewer changed the tier, their reason. Synthetic, like every demo record. */
+  ai_score?: number;
+  final_score?: number;
+  override_reason?: string | null;
 }
 
 export interface MockDelivery {
