@@ -85,7 +85,7 @@ export function ClientReportsPage() {
   });
 
   return (
-    <ClientLayout maxWidth={1056}>
+    <ClientLayout maxWidth={1320}>
       <PageHeader
         title="Service reports"
         subtitle={`Reports released to ${session?.organisationName ?? "your organisation"} by RCS. Each covers the cases reviewed in its period.`}
