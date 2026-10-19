@@ -89,7 +89,7 @@ describe("AuditorCaseDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("Graphic violence")).toBeInTheDocument();
-    expect(screen.getByText("weapon_present")).toBeInTheDocument();
+    expect(screen.getByText("weapon present")).toBeInTheDocument();
     expect(screen.queryByText(/physical altercation between two individuals/)).not.toBeInTheDocument();
 
     const proceed = screen.getByRole("button", { name: "Proceed" });

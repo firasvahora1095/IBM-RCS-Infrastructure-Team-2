@@ -155,7 +155,7 @@ describe("RCS landing page", () => {
     await user.click(within(demo).getByRole("button", { name: "Start again" }));
 
     await user.click(within(demo).getByRole("button", { name: "Decline" }));
-    expect(within(demo).getByText("Declined. The case goes to the Manager to decide.")).toBeInTheDocument();
+    expect(within(demo).getByText("Case declined.")).toBeInTheDocument();
   });
 
   it("has no detectable accessibility violations", async () => {
