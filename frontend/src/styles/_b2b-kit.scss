@@ -1046,3 +1046,115 @@ html {
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 1.5rem;
 }
+
+// ---- App header, right side: status, a hairline, then same-size actions, ending in the account menu ----
+.rcs-app-actions.cds--header__global {
+  align-items: center;
+  gap: 0;
+  min-inline-size: 0;
+}
+.rcs-header-divider {
+  align-self: center;
+  inline-size: 1px;
+  block-size: 1.5rem;
+  margin-inline: 1rem 0.25rem;
+  background-color: var(--cds-border-strong-01);
+}
+.rcs-header-action {
+  gap: 0.5rem;
+  svg {
+    fill: currentColor;
+  }
+}
+.rcs-header-org {
+  @include type.type-style("body-compact-01");
+  padding-inline: 0.75rem 0.25rem;
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+  @include breakpoint.breakpoint-down(lg) {
+    display: none;
+  }
+}
+// Demo scenarios: a presenter tool, styled as a quiet header action rather than a blue link.
+// Carbon puts the class on the menu button's container, so the trigger inside it is styled.
+.rcs-demo-menu .cds--btn--ghost {
+  block-size: 3rem;
+  min-block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-secondary);
+  &:hover {
+    color: var(--cds-text-primary);
+    background-color: var(--cds-background-hover);
+  }
+  svg {
+    fill: currentColor;
+  }
+}
+// Account menu
+.rcs-user-menu {
+  display: flex;
+}
+.rcs-user-trigger {
+  inline-size: 3rem;
+  justify-content: center;
+  padding: 0;
+  &[aria-expanded="true"] {
+    background-color: var(--cds-layer-01);
+  }
+}
+.rcs-user-avatar--lg {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: 0.875rem;
+}
+.rcs-user-panel {
+  min-inline-size: 16rem;
+}
+.rcs-user-panel-id {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-user-panel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-inline-size: 0;
+}
+.rcs-user-panel-name {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.rcs-user-panel-role {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-user-panel-detail {
+  @include type.type-style("label-01");
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--cds-text-secondary);
+}
+.rcs-user-panel-signout {
+  @include type.type-style("body-compact-01");
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 100%;
+  padding: 0.875rem 1rem;
+  color: var(--cds-text-primary);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  svg {
+    fill: currentColor;
+  }
+}

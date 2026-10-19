@@ -1,5 +1,6 @@
-import type { ComponentProps } from "react";
-import { HeaderName } from "@carbon/react";
+import { useId, useState, type ComponentProps } from "react";
+import { HeaderName, Popover, PopoverContent } from "@carbon/react";
+import { Logout } from "@carbon/icons-react";
 import { RcsLogo } from "../brand/RcsMark";
 
 /**
@@ -19,20 +20,72 @@ export function AppBrand({
   );
 }
 
-/** Who is signed in: their initials in a brand tile, then the label as text. */
-export function UserChip({ name, label }: { name: string; label: string }) {
-  const initials = name
+function initialsOf(name: string): string {
+  return name
     .split(/[\s-]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/**
+ * The account menu at the far right of every app header, as on IBM Cloud: one avatar button that opens a small panel
+ * with who is signed in, their role and ID, and Sign out. It replaces a row of name text and a separate Sign out link,
+ * so every control on the right of the header is the same 48px square.
+ */
+export function UserMenu({
+  name,
+  role,
+  detail,
+  onSignOut,
+}: {
+  name: string;
+  /** e.g. "Auditor", "Super Auditor", "Manager", "CommunityHub · Trust & Safety". */
+  role: string;
+  /** A secondary line, e.g. the staff ID. */
+  detail?: string;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
   return (
-    <span className="rcs-user-chip">
-      <span className="rcs-user-avatar" aria-hidden="true">
-        {initials}
-      </span>
-      <span className="rcs-user-label">{label}</span>
-    </span>
+    <Popover
+      open={open}
+      align="bottom-end"
+      dropShadow
+      isTabTip
+      onRequestClose={() => setOpen(false)}
+      className="rcs-user-menu"
+    >
+      <button
+        type="button"
+        className="rcs-header-action rcs-user-trigger"
+        aria-label={`Account: ${name}`}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="rcs-user-avatar" aria-hidden="true">
+          {initialsOf(name)}
+        </span>
+      </button>
+      <PopoverContent id={id} className="rcs-user-panel">
+        <div className="rcs-user-panel-id">
+          <span className="rcs-user-avatar rcs-user-avatar--lg" aria-hidden="true">
+            {initialsOf(name)}
+          </span>
+          <span className="rcs-user-panel-text">
+            <span className="rcs-user-panel-name">{name}</span>
+            <span className="rcs-user-panel-role">{role}</span>
+            {detail && <span className="rcs-user-panel-detail">{detail}</span>}
+          </span>
+        </div>
+        <button type="button" className="rcs-user-panel-signout" onClick={onSignOut}>
+          Sign out
+          <Logout size={16} aria-hidden />
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }

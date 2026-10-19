@@ -3,7 +3,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import type { SosSummary } from "../../services/types";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
-import { AppBrand, UserChip } from "./AppBrand";
+import { AppBrand, UserMenu } from "./AppBrand";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -53,7 +53,7 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
             below the sm/lg breakpoints, and the exposure bar narrows, so nothing runs off the fixed 48px bar. */}
         <AppBrand area={label} href={ROLE_HOME[role]} />
         <DemoDataBadge />
-        <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
+        <HeaderGlobalBar className="rcs-app-actions">
           {role === "auditor" && wellbeing && (
             <ExposureBar
               surface="dark"
@@ -74,16 +74,17 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               </Tag>
             </RouterLink>
           )}
-          {staffId && (
-            <span className="hidden lg:inline-flex">
-              <UserChip name={displayName || staffId} label={`${whoLabel}: ${displayName || staffId}`} />
-            </span>
-          )}
-          <AiBuddy />
+          <span className="rcs-header-divider" aria-hidden="true" />
           <DemoScenarioMenu role={role} />
-          <button type="button" onClick={handleSignOut} className="rcs-header-action">
-            Sign out
-          </button>
+          <AiBuddy />
+          {staffId && (
+            <UserMenu
+              name={displayName || staffId}
+              role={whoLabel}
+              detail={displayName ? staffId : undefined}
+              onSignOut={handleSignOut}
+            />
+          )}
         </HeaderGlobalBar>
       </Header>
     </Theme>
