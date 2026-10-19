@@ -210,22 +210,22 @@ export function ManagerCustomerPage() {
                 {data.health.success}
                 <span className="rcs-val-of"> of {sent}</span>
               </dd>
-              <p>
+              <dd className="rcs-val-note">
                 {data.last_delivery_at ? `Last one ${formatRelativeTime(data.last_delivery_at)}.` : "None sent yet."}
                 {inFlight > 0 ? ` ${inFlight} on the way.` : ""}
-              </p>
+              </dd>
             </div>
             <div>
               <dt>Didn&apos;t arrive</dt>
               <dd>{data.health.needs_attention}</dd>
-              <p>
+              <dd className="rcs-val-note">
                 {data.health.needs_attention > 0 ? "Need checking and resending." : "Nothing to fix."}
-              </p>
+              </dd>
             </div>
             <div>
               <dt>Messages waiting</dt>
               <dd>{waitingMessages ?? "—"}</dd>
-              <p>
+              <dd className="rcs-val-note">
                 {waitingMessages ? (
                   <RouterLink className="cds--link" to="/manager/messages">
                     Reply to {selected.name}
@@ -233,14 +233,14 @@ export function ManagerCustomerPage() {
                 ) : (
                   "All answered."
                 )}
-              </p>
+              </dd>
             </div>
             <div>
               <dt>Latest report</dt>
               <dd className="rcs-val-text">
                 {latestReleased ? formatPeriod(latestReleased.period_start, latestReleased.period_end) : "—"}
               </dd>
-              <p>
+              <dd className="rcs-val-note">
                 {latestReleased ? (
                   <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(latestReleased.report_id)}`}>
                     Open report
@@ -248,7 +248,7 @@ export function ManagerCustomerPage() {
                 ) : (
                   "None released yet."
                 )}
-              </p>
+              </dd>
             </div>
           </dl>
 

@@ -126,7 +126,7 @@ export function ManagerValidationPage() {
               ? `${governance.data.comparisons.filter((c) => c.override).length} of ${governance.data.compared_cases}`
               : "—"}
           </dd>
-          <p>Cases where the Reviewer changed the AI&apos;s severity.</p>
+          <dd className="rcs-val-note">Cases where the Reviewer changed the AI&apos;s severity.</dd>
         </div>
         <div>
           <dt>
@@ -138,13 +138,13 @@ export function ManagerValidationPage() {
             )}
           </dt>
           <dd>{data && data.validation_set_size > 0 ? `${data.match_rate_pct}%` : "—"}</dd>
-          <p>
+          <dd className="rcs-val-note">
             {data && data.validation_set_size === 0
               ? "No test videos have been rated by our team yet."
               : data
               ? `The AI rated severity the same as our team on ${data.validation_set_size} test videos.`
               : "How often the AI agrees with our team's ratings."}
-          </p>
+          </dd>
         </div>
         <div>
           <dt>AI couldn&apos;t analyse</dt>
@@ -153,11 +153,11 @@ export function ManagerValidationPage() {
               ? `${governance.data.failed_calls} ${governance.data.failed_calls === 1 ? "time" : "times"}`
               : "—"}
           </dd>
-          <p>
+          <dd className="rcs-val-note">
             {governance.data && governance.data.failed_calls === 0
               ? "The AI analysed every video."
               : "Each time, the Reviewer saw a warning and the footage opened at full blur."}
-          </p>
+          </dd>
         </div>
       </dl>
 

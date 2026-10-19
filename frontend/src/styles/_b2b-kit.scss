@@ -1318,8 +1318,10 @@ html {
     margin: 0.25rem 0 0;
     color: var(--cds-text-primary);
   }
-  p {
+  // The line under a figure is a second <dd>, so the list stays valid HTML.
+  dd.rcs-val-note {
     @include type.type-style("body-compact-01");
+    margin: 0;
     color: var(--cds-text-secondary);
   }
 }
