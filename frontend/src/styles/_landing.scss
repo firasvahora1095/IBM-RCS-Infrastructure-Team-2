@@ -1511,3 +1511,97 @@
   @include type.type-style("body-02");
   margin-block-start: 2rem;
 }
+
+// AI Buddy: one feature card under the tour, with the brand gradient as a top rule only.
+.lp-buddy {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 3rem;
+  padding: 2rem;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 0 3px 0 0 var(--rcs-brand-purple);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 6fr 10fr;
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+}
+.lp-buddy-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--rcs-brand-purple-deep);
+  @include breakpoint.breakpoint(lg) {
+    grid-row: span 2;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.lp-buddy-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-buddy-tag {
+  @include type.type-style("label-01");
+  padding: 0.125rem 0.5rem;
+  color: var(--cds-text-secondary);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.lp-buddy-body {
+  @include type.type-style("body-02");
+  max-inline-size: 44rem;
+  color: var(--cds-text-primary);
+}
+.lp-buddy-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+    &::before {
+      content: "•";
+      margin-inline-end: 0.5rem;
+      color: var(--rcs-brand-purple-deep);
+    }
+  }
+}
+
+// Every feature, by role: four equal columns on desktop, two on tablet, one on a phone.
+.lp-catalogue {
+  margin-block-start: 3rem;
+}
+.lp-catalogue-title {
+  @include type.type-style("heading-04");
+  margin-block-end: 1.5rem;
+  color: var(--cds-text-primary);
+}
+.lp-catalogue-grid {
+  display: grid;
+  gap: 1px;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.lp-catalogue-col {
+  padding: 1.5rem;
+  background-color: var(--cds-background);
+}
+.lp-catalogue-who {
+  @include type.type-style("heading-compact-02");
+  margin-block-end: 1rem;
+  color: var(--cds-text-primary);
+}
+.lp-catalogue-col .lp-check-list li {
+  @include type.type-style("body-compact-01");
+}

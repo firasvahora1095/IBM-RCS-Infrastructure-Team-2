@@ -100,6 +100,19 @@ describe("RCS landing page", () => {
     expect(document.body.textContent).not.toMatch(/signature|signed (and|result|payload|webhook|deliver)/i);
   });
 
+  it("sells the outcomes and lists every feature by role, including AI Buddy", () => {
+    renderPage();
+    const value = screen.getByRole("region", { name: "Moderation you can stand behind." });
+    ["Meet your duty of care", "Decisions you can defend", "Live in two touchpoints", "Proof for your leadership"].forEach(
+      (t) => expect(within(value).getByRole("heading", { name: t })).toBeInTheDocument(),
+    );
+    const product = screen.getByRole("region", { name: "One service, three views." });
+    expect(within(product).getByRole("heading", { name: "AI Buddy, for every Reviewer and Manager" })).toBeInTheDocument();
+    ["For Reviewers", "For Managers", "For your platform", "For the public"].forEach((who) =>
+      expect(within(product).getByRole("heading", { name: who })).toBeInTheDocument(),
+    );
+  });
+
   it("writes the roles as proper nouns: Reviewer, Manager, Client", () => {
     const { container } = renderPage();
     const copy = container.cloneNode(true) as HTMLElement;

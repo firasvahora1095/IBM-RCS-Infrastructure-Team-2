@@ -16,6 +16,9 @@ import {
 } from "@carbon/react";
 import {
   ArrowDown,
+  ChartColumn,
+  Chat,
+  Plug,
   Collaborate,
   DocumentView,
   Locked,
@@ -93,6 +96,79 @@ const PROTECTIONS: { icon: Icon; title: string; body: string }[] = [
     body: "A cooldown follows severe cases. A wellbeing check-in is always available, and SOS brings in a Manager.",
   },
 ];
+
+/** What a buyer gets: outcomes, not mechanisms. Every claim maps to something the product does today. */
+const VALUE: { icon: Icon; title: string; body: string }[] = [
+  {
+    icon: Security,
+    title: "Meet your duty of care",
+    body: "Limits, cooldowns and SOS are enforced by RCS on every case, with a record of each Reviewer's exposure, so protection never depends on a busy day.",
+  },
+  {
+    icon: DocumentView,
+    title: "Decisions you can defend",
+    body: "A trained person decides every case. The AI's rating and the Reviewer's decision are kept side by side, and every override carries a reason.",
+  },
+  {
+    icon: Plug,
+    title: "Live in two touchpoints",
+    body: "A report button on your posts and an endpoint for results. RCS handles review end to end, and a person follows up if a delivery fails.",
+  },
+  {
+    icon: ChartColumn,
+    title: "Proof for your leadership",
+    body: "Service reports on volumes, outcomes and timeliness, checked by an RCS Manager before your team sees them, ready to share as a PDF.",
+  },
+];
+
+/** Every feature, by who uses it. The product tour shows the screens; this is the complete list. */
+const CATALOGUE = [
+  {
+    who: "For Reviewers",
+    items: [
+      "Content warning with consent and the right to decline",
+      "Blur slider, grayscale and mute",
+      "AI summary, flagged-moment timeline and audio analysis",
+      "Severity override, with a reason the Manager sees",
+      "Live daily viewing limit",
+      "Cooldown after severe cases",
+      "Wellbeing check-in, break and talk requests",
+      "SOS that hides the content and alerts a Manager",
+    ],
+  },
+  {
+    who: "For Managers",
+    items: [
+      "One Needs you list for SOS, requests and declined cases",
+      "Reassignment to an eligible Reviewer",
+      "Exposure and limits for each Reviewer",
+      "Validation and audit: the AI against the Reviewer, case by case",
+      "Insights for any period",
+      "Delivery failures with a path to resolve them",
+      "Service reports: generate, review, release",
+      "Replies to Client messages",
+    ],
+  },
+  {
+    who: "For your platform",
+    items: [
+      "A report button and a results endpoint",
+      "Case results with a Needs action view",
+      "Apply RCS decisions in one go, or post by post",
+      "Service reports in the browser or as a PDF",
+      "Messages to RCS from inside the portal",
+      "Signed-in, organisation-only access, every view logged",
+    ],
+  },
+  {
+    who: "For the public",
+    items: [
+      "Report a video, link or screenshot without an account",
+      "Stay anonymous, or leave contact details",
+      "A case ID and a plain-language status page",
+    ],
+  },
+] as const;
 
 /** Accountability: the second, shorter row. */
 const ACCOUNTABILITY: { icon: Icon; title: string; body: string }[] = [
@@ -321,6 +397,16 @@ export function RcsLandingPage() {
           </div>
         </Section>
 
+        {/* Business value: what the buyer gets, in outcomes. */}
+        <Section
+          id="value"
+          eyebrow="Why platforms choose RCS"
+          title="Moderation you can stand behind."
+          lede="RCS gives your trust and safety team a review service that protects the people doing it, decisions you can explain, and a record you can show."
+        >
+          <FeatureGrid items={VALUE} columns={4} />
+        </Section>
+
         {/* 3. How a report is handled. */}
         <Section id="how-it-works" tint eyebrow="How it works" title="One report. Four steps. One human decision.">
           <ol className="lp-steps">
@@ -380,6 +466,37 @@ export function RcsLandingPage() {
           lede="Each person sees what their role needs, and nothing more."
         >
           <ProductTour />
+          <div className="lp-buddy">
+            <div className="lp-buddy-head">
+              <Chat size={24} aria-hidden />
+              <h3 className="lp-buddy-title">AI Buddy, for every Reviewer and Manager</h3>
+              <span className="lp-buddy-tag">Built on watsonx.ai</span>
+            </div>
+            <p className="lp-buddy-body">
+              Ask in plain language how much viewing time is left today, which cases need attention, or where one case
+              stands. AI Buddy answers from live RCS data, only within your role, and links to the right screen.
+            </p>
+            <ul className="lp-buddy-points">
+              <li>Live figures, marked with the time they were read</li>
+              <li>A Reviewer only ever sees their own cases</li>
+              <li>Read-only: it guides, people decide</li>
+            </ul>
+          </div>
+          <div className="lp-catalogue">
+            <h3 className="lp-catalogue-title">Everything in RCS</h3>
+            <div className="lp-catalogue-grid">
+              {CATALOGUE.map((group) => (
+                <div key={group.who} className="lp-catalogue-col">
+                  <h4 className="lp-catalogue-who">{group.who}</h4>
+                  <ul className="lp-check-list">
+                    {group.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* 5. The team: who built it, credited as Emily asked. */}
