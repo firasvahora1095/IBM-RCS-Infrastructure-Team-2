@@ -447,15 +447,12 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
           Placeholder / mock data — these legacy metrics are not real governance results.
         </p>
       )}
-      <p className="rcs-body" role="status">
-        {data.failed_calls > 0
-          ? `${data.failed_calls} failed ${data.failed_calls === 1 ? "request" : "requests"}. Failed rows are marked.`
-          : "No failed requests in this view."}
-      </p>
+      {/* Says what is being counted; the figures don't repeat themselves in a sentence. */}
+      <h3 className="rcs-subheading">Requests RCS sent to the AI model in this view</h3>
       <dl className="rcs-figure-row">
-        <Figure label="Requests" value={data.total_calls} />
-        <Figure label="Failed requests" value={data.failed_calls} />
-        <Figure label="Pending or unknown" value={data.unknown_calls ?? 0} />
+        <Figure label="Sent" value={data.total_calls} />
+        <Figure label="Failed: no usable answer" value={data.failed_calls} />
+        <Figure label="No outcome recorded" value={data.unknown_calls ?? 0} />
       </dl>
       <p className="rcs-helper">
         Accumulated score is the case's highest effective severity, from 0 to 100. The prompt leakage check applies a
