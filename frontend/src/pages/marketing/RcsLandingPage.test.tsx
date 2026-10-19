@@ -44,11 +44,11 @@ describe("RCS landing page", () => {
     const team = screen.getByRole("region", { name: "Built by RMIT Team 6, with IBM." });
     const cards = within(team).getAllByRole("listitem");
     const expected = [
-      ["Hyuna Bae", "Project Manager", "led end-to-end testing"],
-      ["Janataarah Begum", "Business Analyst / QA", "proved each feature against them in UAT"],
-      ["Aleeya Ahmad", "UX / Research", "designed every screen"],
-      ["Firas Vahora", "Developer", "the watsonx Orchestrate integration"],
-      ["Aiden Brundell", "Developer", "the IBM Cloud deployment"],
+      ["Hyuna Bae", "Project Manager", "built the exposure and cooldown logic and led end-to-end testing"],
+      ["Janataarah Begum", "Business Analyst / QA", "S1–S4 severity scale"],
+      ["Aleeya Ahmad", "UX / Research", "designed all three roles in Figma"],
+      ["Firas Vahora", "Developer", "delivered the live watsonx Orchestrate integration"],
+      ["Aiden Brundell", "Developer", "the watsonx vision call and the audit log"],
     ];
     expect(cards).toHaveLength(expected.length);
     expected.forEach(([name, role, did], i) => {
