@@ -143,12 +143,16 @@ export function ContentWarningModal({
                   <dd>{formatLength(length)}</dd>
                 </div>
               ) : null}
-              {moments.length > 0 && firstAt !== null && (
+              {moments.length > 0 && (
                 <div>
                   <dt>Flagged moments</dt>
-                  <dd>
-                    {moments.length}, from {formatLength(firstAt)}
-                  </dd>
+                  <dd>{moments.length}</dd>
+                </div>
+              )}
+              {firstAt !== null && (
+                <div>
+                  <dt>First flagged at</dt>
+                  <dd>{formatLength(firstAt)}</dd>
                 </div>
               )}
             </dl>
