@@ -847,22 +847,6 @@ html {
   white-space: pre-line;
 }
 
-// A person, their role and what the role allows, on one aligned line.
-.rcs-account-row {
-  display: grid;
-  grid-template-columns: 12rem 8rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.25rem 1rem;
-  padding-block: 0.625rem;
-  border-block-end: 1px solid var(--cds-border-subtle-01);
-  @include breakpoint.breakpoint-down(md) {
-    grid-template-columns: minmax(0, 1fr) auto;
-    > :last-child {
-      grid-column: 1 / -1;
-    }
-  }
-}
-
 // A link that is a button, for a row's name when the row opens in place.
 .rcs-link-button {
   background: none;
@@ -1337,6 +1321,84 @@ html {
   p {
     @include type.type-style("body-compact-01");
     color: var(--cds-text-secondary);
+  }
+}
+.rcs-val-summary--four {
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+// "of 123" after a figure: the same line, quieter.
+.rcs-val-of {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+// A figure that is words (a report period), not a number.
+.rcs-val-summary dd.rcs-val-text {
+  @include type.type-style("heading-04");
+}
+
+// One Client, as a Manager sees them: what needs attention, the figures, then people and the connection side by side.
+.rcs-client-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-inline-size: 72rem;
+}
+.rcs-client-columns {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.rcs-people {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rcs-person {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  &:first-child {
+    padding-block-start: 0;
+  }
+}
+.rcs-person-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  @include type.type-style("label-01");
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-layer-accent-01);
+  border-radius: 50%;
+}
+.rcs-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.rcs-person-name {
+  @include type.type-style("heading-compact-01");
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  .cds--tag {
+    margin: 0;
   }
 }
 // One plain sentence at the top of each Validation view.

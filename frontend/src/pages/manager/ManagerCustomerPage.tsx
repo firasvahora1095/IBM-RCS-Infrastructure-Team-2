@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Accordion,
   AccordionItem,
+  ActionableNotification,
   Button,
   CodeSnippet,
   InlineLoading,
@@ -19,9 +20,8 @@ import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { KeyValueList, Section } from "../../components/ui/Blocks";
-import { SegmentedBar } from "../../components/ui/Charts";
 import { StatusTag } from "../../components/ui/StatusTag";
-import { getCustomerIntegration, listClientAccounts, listReports, testIntegration } from "../../services";
+import { getCustomerIntegration, listClientAccounts, listClientMessages, listReports, testIntegration } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE, type IntegrationTestResult } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -29,6 +29,7 @@ import { ALL_CLIENTS, useClients, useClientScope } from "../../hooks/useClientSc
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { CLIENT_ROLE_LABEL, CLIENT_ROLE_SCOPE, responsibilityBoundary } from "../../design-tokens/deliveryLabels";
 import { formatPeriod, formatShortDateTime } from "../../utils/formatPeriod";
+import { formatRelativeTime } from "../../utils/formatRelativeTime";
 
 const SAMPLE_PAYLOAD = `{
   "delivery_id": "DEL-RCS-7Q3M-K91X",
@@ -38,14 +39,24 @@ const SAMPLE_PAYLOAD = `{
   "completed_at": "2026-10-05T14:22:00+11:00"
 }`;
 
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 /**
- * Customer & integration (B2B spec S1): CommunityHub is a customer, RCS knows
- * where to send each completed result, and the connection works. Kept light
- * on purpose (B2B stays high level): no pricing, contracts, user management
- * or organisation switcher.
+ * Customer & integration (B2B spec S1). With no Client selected it lists every connection; with one selected it is
+ * that Client's page, in the order a Manager asks: does anything need me, how are results arriving, who is there,
+ * and only then whether the connection itself works. The set-up detail sits in a closed accordion for the integration
+ * owner. Kept light on purpose (B2B stays high level): no pricing, contracts or user management.
  */
 export function ManagerCustomerPage() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const handleSessionExpiry = useSessionExpiryHandler();
   const { selected, clients } = useClients();
   const { setClientId } = useClientScope();
@@ -76,8 +87,14 @@ export function ManagerCustomerPage() {
     }
   }
 
+  const messages = useStaffQuery(listClientMessages);
   const latestReleased = reports.data?.find((r) => r.status === "RELEASED" && r.organisation_id === clientId);
   const ready = data?.status === "READY";
+  const inFlight = data ? data.health.pending + data.health.retrying : 0;
+  const sent = data ? data.health.success + data.health.needs_attention + inFlight : 0;
+  const waitingMessages = messages.data
+    ? messages.data.filter((m) => m.organisation_id === clientId && m.status !== "ANSWERED").length
+    : null;
 
   // With no Client selected, the page is the list of them: each Client's connection and delivery health on one line,
   // so the state of every connection can be read without opening any.
@@ -103,7 +120,7 @@ export function ManagerCustomerPage() {
         title={selected?.name ?? "Client connections"}
         subtitle={
           selected
-            ? (data?.description ?? "Customer organisation")
+            ? (data?.description.split(" · ")[0] ?? "Client")
             : "How RCS delivers results to each Client, and whether each connection is working."
         }
       />
@@ -155,131 +172,173 @@ export function ManagerCustomerPage() {
         </Layer>
       )}
       <LoadState error={error} loading={Boolean(selected) && !data && !error} what="this Client" />
-      {data && (
-        // One column, in the order a Manager asks the questions: is it connected, is it delivering, what was reported,
-        // then how it works and who can see it.
-        <div className="flex flex-col gap-6" style={{ maxWidth: 960 }}>
-          <Section
-            id="connection"
-            title="Connection"
-            description={`Whether RCS can send completed results to ${selected?.name ?? "the Client"}.`}
-            actions={<StatusTag tone={ready ? "success" : "error"}>{ready ? "Connected" : "Needs attention"}</StatusTag>}
-          >
-            <dl className="rcs-glance">
-              <div className="flex flex-col gap-1">
-                <dt className="rcs-stat-label">Last tested</dt>
-                <dd>{data.last_tested_at ? formatShortDateTime(data.last_tested_at) : "Not tested yet"}</dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="rcs-stat-label">Last result delivered</dt>
-                <dd>{data.last_delivery_at ? formatShortDateTime(data.last_delivery_at) : "None yet"}</dd>
-              </div>
-            </dl>
-            <div className="flex flex-wrap items-center gap-3">
-              {testing ? (
-                <InlineLoading description="Sending a test result…" status="active" />
-              ) : (
-                <Button kind={ready ? "tertiary" : "primary"} onClick={runTest}>
-                  {ready ? "Test connection" : "Retest connection"}
-                </Button>
-              )}
-              <span className="rcs-helper">Sends one test result to {selected?.name} and reports whether it was accepted.</span>
-            </div>
-            {/* Where the outcome of the test appears. */}
-            <div aria-live="polite">
-              {result && (
-                <InlineNotification
-                  kind={result.ok ? "success" : "error"}
-                  lowContrast
-                  title={result.ok ? `${result.message}.` : "Test failed."}
-                  subtitle={result.ok ? `Responded in ${result.latency_ms} ms.` : result.message}
-                  onClose={() => setResult(null)}
-                />
-              )}
-              {testError && (
-                <InlineNotification kind="error" lowContrast role="alert" title="Couldn't run the test." subtitle={testError} />
-              )}
-            </div>
-            {!ready && <p className="rcs-body">Results keep retrying automatically until the connection is fixed.</p>}
-          </Section>
-
-          <Section
-            id="delivery-health"
-            title="Delivery health"
-            description={`What happened to the results sent to ${selected?.name ?? "the Client"}.`}
-            actions={
-              <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/deliveries">
-                View deliveries
-              </Button>
-            }
-          >
-            <SegmentedBar
-              label="Delivery health"
-              segments={[
-                { key: "ok", label: "Delivered", value: data.health.success, color: "var(--cds-support-success)" },
-                { key: "pending", label: "Pending", value: data.health.pending, color: "var(--cds-border-strong-01)" },
-                { key: "retry", label: "Retrying", value: data.health.retrying, color: "var(--cds-support-info)" },
-                { key: "attention", label: "Failed", value: data.health.needs_attention, color: "var(--cds-support-error)" },
-              ]}
+      {data && selected && (
+        <div className="rcs-client-page">
+          {/* What needs the Manager comes first; when nothing does, the figures below say so on their own. */}
+          {!ready ? (
+            <ActionableNotification
+              kind="error"
+              lowContrast
+              inline
+              hideCloseButton
+              title={`RCS can't reach ${selected.name} right now.`}
+              subtitle="Results keep retrying automatically. Retest once their team says it's fixed."
+              actionButtonLabel="Retest connection"
+              onActionButtonClick={runTest}
+              style={{ maxWidth: "100%" }}
             />
-          </Section>
+          ) : (
+            data.health.needs_attention > 0 && (
+              <ActionableNotification
+                kind="warning"
+                lowContrast
+                inline
+                hideCloseButton
+                title={`${data.health.needs_attention} ${data.health.needs_attention === 1 ? "result" : "results"} didn't reach ${selected.name}.`}
+                subtitle="RCS stopped retrying. Check what went wrong and resend."
+                actionButtonLabel="Review"
+                onActionButtonClick={() => navigate("/manager/deliveries?status=needs-attention")}
+                style={{ maxWidth: "100%" }}
+              />
+            )
+          )}
 
-          <Section
-            id="service-reports"
-            title="Service reports"
-            description={`The summary reports shared with ${selected?.name ?? "the Client"}.`}
-            actions={
-              <Button kind="tertiary" size="sm" as={RouterLink} to="/manager/reports">
-                View reports
-              </Button>
-            }
-          >
-            {latestReleased ? (
-              <div className="flex flex-col gap-2">
-                <div className="rcs-align-row">
-                  <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(latestReleased.report_id)}`}>
-                    {formatPeriod(latestReleased.period_start, latestReleased.period_end)}
+          <dl className="rcs-val-summary rcs-val-summary--four" aria-label={`${selected.name} at a glance`}>
+            <div>
+              <dt>Results delivered</dt>
+              <dd>
+                {data.health.success}
+                <span className="rcs-val-of"> of {sent}</span>
+              </dd>
+              <p>
+                {data.last_delivery_at ? `Last one ${formatRelativeTime(data.last_delivery_at)}.` : "None sent yet."}
+                {inFlight > 0 ? ` ${inFlight} on the way.` : ""}
+              </p>
+            </div>
+            <div>
+              <dt>Didn&apos;t arrive</dt>
+              <dd>{data.health.needs_attention}</dd>
+              <p>
+                {data.health.needs_attention > 0 ? "Need checking and resending." : "Nothing to fix."}
+              </p>
+            </div>
+            <div>
+              <dt>Messages waiting</dt>
+              <dd>{waitingMessages ?? "—"}</dd>
+              <p>
+                {waitingMessages ? (
+                  <RouterLink className="cds--link" to="/manager/messages">
+                    Reply to {selected.name}
                   </RouterLink>
-                  <StatusTag kind="report" value="RELEASED" size="sm" />
-                </div>
-                <p className="rcs-helper">
-                  Latest released report · {latestReleased.metrics.cases_completed} cases completed
-                </p>
-              </div>
-            ) : (
-              <p className="rcs-helper">No report has been released yet.</p>
-            )}
-          </Section>
+                ) : (
+                  "All answered."
+                )}
+              </p>
+            </div>
+            <div>
+              <dt>Latest report</dt>
+              <dd className="rcs-val-text">
+                {latestReleased ? formatPeriod(latestReleased.period_start, latestReleased.period_end) : "—"}
+              </dd>
+              <p>
+                {latestReleased ? (
+                  <RouterLink className="cds--link" to={`/manager/reports/${encodeURIComponent(latestReleased.report_id)}`}>
+                    Open report
+                  </RouterLink>
+                ) : (
+                  "None released yet."
+                )}
+              </p>
+            </div>
+          </dl>
 
-          <Section
-            id="client-accounts"
-            title="Client accounts"
-            description={`Who at ${selected?.name ?? "the Client"} can see what. Each account sees only what its role needs.`}
-          >
-            {accounts.data ? (
-              <ul className="flex flex-col">
-                {accounts.data.map((a) => (
-                  <li key={a.user_id} className="rcs-account-row">
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>{a.display_name}</span>
-                    <StatusTag tone="neutral" size="sm">
-                      {CLIENT_ROLE_LABEL[a.role]}
-                    </StatusTag>
-                    <span className="rcs-helper">{CLIENT_ROLE_SCOPE[a.role]}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
-            )}
-            <p className="rcs-helper">{responsibilityBoundary(selected?.name ?? "The Client")}</p>
-          </Section>
+          <div className="rcs-client-columns">
+            <Section
+              id="client-accounts"
+              title={`People at ${selected.name}`}
+              description="Who can sign in to the Client portal, and what each of them sees."
+            >
+              {accounts.data ? (
+                <ul className="rcs-people">
+                  {accounts.data.map((a) => (
+                    <li key={a.user_id} className="rcs-person">
+                      <span className="rcs-person-avatar" aria-hidden="true">
+                        {initialsOf(a.display_name)}
+                      </span>
+                      <span className="rcs-person-text">
+                        <span className="rcs-person-name">
+                          {a.display_name}
+                          <StatusTag tone="neutral" size="sm">
+                            {CLIENT_ROLE_LABEL[a.role]}
+                          </StatusTag>
+                        </span>
+                        <span className="rcs-helper">{CLIENT_ROLE_SCOPE[a.role]}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rcs-helper">{accounts.error ? "Couldn't load accounts." : "Loading…"}</p>
+              )}
+              <p className="rcs-helper">{responsibilityBoundary(selected.name)}</p>
+            </Section>
+
+            <Section
+              id="connection"
+              title="Connection"
+              description="Test it if results stop arriving."
+              actions={
+                <StatusTag tone={ready ? "success" : "error"} size="sm">
+                  {ready ? "Connected" : "Needs attention"}
+                </StatusTag>
+              }
+            >
+              <p className="rcs-body">
+                {data.last_tested_at ? (
+                  <>
+                    Last tested{" "}
+                    <time dateTime={data.last_tested_at} title={formatShortDateTime(data.last_tested_at)}>
+                      {formatRelativeTime(data.last_tested_at)}
+                    </time>
+                    .
+                  </>
+                ) : (
+                  "Not tested yet."
+                )}
+              </p>
+              <div>
+                {testing ? (
+                  <InlineLoading description="Sending a test result…" status="active" />
+                ) : (
+                  <Button kind="tertiary" size="md" onClick={runTest}>
+                    Test connection
+                  </Button>
+                )}
+              </div>
+              {/* Where the outcome of the test appears. */}
+              <div aria-live="polite">
+                {result && (
+                  <InlineNotification
+                    kind={result.ok ? "success" : "error"}
+                    lowContrast
+                    title={result.ok ? `${result.message}.` : "Test failed."}
+                    subtitle={result.ok ? `Responded in ${result.latency_ms} ms.` : result.message}
+                    onClose={() => setResult(null)}
+                  />
+                )}
+                {testError && (
+                  <InlineNotification kind="error" lowContrast role="alert" title="Couldn't run the test." subtitle={testError} />
+                )}
+              </div>
+            </Section>
+          </div>
 
           {/* The set-up detail is for whoever maintains the connection, so it is one step away rather than on the page. */}
           <Accordion>
             <AccordionItem title="Technical details for the integration owner">
               <div className="flex flex-col gap-6">
                 <p className="rcs-body">
-                  Each completed result is sent automatically to {selected?.name}. A failed send is retried, and every
+                  Each completed result is sent automatically to {selected.name}. A failed send is retried, and every
                   result carries a unique ID, so it is never processed twice.
                 </p>
                 <KeyValueList
