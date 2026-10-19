@@ -116,7 +116,7 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                         thresholds
                         minutes={row.exposure_minutes_today}
                         limit={row.exposure_limit_minutes}
-                        label={`${row.exposure_minutes_today} / ${row.exposure_limit_minutes} min`}
+                        label={`${Math.round(row.exposure_minutes_today)} / ${row.exposure_limit_minutes} min`}
                         ariaLabel={`${row.display_name}'s exposure today`}
                       />
                     </TableCell>
