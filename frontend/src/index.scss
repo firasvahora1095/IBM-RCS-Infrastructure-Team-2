@@ -21,6 +21,7 @@
 @use "@carbon/colors";
 @use "./styles/b2b-kit";
 @use "./styles/site";
+@use "./styles/landing";
 
 :root {
   @include theme.theme();

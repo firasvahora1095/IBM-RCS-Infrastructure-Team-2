@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { describe, expect, it } from "vitest";
 import { RcsLandingPage } from "./RcsLandingPage";
@@ -12,60 +13,136 @@ function renderPage() {
   );
 }
 
+const PROBLEM = "Every harmful-video report lands on a human. Nothing protects them.";
+
 describe("RCS landing page", () => {
-  it("states the problem before anything else, in plain words", () => {
+  it("makes the problem statement the one H1, with a line on why it matters", () => {
     renderPage();
-    const hero = screen.getByRole("region", { name: /Content moderation that protects/ });
-    expect(
-      within(hero).getByText(/Moderators watch violence and abuse so that no one else has to/),
-    ).toBeInTheDocument();
-    // And the dedicated section says it again, with what RCS changes.
-    expect(
-      screen.getByRole("heading", { name: /The people who review harmful videos are exposed to them again and again/ }),
-    ).toBeInTheDocument();
+    const h1s = screen.getAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(PROBLEM);
+    const hero = screen.getByRole("region", { name: PROBLEM });
+    expect(within(hero).getByText(/nothing in their tools limits how much they see/)).toBeInTheDocument();
   });
 
-  it("introduces every member of the team with their role and what they did", () => {
+  it("spells out Responsible Content Safety in the hero lockup and on first use in the copy", () => {
     renderPage();
-    const team = screen.getByRole("region", { name: "Built by RMIT Team 2, with IBM." });
+    const hero = screen.getByRole("region", { name: PROBLEM });
+    expect(within(hero).getByText("Responsible Content Safety")).toBeInTheDocument();
+    expect(within(hero).getByText(/^Responsible Content Safety \(RCS\) reviews/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Responsible Content Safety (RCS) home" })).toHaveAttribute("href", "/rcs");
+    expect(screen.getByText(/^Responsible Content Safety \(RCS\) is an IBM × RMIT capstone prototype/)).toBeInTheDocument();
+  });
+
+  it("credits RMIT Team 6 with IBM in the hero, the nav and a team section, in the agreed order", () => {
+    renderPage();
+    const hero = screen.getByRole("region", { name: PROBLEM });
+    expect(within(hero).getByText("RMIT Team 6, with IBM")).toBeInTheDocument();
+    expect(within(hero).getByRole("link", { name: "Meet the team" })).toHaveAttribute("href", "#team");
+    expect(within(screen.getByRole("navigation", { name: "RCS" })).getByRole("link", { name: "The team" })).toBeInTheDocument();
+
+    const team = screen.getByRole("region", { name: "Built by RMIT Team 6, with IBM." });
     const cards = within(team).getAllByRole("listitem");
-    expect(cards).toHaveLength(5);
-    const names = [
-      ["Hyuna Bae", "Project manager"],
-      ["Janataarah Begum", "Business analyst"],
-      ["Aleeya Ahmad", "UX designer"],
-      ["Firas Vahora", "Developer"],
-      ["Aiden Brundell", "Developer"],
+    const expected = [
+      ["Hyuna Bae", "Project Manager", "built the exposure and cooldown logic and led end-to-end testing"],
+      ["Janataarah Begum", "Business Analyst / QA", "S1–S4 severity scale"],
+      ["Aleeya Ahmad", "UX / Research", "designed all three roles in Figma"],
+      ["Firas Vahora", "Developer", "delivered the live watsonx Orchestrate integration"],
+      ["Aiden Brundell", "Developer", "the watsonx vision call and the audit log"],
     ];
-    names.forEach(([name, role], i) => {
-      expect(cards[i]).toHaveTextContent(name);
+    expect(cards).toHaveLength(expected.length);
+    expected.forEach(([name, role, did], i) => {
+      expect(within(cards[i]).getByRole("heading", { name })).toBeInTheDocument();
       expect(cards[i]).toHaveTextContent(role);
+      expect(cards[i]).toHaveTextContent(did);
     });
-    // Each photo is looked for by a file name the team can drop in, and is labelled with the person.
-    expect(within(team).getByRole("img", { name: "Aleeya Ahmad" })).toHaveAttribute("src", "/team/aleeya-ahmad.jpg");
+    expect(screen.queryByText(/Team 2/)).not.toBeInTheDocument();
   });
 
-  it("says plainly that CommunityHub is a simulation, and why", () => {
+  it("keeps the header to five section links, one Sign in menu and Get started", () => {
     renderPage();
-    const section = screen.getByRole("region", { name: "What is real, and what is simulated" });
-    expect(within(section).getByText(/stand-in for a real social platform such as Reddit/)).toBeInTheDocument();
-    expect(within(section).getByText(/could not get API access/)).toBeInTheDocument();
-    expect(within(section).getByText(/Every case, person, video and report is invented/)).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "RCS" });
+    expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual([
+      "How it works",
+      "Product",
+      "The team",
+      "Security",
+      "FAQ",
+    ]);
+    expect(within(screen.getByRole("navigation", { name: "Sign in" })).getByText("Sign in")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Client sign in" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Staff sign in" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Get started" }).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("ties every figure to what it means", () => {
+  it("shows real product screens in the tour, each with a description", () => {
     renderPage();
-    const numbers = screen.getByRole("region", { name: "RCS in numbers" });
-    expect(within(numbers).getByText("120 min").parentElement).toHaveTextContent("Daily viewing limit per reviewer");
-    expect(within(numbers).getByText("100%").parentElement).toHaveTextContent("Decisions made by a trained person");
+    const tour = screen.getByRole("region", { name: "One service, three views." });
+    const tabs = within(tour).getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs).toEqual(["Reviewer workspace", "Manager oversight", "Client portal"]);
+    const images = [...tour.querySelectorAll("img")];
+    expect(images.map((img) => img.getAttribute("src"))).toEqual([
+      "/landing/reviewer-workspace.webp",
+      "/landing/manager-overview.webp",
+      "/landing/client-case-results.webp",
+    ]);
+    images.forEach((img) => expect(img.getAttribute("alt")?.length).toBeGreaterThan(60));
   });
 
-  it("lists Meet the team and About this prototype in the section bar", () => {
+  it("shows the real result fields and makes no signing claim", () => {
     renderPage();
-    const nav = screen.getByRole("navigation", { name: "On this page" });
-    const labels = within(nav).getAllByRole("link").map((l) => l.textContent);
-    expect(labels).toContain("Meet the team");
-    expect(labels).toContain("About this prototype");
+    const integration = screen.getByRole("region", { name: "A report button in. A short, structured result out." });
+    const payload = within(integration).getByLabelText("Results payload example", { selector: "*" });
+    for (const field of ["delivery_id", "case_id", "organisation_id", "outcome", "final_severity", "completed_at", "moderation_status", "source_url"]) {
+      expect(payload.textContent).toContain(`"${field}"`);
+    }
+    // No claim that results are cryptographically signed: the backend does not sign them.
+    expect(document.body.textContent).not.toMatch(/signature|signed (and|result|payload|webhook|deliver)/i);
+  });
+
+  it("writes the roles as proper nouns: Reviewer, Manager, Client", () => {
+    const { container } = renderPage();
+    const copy = container.cloneNode(true) as HTMLElement;
+    // Code samples and URLs are not prose.
+    copy.querySelectorAll(".cds--snippet").forEach((el) => el.remove());
+    const text = copy.textContent ?? "";
+    expect(text).not.toMatch(/\b(reviewer|manager|client)s?\b/);
+    const labels = [...container.querySelectorAll("[aria-label], [alt]")]
+      .map((el) => `${el.getAttribute("aria-label") ?? ""} ${el.getAttribute("alt") ?? ""}`)
+      .join(" ");
+    expect(labels).not.toMatch(/\b(reviewer|manager|client)s?\b/);
+  });
+
+  it("says plainly what is real, what is simulated and what is synthetic", () => {
+    renderPage();
+    const disclosure = screen.getByRole("group", { name: "About this prototype" });
+    expect(within(disclosure).getByText("Simulated pilot")).toBeInTheDocument();
+    expect(within(disclosure).getByText(/a simulated platform like Reddit/)).toBeInTheDocument();
+    expect(within(disclosure).getByText(/Every case, person, video and report is invented/)).toBeInTheDocument();
+  });
+
+  it("walks the hero demo like the real content warning: consent, proceed at full blur, SOS, decline", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const demo = screen.getByRole("heading", { name: "Try it: a flagged case" }).closest(".rcs-reveal") as HTMLElement;
+
+    expect(within(demo).getByText("Would you like to proceed?")).toBeInTheDocument();
+    const proceed = within(demo).getByRole("button", { name: "Proceed" });
+    expect(proceed).toBeDisabled();
+    await user.click(within(demo).getByLabelText(/I consent to proceed/));
+    expect(proceed).toBeEnabled();
+    await user.click(proceed);
+
+    expect(within(demo).getByRole("slider", { name: /Blur intensity/ })).toHaveAttribute("aria-valuenow", "100");
+    expect(within(demo).getByRole("switch", { name: /Grayscale/ })).toBeChecked();
+    expect(within(demo).getByText("Sample frame, not real footage")).toBeInTheDocument();
+
+    await user.click(within(demo).getByRole("button", { name: "SOS" }));
+    expect(within(demo).getByText("SOS sent. The content is hidden at once.")).toBeInTheDocument();
+    await user.click(within(demo).getByRole("button", { name: "Start again" }));
+
+    await user.click(within(demo).getByRole("button", { name: "Decline" }));
+    expect(within(demo).getByText("Declined. The case goes to the Manager to decide.")).toBeInTheDocument();
   });
 
   it("has no detectable accessibility violations", async () => {

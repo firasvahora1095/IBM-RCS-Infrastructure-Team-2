@@ -50,7 +50,7 @@ describe("B2B screens — automated accessibility", () => {
   });
 
   it.each([
-    ["RCS landing page", "/rcs", "Content moderation that protects the people who do it."],
+    ["RCS landing page", "/rcs", "Every harmful-video report lands on a human. Nothing protects them."],
     ["Organisation set-up", "/rcs/get-started", "Set up your organisation"],
     ["Simulated CommunityHub feed", "/communityhub", "Home"],
     ["Flow guide", "/flow", "From a report on CommunityHub to a released service report"],
