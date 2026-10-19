@@ -29,7 +29,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     vi.spyOn(services, "staffLogin").mockRejectedValueOnce(new ApiError("Invalid credentials", 401));
     fireEvent.change(screen.getByLabelText("Staff ID"), { target: { value: "auditor-1" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
-    fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await screen.findByText("Incorrect staff ID or password.");
     expect(await axe()).toHaveNoViolations();
   });

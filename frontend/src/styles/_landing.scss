@@ -1816,3 +1816,157 @@
     text-align: end;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Sign-in (staff and Client): brand panel left, form right.
+// ---------------------------------------------------------------------------
+.si-page {
+  display: grid;
+  min-block-size: 100vh;
+  background-color: var(--cds-background);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+.si-brand {
+  position: relative;
+  display: none;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 3rem;
+  padding: 3rem;
+  background-color: var(--rcs-brand-navy);
+  @include breakpoint.breakpoint(lg) {
+    display: flex;
+  }
+}
+// The logo colours as light behind the panel; the copy never sits on a saturated part.
+.si-brand-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(32rem 24rem at 100% 0%, rgba(143, 124, 255, 0.28), transparent 70%),
+    radial-gradient(28rem 20rem at 0% 100%, rgba(111, 216, 201, 0.18), transparent 70%);
+}
+.si-brand-logo,
+.si-brand-copy,
+.si-brand-foot {
+  position: relative;
+}
+.si-brand-logo {
+  align-self: flex-start;
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 4px;
+  }
+}
+.si-brand-audience {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c6c6c6; // 11:1 on the navy
+}
+.si-brand-statement {
+  @include type.type-style("fluid-heading-04", true);
+  margin-block: 1rem 2rem;
+  max-inline-size: 18ch;
+  color: #ffffff;
+}
+.si-brand-points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.25rem;
+    color: #e0e0e0; // 14:1 on the navy
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0.6rem;
+      inset-inline-start: 0;
+      inline-size: 0.5rem;
+      block-size: 2px;
+      background-color: var(--rcs-brand-teal);
+    }
+  }
+}
+.si-brand-foot {
+  @include type.type-style("helper-text-01");
+  color: #a8a8a8; // 7.4:1 on the navy
+}
+.si-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 2.5rem 1rem;
+  @include breakpoint.breakpoint(md) {
+    padding: 3rem 2rem;
+  }
+}
+.si-mobile-logo {
+  align-self: center;
+  @include breakpoint.breakpoint(lg) {
+    display: none;
+  }
+}
+.si-form-wrap {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+}
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  .cds--inline-notification {
+    max-inline-size: 100%;
+    margin: 0;
+  }
+}
+.si-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.si-eyebrow {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  color: var(--rcs-brand-purple-deep);
+}
+.si-title {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+.si-sub {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.si-submit {
+  inline-size: 100%;
+  max-inline-size: none;
+}
+.si-note {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+.si-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  p {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+  }
+}

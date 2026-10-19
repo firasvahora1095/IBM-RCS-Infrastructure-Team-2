@@ -53,7 +53,7 @@ describe("B2B screens — automated accessibility", () => {
     ["RCS landing page", "/rcs", "Every harmful-video report lands on a human. Nothing protects them."],
     ["Organisation set-up", "/rcs/get-started", "Set up your organisation"],
     ["Simulated CommunityHub feed", "/communityhub", "Home"],
-    ["Flow guide", "/flow", "From a report on CommunityHub to a released service report"],
+    ["Flow guide", "/flow", "From a report on CommunityHub to a released service report."],
     ["Client sign-in", "/client/login", "Sign in"],
   ])("%s has no detectable violations", async (_name, path, heading) => {
     const { container } = renderAt(path);

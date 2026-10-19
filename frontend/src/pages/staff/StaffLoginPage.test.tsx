@@ -20,7 +20,7 @@ function renderPage(state?: unknown) {
 function submit(staffId: string, password: string) {
   fireEvent.change(screen.getByLabelText("Staff ID"), { target: { value: staffId } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
-  fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 }
 
 describe("StaffLoginPage", () => {
