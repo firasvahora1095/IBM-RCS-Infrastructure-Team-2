@@ -47,7 +47,7 @@ describe("StaffLoginPage", () => {
     expect(services.staffLogin).toHaveBeenCalledWith("auditor-1", "test123");
   });
 
-  it("redirects a manager to the manager view", async () => {
+  it("redirects a Manager to the Manager view", async () => {
     vi.spyOn(services, "staffLogin").mockResolvedValueOnce({ token: "m1", role: "manager" });
     renderPage();
     submit("manager-1", "pw");

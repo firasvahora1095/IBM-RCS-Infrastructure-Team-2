@@ -128,7 +128,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     act(() => {
       window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
     });
-    await screen.findByText("We’ve paused this case and notified your manager.");
+    await screen.findByText("We’ve paused this case and notified your Manager.");
     expect(await axe()).toHaveNoViolations();
   });
 

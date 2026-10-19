@@ -30,7 +30,7 @@ describe("ProtectedRoute", () => {
     expect(screen.getByText("Login page")).toBeInTheDocument();
   });
 
-  it("redirects a manager away from the auditor route", () => {
+  it("redirects a Manager away from the auditor route", () => {
     sessionStorage.setItem("rcs_staff_token", "abc");
     sessionStorage.setItem("rcs_staff_role", "manager");
     renderProtected("/auditor");

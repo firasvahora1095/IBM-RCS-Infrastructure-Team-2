@@ -179,7 +179,7 @@ export function OrganisationOnboardingPage() {
                     <>
                       <h2 className="rcs-section-title">Where should results go?</h2>
                       <p className="rcs-body" style={{ color: "var(--cds-text-secondary)" }}>
-                        When a reviewer completes a case, RCS sends the result here automatically. You decide what
+                        When a Reviewer completes a case, RCS sends the result here automatically. You decide what
                         action to take on your platform.
                       </p>
                       <TextInput
