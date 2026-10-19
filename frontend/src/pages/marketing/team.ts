@@ -1,8 +1,9 @@
 /**
  * RMIT Team 6: one record per person, used by the landing page's team section and the full team page.
  *
- * Every credit here follows the team's official contribution table (sprint by sprint). The resume bullets expand
- * those rows using the work in this repository; nothing is credited that the table does not support. `photo` is
+ * `sprints` is the team's official contribution table, word for word. The resume highlights are written from the work
+ * each person committed to this repository, so they can name work the table leaves out (Hyuna's AI Buddy and
+ * deployment, for example); every highlight is traceable to that person's commits. `photo` is
  * looked for in public/team; until a file exists the person's initials show on their own brand-gradient tile, and
  * both gradient stops carry white text at 5:1 or better.
  */
@@ -28,7 +29,7 @@ export const TEAM: TeamMember[] = [
     slug: "hyuna-bae",
     name: "Hyuna Bae",
     role: "Project Manager",
-    did: "Ran planning and Client sessions, wired the backend APIs, built the exposure and cooldown logic and led end-to-end testing.",
+    did: "Ran planning and Client sessions, built the AI Buddy and the exposure and cooldown logic, set up deployment and led end-to-end testing.",
     photo: "/team/hyuna-bae.jpg",
     tile: "linear-gradient(135deg, #5b45d6, #0f62fe)",
     sprints: [
@@ -38,11 +39,13 @@ export const TEAM: TeamMember[] = [
     ],
     highlights: [
       "Led planning, Client sessions and delivery for a five-person IBM × RMIT team across three sprints, from flow diagrams and tech-stack choice to the final presentation.",
-      "Wired the Python backend APIs to the frontend and AI pipeline, including Manager, wellbeing and SOS endpoints covered by contract tests.",
-      "Built the Reviewer protection logic: severity-triggered cooldowns, a daily exposure reset, and case assignment that skips Reviewers in cooldown or at their limit.",
+      "Built the first end-to-end slice (database, API and frontend), then wired the FastAPI backend to the AI pipeline, including Manager, wellbeing and SOS endpoints covered by contract tests.",
+      "Built the Reviewer protection logic: severity-triggered cooldowns, a scheduled daily exposure reset, and case assignment that skips Reviewers in cooldown or at their limit.",
+      "Built the AI Buddy assistant on watsonx.ai (Llama 3.3 70B), answering from live, role-scoped RCS data.",
+      "Set up deployment to IBM Cloud Code Engine: Docker images with a bundled PostgreSQL, a demo seed and GitHub Actions auto-deploy; added Watson Speech to Text with speaker diarization and the internal endpoints the watsonx Orchestrate agent calls.",
       "Owned end-to-end testing and UAT: wrote the UAT checklist, ran edge-case QA and prepared the live Client demo.",
     ],
-    skills: ["Agile delivery", "Stakeholder management", "Python", "FastAPI", "PostgreSQL", "UAT", "End-to-end testing"],
+    skills: ["Agile delivery", "Stakeholder management", "Python", "FastAPI", "PostgreSQL", "watsonx.ai", "Docker", "GitHub Actions", "UAT"],
   },
   {
     slug: "janataarah-begum",

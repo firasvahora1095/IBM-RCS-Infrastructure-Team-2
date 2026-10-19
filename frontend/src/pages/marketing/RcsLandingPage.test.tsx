@@ -44,7 +44,7 @@ describe("RCS landing page", () => {
     const team = screen.getByRole("region", { name: "Built by RMIT Team 6, with IBM." });
     const cards = within(team).getAllByRole("listitem");
     const expected = [
-      ["Hyuna Bae", "Project Manager", "built the exposure and cooldown logic and led end-to-end testing"],
+      ["Hyuna Bae", "Project Manager", "built the AI Buddy and the exposure and cooldown logic, set up deployment and led end-to-end testing"],
       ["Janataarah Begum", "Business Analyst / QA", "S1–S4 severity scale"],
       ["Aleeya Ahmad", "UX / Research", "designed all three roles in Figma"],
       ["Firas Vahora", "Developer", "delivered the live watsonx Orchestrate integration"],
