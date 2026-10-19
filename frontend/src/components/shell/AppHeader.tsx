@@ -22,13 +22,13 @@ export function AppHeader() {
   const navigate = useNavigate();
   return (
     <Theme theme="g100">
-      <Header aria-label="RCS — Reporting">
+      <Header aria-label="Responsible Content Safety (RCS) — Reporting">
         {/* The RCS mark sits with the name so the product is recognisable on every page. */}
         <span className="flex items-center pl-4" aria-hidden="true">
           <RcsMark size={24} />
         </span>
-        <HeaderName href="/report" prefix="" aria-label="RCS — Reporting" style={{ paddingInlineStart: "0.5rem" }}>
-          RCS<span className="hidden sm:inline"> — Reporting</span>
+        <HeaderName href="/report" prefix="" aria-label="Responsible Content Safety (RCS) — Reporting" style={{ paddingInlineStart: "0.5rem" }}>
+          RCS<span className="hidden md:inline"> · Responsible Content Safety</span>
         </HeaderName>
         <DemoDataBadge />
         <HeaderGlobalBar>

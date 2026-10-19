@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Accordion,
@@ -12,90 +12,308 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
-  Tag,
   Theme,
 } from "@carbon/react";
+import {
+  ArrowDown,
+  Collaborate,
+  DocumentView,
+  Locked,
+  Security,
+  Timer,
+  UserMultiple,
+  ViewOff,
+  WarningAlt,
+} from "@carbon/icons-react";
 import { MarketingHeader, SITE_SECTIONS } from "../../components/shell/MarketingHeader";
-import { RcsMark } from "../../components/brand/RcsMark";
-import { ExposureBar } from "../../components/exposure/ExposureBar";
-import { SeverityTag } from "../../components/severity/SeverityTag";
-import { SegmentedBar } from "../../components/ui/Charts";
-import { RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
-import { StatusTag } from "../../components/ui/StatusTag";
-
-const SECTIONS = SITE_SECTIONS;
+import { RcsLogo } from "../../components/brand/RcsMark";
+import { BlurRevealDemo } from "./BlurRevealDemo";
+import { ProductTour } from "./ProductTour";
 
 /**
- * RMIT Team 2. `photo` is a file in public/team (see the README there); until one is added the card shows the
- * person's initials, so the layout never shifts and a missing file is never a broken image.
+ * The one worked example on the page. Every time and figure that describes it comes from here, so the page can never
+ * quote two different numbers for the same thing. It is labelled as one synthetic case, not as an average.
+ */
+const EXAMPLE_CASE = {
+  id: "RCS-7Q3M-K91X",
+  steps: [
+    { time: "09:12", label: "Reported from CommunityHub" },
+    { time: "09:14", label: "AI pre-screen: S3 High" },
+    { time: "09:41", label: "Decided by a Reviewer" },
+    { time: "09:41", label: "Result delivered" },
+  ],
+  minutes: 29,
+} as const;
+
+/** Default daily viewing limit (backend `exposure_limit_minutes`, server default 120). Managers can set it lower. */
+const DEFAULT_DAILY_LIMIT_MINUTES = 120;
+/** Automatic delivery attempts before a Manager steps in (backend `MAX_AUTO_ATTEMPTS`). */
+const DELIVERY_ATTEMPTS = 3;
+
+/**
+ * RMIT Team 6. `photo` is looked for in public/team (see the README there). Until a photo exists, the card shows the
+ * person's initials on their own brand-gradient tile; both gradient stops carry white text at 5:1 or better.
  */
 const TEAM = [
   {
     name: "Hyuna Bae",
-    role: "Project manager",
-    did: "Kept the sprint plan, the Client check-ins and the demo on track.",
+    role: "Project Manager",
+    did: "Ran the sprints and Client check-ins, built the AI Buddy and led end-to-end testing.",
     photo: "/team/hyuna-bae.jpg",
+    tile: "linear-gradient(135deg, #5b45d6, #0f62fe)",
   },
   {
     name: "Janataarah Begum",
-    role: "Business analyst / QA",
-    did: "Wrote the requirements behind every screen, and tested every build against them.",
+    role: "Business Analyst / QA",
+    did: "Wrote the requirements and the wording of every status, then proved each feature against them in UAT.",
     photo: "/team/janataarah-begum.jpg",
+    tile: "linear-gradient(135deg, #0b7a75, #005d5d)",
   },
   {
     name: "Aleeya Ahmad",
     role: "UX / Research",
-    did: "Researched reviewer wellbeing, then designed the reviewer, manager and Client experience around it.",
+    did: "Researched Reviewer wellbeing, designed every screen and built the Reviewer, Manager and Client interfaces.",
     photo: "/team/aleeya-ahmad.jpg",
+    tile: "linear-gradient(135deg, #6929c4, #5b45d6)",
   },
   {
     name: "Firas Vahora",
     role: "Developer",
-    did: "Built the backend, the AI pipeline and the result delivery to Clients.",
+    did: "Built the FastAPI backend, weighted case assignment, video frame extraction and the watsonx Orchestrate integration.",
     photo: "/team/firas-vahora.jpg",
+    tile: "linear-gradient(135deg, #1d3f91, #0b7a75)",
   },
   {
     name: "Aiden Brundell",
     role: "Developer",
-    did: "Built the frontend of the reviewer and manager tools against the design.",
+    did: "Built the watsonx.governance checks, database persistence and the IBM Cloud deployment.",
     photo: "/team/aiden-brundell.jpg",
+    tile: "linear-gradient(135deg, #0d1633, #5b45d6)",
   },
 ] as const;
 
-const REPORT_BUTTON = `<a href="https://report.rcs.example/communityhub?post={POST_URL}"
-   class="report-button" rel="noopener">
-  Report harmful content
-</a>`;
+/** The cost of doing nothing, set against what RCS does instead. Qualitative on purpose: no invented statistics. */
+const BEFORE_AFTER = [
+  {
+    today: "Every flagged video opens in full.",
+    rcs: "AI reads it first. The Reviewer sees a content warning, then footage that starts fully blurred.",
+  },
+  {
+    today: "Exposure goes uncounted. Tools measure throughput, not harm.",
+    rcs: `Viewing time is counted on every case, and at the daily limit (${DEFAULT_DAILY_LIMIT_MINUTES} minutes by default) no new cases are assigned.`,
+  },
+  {
+    today: "When a video hurts someone, it is noticed late, if at all.",
+    rcs: "SOS hides the content at once and alerts a Manager, who follows up with that person.",
+  },
+] as const;
 
-const WEBHOOK = `POST https://api.your-platform.example/rcs-results
+type Icon = ComponentType<{ size?: number; "aria-hidden"?: boolean }>;
+
+/** The four wellbeing protections: the main row of the design-rule section. */
+const PROTECTIONS: { icon: Icon; title: string; body: string }[] = [
+  {
+    icon: WarningAlt,
+    title: "Know before you look",
+    body: "A content warning shows what was flagged and how severe it is. Proceed or decline; declining is a normal outcome.",
+  },
+  {
+    icon: ViewOff,
+    title: "Blurred by default",
+    body: "Footage opens fully blurred and in grayscale. Reviewers lower the blur only as far as they need, or mute the sound.",
+  },
+  {
+    icon: Timer,
+    title: "A limit the system keeps",
+    body: `Viewing time is counted while footage plays. ${DEFAULT_DAILY_LIMIT_MINUTES} minutes a day by default, and a Manager can set a lower limit for one person.`,
+  },
+  {
+    icon: Collaborate,
+    title: "Help in one click",
+    body: "A cooldown follows severe cases. A wellbeing check-in is always available, and SOS brings in a Manager.",
+  },
+];
+
+/** Accountability: the second, shorter row. */
+const ACCOUNTABILITY: { icon: Icon; title: string; body: string }[] = [
+  {
+    icon: UserMultiple,
+    title: "People decide",
+    body: "The AI pre-screens and rates severity. A Reviewer makes every final call and can change the AI's severity.",
+  },
+  {
+    icon: DocumentView,
+    title: "Both views kept",
+    body: "The AI's rating and the Reviewer's decision are both recorded, so differences can be reviewed later.",
+  },
+];
+
+const INTEGRATION_STEPS = [
+  {
+    title: "Add the report button",
+    body: "A link on each post. People report without making an account.",
+  },
+  {
+    title: "Give RCS your results endpoint",
+    body: "Each completed case arrives there as a small JSON result.",
+  },
+  {
+    title: "Act on each result",
+    body: "Your team removes or keeps the post, and records it in the Client portal.",
+  },
+] as const;
+
+const RESULT_CONTAINS = ["Case and delivery IDs", "Outcome and final severity", "When the case was completed", "The post link"];
+const RESULT_NEVER = ["Footage or frames", "AI summaries", "Who reviewed the case", "Wellbeing or SOS details"];
+
+const SECURITY: { icon: Icon; title: string; body: string }[] = [
+  {
+    icon: Locked,
+    title: "Footage stays in RCS",
+    body: "Videos, AI summaries and Reviewer notes never leave RCS. Your platform receives the outcome, final severity, time and post link.",
+  },
+  {
+    icon: UserMultiple,
+    title: "Reviewers stay private",
+    body: "Results and reports never say who reviewed a case, and never include wellbeing or SOS details.",
+  },
+  {
+    icon: DocumentView,
+    title: "Access is logged",
+    body: "The Client portal is signed in and scoped to your organisation. Every view and download is logged.",
+  },
+  {
+    icon: Security,
+    title: "AI under governance",
+    body: "AI use is monitored with IBM watsonx.governance, and a Reviewer is told when the AI could not analyse a video.",
+  },
+];
+
+const IBM_STACK = [
+  "watsonx.ai",
+  "Watson Speech to Text",
+  "watsonx Orchestrate",
+  "watsonx.governance",
+  "IBM Cloud Code Engine",
+  "IBM Cloud Object Storage",
+];
+
+/** The result as the backend builds it for a Client (backend/app/b2b.py): the agreed minimum fields, unsigned. */
+const RESULT_PAYLOAD = `POST https://your-platform.example/rcs-results
 Content-Type: application/json
-X-RCS-Signature: sha256=…
 
 {
-  "delivery_id": "DEL-RCS-7Q3M-K91X",
-  "case_id": "RCS-7Q3M-K91X",
+  "delivery_id": "DEL-${EXAMPLE_CASE.id}",
+  "case_id": "${EXAMPLE_CASE.id}",
+  "organisation_id": "COMMUNITYHUB",
   "outcome": "POLICY_VIOLATION_FOUND",
   "final_severity": "S3",
-  "completed_at": "2026-10-05T14:22:00+11:00",
+  "completed_at": "2026-10-05T09:41:00+11:00",
+  "moderation_status": "COMPLETE",
   "source_url": "https://communityhub.example/post/4721"
 }`;
 
-/** Highlights the section currently in view in the sticky bar. */
-function useActiveSection(): string {
-  const [active, setActive] = useState<string>(SECTIONS[0].id);
+const REPORT_BUTTON = `<!-- On each post, with the post's own URL -->
+<a
+  class="report-button"
+  href="{RCS_HOST}/report?from=your-platform&source={POST_URL}"
+  rel="noopener"
+>
+  Report harmful content
+</a>`;
+
+const FAQ = [
+  {
+    q: "Who decides what happens to a post?",
+    a: "Your team does. RCS decides the moderation finding: whether a policy violation was found and how severe it is. Removing the post or acting on an account is your call.",
+  },
+  {
+    q: "Does the AI make decisions?",
+    a: "No. The AI pre-screens each video so the Reviewer knows what to expect. A trained person makes every final decision and can change the AI's severity.",
+  },
+  {
+    q: "What happens if a Reviewer sees something they didn't expect?",
+    a: "They press SOS. The content is hidden at once, a Manager is alerted and follows up with them, and a cooldown starts.",
+  },
+  {
+    q: "What do we need to build?",
+    a: "Two things: a report button on your posts, which is a link, and an endpoint that accepts a small JSON result. Organisation set-up walks you through both.",
+  },
+  {
+    q: "What if our endpoint is down?",
+    a: `RCS tries again automatically, up to ${DELIVERY_ATTEMPTS} attempts, with the same delivery ID so you never process a result twice. If it still can't deliver, an RCS Manager follows up with your integration contact.`,
+  },
+  {
+    q: "Is this a live service?",
+    a: "Not yet. RCS is an IBM × RMIT capstone prototype. The product runs as real software on IBM Cloud, but the platform it serves, CommunityHub, is simulated and every case is synthetic.",
+  },
+];
+
+const FOOTER = [
+  {
+    title: "Product",
+    links: [
+      ["How it works", "/rcs#how-it-works"],
+      ["Product tour", "/rcs#product"],
+      ["Features", "/rcs#features"],
+      ["Integration", "/rcs#integration"],
+      ["Security", "/rcs#security"],
+    ],
+  },
+  {
+    title: "Get started",
+    links: [
+      ["Set up your organisation", "/rcs/get-started"],
+      ["Client sign in", "/client/login"],
+      ["Staff sign in", "/staff/login"],
+      ["Demo flow guide", "/flow"],
+    ],
+  },
+  {
+    title: "For the public",
+    links: [
+      ["Report content", "/report"],
+      ["Check a case status", "/report/status"],
+      ["Contact us", "/report/contact"],
+    ],
+  },
+  {
+    title: "About",
+    links: [
+      ["The team", "/rcs#team"],
+      ["About this prototype", "/rcs#prototype"],
+      ["CommunityHub (simulated)", "/communityhub"],
+      ["FAQ", "/rcs#faq"],
+    ],
+  },
+] as const;
+
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("");
+}
+
+/**
+ * Marks the section crossing the middle of the screen in the header. Only the sections the header lists are watched,
+ * so nothing is marked while the hero or a section outside the nav is being read.
+ */
+function useActiveSection(): string | undefined {
+  const [active, setActive] = useState<string>();
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
+    const visible = new Set<string>();
+    const order = SITE_SECTIONS.map((s) => s.id as string);
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActive(visible[0].target.id);
+        entries.forEach((e) => (e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id)));
+        setActive(order.find((id) => visible.has(id)));
       },
-      { rootMargin: "-120px 0px -60% 0px" },
+      { rootMargin: "-45% 0px -50% 0px" },
     );
-    SECTIONS.forEach((s) => {
-      const el = document.getElementById(s.id);
+    order.forEach((id) => {
+      const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
@@ -104,705 +322,425 @@ function useActiveSection(): string {
 }
 
 /**
- * A picture of the product, built from real Carbon parts: one case moving
- * from a CommunityHub report to a delivered result. Decorative: it's inert
- * and has a single text description for assistive technology.
+ * The one section template every content section uses: a header block (eyebrow, H2, optional lede) on lg 10 of 16
+ * columns, then the content on the full 16 columns, starting on the same left edge, after the same gap (spacing-09).
+ * Inside the content, layouts are CSS grids, never nested Carbon columns, so nothing drifts off the shared edge.
  */
-function CaseJourneyPreview() {
-  const steps = [
-    { title: "Reported from CommunityHub", meta: "09:12", detail: "Video upload · post link attached" },
-    { title: "AI pre-screen complete", meta: "09:14", detail: <SeverityTag tier="S3" size="sm" /> },
-    { title: "Decided by a trained reviewer", meta: "09:41", detail: "Policy violation found" },
-    { title: "Result delivered to CommunityHub", meta: "09:41", detail: "200 OK · delivered once" },
-  ];
+function Section({
+  id,
+  eyebrow,
+  title,
+  lede,
+  tint = false,
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  lede?: ReactNode;
+  tint?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <Theme theme="white">
-      <figure
-        className="rcs-preview"
-        inert
-        role="img"
-        aria-label="Example case RCS-7Q3M-K91X: reported from CommunityHub, AI pre-screened as S3 High, decided by a trained reviewer, and the result delivered to CommunityHub."
-        style={{ margin: 0 }}
-      >
-        <div className="rcs-preview-bar">
-          <span className="rcs-mono" style={{ fontSize: 14 }}>
-            Case RCS-7Q3M-K91X
-          </span>
-          <Tag type="gray" size="sm" style={{ margin: 0 }}>
-            CommunityHub
-          </Tag>
-        </div>
-        <ol className="rcs-preview-steps">
-          {steps.map((step, i) => (
-            <li key={step.title}>
-              <span className={`rcs-preview-dot${i === steps.length - 1 ? "" : ""}`} aria-hidden="true" />
-              <span className="flex flex-col gap-1">
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{step.title}</span>
-                <span style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>{step.detail}</span>
-              </span>
-              <span className="rcs-mono" style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                {step.meta}
-              </span>
-            </li>
-          ))}
-        </ol>
-        <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-          29 minutes from report to delivered result. No footage or reviewer details leave RCS.
-        </p>
-      </figure>
-    </Theme>
+    <section id={id} className={`lp-section${tint ? " lp-section--tint" : ""}`} aria-labelledby={`${id}-title`}>
+      <Grid>
+        <Column sm={4} md={8} lg={10} className="lp-section-head">
+          <p className="lp-eyebrow">{eyebrow}</p>
+          <h2 id={`${id}-title`} className="lp-h2">
+            {title}
+          </h2>
+          {lede && <p className="lp-lede">{lede}</p>}
+        </Column>
+        <Column sm={4} md={8} lg={16} className="lp-section-body">
+          {children}
+        </Column>
+      </Grid>
+    </section>
   );
 }
 
 /**
- * The blur-to-reveal mechanic, felt rather than described: a harmless placeholder frame starts blurred behind a
- * content warning, as a reviewer sees a flagged case first. Unlike the other previews this one is interactive, so it
- * is a real button and not an inert picture; the illustration itself is decorative.
- */
-function BlurRevealDemo() {
-  const [revealed, setRevealed] = useState(false);
-  return (
-    <div className="rcs-preview rcs-reveal-card">
-      <div className="rcs-preview-bar">
-        <span style={{ fontSize: 14, fontWeight: 600 }}>What a reviewer sees first</span>
-      </div>
-      <div className="rcs-reveal-frame">
-        <svg
-          className={`rcs-reveal-image${revealed ? "" : " rcs-reveal-image--blurred"}`}
-          viewBox="0 0 400 225"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <rect width="400" height="225" fill="#a6c8ff" />
-          <circle cx="320" cy="55" r="30" fill="#ffd6a5" />
-          <path d="M0 160 160 90 240 150 320 110 400 170V225H0Z" fill="#4589ff" />
-          <path d="M0 190 120 140 260 185 400 150V225H0Z" fill="#0f62fe" />
-        </svg>
-        {!revealed && (
-          <div className="rcs-reveal-overlay">
-            <span className="rcs-reveal-tag">Content warning</span>
-            <p className="rcs-reveal-caption">Flagged for review. Nothing shows until you choose to proceed.</p>
-            <Button size="sm" onClick={() => setRevealed(true)}>
-              Proceed
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <p style={{ fontSize: 12, margin: 0, color: "var(--cds-text-secondary)" }}>
-          A harmless placeholder, not a real case. The same mechanic protects every reviewer, every time.
-        </p>
-        {revealed && (
-          <Button size="sm" kind="ghost" onClick={() => setRevealed(false)}>
-            Blur again
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function WorkspacePreview() {
-  return (
-    <figure
-      className="rcs-preview"
-      inert
-      role="img"
-      aria-label="Example reviewer screen: 62 of 120 minutes of today's exposure used, a content warning with the flag reason, and Request support and SOS options."
-      style={{ margin: 0 }}
-    >
-      <div className="rcs-preview-bar">
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Reviewer workspace</span>
-        <ExposureBar
-          surface="light"
-          width={150}
-          minutes={62}
-          limit={120}
-          label="62 / 120 min today"
-          ariaLabel="Example exposure"
-        />
-      </div>
-      <div className="flex flex-col gap-2" style={{ padding: "1rem", backgroundColor: "var(--cds-background)" }}>
-        <span style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>Content warning</span>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>This case was flagged for: graphic violence</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <SeverityTag tier="S3" size="sm" />
-          <Tag type="gray" size="sm" style={{ margin: 0 }}>
-            weapon_present
-          </Tag>
-        </div>
-        <span style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>Footage starts at maximum blur.</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" kind="secondary">
-          Proceed
-        </Button>
-        <Button size="sm" kind="secondary">
-          Decline
-        </Button>
-        <span style={{ flex: 1 }} />
-        <Button size="sm" kind="ghost">
-          Wellbeing check-in
-        </Button>
-        <Button size="sm" kind="danger">
-          SOS
-        </Button>
-      </div>
-    </figure>
-  );
-}
-
-function ReportPreview() {
-  return (
-    <figure
-      className="rcs-preview"
-      inert
-      role="img"
-      aria-label="Example service report for August: 39 cases completed, 21 policy violations found, median 1 hour 34 minutes from report to decision."
-      style={{ margin: 0 }}
-    >
-      <div className="rcs-preview-bar">
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Service report · August 2026</span>
-        <StatusTag kind="report" value="RELEASED" size="sm" />
-      </div>
-      <dl className="grid grid-cols-3 gap-4">
-        {[
-          ["Completed", "39"],
-          ["Violations", "21"],
-          ["Median time", "1 h 34 min"],
-        ].map(([label, value]) => (
-          <div key={label} className="flex flex-col gap-1">
-            <dt style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>{label}</dt>
-            <dd className="rcs-mono" style={{ fontSize: 20 }}>
-              {value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <SegmentedBar
-        label="Outcomes"
-        segments={[
-          { key: "v", label: "Violation", value: 21, color: "var(--cds-support-error)" },
-          { key: "n", label: "No violation", value: 18, color: "var(--cds-support-success)" },
-        ]}
-      />
-    </figure>
-  );
-}
-
-/**
- * RCS product site (B2B flow stage 1, "CommunityHub chooses RCS"), built to
- * read like an IBM product page: a sticky section bar, a hero with a picture
- * of the product, how it works, feature sections with previews, integration
- * code, reporting, an FAQ and a full footer. No pricing, billing or contracts
- * (B2B flow §17 scope fence). Anchors land below the fixed header.
+ * The Responsible Content Safety (RCS) product site, B2B flow stage 1: what a platform's trust-and-safety lead reads
+ * before deciding. Built around one sentence, the problem, and one interaction, the protected first look at a flagged
+ * case. Structure: hero, the cost of doing nothing, how it works, product tour, the team, outcomes, integration, trust
+ * and security, FAQ, closing call to action and footer. Proof is honest only: no customer logos, testimonials, pricing
+ * or invented metrics (B2B flow §17 scope fence).
  */
 export function RcsLandingPage() {
   const navigate = useNavigate();
   const active = useActiveSection();
 
   return (
-    <div className="rcs-site">
+    <div className="rcs-site lp">
       <MarketingHeader activeId={active} />
-      <main style={{ paddingTop: 48, backgroundColor: "var(--cds-background)" }}>
-        <Theme theme="g100">
-          <section
-            id="overview"
-            aria-labelledby="hero-title"
-            style={{ backgroundColor: "var(--cds-background)", paddingBlock: "5rem" }}
-          >
-            <Grid>
-              <Column sm={4} md={8} lg={8} className="flex flex-col gap-6">
-                <p className="rcs-eyebrow rcs-eyebrow--brand">
-                  <RcsMark size={18} />
-                  IBM Responsible Content Safety
-                </p>
-                <h1 id="hero-title" className="rcs-hero-title" style={{ maxInlineSize: "17ch" }}>
-                  Content moderation that protects the people who do it.
-                </h1>
-                {/* The problem, in the first thing anyone reads. */}
-                <p className="rcs-hero-problem">
-                  Every harmful-video report lands on a human. Nothing protects them.
-                </p>
-                <p className="rcs-hero-lede">
-                  RCS puts AI in front of every video and enforced limits around every reviewer. A trained person makes
-                  every decision, and the result returns to your platform.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
-                  <Button kind="secondary" onClick={() => navigate("/rcs#how-it-works")}>
-                    See how it works
-                  </Button>
-                </div>
-                <ul className="rcs-hero-facts">
-                  <li>No account needed for your users</li>
-                  <li>Results to your own endpoint</li>
-                  <li>You decide enforcement</li>
+      <main id="main-content" className="lp-main">
+        {/* 1. Hero: the problem first, the product name spelled out, and the protections to try. */}
+        <section id="top" className="lp-hero" aria-labelledby="hero-title">
+          <div className="lp-hero-wash" aria-hidden="true" />
+          <Grid className="lp-hero-grid">
+            <Column sm={4} md={8} lg={8} className="lp-hero-text">
+              <RcsLogo size={48} />
+              <h1 id="hero-title" className="lp-hero-title">
+                <span className="lp-hero-title-a">Every harmful-video report lands on a human.</span>{" "}
+                <span className="lp-hero-title-b">Nothing protects them.</span>
+              </h1>
+              <p className="lp-hero-why">
+                Moderators watch violence and abuse so no one else has to, and nothing in their tools limits how much
+                they see.
+              </p>
+              <p className="lp-hero-sub">
+                Responsible Content Safety (RCS) reviews the harmful video your users report, with protection for the
+                Reviewer built into every case. You get a clear, human decision back.
+              </p>
+              <div className="lp-hero-actions">
+                <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
+                <Button kind="tertiary" renderIcon={ArrowDown} onClick={() => navigate("/rcs#how-it-works")}>
+                  See how it works
+                </Button>
+              </div>
+              <div className="lp-hero-credit">
+                <ul className="lp-hero-faces" aria-hidden="true">
+                  {TEAM.map((m) => (
+                    <li key={m.name} style={{ backgroundImage: m.tile }}>
+                      {initialsOf(m.name)}
+                    </li>
+                  ))}
                 </ul>
-                <BlurRevealDemo />
+                <p>
+                  Built by <strong>RMIT Team 6, with IBM</strong>. An IBM × RMIT capstone prototype on synthetic data.{" "}
+                  <a className="cds--link" href="#team">
+                    Meet the team
+                  </a>
+                </p>
+              </div>
+            </Column>
+            <Column sm={4} md={8} lg={8} className="lp-hero-demo">
+              <BlurRevealDemo />
+            </Column>
+          </Grid>
+        </section>
+
+        {/* 2. The cost of doing nothing, for the person who has to answer for it. */}
+        <Section
+          id="problem"
+          eyebrow="Why it matters"
+          title="Moderation tools clear the queue. Nobody protects the person clearing it."
+          lede="If you run trust and safety, your Reviewers carry the harm your users report. Doing nothing asks them to absorb it without limit, with nothing to show for your duty of care. RCS makes that care part of the workflow."
+        >
+          <div className="lp-compare" role="table" aria-label="Today, and with RCS">
+            <div className="lp-compare-head" role="row">
+              <span role="columnheader">Today</span>
+              <span role="columnheader">With RCS</span>
+            </div>
+            {BEFORE_AFTER.map((row) => (
+              <div key={row.today} className="lp-compare-row" role="row">
+                <p role="cell" className="lp-compare-today">
+                  {row.today}
+                </p>
+                <p role="cell" className="lp-compare-rcs">
+                  {row.rcs}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* 3. How a report is handled. */}
+        <Section id="how-it-works" tint eyebrow="How it works" title="One report. Four steps. One human decision.">
+          <ol className="lp-steps">
+            <li className="lp-step">
+              <span className="lp-step-num">01</span>
+              <h3 className="lp-step-title">Your users report</h3>
+              <p className="lp-step-body">
+                Someone presses the report button on your platform and sends the video. No account needed. They get a
+                case ID to follow its progress.
+              </p>
+            </li>
+            <li className="lp-step">
+              <span className="lp-step-num">02</span>
+              <h3 className="lp-step-title">AI reads it first</h3>
+              <p className="lp-step-body">
+                It writes a short, safe summary, marks the flagged moments and rates severity from S1 to S4. It never
+                decides the outcome.
+              </p>
+            </li>
+            <Theme theme="g100" as="li" className="lp-step lp-step--decision">
+              <span className="lp-step-num">03</span>
+              <h3 className="lp-step-title">A trained Reviewer decides</h3>
+              <p className="lp-step-body">
+                They see what was flagged before choosing to proceed or decline, then review behind blur, within a daily
+                viewing limit, with support one click away. This is the step RCS is built around.
+              </p>
+            </Theme>
+            <li className="lp-step">
+              <span className="lp-step-num">04</span>
+              <h3 className="lp-step-title">You get the result</h3>
+              <p className="lp-step-body">
+                Your platform receives the outcome and final severity, and your team chooses the action. Footage and
+                Reviewer details never leave RCS.
+              </p>
+            </li>
+          </ol>
+          <div className="lp-example">
+            <ol className="lp-example-track" aria-label={`Example case ${EXAMPLE_CASE.id}`}>
+              {EXAMPLE_CASE.steps.map((step) => (
+                <li key={step.label}>
+                  <span className="lp-example-time">{step.time}</span>
+                  <span className="lp-example-label">{step.label}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="lp-example-caption">
+              One example case, {EXAMPLE_CASE.minutes} minutes from report to delivered result. Synthetic data.
+            </p>
+          </div>
+        </Section>
+
+        {/* 4. Product tour, one real screen per role. */}
+        <Section
+          id="product"
+          eyebrow="Product tour"
+          title="One service, three views."
+          lede="Each person sees what their role needs, and nothing more."
+        >
+          <ProductTour />
+        </Section>
+
+        {/* 5. The team: who built it, credited as Emily asked. */}
+        <Section
+          id="team"
+          tint
+          eyebrow="Meet the team"
+          title="Built by RMIT Team 6, with IBM."
+          lede="Five students, one semester, one question: what would content moderation look like if it were designed around the people who do it? Responsible Content Safety is our answer."
+        >
+          <ul className="lp-team">
+            {TEAM.map((member) => (
+              <TeamCard key={member.name} member={member} />
+            ))}
+          </ul>
+        </Section>
+
+        {/* 6. Features, grouped by the outcome they deliver. */}
+        <Section
+          id="features"
+          eyebrow="Our first design rule"
+          title="When speed and wellbeing conflict, wellbeing wins."
+          lede={
+            <>
+              Every protection is enforced by RCS on every case, so none depends on anyone&apos;s judgement in a hard
+              moment. Try the Reviewer&apos;s first look at a case in the{" "}
+              <a className="cds--link lp-inline-link" href="#top">
+                demo at the top of the page
+              </a>
+              .
+            </>
+          }
+        >
+          <FeatureGrid items={PROTECTIONS} columns={4} />
+          <FeatureGrid items={ACCOUNTABILITY} columns={2} />
+        </Section>
+
+        {/* 7. Integration: three steps, then the code and what a result contains. */}
+        <Section
+          id="integration"
+          tint
+          eyebrow="Integration"
+          title="A report button in. A short, structured result out."
+          lede="Two touchpoints connect your platform to RCS, and organisation set-up walks you through both."
+        >
+          <ol className="lp-int-steps">
+            {INTEGRATION_STEPS.map((step, i) => (
+              <li key={step.title} className="lp-int-step">
+                <span className="lp-int-num">{i + 1}</span>
+                <h3 className="lp-int-title">{step.title}</h3>
+                <p className="lp-int-body">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="lp-int-detail">
+            <div className="lp-int-code">
+              <Tabs>
+                <TabList aria-label="Integration code">
+                  <Tab>Results payload</Tab>
+                  <Tab>Report button</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel>
+                    <CodeSnippet type="multi" feedback="Copied" aria-label="Results payload example" maxCollapsedNumberOfRows={20}>
+                      {RESULT_PAYLOAD}
+                    </CodeSnippet>
+                  </TabPanel>
+                  <TabPanel>
+                    <CodeSnippet type="multi" feedback="Copied" aria-label="Report button snippet" maxCollapsedNumberOfRows={20}>
+                      {REPORT_BUTTON}
+                    </CodeSnippet>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </div>
+            <div className="lp-int-facts">
+              <h3 className="lp-int-facts-title">Every result contains</h3>
+              <ul className="lp-check-list">
+                {RESULT_CONTAINS.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <h3 className="lp-int-facts-title">and never contains</h3>
+              <ul className="lp-cross-list">
+                {RESULT_NEVER.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <p className="lp-int-facts-note">
+                A failed delivery is retried, up to {DELIVERY_ATTEMPTS} attempts, with the same delivery ID, so you never
+                process a result twice.
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* 8. Trust and security, and honest proof. */}
+        <Section id="security" eyebrow="Trust and security" title="What leaves RCS is a finding. Nothing else.">
+          <FeatureGrid items={SECURITY} columns={4} />
+          <div className="lp-stack-ibm">
+            <p className="lp-stack-ibm-label">Built with IBM, on IBM technology</p>
+            <ul>
+              {IBM_STACK.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </div>
+          <div id="prototype" className="lp-real" role="group" aria-labelledby="prototype-title">
+            <div className="lp-real-head">
+              <h3 id="prototype-title" className="lp-real-title">
+                About this prototype
+              </h3>
+              <RouterLink className="cds--link" to="/flow">
+                Walk the full flow in the demo guide
+              </RouterLink>
+            </div>
+            <dl className="lp-real-list">
+              <div>
+                <dt>Real</dt>
+                <dd>
+                  The Reviewer workspace, Manager dashboard, Client portal, AI pre-screen, wellbeing rules and result
+                  delivery run as working code on a real backend and database on IBM Cloud.
+                </dd>
+              </div>
+              <div>
+                <dt>Simulated pilot</dt>
+                <dd>
+                  CommunityHub, a simulated platform like Reddit, is our pilot Client: a feed, a report button on every
+                  post and a moderation queue that receives RCS results. A student project can&apos;t get live API
+                  access to a real platform.
+                </dd>
+              </div>
+              <div>
+                <dt>Synthetic</dt>
+                <dd>
+                  Every case, person, video and report is invented. No real footage and no real people appear anywhere.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </Section>
+
+        {/* 9. Questions platforms ask. */}
+        <Section id="faq" tint eyebrow="FAQ" title="Questions platforms ask">
+          <Accordion size="lg" className="lp-faq">
+            {FAQ.map((item, i) => (
+              <AccordionItem key={item.q} title={item.q} open={i === 0}>
+                <p className="lp-faq-answer">{item.a}</p>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </Section>
+
+        {/* 10. One dark close: the call to action and the footer. */}
+        <Theme theme="g100" className="lp-close">
+          <div className="lp-close-rule" aria-hidden="true" />
+          <section className="lp-cta" aria-labelledby="cta-title">
+            <Grid>
+              <Column sm={4} md={5} lg={10} className="lp-section-head">
+                <h2 id="cta-title" className="lp-h2">
+                  Protect the people who review your reports.
+                </h2>
+                <p className="lp-lede">Set up your organisation, connect where results go and add the report button.</p>
               </Column>
-              <Column sm={4} md={8} lg={{ span: 7, offset: 9 }} className="mt-10 lg:mt-0 flex items-center">
-                <div style={{ inlineSize: "100%" }}>
-                  <CaseJourneyPreview />
-                </div>
+              <Column sm={4} md={3} lg={6} className="lp-cta-actions">
+                <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
+                <RouterLink className="cds--link" to="/flow">
+                  Open the demo guide
+                </RouterLink>
               </Column>
             </Grid>
           </section>
-        </Theme>
 
-        <section id="problem" className="rcs-site-section" aria-labelledby="problem-title">
-          <Grid>
-            <Column sm={4} md={8} lg={10} className="flex flex-col gap-4">
-              <p className="rcs-eyebrow">The problem</p>
-              <h2 id="problem-title" className="rcs-site-h2">
-                The people who review harmful videos are exposed to them again and again.
-              </h2>
-              <p className="rcs-site-lede">
-                Reviewers watch footage of abuse and violence as a core part of the job, and the tools they use have no
-                built-in way to limit how much they see or to protect their wellbeing while they work. Moderation
-                products are built to clear a queue. The person clearing it is left out of the design.
-              </p>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 5, offset: 12 }} className="mt-6 lg:mt-0">
-              <p className="rcs-eyebrow">What RCS changes</p>
-              <ul className="rcs-problem-list">
-                <li>AI reads each video first, so a reviewer starts from a summary, not raw footage.</li>
-                <li>Exposure limits and cooldowns are enforced by the system, not left to willpower.</li>
-                <li>One press of SOS brings in a manager. Wellbeing always comes before speed.</li>
-              </ul>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          aria-label="Technology"
-          style={{ paddingBlock: "2rem", borderBlockEnd: "1px solid var(--cds-border-subtle-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={16}>
-              <dl className="rcs-builton">
-                <dt>Built on IBM technology</dt>
-                {[
-                  "watsonx.ai",
-                  "Watson Speech to Text",
-                  "watsonx Orchestrate",
-                  "IBM Cloud Code Engine",
-                  "IBM Cloud Object Storage",
-                ].map((name) => (
-                  <dd key={name}>{name}</dd>
-                ))}
-              </dl>
-            </Column>
-          </Grid>
-        </section>
-
-        <section id="how-it-works" className="rcs-site-section" aria-labelledby="how-title">
-          <Grid>
-            <Column sm={4} md={8} lg={10} className="flex flex-col gap-4">
-              <p className="rcs-eyebrow">How it works</p>
-              <h2 id="how-title" className="rcs-site-h2">
-                From a report on your platform to a decision you can act on
-              </h2>
-              <p className="rcs-site-lede">
-                Your users report harmful video with your own report button. RCS handles review end to end and sends you
-                a structured result for every case.
-              </p>
-            </Column>
-            <Column sm={4} md={8} lg={16} className="mt-12">
-              <ol className="rcs-rail">
-                {[
-                  [
-                    "Your users report",
-                    "Your report button opens RCS with the post attached. People upload the video, can stay anonymous, and get a case ID.",
-                  ],
-                  [
-                    "AI pre-screens",
-                    "Each video is analysed first: severity, a safe written summary and a timeline of flagged moments, before anyone sees it.",
-                  ],
-                  [
-                    "A person decides",
-                    "A trained reviewer makes the final call, with warnings, blur and exposure limits. The AI never decides.",
-                  ],
-                  [
-                    "You get the result",
-                    "The outcome and final severity arrive at your endpoint automatically. Your team decides what action to take.",
-                  ],
-                ].map(([title, body], i) => (
-                  <li key={title} className="rcs-rail-step">
-                    <span className="rcs-rail-node" aria-hidden="true">
-                      {i + 1}
-                    </span>
-                    <h3 className="rcs-rail-title">{title}</h3>
-                    <p className="rcs-body" style={{ color: "var(--cds-text-secondary)" }}>
-                      {body}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          id="wellbeing"
-          className="rcs-site-section"
-          aria-labelledby="wellbeing-title"
-          style={{ backgroundColor: "var(--cds-layer-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={7} className="flex flex-col gap-6">
-              <p className="rcs-eyebrow">Reviewer wellbeing</p>
-              <h2 id="wellbeing-title" className="rcs-site-h2">
-                Protection is built into the workflow, not left to willpower
-              </h2>
-              <p className="rcs-site-lede">
-                Wellbeing always comes before moderation speed. These protections are enforced by the system for every
-                reviewer, on every case.
-              </p>
-              <ul className="rcs-site-list">
-                <li>Viewing time is measured; at the daily limit, no more cases are assigned that day.</li>
-                <li>Reviewers see what was flagged before choosing to proceed, and can always decline.</li>
-                <li>Footage starts blurred; grayscale and mute are one click away.</li>
-                <li>Cooldowns follow high-severity cases. Support is a request away; SOS stops everything.</li>
-              </ul>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 8, offset: 8 }} className="mt-10 lg:mt-0">
-              <WorkspacePreview />
-            </Column>
-          </Grid>
-        </section>
-
-        <section id="integration" className="rcs-site-section" aria-labelledby="integration-title">
-          <Grid>
-            <Column sm={4} md={8} lg={8} className="order-2 mt-10 lg:order-1 lg:mt-0">
-              <div className="rcs-preview" style={{ padding: 0, boxShadow: "none" }}>
-                <Tabs>
-                  <TabList aria-label="Integration examples">
-                    <Tab>Report button</Tab>
-                    <Tab>Results webhook</Tab>
-                  </TabList>
-                  <TabPanels>
-                    <TabPanel>
-                      <CodeSnippet type="multi" feedback="Copied" aria-label="Report button snippet" wrapText>
-                        {REPORT_BUTTON}
-                      </CodeSnippet>
-                    </TabPanel>
-                    <TabPanel>
-                      <CodeSnippet type="multi" feedback="Copied" aria-label="Results webhook example" wrapText>
-                        {WEBHOOK}
-                      </CodeSnippet>
-                    </TabPanel>
-                  </TabPanels>
-                </Tabs>
-              </div>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 7, offset: 9 }} className="order-1 flex flex-col gap-6 lg:order-2">
-              <p className="rcs-eyebrow">Integration</p>
-              <h2 id="integration-title" className="rcs-site-h2">
-                A report button in, a structured result out
-              </h2>
-              <p className="rcs-site-lede">
-                Two touchpoints, both small. Put the report button on your posts, and give RCS an endpoint for results.
-              </p>
-              <ul className="rcs-site-list">
-                <li>Results are facts only: outcome, final severity, timestamps and the post link.</li>
-                <li>Signed, retried automatically, and never sent twice for the same case.</li>
-                <li>{RESPONSIBILITY_BOUNDARY}</li>
-              </ul>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          id="reporting"
-          className="rcs-site-section"
-          aria-labelledby="reporting-title"
-          style={{ backgroundColor: "var(--cds-layer-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={7} className="flex flex-col gap-6">
-              <p className="rcs-eyebrow">Reporting</p>
-              <h2 id="reporting-title" className="rcs-site-h2">
-                Service reports your team can trust
-              </h2>
-              <p className="rcs-site-lede">
-                Period reports on volumes, outcomes, timeliness and delivery, calculated from completed cases and
-                reviewed by an RCS manager before your team can see them.
-              </p>
-              <ul className="rcs-site-list">
-                <li>Signed-in access for your authorised users, scoped to your organisation.</li>
-                <li>View in the browser or download as PDF. Every access is logged.</li>
-                <li>Aggregate only: never reviewer wellbeing, SOS details or footage.</li>
-              </ul>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 8, offset: 8 }} className="mt-10 lg:mt-0">
-              <ReportPreview />
-            </Column>
-          </Grid>
-        </section>
-
-        <section className="rcs-site-section" aria-label="RCS in numbers">
-          <Grid>
-            <Column sm={4} md={8} lg={16}>
-              <p className="rcs-eyebrow" style={{ marginBlockEnd: "1.5rem" }}>
-                RCS in numbers
-              </p>
-              <dl className="rcs-stat-band">
-                {[
-                  ["100%", "Decisions made by a trained person", "The AI never decides an outcome."],
-                  ["120 min", "Daily viewing limit per reviewer", "Enforced by the system, not by willpower."],
-                  ["3", "Delivery attempts, then a human", "A result never quietly fails to arrive."],
-                  ["0", "Wellbeing details in a Client report", "Reports are aggregate facts only."],
-                ].map(([value, label, detail]) => (
-                  <div key={label}>
-                    <dt>{value}</dt>
-                    <dd>
-                      <span className="rcs-stat-label">{label}</span>
-                      <span className="rcs-stat-detail">{detail}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          id="team"
-          className="rcs-site-section"
-          aria-labelledby="team-title"
-          style={{ backgroundColor: "var(--cds-layer-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={10} className="flex flex-col gap-4">
-              <p className="rcs-eyebrow">Meet the team</p>
-              <h2 id="team-title" className="rcs-site-h2">
-                Built by RMIT Team 2, with IBM.
-              </h2>
-              <p className="rcs-site-lede">
-                Five students, one semester, one question: what would content moderation look like if it were designed
-                around the people who do it? RCS is our answer.
-              </p>
-            </Column>
-            <Column sm={4} md={8} lg={16} className="mt-10">
-              <ul className="rcs-team">
-                {TEAM.map((member) => (
-                  <TeamCard key={member.name} member={member} />
-                ))}
-              </ul>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          id="faq"
-          className="rcs-site-section"
-          aria-labelledby="faq-title"
-          style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={5} className="flex flex-col gap-4">
-              <p className="rcs-eyebrow">FAQ</p>
-              <h2 id="faq-title" className="rcs-site-h2">
-                Questions platforms ask
-              </h2>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 10, offset: 6 }} className="mt-8 lg:mt-0">
-              <Accordion size="lg">
-                <AccordionItem title="Who decides what happens to the content?">
-                  <p className="rcs-body">
-                    {RESPONSIBILITY_BOUNDARY} RCS tells you whether a policy violation was found and how severe it is;
-                    any removal or account action is your team&apos;s call.
-                  </p>
-                </AccordionItem>
-                <AccordionItem title="Does the AI make decisions?">
-                  <p className="rcs-body">
-                    No. The AI pre-screens each video so reviewers know what to expect, but a trained person makes every
-                    final decision and can change the AI&apos;s severity.
-                  </p>
-                </AccordionItem>
-                <AccordionItem title="What do you send back to us?">
-                  <p className="rcs-body">
-                    A small structured result per case: delivery ID, case ID, outcome, final severity, completion time
-                    and the post link if one was given. No footage, narrative or reviewer details.
-                  </p>
-                </AccordionItem>
-                <AccordionItem title="How are reviewers protected?">
-                  <p className="rcs-body">
-                    Daily exposure limits, content warnings with the right to decline, blur by default, cooldowns after
-                    high-severity cases, a support request, and an SOS that stops review and alerts a manager.
-                  </p>
-                </AccordionItem>
-                <AccordionItem title="What if our endpoint is down?">
-                  <p className="rcs-body">
-                    RCS retries automatically with the same delivery ID, so you never process a result twice. If it
-                    still can&apos;t deliver, an RCS manager follows up with your integration contact.
-                  </p>
-                </AccordionItem>
-              </Accordion>
-            </Column>
-          </Grid>
-        </section>
-
-        <section
-          id="prototype"
-          className="rcs-site-section"
-          aria-labelledby="prototype-title"
-          style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}
-        >
-          <Grid>
-            <Column sm={4} md={8} lg={6} className="flex flex-col gap-4">
-              <p className="rcs-eyebrow">About this prototype</p>
-              <h2 id="prototype-title" className="rcs-site-h2">
-                What is real, and what is simulated
-              </h2>
-            </Column>
-            <Column sm={4} md={8} lg={{ span: 9, offset: 7 }} className="mt-8 lg:mt-0">
-              <dl className="rcs-disclosure">
-                <div>
-                  <dt>CommunityHub is a simulation</dt>
-                  <dd>
-                    CommunityHub is a stand-in for a real social platform such as Reddit. We could not get API access to
-                    a live platform for a student project, so we built a faithful simulation of one: a feed, a report
-                    button on every post, and a moderation queue that receives our results. Everything RCS does on its
-                    side of that boundary is real.
-                  </dd>
-                </div>
-                <div>
-                  <dt>The RCS product is real software</dt>
-                  <dd>
-                    The reviewer workspace, manager dashboard, Client portal, AI pre-screen, wellbeing rules and result
-                    delivery all run as working code against a real backend and database.
-                  </dd>
-                </div>
-                <div>
-                  <dt>All data is synthetic</dt>
-                  <dd>
-                    Every case, person, video and report is invented for this prototype. No real footage, no real
-                    reports and no real people appear anywhere in it.
-                  </dd>
-                </div>
-              </dl>
-            </Column>
-          </Grid>
-        </section>
-
-        {/* One continuous dark block to close the page: the call to action and the footer, not two theme switches. */}
-        <Theme theme="g100">
-          <div style={{ backgroundColor: "var(--cds-background)" }}>
-            <section aria-labelledby="cta-title" style={{ paddingBlock: "4rem" }}>
-              <Grid>
-                <Column sm={4} md={6} lg={10} className="flex flex-col gap-4">
-                  <h2 id="cta-title" className="rcs-site-h2">
-                    Bring RCS to your platform
-                  </h2>
-                  <p className="rcs-hero-lede">
-                    Set up your organisation, connect where results should go and add the report button.
-                  </p>
+          <footer className="lp-footer">
+            <Grid>
+              <Column sm={4} md={8} lg={4} className="lp-footer-brand">
+                <RcsLogo size={36} variant="onDark" tagline />
+                <p>Safer content. Healthier people. Stronger communities.</p>
+              </Column>
+              {FOOTER.map((col) => (
+                <Column key={col.title} sm={2} md={2} lg={3} className="lp-footer-col">
+                  <h2 className="lp-footer-heading">{col.title}</h2>
+                  <ul>
+                    {col.links.map(([label, to]) => (
+                      <li key={label}>
+                        <RouterLink className="cds--link" to={to}>
+                          {label}
+                        </RouterLink>
+                      </li>
+                    ))}
+                  </ul>
                 </Column>
-                <Column sm={4} md={2} lg={6} className="mt-6 flex items-end lg:mt-0 lg:justify-end">
-                  <Button kind="secondary" onClick={() => navigate("/rcs/get-started")}>
-                    Get started
-                  </Button>
-                </Column>
-              </Grid>
-            </section>
-
-            <footer className="rcs-site-footer">
-              <Grid>
-                {[
-                  {
-                    title: "Product",
-                    links: [
-                      ["How it works", "/rcs#how-it-works"],
-                      ["Reviewer wellbeing", "/rcs#wellbeing"],
-                      ["Integration", "/rcs#integration"],
-                      ["Reporting", "/rcs#reporting"],
-                    ],
-                  },
-                  {
-                    title: "Get started",
-                    links: [
-                      ["Set up your organisation", "/rcs/get-started"],
-                      ["Client sign in", "/client/login"],
-                      ["Staff sign in", "/staff/login"],
-                    ],
-                  },
-                  {
-                    title: "For the public",
-                    links: [
-                      ["Report content", "/report"],
-                      ["Check a case status", "/report/status"],
-                    ],
-                  },
-                  {
-                    title: "This prototype",
-                    links: [
-                      ["What is simulated", "/rcs#prototype"],
-                      ["CommunityHub (simulated)", "/communityhub"],
-                      ["Demo flow guide", "/flow"],
-                    ],
-                  },
-                ].map((col) => (
-                  <Column key={col.title} sm={2} md={2} lg={4} className="mb-8">
-                    <h2>{col.title}</h2>
-                    <ul>
-                      {col.links.map(([label, to]) => (
-                        <li key={label}>
-                          <RouterLink className="cds--link" to={to}>
-                            {label}
-                          </RouterLink>
-                        </li>
-                      ))}
-                    </ul>
-                  </Column>
-                ))}
-                <Column sm={4} md={8} lg={16}>
-                  <p
-                    className="flex flex-wrap items-center gap-3"
-                    style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}
-                  >
-                    <RcsMark size={20} />
-                    IBM × RMIT capstone prototype. CommunityHub is a simulated platform. Synthetic data only: no real
-                    organisations, people or footage.
-                  </p>
-                </Column>
-              </Grid>
-            </footer>
-          </div>
+              ))}
+              <Column sm={4} md={8} lg={16} className="lp-footer-legal">
+                <p>
+                  Responsible Content Safety (RCS) is an IBM × RMIT capstone prototype by RMIT Team 6, with IBM.
+                  CommunityHub is simulated. Synthetic data only: no real organisations, people or footage.
+                </p>
+                <p>© 2026 RMIT Team 6</p>
+              </Column>
+            </Grid>
+          </footer>
         </Theme>
       </main>
     </div>
   );
 }
 
-/** One person: their photo if one has been added, their initials if not, then what they did on RCS. */
+/** Equal-height feature tiles: one Carbon icon (24, brand deep purple), a heading-03 title and one short paragraph. */
+function FeatureGrid({ items, columns }: { items: { icon: Icon; title: string; body: string }[]; columns: 2 | 4 }) {
+  return (
+    <ul className={`lp-features lp-features--${columns}`}>
+      {items.map(({ icon: ItemIcon, title, body }) => (
+        <li key={title} className="lp-feature">
+          <ItemIcon size={24} aria-hidden />
+          <h3 className="lp-feature-title">{title}</h3>
+          <p className="lp-feature-body">{body}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** One person: their photo if one has been added, their initials on a brand tile if not, then what they did. */
 function TeamCard({ member }: { member: (typeof TEAM)[number] }) {
   const [photoFailed, setPhotoFailed] = useState(false);
-  const initials = member.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("");
   return (
-    <li className="rcs-team-card">
-      {photoFailed ? (
-        <span className="rcs-team-photo rcs-team-photo--initials" aria-hidden="true">
-          {initials}
-        </span>
-      ) : (
-        <img
-          className="rcs-team-photo"
-          src={member.photo}
-          alt={member.name}
-          width={120}
-          height={120}
-          loading="lazy"
-          onError={() => setPhotoFailed(true)}
-        />
-      )}
-      <span className="rcs-team-name">{member.name}</span>
-      <span className="rcs-team-role">{member.role}</span>
-      <span className="rcs-team-did">{member.did}</span>
+    <li className="lp-member">
+      <div className="lp-member-photo" style={{ backgroundImage: member.tile }}>
+        <span aria-hidden="true">{initialsOf(member.name)}</span>
+        {!photoFailed && (
+          <img src={member.photo} alt={member.name} loading="lazy" onError={() => setPhotoFailed(true)} />
+        )}
+      </div>
+      <h3 className="lp-member-name">{member.name}</h3>
+      <p className="lp-member-role">{member.role}</p>
+      <p className="lp-member-did">{member.did}</p>
     </li>
   );
 }

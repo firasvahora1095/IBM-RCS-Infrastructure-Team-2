@@ -1,40 +1,63 @@
-import { Button, Header, HeaderGlobalBar, HeaderMenuItem, HeaderName, HeaderNavigation, Theme } from "@carbon/react";
+import { useState } from "react";
+import {
+  Button,
+  Header,
+  HeaderGlobalBar,
+  HeaderMenu,
+  HeaderMenuButton,
+  HeaderMenuItem,
+  HeaderName,
+  HeaderNavigation,
+  HeaderSideNavItems,
+  SideNav,
+  SideNavItems,
+  SideNavLink,
+  SkipToContent,
+  Theme,
+} from "@carbon/react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { RcsMark } from "../brand/RcsMark";
+import { RcsLogo } from "../brand/RcsMark";
 
-/** The sections of the product site, in page order. The landing page marks the one being read. */
+/** The sections of the product site a visitor chooses between, in page order. */
 export const SITE_SECTIONS = [
-  { id: "problem", label: "The problem" },
   { id: "how-it-works", label: "How it works" },
-  { id: "wellbeing", label: "Wellbeing" },
-  { id: "integration", label: "Integration" },
-  { id: "team", label: "Meet the team" },
+  { id: "product", label: "Product" },
+  { id: "team", label: "The team" },
+  { id: "security", label: "Security" },
   { id: "faq", label: "FAQ" },
 ] as const;
 
+const SIGN_INS = [
+  { to: "/client/login", label: "Client sign in" },
+  { to: "/staff/login", label: "Staff sign in" },
+] as const;
+
 /**
- * Header for the RCS product site (landing and organisation set-up, B2B flow
- * stages 1–2). The same g100 Carbon UI Shell as every other header in the
- * app. Section links are router links, so they scroll within the page
- * instead of reloading it; the two sign-in doors sit on the right.
+ * Header for the RCS product site (landing, organisation set-up, demo guide). A white Carbon UI Shell so the gradient
+ * logo sits on the surface it was designed for; the app shells inside the product stay dark.
  *
- * This is the site's only navigation. The landing page used to repeat these same links in a second sticky bar
- * underneath, which gave the page two rows of nav saying the same thing; `activeId` lets the landing page mark the
- * section being read here instead.
+ * Five section links: the hero is the problem, and the rest of the story is reached from the page. Both sign-ins live in one "Sign in" menu so the bar has a single link style and one primary action. Below
+ * 1056px Carbon hides the navigation, so a menu button opens the same links, both sign-ins and the action in a side nav.
  */
 export function MarketingHeader({ activeId }: { activeId?: string } = {}) {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = () => setMenuOpen(false);
+
   return (
-    <Theme theme="g100">
-      <Header aria-label="IBM Responsible Content Safety">
-        {/* The mark sits with the name, so the product is recognisable at a glance on every page of the site. */}
-        <span className="flex items-center pl-4" aria-hidden="true">
-          <RcsMark size={24} />
-        </span>
-        <HeaderName as={RouterLink} to="/rcs" prefix="IBM" style={{ paddingInlineStart: "0.5rem" }}>
-          Responsible Content Safety
+    <Theme theme="white">
+      <Header aria-label="Responsible Content Safety (RCS)" className="rcs-site-header">
+        <SkipToContent href="#main-content" />
+        <HeaderMenuButton
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          isActive={menuOpen}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        />
+        <HeaderName as={RouterLink} to="/rcs" prefix="" aria-label="Responsible Content Safety (RCS) home">
+          <RcsLogo size={28} name={false} />
         </HeaderName>
-        <HeaderNavigation aria-label="RCS" className="rcs-site-nav">
+        <HeaderNavigation aria-label="RCS">
           {SITE_SECTIONS.map((section) => (
             <HeaderMenuItem
               key={section.id}
@@ -47,24 +70,39 @@ export function MarketingHeader({ activeId }: { activeId?: string } = {}) {
             </HeaderMenuItem>
           ))}
         </HeaderNavigation>
-        <HeaderGlobalBar className="min-w-0 items-center gap-4 pr-4 sm:gap-6 sm:pr-6">
-          <RouterLink
-            to="/client/login"
-            className="hidden min-[1200px]:inline"
-            style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
-          >
-            Client sign in
-          </RouterLink>
-          <RouterLink
-            to="/staff/login"
-            style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
-          >
-            Staff sign in
-          </RouterLink>
-          <Button size="sm" onClick={() => navigate("/rcs/get-started")}>
+        <HeaderGlobalBar className="items-center">
+          <HeaderNavigation aria-label="Sign in" className="rcs-site-signin">
+            <HeaderMenu aria-label="Sign in" menuLinkName="Sign in">
+              {SIGN_INS.map((s) => (
+                <HeaderMenuItem key={s.to} as={RouterLink} to={s.to}>
+                  {s.label}
+                </HeaderMenuItem>
+              ))}
+            </HeaderMenu>
+          </HeaderNavigation>
+          <Button size="sm" className="rcs-site-header-cta" onClick={() => navigate("/rcs/get-started")}>
             Get started
           </Button>
         </HeaderGlobalBar>
+        <SideNav aria-label="Site menu" expanded={menuOpen} isPersistent={false} onOverlayClick={close}>
+          <SideNavItems>
+            <HeaderSideNavItems>
+              {SITE_SECTIONS.map((section) => (
+                <SideNavLink key={section.id} as={RouterLink} to={`/rcs#${section.id}`} onClick={close}>
+                  {section.label}
+                </SideNavLink>
+              ))}
+              {SIGN_INS.map((s) => (
+                <SideNavLink key={s.to} as={RouterLink} to={s.to} onClick={close}>
+                  {s.label}
+                </SideNavLink>
+              ))}
+              <SideNavLink as={RouterLink} to="/rcs/get-started" onClick={close}>
+                Get started
+              </SideNavLink>
+            </HeaderSideNavItems>
+          </SideNavItems>
+        </SideNav>
       </Header>
     </Theme>
   );

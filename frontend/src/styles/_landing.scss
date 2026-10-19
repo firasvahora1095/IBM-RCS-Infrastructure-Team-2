@@ -28,14 +28,1194 @@
   flex-direction: column;
   line-height: 1;
 }
+.rcs-logo-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+.rcs-logo--inline .rcs-logo-line {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
 .rcs-logo-word {
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+.rcs-logo-name {
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.rcs-logo--stacked .rcs-logo-name {
+  margin-block-start: 0.15em;
+}
+// Beside the wordmark in the header, after a hairline; dropped on narrow screens, where the side nav carries it.
+.rcs-logo--inline .rcs-logo-name {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(md) {
+    display: none;
+  }
+}
+// The tagline is spaced capitals in grey: visibly a slogan, not the expansion of RCS.
 .rcs-logo-tagline {
-  margin-block-start: 0.35em;
+  margin-block-start: 0.6em;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+// ---- Header (white UI Shell on the product site) ----
+.rcs-site-header {
+  .cds--header__name {
+    padding-inline: 1rem 1.5rem;
+  }
+  // The "Sign in" menu sits in the global bar; it needs no divider of its own.
+  .rcs-site-signin {
+    padding-inline-start: 0;
+    &::before {
+      display: none;
+    }
+  }
+  .rcs-site-header-cta {
+    margin-inline: 0.5rem 1rem;
+    @include breakpoint.breakpoint-down(md) {
+      display: none;
+    }
+  }
+}
+
+// ---- Page frame ----
+.lp {
+  background-color: var(--cds-background);
+}
+.lp-main {
+  padding-block-start: 3rem; // under the fixed 48px header
+}
+.lp-section {
+  padding-block: 6rem;
+  @include breakpoint.breakpoint-down(lg) {
+    padding-block: 4rem;
+  }
+}
+.lp-section--tint {
+  background-color: var(--cds-layer-01);
+}
+.lp-eyebrow {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rcs-brand-purple-deep); // 6.4:1 on white, 5.9:1 on Gray 10
+}
+.lp-h2 {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--cds-text-primary);
+  max-inline-size: 22ch;
+}
+.lp-lede {
+  @include type.type-style("body-02");
+  max-inline-size: 40rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 1. Hero ----
+.lp-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: 3.5rem 4rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(lg) {
+    padding-block: 2.5rem 3rem;
+  }
+}
+// The logo colours as a faint wash behind the hero. Text never sits on a saturated part of it.
+.lp-hero-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 26rem at 88% 18%, rgba(143, 124, 255, 0.16), transparent 70%),
+    radial-gradient(34rem 22rem at 72% 92%, rgba(111, 216, 201, 0.16), transparent 70%);
+}
+// Top-aligned: the demo card grows when its controls appear, and the headline must not move when it does.
+.lp-hero-grid {
+  position: relative;
+  align-items: start;
+}
+.lp-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.lp-hero-title {
+  @include type.type-style("fluid-heading-05", true);
+  letter-spacing: -0.015em;
+  color: var(--cds-text-primary);
+  max-inline-size: 18ch;
+}
+.lp-hero-title-a {
+  font-weight: 300;
+}
+.lp-hero-title-b {
+  display: block;
+  font-weight: 600;
+}
+// Why it matters: one line, in the primary text colour so it reads as part of the statement.
+.lp-hero-why {
+  @include type.type-style("fluid-heading-03", true);
+  font-weight: 400;
+  max-inline-size: 30ch;
+  color: var(--cds-text-primary);
+}
+.lp-hero-sub {
+  @include type.type-style("body-02");
+  max-inline-size: 36rem;
+  color: var(--cds-text-secondary);
+}
+.lp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+// Who built it, in the first viewport: the five team tiles in small, and a link to the team.
+.lp-hero-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  p {
+    @include type.type-style("body-compact-01");
+    max-inline-size: 34rem;
+    color: var(--cds-text-secondary);
+  }
+  strong {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+  }
+}
+.lp-hero-faces {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    margin-inline-start: -0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #ffffff; // 5:1 or better on every tile gradient
+    border: 2px solid var(--cds-background);
+    border-radius: 50%;
+    &:first-child {
+      margin-inline-start: 0;
+    }
+  }
+}
+.lp-hero-demo {
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 2.5rem;
+  }
+}
+
+// ---- Blur-to-reveal card ----
+// Carbon's Theme wrapper paints the theme background; only the card itself should be dark.
+.rcs-reveal-theme {
+  background-color: transparent;
+}
+.rcs-reveal {
+  display: flex;
+  flex-direction: column;
+  max-inline-size: 36rem;
+  margin-inline-start: auto;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-background);
+  box-shadow: 0 12px 40px rgba(13, 22, 51, 0.28);
+  @include breakpoint.breakpoint-down(lg) {
+    margin-inline: 0;
+    max-inline-size: none;
+  }
+}
+.rcs-reveal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-reveal-title {
+  @include type.type-style("heading-compact-01");
+}
+.rcs-reveal-case {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.rcs-reveal-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background-color: #262626;
+}
+.rcs-reveal-art {
+  position: absolute;
+  inset: -8%; // larger than the frame so the blur never shows a soft edge
+  inline-size: 116%;
+  block-size: 116%;
+  transition: filter motion.$duration-moderate-01 motion.motion(standard, productive);
+}
+.rcs-reveal-time,
+.rcs-reveal-sample {
+  position: absolute;
+  inset-block-end: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+  background-color: rgba(22, 22, 22, 0.8); // white text on this: 15:1
+}
+.rcs-reveal-time {
+  inset-inline-end: 0.75rem;
+  font-family: "IBM Plex Mono", monospace;
+}
+.rcs-reveal-sample {
+  inset-inline-start: 0.75rem;
+}
+.rcs-reveal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem 2rem;
+  // Light enough that the blurred colour behind still reads as a picture; worst case (the palest sky) white text is
+  // 10:1 and the Gray 20 copy 7.9:1 on the blend.
+  background-color: rgba(22, 22, 22, 0.72);
+}
+// Carbon Red 60 with white: 5.0:1 (the theme error red was 3.35:1 and failed at this size).
+.rcs-reveal-tag {
+  @include type.type-style("label-01");
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  color: var(--rcs-tag-error-fg);
+  background-color: var(--rcs-tag-error-bg);
+}
+.rcs-reveal-lead {
+  @include type.type-style("heading-03");
+  max-inline-size: 40ch;
+  color: #ffffff;
+}
+.rcs-reveal-copy {
+  @include type.type-style("body-01");
+  max-inline-size: 34ch;
+  color: #e0e0e0;
+}
+.rcs-reveal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+.rcs-reveal-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  .cds--slider-container,
+  .cds--slider {
+    inline-size: 100%;
+    max-inline-size: none;
+  }
+}
+.rcs-reveal-controls-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rcs-reveal-art {
+    transition: none;
+  }
+}
+
+// ---- 2. How a report is handled ----
+.lp-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    // The decision is the point of the product, so its step is wider.
+    grid-template-columns: 1fr 1fr 1.45fr 1fr;
+  }
+}
+.lp-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem 2.5rem;
+  background-color: var(--cds-background);
+  &::before {
+    // brand hairline, decorative
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 3px;
+    background: var(--rcs-brand-gradient);
+  }
+}
+.lp-step--decision {
+  background-color: var(--cds-background);
+  color: var(--cds-text-primary);
+}
+.lp-step-num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+.lp-step-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-step-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.lp-step--decision .lp-step-title {
+  @include type.type-style("heading-04");
+}
+
+// Example case strip
+.lp-example-track {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+  li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-inline-start: 1.25rem;
+    @include breakpoint.breakpoint(md) {
+      padding-block-start: 1.25rem;
+      padding-inline: 0 1rem;
+      border-block-start: 1px solid var(--cds-border-strong-01);
+    }
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-start: 0.4rem;
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      border-radius: 50%;
+      background-color: var(--cds-interactive);
+      @include breakpoint.breakpoint(md) {
+        inset-block-start: -0.3125rem;
+        inline-size: 0.625rem;
+        block-size: 0.625rem;
+      }
+    }
+  }
+}
+.lp-example-time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-primary);
+}
+.lp-example-label {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+}
+.lp-example-caption {
+  @include type.type-style("helper-text-01");
+  margin-block-start: 1.25rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 4. Team ----
+.lp-team {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 2rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @media (min-width: 30rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.lp-member {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.lp-member-photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: 4 / 3;
+  margin-block-end: 1rem;
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+  span {
+    @include type.type-style("fluid-heading-05", true);
+    font-weight: 600;
+    color: #ffffff; // both gradient stops carry white at 5:1 or better
+  }
+  img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+.lp-member-name {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-member-role {
+  @include type.type-style("body-compact-01");
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+}
+.lp-member-did {
+  @include type.type-style("body-01");
+  margin-block-start: 0.5rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 5. For your platform ----
+// ---- 6. What is real + FAQ ----
+.lp-real {
+  padding: 2rem;
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 0 3px 0 0 var(--rcs-brand-purple);
+}
+.lp-real-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-real-list {
+  display: grid;
+  gap: 1.5rem;
+  margin: 1.5rem 0 0;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+  }
+  dt {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    @include type.type-style("body-01");
+    margin: 0.5rem 0 0;
+    color: var(--cds-text-secondary);
+  }
+}
+.lp-faq {
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 1.5rem;
+  }
+  .cds--accordion__item {
+    border-block-start: 1px solid var(--cds-border-subtle-01);
+    &:last-child {
+      border-block-end: 1px solid var(--cds-border-subtle-01);
+    }
+  }
+  .cds--accordion__title {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  .cds--accordion__content {
+    padding-inline-end: 1rem;
+  }
+}
+.lp-faq-answer {
+  @include type.type-style("body-01");
+  max-inline-size: 60ch;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 7. Dark close ----
+.lp-close {
+  background-color: var(--cds-background);
+}
+.lp-close-rule {
+  block-size: 4px;
+  background: var(--rcs-brand-gradient);
+}
+.lp-cta {
+  padding-block: 5rem 4rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin-block-start: 1.5rem;
+  @include breakpoint.breakpoint(lg) {
+    justify-content: flex-end;
+    margin-block-start: 0;
+  }
+}
+.lp-footer {
+  padding-block: 4rem 2.5rem;
+}
+.lp-footer-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-block-end: 3rem;
+  p {
+    @include type.type-style("body-01");
+    max-inline-size: 18rem;
+    color: var(--cds-text-secondary);
+  }
+}
+.lp-footer-col {
+  margin-block-end: 2.5rem;
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .cds--link {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+    text-decoration: none;
+    &:hover {
+      color: var(--cds-text-primary);
+      text-decoration: underline;
+    }
+  }
+}
+.lp-footer-heading {
+  @include type.type-style("heading-compact-01");
+  margin-block-end: 1rem;
+  color: var(--cds-text-primary);
+}
+.lp-footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  p {
+    @include type.type-style("helper-text-01");
+    max-inline-size: 48rem;
+    color: var(--cds-text-secondary);
+  }
+}
+
+// ---- Shared bits: checklists, tags, mono ----
+.lp-mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+.lp-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.75rem;
+    color: var(--cds-text-primary);
+    &::before {
+      // A Carbon-blue tick, drawn in CSS.
+      content: "";
+      position: absolute;
+      inset-inline-start: 0.25rem;
+      inset-block-start: 0.3rem;
+      inline-size: 0.75rem;
+      block-size: 0.4rem;
+      border-inline-start: 2px solid var(--cds-interactive);
+      border-block-end: 2px solid var(--cds-interactive);
+      transform: rotate(-45deg);
+    }
+  }
+}
+// Status colours from the RCS tag palette (index.scss): every pair passes AA.
+.lp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 1rem;
+}
+.lp-tag--error {
+  color: var(--rcs-tag-error-fg);
+  background-color: var(--rcs-tag-error-bg);
+}
+.lp-tag--request {
+  color: var(--rcs-tag-request-fg);
+  background-color: var(--rcs-tag-request-bg);
+}
+.lp-tag--warning {
+  color: var(--rcs-tag-warning-fg);
+  background-color: var(--rcs-tag-warning-bg);
+}
+.lp-tag--neutral {
+  color: var(--rcs-tag-neutral-fg);
+  background-color: var(--rcs-tag-neutral-bg);
+}
+
+// ---- 2. The cost of doing nothing ----
+.lp-compare {
+  border-block-start: 1px solid var(--cds-border-strong-01);
+}
+.lp-compare-head,
+.lp-compare-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 2rem;
+  padding-block: 1.25rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-compare-head span {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+  &:last-child {
+    color: var(--rcs-brand-purple-deep);
+  }
+}
+.lp-compare-today {
+  @include type.type-style("body-02");
+  color: var(--cds-text-secondary);
+}
+.lp-compare-rcs {
+  @include type.type-style("body-02");
+  color: var(--cds-text-primary);
+}
+
+// ---- 4. Product tour ----
+.lp-tour-panel {
+  padding: 0;
+}
+.lp-tour {
+  display: grid;
+  gap: 2rem;
+  padding-block-start: 2rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 9fr);
+    align-items: center;
+    gap: 3rem;
+  }
+}
+.lp-tour-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.lp-tour-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+// A browser-window frame around each preview, so it reads as a screen of the product.
+.lp-screen {
+  max-inline-size: 46rem;
+  margin: 0 0 0 auto;
+  overflow: hidden;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: 0 16px 48px rgba(13, 22, 51, 0.16);
+}
+.lp-screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  background-color: var(--cds-layer-01);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-screen-dots {
+  display: inline-flex;
+  gap: 0.375rem;
+  i {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--cds-border-strong-01);
+  }
+}
+.lp-screen-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.lp-screen-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.lp-screen-row--between {
+  justify-content: space-between;
+}
+.lp-screen-strong {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.lp-screen-label {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+.lp-screen-link {
+  font-size: 0.875rem;
+  color: var(--cds-link-primary);
+}
+.lp-screen-note {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+.lp-review {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+}
+.lp-review-player {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--cds-background);
+}
+.lp-review-video {
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(60% 70% at 30% 40%, rgba(196, 163, 255, 0.55), transparent 70%),
+    radial-gradient(50% 60% at 70% 70%, rgba(111, 216, 201, 0.4), transparent 70%),
+    #393939;
+  filter: blur(6px);
+}
+.lp-review-toolbar {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--cds-text-primary);
+}
+.lp-review-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  p {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-primary);
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+    color: var(--cds-text-primary);
+  }
+}
+.lp-needs,
+.lp-auditors {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  li {
+    display: grid;
+    align-items: center;
+    gap: 1rem;
+    padding-block: 0.625rem;
+    font-size: 0.875rem;
+    color: var(--cds-text-primary);
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+}
+.lp-needs li {
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
+}
+.lp-auditors li {
+  grid-template-columns: 6rem minmax(0, 1fr) 6rem;
+}
+.lp-results {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  th {
+    padding: 0.625rem 0.5rem;
+    text-align: start;
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    background-color: var(--cds-layer-accent-01);
+  }
+  td {
+    padding: 0.625rem 0.5rem;
+    color: var(--cds-text-primary);
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+}
+
+// ---- 6. Outcomes ----
+.lp-outcome-head {
+  display: grid;
+  gap: 0.5rem 2rem;
+  margin-block-end: 1.5rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 11fr);
+    align-items: baseline;
+  }
+}
+.lp-outcome-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-outcome-lead {
+  @include type.type-style("body-02");
+  max-inline-size: 44rem;
+  color: var(--cds-text-secondary);
+}
+.lp-features {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.lp-features--4 {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.lp-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.75rem 1.5rem 2rem;
+  background-color: var(--cds-background);
+  svg {
+    fill: var(--rcs-brand-purple-deep);
+  }
+}
+.lp-feature-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-feature-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+
+// ---- 8. Security, IBM stack, prototype ----
+.lp-stack-ibm-label {
+  @include type.type-style("label-02");
+  color: var(--cds-text-secondary);
+}
+.lp-real-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+
+// IBM credit strip
+.lp-stack-ibm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 2.5rem;
+  padding-block: 1.5rem;
+  border-block: 1px solid var(--cds-border-subtle-01);
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+}
+
+// ===========================================================================
+// Section template. Every content section is: header block (eyebrow, H2,
+// optional lede) on lg 10 of 16 columns, then the content on all 16 columns,
+// on the same left edge, after spacing-09 (3rem). Blocks inside the content
+// are separated by spacing-09; items inside a block by spacing-07 (2rem) or
+// less. Headings: H2 fluid-heading-05/600, H3 heading-04, tile titles
+// heading-03. Body copy max 40rem.
+// ===========================================================================
+.lp-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.lp-section-head .lp-lede {
+  margin-block-start: 0.5rem;
+}
+.lp-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem; // spacing-09 between blocks
+  margin-block-start: 3rem; // spacing-09 between header and content
+}
+.lp-inline-link {
+  font-size: inherit;
+}
+
+// Outcome groups inside the features section: one heading row per group, its tiles directly under it.
+.lp-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+.lp-features--2 {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+// ---- Integration ----
+.lp-int-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.lp-int-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--cds-background);
+}
+.lp-int-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-on-color);
+  background-color: var(--cds-interactive);
+}
+.lp-int-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-int-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+// Code (lg 10) beside what a result contains (lg 6), top edges aligned.
+.lp-int-detail {
+  display: grid;
+  gap: 2rem;
+  align-items: stretch;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 10fr) minmax(0, 6fr);
+  }
+}
+.lp-int-code {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  .cds--tab-content,
+  .cds--tab-content > div {
+    flex: 1 1 auto;
+  }
+  .cds--tab-content:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+  }
+  .cds--snippet--multi {
+    flex: 1 1 auto;
+    padding-block: 1.5rem;
+  }
+  .cds--snippet--multi pre {
+    @include type.type-style("code-02");
+  }
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  .cds--tabs {
+    padding-inline: 1rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  .cds--snippet {
+    background-color: var(--cds-background);
+  }
+  .cds--snippet--multi {
+    max-inline-size: none;
+  }
+  .cds--tab-content {
+    padding: 0;
+  }
+}
+.lp-int-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.lp-int-facts-title {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.lp-int-facts-note {
+  @include type.type-style("body-compact-01");
+  padding-block-start: 1rem;
+  color: var(--cds-text-secondary);
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+.lp-cross-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.75rem;
+    color: var(--cds-text-primary);
+    &::before,
+    &::after {
+      // a Carbon red cross, drawn in CSS
+      content: "";
+      position: absolute;
+      inset-inline-start: 0.3rem;
+      inset-block-start: 0.6rem;
+      inline-size: 0.75rem;
+      block-size: 2px;
+      background-color: var(--cds-support-error);
+      transform: rotate(45deg);
+    }
+    &::after {
+      transform: rotate(-45deg);
+    }
+  }
+}
+
+// ---- Product tour ----
+.lp-tour-note {
+  @include type.type-style("helper-text-01");
+  margin-block-start: 1rem;
+  color: var(--cds-text-secondary);
+}
+.lp-screen img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+// ---- Hero demo: the real content warning, compact ----
+.rcs-reveal-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.rcs-reveal-cvi {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: #e0e0e0;
+}
+.rcs-reveal-flag {
+  padding: 0.0625rem 0.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  color: #161616;
+  background-color: #e0e0e0; // 14.6:1
+  border-radius: 1rem;
+}
+.rcs-reveal-question {
+  @include type.type-style("heading-compact-02");
+  color: #ffffff;
+}
+.rcs-reveal-overlay .cds--checkbox-label-text {
+  @include type.type-style("body-compact-01");
+  color: #e0e0e0;
+}
+.rcs-reveal-note {
+  @include type.type-style("helper-text-01");
+  color: #c6c6c6;
+}
+.rcs-reveal-sos {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
 }

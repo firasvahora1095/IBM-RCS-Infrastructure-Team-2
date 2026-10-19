@@ -51,28 +51,46 @@ export function RcsMark({ size = 32, title }: { size?: number; title?: string })
   );
 }
 
+/** What RCS stands for. Shown with the wordmark wherever a first-time visitor meets the name. */
+export const RCS_FULL_NAME = "Responsible Content Safety";
+
 /**
- * The full RCS lockup: the mark, the "RCS" wordmark and, optionally, the tagline. The wordmark is live text so it
- * stays crisp and readable by screen readers. `onLight` uses the logo's navy; `onDark` uses white, so the same lockup
- * works on the white product site and the dark app shell.
+ * The full RCS lockup: the mark, the "RCS" wordmark, the full name it stands for, and optionally the tagline. Text is
+ * live, so it stays sharp and is read out by screen readers. `stacked` puts the full name under the wordmark (hero,
+ * footer); `inline` sets it beside the wordmark after a rule (header). The tagline is styled apart from the name so
+ * "Report · Review · Support" is never read as the expansion. `onLight` uses the logo navy, `onDark` white.
  */
 export function RcsLogo({
   size = 32,
   variant = "onLight",
+  layout = "stacked",
+  name = true,
   tagline = false,
 }: {
   size?: number;
   variant?: "onLight" | "onDark";
+  layout?: "stacked" | "inline";
+  name?: boolean;
   tagline?: boolean;
 }) {
   const ink = variant === "onLight" ? "#0d1633" : "#ffffff";
   const sub = variant === "onLight" ? "#525252" : "#c6c6c6";
   return (
-    <span className="rcs-logo" style={{ gap: size * 0.3 }}>
+    <span className={`rcs-logo rcs-logo--${layout}`} style={{ gap: size * 0.3 }}>
       <RcsMark size={size} />
       <span className="rcs-logo-text">
-        <span className="rcs-logo-word" style={{ fontSize: size * 0.72, color: ink }}>
-          RCS
+        <span className="rcs-logo-line">
+          <span className="rcs-logo-word" style={{ fontSize: size * 0.72, color: ink }}>
+            RCS
+          </span>
+          {name && (
+            <span
+              className="rcs-logo-name"
+              style={{ fontSize: layout === "inline" ? 14 : Math.max(12, size * 0.32), color: ink }}
+            >
+              {RCS_FULL_NAME}
+            </span>
+          )}
         </span>
         {tagline && (
           <span className="rcs-logo-tagline" style={{ fontSize: Math.max(10, size * 0.22), color: sub }}>

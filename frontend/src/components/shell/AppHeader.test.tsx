@@ -10,7 +10,7 @@ describe("AppHeader", () => {
         <AppHeader />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: "RCS — Reporting" })).toHaveAttribute("href", "/report");
+    expect(screen.getByRole("link", { name: "Responsible Content Safety (RCS) — Reporting" })).toHaveAttribute("href", "/report");
   });
 
   it("has an accessible Help action", () => {
