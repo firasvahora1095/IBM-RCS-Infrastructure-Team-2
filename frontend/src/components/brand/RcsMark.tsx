@@ -51,16 +51,32 @@ export function RcsMark({ size = 32, title }: { size?: number; title?: string })
   );
 }
 
-/** The mark with the product name beside it, for a header or a hero. */
-export function RcsWordmark({ size = 28, subdued = false }: { size?: number; subdued?: boolean }) {
+/**
+ * The full RCS lockup: the mark, the "RCS" wordmark and, optionally, the tagline. The wordmark is live text so it
+ * stays crisp and readable by screen readers. `onLight` uses the logo's navy; `onDark` uses white, so the same lockup
+ * works on the white product site and the dark app shell.
+ */
+export function RcsLogo({
+  size = 32,
+  variant = "onLight",
+  tagline = false,
+}: {
+  size?: number;
+  variant?: "onLight" | "onDark";
+  tagline?: boolean;
+}) {
+  const ink = variant === "onLight" ? "#0d1633" : "#ffffff";
+  const sub = variant === "onLight" ? "#525252" : "#c6c6c6";
   return (
-    <span className="flex items-center gap-2.5">
-      <RcsMark size={size} title="RCS" />
-      <span className="flex flex-col" style={{ lineHeight: 1.1 }}>
-        <span style={{ fontSize: size * 0.62, fontWeight: 700, letterSpacing: "-0.01em" }}>RCS</span>
-        {!subdued && (
-          <span style={{ fontSize: size * 0.33, letterSpacing: "0.08em", color: "var(--cds-text-secondary)" }}>
-            REPORT · REVIEW · SUPPORT
+    <span className="rcs-logo" style={{ gap: size * 0.3 }}>
+      <RcsMark size={size} />
+      <span className="rcs-logo-text">
+        <span className="rcs-logo-word" style={{ fontSize: size * 0.72, color: ink }}>
+          RCS
+        </span>
+        {tagline && (
+          <span className="rcs-logo-tagline" style={{ fontSize: Math.max(10, size * 0.22), color: sub }}>
+            Report · Review · Support
           </span>
         )}
       </span>

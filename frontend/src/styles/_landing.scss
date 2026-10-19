@@ -1,0 +1,41 @@
+// ---------------------------------------------------------------------------
+// RCS product site (/rcs). Carbon tokens, type styles and motion own the UI;
+// the logo palette below is decoration only (never buttons, links, focus,
+// tags, status or body text). Every brand colour that sits under text is
+// listed with its contrast ratio.
+// ---------------------------------------------------------------------------
+@use "@carbon/react/scss/type";
+@use "@carbon/react/scss/motion";
+@use "@carbon/react/scss/breakpoint";
+
+:root {
+  --rcs-brand-navy: #0d1633; // 17.6:1 on white
+  --rcs-brand-purple: #8f7cff; // graphics only (3.2:1 on white)
+  --rcs-brand-purple-deep: #5b45d6; // 6.4:1 with white
+  --rcs-brand-teal: #6fd8c9; // graphics only
+  --rcs-brand-teal-deep: #0b7a75; // 5.2:1 with white
+  --rcs-brand-gradient: linear-gradient(100deg, #c4a3ff 0%, #8f7cff 35%, #7fd3ff 70%, #6fd8c9 100%);
+}
+
+// Logo lockup: mark + live wordmark (+ tagline).
+.rcs-logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.rcs-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.rcs-logo-word {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.rcs-logo-tagline {
+  margin-block-start: 0.35em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
