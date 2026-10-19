@@ -1180,7 +1180,7 @@ html {
   }
 }
 .rcs-cw-cvi {
-  @include type.type-style("body-compact-01");
+  @include type.type-style("label-01");
   color: var(--cds-text-secondary);
 }
 .rcs-cw-flags {
@@ -1207,7 +1207,7 @@ html {
     color: var(--cds-text-secondary);
   }
   dd {
-    @include type.type-style("heading-compact-02");
+    @include type.type-style("body-compact-01");
     margin: 0.125rem 0 0;
     color: var(--cds-text-primary);
   }
@@ -1219,12 +1219,14 @@ html {
   padding-block-start: 1.5rem;
   border-block-start: 1px solid var(--cds-border-subtle-01);
 }
+// One step per level: the title (20) is the only large text; the question (16) sits below it; facts and consent
+// read at 14; labels and the decline note at 12.
 .rcs-cw-question {
-  @include type.type-style("heading-03");
+  @include type.type-style("heading-compact-02");
   color: var(--cds-text-primary);
 }
 // The decline reassurance: one size wherever it appears (content warning, decline dialog).
 .rcs-cw-note {
-  @include type.type-style("body-compact-01");
+  @include type.type-style("helper-text-01");
   color: var(--cds-text-secondary);
 }
