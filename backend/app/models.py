@@ -243,6 +243,10 @@ class CaseHistory(Base):
     final_tier = Column(String(2), nullable=True)
     outcome = Column(String(50), nullable=False)
     declined_reassigned = Column(Integer, nullable=False, server_default="0")
+    # CVI scores and, when the Reviewer changed the tier, their reason. Null for records that only kept tiers.
+    ai_score = Column(Integer, nullable=True)
+    final_score = Column(Integer, nullable=True)
+    override_reason = Column(Text, nullable=True)
 
 
 class Delivery(Base):
