@@ -1223,7 +1223,8 @@ html {
   @include type.type-style("heading-03");
   color: var(--cds-text-primary);
 }
+// The decline reassurance: one size wherever it appears (content warning, decline dialog).
 .rcs-cw-note {
-  @include type.type-style("helper-text-01");
+  @include type.type-style("body-compact-01");
   color: var(--cds-text-secondary);
 }

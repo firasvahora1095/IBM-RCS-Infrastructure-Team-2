@@ -66,10 +66,8 @@ export function DeclineReasonModal({ open, onSubmit, onCancel, isSubmitting, err
           />
         )}
 
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          Declining is a supported action. This case will go directly to your Manager for review — it won&apos;t be
-          reassigned automatically.
-        </p>
+        {/* The same line, in the same style, as on the content warning. */}
+        <p className="rcs-cw-note">Declining is a normal part of the job. Your Manager decides what happens next.</p>
 
         {error && (
           <InlineNotification
