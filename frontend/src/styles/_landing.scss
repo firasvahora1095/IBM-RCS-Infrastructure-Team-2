@@ -1722,8 +1722,9 @@
   @include breakpoint.breakpoint(md) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  // Each phase's row fits its own cards (two, three or four), so no card is left alone on a second line.
   @include breakpoint.breakpoint(lg) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   }
   li {
     display: flex;
@@ -1969,4 +1970,38 @@
     @include type.type-style("body-compact-01");
     color: var(--cds-text-secondary);
   }
+}
+
+// For the public: one band after How it works, so a reporter finds the way in without the footer.
+.lp-public {
+  // Pulled up into the tinted How it works section above, so the band reads as its last word.
+  margin-block-start: -3rem;
+  padding-block: 0 4rem;
+  background-color: var(--cds-layer-01);
+}
+.lp-public-band {
+  display: grid;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-inline-start: 4px solid var(--cds-support-warning);
+  color: var(--cds-text-primary);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
+.lp-public-title {
+  @include type.type-style("heading-03");
+}
+.lp-public-text p {
+  @include type.type-style("body-01");
+  margin-block-start: 0.25rem;
+  color: var(--cds-text-secondary);
+}
+.lp-public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }

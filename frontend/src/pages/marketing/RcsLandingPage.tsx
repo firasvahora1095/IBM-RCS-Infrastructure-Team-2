@@ -459,6 +459,29 @@ export function RcsLandingPage() {
           </div>
         </Section>
 
+        {/* For the public: someone who saw a harmful post reports it here, without reading the rest of the page. */}
+        <section className="lp-public" aria-labelledby="public-title">
+          <Grid>
+            <Column sm={4} md={8} lg={16}>
+              <div className="lp-public-band">
+                <WarningAlt size={24} aria-hidden />
+                <div className="lp-public-text">
+                  <h2 id="public-title" className="lp-public-title">
+                    Seen a harmful video?
+                  </h2>
+                  <p>Report it to RCS. No account needed, you can stay anonymous, and you get a case ID to follow it.</p>
+                </div>
+                <div className="lp-public-actions">
+                  <Button onClick={() => navigate("/report")}>Report content</Button>
+                  <Button kind="ghost" onClick={() => navigate("/report/status")}>
+                    Check a case status
+                  </Button>
+                </div>
+              </div>
+            </Column>
+          </Grid>
+        </section>
+
         {/* 4. Product tour, one real screen per role. */}
         <Section
           id="product"

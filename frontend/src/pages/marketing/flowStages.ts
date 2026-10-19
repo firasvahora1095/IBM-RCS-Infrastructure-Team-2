@@ -55,6 +55,14 @@ export const STAGES: Stage[] = [
     signIn: isMockData ? "auditor-1" : "auditor-01",
   },
   {
+    n: "06b",
+    title: "Fallback review when no Reviewer is free",
+    body: "Cases no Reviewer can take wait in the fallback queue. The Super Auditor places them or reviews them.",
+    persona: "Super Auditor",
+    to: "/auditor",
+    signIn: isMockData ? "superauditor-1" : "superauditor-01",
+  },
+  {
     n: "07",
     title: "Result delivered to CommunityHub",
     body: "Sent automatically on completion; the Manager only handles failures.",
@@ -93,5 +101,13 @@ export const STAGES: Stage[] = [
     persona: "CommunityHub Client",
     to: "/client/reports",
     signIn: "ch-user-17",
+  },
+  {
+    n: "11",
+    title: "CommunityHub admin sees it all",
+    body: "An admin sees case results, service reports and messages together in one Client portal.",
+    persona: "CommunityHub Admin",
+    to: "/client/cases",
+    signIn: "ch-admin-01",
   },
 ];

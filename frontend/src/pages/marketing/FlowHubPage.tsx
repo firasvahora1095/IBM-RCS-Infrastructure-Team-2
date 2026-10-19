@@ -18,9 +18,9 @@ const PHASES: { title: string; body: string; stages: string[] }[] = [
   {
     title: "RCS reviews and delivers",
     body: "A protected review, then the result goes back to CommunityHub.",
-    stages: ["06", "07", "07b"],
+    stages: ["06", "06b", "07", "07b"],
   },
-  { title: "Oversight and reporting", body: "The Manager oversees the work and releases a service report.", stages: ["08", "09", "10"] },
+  { title: "Oversight and reporting", body: "The Manager oversees the work and releases a service report.", stages: ["08", "09", "10", "11"] },
 ];
 
 /** One Carbon tag colour per role, so a role reads the same on every stage. */
@@ -29,9 +29,11 @@ const ROLE_TAG: Record<string, "cool-gray" | "teal" | "purple" | "blue" | "green
   Public: "teal",
   Reporter: "teal",
   Auditor: "purple",
+  "Super Auditor": "purple",
   Manager: "blue",
   "CommunityHub Trust & Safety": "green",
   "CommunityHub Client": "green",
+  "CommunityHub Admin": "green",
 };
 
 const ACCOUNTS = [
@@ -39,6 +41,12 @@ const ACCOUNTS = [
     role: "Auditor (Reviewer)",
     ids: isMockData ? "auditor-1 to auditor-5" : "auditor-01 to auditor-04",
     scope: "Reviews cases",
+    to: "/staff/login",
+  },
+  {
+    role: "Super Auditor (fallback Reviewer)",
+    ids: isMockData ? "superauditor-1" : "superauditor-01",
+    scope: "The fallback queue, and cases to review",
     to: "/staff/login",
   },
   { role: "Manager", ids: isMockData ? "manager-1" : "manager-01", scope: "Oversight, deliveries, reports", to: "/staff/login" },
@@ -78,7 +86,7 @@ export function FlowHubPage() {
                 From a report on CommunityHub to a released service report.
               </h1>
               <p className="lp-hero-sub">
-                Eleven stages across five roles, in the order a report travels. Open any stage to see the live
+                The full journey in {STAGES.length} stages, for every role, in the order a report travels. Open any stage to see the live
                 screen, signed in as the person who uses it.
               </p>
             </Column>
