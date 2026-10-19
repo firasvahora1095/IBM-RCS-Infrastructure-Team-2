@@ -92,16 +92,9 @@ export function TeamPage() {
                 </Button>
               </div>
             </Column>
-            <Column sm={4} md={8} lg={16}>
-              <dl className="tp-facts">
-                {FACTS.map(([label, value]) => (
-                  <div key={label}>
-                    <dt>{label}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
+            <Column sm={4} md={8} lg={6} className="tp-hero-side">
               <nav aria-label="Team members" className="tp-index">
+                <p className="tp-index-title">The team</p>
                 <ul>
                   {TEAM.map((m) => (
                     <li key={m.slug}>
@@ -118,6 +111,16 @@ export function TeamPage() {
                   ))}
                 </ul>
               </nav>
+            </Column>
+            <Column sm={4} md={8} lg={16}>
+              <dl className="tp-facts">
+                {FACTS.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </Column>
           </Grid>
         </section>

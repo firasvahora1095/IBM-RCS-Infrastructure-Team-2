@@ -16,6 +16,7 @@ import {
 } from "@carbon/react";
 import {
   ArrowDown,
+  ArrowRight,
   ChartColumn,
   Chat,
   Plug,
@@ -512,11 +513,11 @@ export function RcsLandingPage() {
               <TeamCard key={member.name} member={member} />
             ))}
           </ul>
-          <p className="lp-team-more">
-            <RouterLink className="cds--link" to="/rcs/team">
-              See each person&apos;s contributions, the brief and the code
-            </RouterLink>
-          </p>
+          <div className="lp-team-more">
+            <Button kind="tertiary" renderIcon={ArrowRight} onClick={() => navigate("/rcs/team")}>
+              See each person&apos;s contributions
+            </Button>
+          </div>
         </Section>
 
         {/* 6. Features, grouped by the outcome they deliver. */}
