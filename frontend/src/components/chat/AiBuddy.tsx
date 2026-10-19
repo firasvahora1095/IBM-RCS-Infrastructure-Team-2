@@ -13,7 +13,7 @@ import {
   Tag,
   TextArea,
 } from "@carbon/react";
-import { ArrowRight, Chat, Close, Send } from "@carbon/icons-react";
+import { ArrowRight, Chat, Close, Information, Send } from "@carbon/icons-react";
 import { RcsMark } from "../brand/RcsMark";
 import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
@@ -220,18 +220,27 @@ export function AiBuddy() {
               </IconButton>
             </div>
 
+            {/* The early-version caveat as one quiet line under the head, not a box competing with the answers. */}
+            {!noticeDismissed && (
+              <div className="rcs-buddy__note">
+                <Information size={16} aria-hidden />
+                <p>
+                  <strong>Early version.</strong> I can make mistakes, so check anything important on the screen I
+                  point to.
+                </p>
+                <IconButton
+                  label="Dismiss"
+                  kind="ghost"
+                  size="sm"
+                  align="bottom-end"
+                  onClick={() => setNoticeDismissed(true)}
+                >
+                  <Close />
+                </IconButton>
+              </div>
+            )}
+
             <div className="rcs-buddy__log">
-              {!noticeDismissed && (
-                <InlineNotification
-                  kind="info"
-                  lowContrast
-                  title="Early version."
-                  subtitle="I can make mistakes, so check anything important on the screen I point to."
-                  statusIconDescription="Information"
-                  onCloseButtonClick={() => setNoticeDismissed(true)}
-                  style={{ maxInlineSize: "100%", marginBlockEnd: 0 }}
-                />
-              )}
               {empty && (
                 <div className="rcs-buddy__welcome">
                   <p className="rcs-buddy__welcome-title">How can I help?</p>

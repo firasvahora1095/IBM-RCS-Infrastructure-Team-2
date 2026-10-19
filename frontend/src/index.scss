@@ -349,6 +349,34 @@ $rcs-buddy-width: 25rem;
   color: var(--cds-text-secondary);
 }
 
+.rcs-buddy__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1.33;
+  color: var(--cds-text-secondary);
+  background-color: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  > svg {
+    flex-shrink: 0;
+    margin-block-start: 0.5rem;
+    fill: var(--cds-icon-secondary);
+  }
+  p {
+    flex: 1;
+    margin: 0;
+    padding-block: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  strong {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+  }
+}
+
 .rcs-buddy__log {
   flex: 1;
   min-block-size: 0;
