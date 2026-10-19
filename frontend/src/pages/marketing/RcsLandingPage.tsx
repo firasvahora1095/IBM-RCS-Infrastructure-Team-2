@@ -15,7 +15,7 @@ import {
   Tag,
   Theme,
 } from "@carbon/react";
-import { MarketingHeader } from "../../components/shell/MarketingHeader";
+import { MarketingHeader, SITE_SECTIONS } from "../../components/shell/MarketingHeader";
 import { RcsMark } from "../../components/brand/RcsMark";
 import { ExposureBar } from "../../components/exposure/ExposureBar";
 import { SeverityTag } from "../../components/severity/SeverityTag";
@@ -23,17 +23,7 @@ import { SegmentedBar } from "../../components/ui/Charts";
 import { RESPONSIBILITY_BOUNDARY } from "../../design-tokens/deliveryLabels";
 import { StatusTag } from "../../components/ui/StatusTag";
 
-const SECTIONS = [
-  { id: "overview", label: "Overview" },
-  { id: "problem", label: "The problem" },
-  { id: "how-it-works", label: "How it works" },
-  { id: "wellbeing", label: "Reviewer wellbeing" },
-  { id: "integration", label: "Integration" },
-  { id: "reporting", label: "Reporting" },
-  { id: "team", label: "Meet the team" },
-  { id: "faq", label: "FAQ" },
-  { id: "prototype", label: "About this prototype" },
-] as const;
+const SECTIONS = SITE_SECTIONS;
 
 /**
  * RMIT Team 2. `photo` is a file in public/team (see the README there); until one is added the card shows the
@@ -43,19 +33,19 @@ const TEAM = [
   {
     name: "Hyuna Bae",
     role: "Project manager",
-    did: "Kept the sprint plan, the client check-ins and the demo on track.",
+    did: "Kept the sprint plan, the Client check-ins and the demo on track.",
     photo: "/team/hyuna-bae.jpg",
   },
   {
     name: "Janataarah Begum",
-    role: "Business analyst",
-    did: "Wrote the requirements behind every screen, and the wording of every status.",
+    role: "Business analyst / QA",
+    did: "Wrote the requirements behind every screen, and tested every build against them.",
     photo: "/team/janataarah-begum.jpg",
   },
   {
     name: "Aleeya Ahmad",
-    role: "UX designer",
-    did: "Designed the reviewer, manager and client experience, and the wellbeing-first flow.",
+    role: "UX / Research",
+    did: "Researched reviewer wellbeing, then designed the reviewer, manager and Client experience around it.",
     photo: "/team/aleeya-ahmad.jpg",
   },
   {
@@ -164,6 +154,54 @@ function CaseJourneyPreview() {
   );
 }
 
+/**
+ * The blur-to-reveal mechanic, felt rather than described: a harmless placeholder frame starts blurred behind a
+ * content warning, as a reviewer sees a flagged case first. Unlike the other previews this one is interactive, so it
+ * is a real button and not an inert picture; the illustration itself is decorative.
+ */
+function BlurRevealDemo() {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="rcs-preview rcs-reveal-card">
+      <div className="rcs-preview-bar">
+        <span style={{ fontSize: 14, fontWeight: 600 }}>What a reviewer sees first</span>
+      </div>
+      <div className="rcs-reveal-frame">
+        <svg
+          className={`rcs-reveal-image${revealed ? "" : " rcs-reveal-image--blurred"}`}
+          viewBox="0 0 400 225"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect width="400" height="225" fill="#a6c8ff" />
+          <circle cx="320" cy="55" r="30" fill="#ffd6a5" />
+          <path d="M0 160 160 90 240 150 320 110 400 170V225H0Z" fill="#4589ff" />
+          <path d="M0 190 120 140 260 185 400 150V225H0Z" fill="#0f62fe" />
+        </svg>
+        {!revealed && (
+          <div className="rcs-reveal-overlay">
+            <span className="rcs-reveal-tag">Content warning</span>
+            <p className="rcs-reveal-caption">Flagged for review. Nothing shows until you choose to proceed.</p>
+            <Button size="sm" onClick={() => setRevealed(true)}>
+              Proceed
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <p style={{ fontSize: 12, margin: 0, color: "var(--cds-text-secondary)" }}>
+          A harmless placeholder, not a real case. The same mechanic protects every reviewer, every time.
+        </p>
+        {revealed && (
+          <Button size="sm" kind="ghost" onClick={() => setRevealed(false)}>
+            Blur again
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function WorkspacePreview() {
   return (
     <figure
@@ -265,30 +303,8 @@ export function RcsLandingPage() {
 
   return (
     <div className="rcs-site">
-      <MarketingHeader />
+      <MarketingHeader activeId={active} />
       <main style={{ paddingTop: 48, backgroundColor: "var(--cds-background)" }}>
-        <nav className="rcs-subnav" aria-label="On this page">
-          <div className="rcs-subnav-inner">
-            <span className="rcs-subnav-name flex items-center gap-2">
-              <RcsMark size={20} />
-              RCS
-            </span>
-            <ul className="rcs-subnav-links">
-              {SECTIONS.map((s) => (
-                <li key={s.id}>
-                  <RouterLink to={`/rcs#${s.id}`} aria-current={active === s.id ? "true" : undefined}>
-                    {s.label}
-                  </RouterLink>
-                </li>
-              ))}
-            </ul>
-            <span style={{ flex: 1 }} />
-            <Button size="sm" kind="tertiary" onClick={() => navigate("/rcs/get-started")}>
-              Get started
-            </Button>
-          </div>
-        </nav>
-
         <Theme theme="g100">
           <section
             id="overview"
@@ -306,15 +322,14 @@ export function RcsLandingPage() {
                 </h1>
                 {/* The problem, in the first thing anyone reads. */}
                 <p className="rcs-hero-problem">
-                  Moderators watch violence and abuse so that no one else has to. Nothing in the tools they use limits
-                  how much they see.
+                  Every harmful-video report lands on a human. Nothing protects them.
                 </p>
                 <p className="rcs-hero-lede">
-                  RCS puts AI in front of every video and hard limits around every reviewer. Your users report from your
-                  platform, a trained person makes every decision, and the result comes straight back to you.
+                  RCS puts AI in front of every video and enforced limits around every reviewer. A trained person makes
+                  every decision, and the result returns to your platform.
                 </p>
                 <div className="flex flex-wrap gap-4">
-                  <Button onClick={() => navigate("/rcs/get-started")}>Bring RCS to your platform</Button>
+                  <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
                   <Button kind="secondary" onClick={() => navigate("/rcs#how-it-works")}>
                     See how it works
                   </Button>
@@ -324,6 +339,7 @@ export function RcsLandingPage() {
                   <li>Results to your own endpoint</li>
                   <li>You decide enforcement</li>
                 </ul>
+                <BlurRevealDemo />
               </Column>
               <Column sm={4} md={8} lg={{ span: 7, offset: 9 }} className="mt-10 lg:mt-0 flex items-center">
                 <div style={{ inlineSize: "100%" }}>
@@ -655,7 +671,7 @@ export function RcsLandingPage() {
                 <div>
                   <dt>The RCS product is real software</dt>
                   <dd>
-                    The reviewer workspace, manager dashboard, client portal, AI pre-screen, wellbeing rules and result
+                    The reviewer workspace, manager dashboard, Client portal, AI pre-screen, wellbeing rules and result
                     delivery all run as working code against a real backend and database.
                   </dd>
                 </div>
@@ -722,8 +738,9 @@ export function RcsLandingPage() {
                   {
                     title: "This prototype",
                     links: [
-                      ["Demo flow guide", "/flow"],
+                      ["What is simulated", "/rcs#prototype"],
                       ["CommunityHub (simulated)", "/communityhub"],
+                      ["Demo flow guide", "/flow"],
                     ],
                   },
                 ].map((col) => (

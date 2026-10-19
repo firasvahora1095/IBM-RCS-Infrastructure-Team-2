@@ -6,6 +6,11 @@
 @use "@carbon/react/scss/motion";
 @use "@carbon/react/scss/breakpoint";
 
+// Marketing header: tighter menu items so seven links, two sign-ins and Get started fit at 1280px.
+.rcs-site-nav .cds--header__menu-item {
+  padding-inline: 0.75rem;
+}
+
 // Sticky section bar under the fixed header (as on ibm.com product pages).
 .rcs-subnav {
   position: sticky;
@@ -1082,6 +1087,56 @@
       border-radius: 50%;
       background-color: var(--cds-border-interactive);
     }
+  }
+}
+
+// Blur-to-reveal: a harmless placeholder frame, blurred behind a content-warning overlay exactly as a reviewer
+// sees a flagged case first. Felt through one click, not explained in a paragraph.
+.rcs-reveal-card {
+  max-inline-size: 22rem;
+}
+.rcs-reveal-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+}
+.rcs-reveal-image {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  transition: filter 240ms ease-out, transform 240ms ease-out;
+}
+.rcs-reveal-image--blurred {
+  transform: scale(1.08); // hides the blur filter's soft edge at the frame boundary
+  filter: blur(18px) saturate(0.7);
+}
+.rcs-reveal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 65%, rgba(0, 0, 0, 0) 100%);
+}
+.rcs-reveal-tag {
+  @include type.type-style("label-01");
+  padding: 0.125rem 0.5rem;
+  color: var(--cds-text-on-color);
+  background-color: var(--cds-support-error);
+  border-radius: 2px;
+}
+.rcs-reveal-caption {
+  @include type.type-style("body-compact-01");
+  margin: 0;
+  max-inline-size: 26ch;
+  color: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rcs-reveal-image {
+    transition: none;
   }
 }
 

@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { describe, expect, it } from "vitest";
 import { RcsLandingPage } from "./RcsLandingPage";
@@ -17,12 +18,23 @@ describe("RCS landing page", () => {
     renderPage();
     const hero = screen.getByRole("region", { name: /Content moderation that protects/ });
     expect(
-      within(hero).getByText(/Moderators watch violence and abuse so that no one else has to/),
+      within(hero).getByText("Every harmful-video report lands on a human. Nothing protects them."),
     ).toBeInTheDocument();
     // And the dedicated section says it again, with what RCS changes.
     expect(
       screen.getByRole("heading", { name: /The people who review harmful videos are exposed to them again and again/ }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the hero clip blurred behind a content warning until the visitor proceeds", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const hero = screen.getByRole("region", { name: /Content moderation that protects/ });
+    expect(within(hero).getByText(/Flagged for review/)).toBeInTheDocument();
+    await user.click(within(hero).getByRole("button", { name: "Proceed" }));
+    expect(within(hero).queryByText(/Flagged for review/)).not.toBeInTheDocument();
+    await user.click(within(hero).getByRole("button", { name: "Blur again" }));
+    expect(within(hero).getByText(/Flagged for review/)).toBeInTheDocument();
   });
 
   it("introduces every member of the team with their role and what they did", () => {
@@ -32,8 +44,8 @@ describe("RCS landing page", () => {
     expect(cards).toHaveLength(5);
     const names = [
       ["Hyuna Bae", "Project manager"],
-      ["Janataarah Begum", "Business analyst"],
-      ["Aleeya Ahmad", "UX designer"],
+      ["Janataarah Begum", "Business analyst / QA"],
+      ["Aleeya Ahmad", "UX / Research"],
       ["Firas Vahora", "Developer"],
       ["Aiden Brundell", "Developer"],
     ];
@@ -60,12 +72,21 @@ describe("RCS landing page", () => {
     expect(within(numbers).getByText("100%").parentElement).toHaveTextContent("Decisions made by a trained person");
   });
 
-  it("lists Meet the team and About this prototype in the section bar", () => {
+  it("has one navigation, not a header and a sticky bar repeating the same links", () => {
     renderPage();
-    const nav = screen.getByRole("navigation", { name: "On this page" });
-    const labels = within(nav).getAllByRole("link").map((l) => l.textContent);
+    // The second, sticky "On this page" bar is gone; the header is the only place the sections are listed.
+    expect(screen.queryByRole("navigation", { name: "On this page" })).not.toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "RCS" });
+    const labels = within(nav)
+      .getAllByRole("link")
+      .map((l) => l.textContent);
     expect(labels).toContain("Meet the team");
-    expect(labels).toContain("About this prototype");
+    expect(labels).toContain("How it works");
+    expect(labels).not.toContain("About this prototype");
+    expect(screen.getByRole("link", { name: "What is simulated" })).toHaveAttribute("href", "/rcs#prototype");
+    // Every route to set-up is called the same thing.
+    expect(screen.getAllByRole("button", { name: "Get started" }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByRole("button", { name: "Bring RCS to your platform" })).not.toBeInTheDocument();
   });
 
   it("has no detectable accessibility violations", async () => {
