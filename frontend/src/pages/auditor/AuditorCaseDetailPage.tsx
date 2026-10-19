@@ -628,8 +628,9 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>Severity &amp; comment</h1>
-          {/* The form sits in the middle of the page; the breadcrumb and heading stay where they always are. */}
-          <div className="mx-auto flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
+          {/* The form starts on the same left edge as its breadcrumb and heading, like every other step; 720px keeps
+              the comment box and the outcome choice a comfortable reading width. */}
+          <div className="flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
             {submitError && (
               <InlineNotification
                 kind="error"
