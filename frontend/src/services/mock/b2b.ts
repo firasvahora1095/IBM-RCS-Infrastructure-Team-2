@@ -371,10 +371,10 @@ function comparisonRows(db: MockDb): ComparisonRow[] {
     ai_tier: h.ai_tier,
     final_tier: h.final_tier,
     override: h.ai_tier !== h.final_tier,
-    ai_score: null,
-    auditor_score: null,
-    score_delta: null,
-    override_reason: null,
+    ai_score: h.ai_score ?? null,
+    auditor_score: h.final_score ?? null,
+    score_delta: h.ai_score != null && h.final_score != null ? h.final_score - h.ai_score : null,
+    override_reason: h.override_reason ?? null,
     decided_at: h.completed_at,
   }));
   const fromLive: ComparisonRow[] = [];

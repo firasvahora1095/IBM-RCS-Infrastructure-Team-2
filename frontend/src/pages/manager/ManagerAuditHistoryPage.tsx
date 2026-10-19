@@ -203,11 +203,15 @@ export function ManagerAuditHistoryPage() {
                           isExpanded={open}
                           aria-label={`Show what changed: ${auditActionLabel(entry.action)}`}
                           onExpand={toggle}
+                          style={{ cursor: "pointer" }}
                         >
-                          <TableCell>{formatShortDateTime(entry.created_at)}</TableCell>
-                          <TableCell>{auditActionLabel(entry.action)}</TableCell>
-                          <TableCell style={mono}>{entry.case_id || "—"}</TableCell>
-                          <TableCell>{auditActorLabel(entry.actor)}</TableCell>
+                          {/* Every cell opens what changed, so the whole row works, not only the chevron. */}
+                          <TableCell onClick={toggle}>{formatShortDateTime(entry.created_at)}</TableCell>
+                          <TableCell onClick={toggle}>{auditActionLabel(entry.action)}</TableCell>
+                          <TableCell style={mono} onClick={toggle}>
+                            {entry.case_id || "—"}
+                          </TableCell>
+                          <TableCell onClick={toggle}>{auditActorLabel(entry.actor)}</TableCell>
                         </TableExpandRow>,
                         open && (
                           <TableExpandedRow key={`${entry.audit_log_id}-details`} colSpan={5}>

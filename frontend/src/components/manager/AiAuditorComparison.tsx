@@ -61,16 +61,15 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
 
   return (
     <>
-      <p className="rcs-helper">
-        A score change within the same tier also counts as an override. Unavailable legacy values stay blank; accepting
-        an AI score is not an independent human measurement.
-      </p>
       <dl className="rcs-figure-row">
         <Figure label="Cases compared" value={data.compared_cases} />
-        <Figure label="Overridden by an Auditor" value={overrides} />
+        <Figure label="Changed by the Reviewer" value={overrides} />
         <Figure label="Override rate" value={`${rate}%`} />
         <Figure label="Most common change" value={top ? `${top.from} → ${top.to}` : "None yet"} />
       </dl>
+      <p className="rcs-helper">
+        A score change within the same tier also counts as an override. Older cases without a score stay blank.
+      </p>
 
       <div className="flex flex-wrap items-end gap-4">
         <div style={{ inlineSize: "100%", maxInlineSize: 240 }}>
@@ -123,9 +122,6 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
                 <TableHeader>Reason</TableHeader>
                 <TableHeader>Decided</TableHeader>
                 <TableHeader>Provenance</TableHeader>
-                <TableHeader>
-                  <span className="cds--visually-hidden">Audit trail</span>
-                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -183,15 +179,26 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
       onClick={() => navigate(`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`)}
       style={{ cursor: "pointer" }}
     >
-      <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+      {/* The case ID is the row's link to its audit trail; the whole row opens it too. */}
+      <TableCell style={{ whiteSpace: "nowrap" }}>
+        <RouterLink
+          className="cds--link"
+          style={{ ...mono, fontSize: 12 }}
+          to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
+          aria-label={`View audit trail for ${row.case_id}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {row.case_id}
+        </RouterLink>
+      </TableCell>
       <TableCell>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="rcs-tier-score">
           <SeverityTag tier={row.ai_tier} size="sm" />
           {row.ai_score !== null && <span className="rcs-helper rcs-mono">{row.ai_score}</span>}
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="rcs-tier-score">
           <SeverityTag tier={row.final_tier} size="sm" />
           {row.auditor_score !== null && <span className="rcs-helper rcs-mono">{row.auditor_score}</span>}
         </div>
@@ -205,25 +212,16 @@ function ComparisonTableRow({ row }: { row: ComparisonRow }) {
       <TableCell style={mono}>{delta(row.score_delta)}</TableCell>
       <TableCell>
         {row.override_reason ? (
-          <div style={{ width: 200, overflowX: "auto", fontSize: 14, lineHeight: "20px", whiteSpace: "nowrap" }}>
+          // One line, cut with an ellipsis; the full reason is on hover and in the case's audit trail.
+          <span className="rcs-cell-clip" title={row.override_reason}>
             {row.override_reason}
-          </div>
+          </span>
         ) : (
           <span style={{ color: "var(--cds-text-secondary)" }}>—</span>
         )}
       </TableCell>
       <TableCell style={{ whiteSpace: "nowrap", fontSize: 14 }}>{formatShortDateTime(row.decided_at)}</TableCell>
-      <TableCell>{row.provenance === "live" ? "Recorded live run" : "Legacy / demo — unverified"}</TableCell>
-      <TableCell>
-        <RouterLink
-          className="cds--link"
-          to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
-          aria-label={`View audit trail for ${row.case_id}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Audit trail
-        </RouterLink>
-      </TableCell>
+      <TableCell style={{ whiteSpace: "nowrap" }}>{row.provenance === "live" ? "Live" : "Demo, unverified"}</TableCell>
     </TableRow>
   );
 }

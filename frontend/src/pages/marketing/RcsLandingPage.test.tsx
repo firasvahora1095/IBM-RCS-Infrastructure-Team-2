@@ -82,9 +82,9 @@ describe("RCS landing page", () => {
     expect(tabs).toEqual(["Reviewer workspace", "Manager oversight", "Client portal"]);
     const images = [...tour.querySelectorAll("img")];
     expect(images.map((img) => img.getAttribute("src"))).toEqual([
-      "/landing/reviewer-workspace.webp",
-      "/landing/manager-overview.webp",
-      "/landing/client-case-results.webp",
+      "/landing/reviewer-workspace.webp?v=3",
+      "/landing/manager-overview.webp?v=3",
+      "/landing/client-case-results.webp?v=3",
     ]);
     images.forEach((img) => expect(img.getAttribute("alt")?.length).toBeGreaterThan(60));
   });
@@ -147,7 +147,8 @@ describe("RCS landing page", () => {
     await user.click(proceed);
 
     expect(within(demo).getByRole("slider", { name: /Blur intensity/ })).toHaveAttribute("aria-valuenow", "100");
-    expect(within(demo).getByRole("switch", { name: /Grayscale/ })).toBeChecked();
+    // Grayscale starts off in the demo (the sample frame reads better in colour) and is one click away.
+    expect(within(demo).getByRole("switch", { name: /Grayscale/ })).not.toBeChecked();
     expect(within(demo).getByText("Sample frame, not real footage")).toBeInTheDocument();
 
     await user.click(within(demo).getByRole("button", { name: "SOS" }));

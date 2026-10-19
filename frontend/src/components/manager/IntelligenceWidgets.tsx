@@ -168,7 +168,12 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
         ) : (
           <ul className="rcs-failed-list">
             {delivery.failed.map((row) => (
-              <li key={row.delivery_id}>
+              // The whole row opens the delivery, like every row that leads somewhere; View stays for keyboard users.
+              <li
+                key={row.delivery_id}
+                className="rcs-row-link"
+                onClick={() => navigate(`/manager/deliveries/${encodeURIComponent(row.delivery_id)}`)}
+              >
                 <span className="rcs-mono">{row.case_id}</span>
                 <span className="rcs-helper">{plural(row.attempts, "attempt", "attempts")}</span>
                 <StatusTag tone="error" size="sm">
@@ -179,7 +184,10 @@ export function DeliveryHealthWidget({ data }: { data: ManagerIntelligence }) {
                   kind="ghost"
                   size="sm"
                   aria-label={`View delivery for ${row.case_id}`}
-                  onClick={() => navigate(`/manager/deliveries/${encodeURIComponent(row.delivery_id)}`)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/manager/deliveries/${encodeURIComponent(row.delivery_id)}`);
+                  }}
                 >
                   View
                 </Button>

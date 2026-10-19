@@ -56,18 +56,18 @@ describe("Manager screens", () => {
     },
   );
 
-  describe("Validation & Audit (one screen, three separate views)", () => {
+  describe("Validation & Audit (one screen, separate views)", () => {
     it("has one tab per view and shows only the chosen one, landing on AI vs Auditor", async () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
       const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
-      expect(names).toEqual(["Auditor overrides", "AI accuracy test", "AI call log"]);
-      expect(within(tabs).getByRole("tab", { name: "Auditor overrides" })).toHaveAttribute("aria-selected", "true");
+      expect(names).toEqual(["Reviewer overrides", "AI accuracy", "Audit history", "Technical log"]);
+      expect(within(tabs).getByRole("tab", { name: "Reviewer overrides" })).toHaveAttribute("aria-selected", "true");
       expect(await screen.findByRole("table", { name: /AI severity against final Auditor severity/ })).toBeVisible();
       // The other views are not on screen until chosen.
       expect(screen.queryByRole("table", { name: "watsonx.ai call log" })).not.toBeInTheDocument();
       expect(screen.getByText("Match rate (illustrative)")).not.toBeVisible();
-      fireEvent.click(within(tabs).getByRole("tab", { name: "AI call log" }));
+      fireEvent.click(within(tabs).getByRole("tab", { name: "Technical log" }));
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
       // The three client-required audit fields are in each call's details, opened from its row.
       fireEvent.click(within(log).getAllByRole("button", { name: /^Show details for the call/ })[0]);
@@ -133,7 +133,8 @@ describe("Manager screens", () => {
 
   it("labels the validation data as a placeholder everywhere it appears (Task 96, MR-OV-08)", async () => {
     renderAt("/manager/validation?view=ai-vs-ground-truth");
-    expect(await screen.findByText("Placeholder / mock data — not real validation results.")).toBeInTheDocument();
+    // Marked where the figure is, not with a page-wide banner.
+    expect(await screen.findByText("Illustrative")).toBeInTheDocument();
     expect(screen.getByText("Match rate (illustrative)")).toBeInTheDocument();
     expect(screen.getByText(/All values illustrative placeholder data\./)).toBeInTheDocument();
   });

@@ -86,14 +86,25 @@ def rename_super_auditor(connection) -> bool:
     return True
 
 
+HISTORY_SCORES_VERSION = 4
+
+
+def add_history_scores(connection) -> None:
+    """Case history gains the CVI scores and the override reason Validation & Audit shows. Columns only: no data."""
+    for column, kind in (("ai_score", "INTEGER"), ("final_score", "INTEGER"), ("override_reason", "TEXT")):
+        connection.execute(text(f"ALTER TABLE case_history ADD COLUMN IF NOT EXISTS {column} {kind}"))
+
+
 def migrate(engine):
     _bootstrap(engine)
     with engine.begin() as connection:
         connection.execute(text("SELECT pg_advisory_xact_lock(72100832)"))
-        if connection.scalar(text("SELECT 1 FROM schema_migrations WHERE version=:version"), {"version": RENAME_VERSION}):
-            return
-        rename_super_auditor(connection)
-        connection.execute(text("INSERT INTO schema_migrations(version) VALUES (:version)"), {"version": RENAME_VERSION})
+        if not connection.scalar(text("SELECT 1 FROM schema_migrations WHERE version=:version"), {"version": RENAME_VERSION}):
+            rename_super_auditor(connection)
+            connection.execute(text("INSERT INTO schema_migrations(version) VALUES (:version)"), {"version": RENAME_VERSION})
+        if not connection.scalar(text("SELECT 1 FROM schema_migrations WHERE version=:version"), {"version": HISTORY_SCORES_VERSION}):
+            add_history_scores(connection)
+            connection.execute(text("INSERT INTO schema_migrations(version) VALUES (:version)"), {"version": HISTORY_SCORES_VERSION})
 
 
 if __name__ == "__main__":

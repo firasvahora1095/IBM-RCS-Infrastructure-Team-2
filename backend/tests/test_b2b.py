@@ -1111,6 +1111,32 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(sum(1 for r in data["comparisons"] if r["override"]), sum(p["count"] for p in data["override_patterns"]))
         self.assertEqual(len(data["comparisons"]), data["compared_cases"])
 
+    def test_history_with_scores_shows_the_change_and_reason(self) -> None:
+        self.add_history("RCS-HSC-00001", "S2", "S3", ai_score=52, final_score=71, override_reason="The audio makes the threat clearer.")
+        row = {r["case_id"]: r for r in self.governance()["comparisons"]}["RCS-HSC-00001"]
+        self.assertEqual((row["ai_score"], row["auditor_score"], row["score_delta"]), (52, 71, 19))
+        self.assertEqual(row["override_reason"], "The audio makes the threat clearer.")
+
+    def test_seeded_history_scores_sit_in_their_tier_bands(self) -> None:
+        from app.b2b_seed import CVI_BAND, historical_scores
+
+        for case_id, ai, final in [("RCS-AB12-CD34", "S1", "S1"), ("RCS-ZZ99-QQ11", "S2", "S4"), ("RCS-K3M7-P2X9", "S4", "S3")]:
+            scores = historical_scores(case_id, ai, final)
+            self.assertTrue(CVI_BAND[ai][0] <= scores["ai_score"] <= CVI_BAND[ai][1])
+            self.assertTrue(CVI_BAND[final][0] <= scores["final_score"] <= CVI_BAND[final][1])
+            self.assertEqual(scores["override_reason"] is None, ai == final)
+            self.assertEqual(scores, historical_scores(case_id, ai, final))  # Same ID, same scores.
+        with self.Session() as db:
+            db.query(ClientUser).delete()
+            db.query(Organisation).delete()
+            db.commit()
+            seed_b2b(db, datetime.now(timezone.utc), [], client_password="test123")
+        with self.Session() as db:
+            history = db.scalars(select(CaseHistory)).all()
+        self.assertTrue(history)
+        self.assertTrue(all(h.ai_score is not None and h.final_score is not None for h in history))
+        self.assertTrue(all((h.override_reason is None) == (h.ai_tier == h.final_tier) for h in history))
+
 
 if __name__ == "__main__":
     unittest.main()

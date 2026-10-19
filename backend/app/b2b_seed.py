@@ -59,6 +59,41 @@ def month_period(today: date, offset: int) -> tuple[str, str]:
     return first.isoformat(), last.isoformat()
 
 
+# The CVI bands from the severity scale.
+CVI_BAND = {"S1": (5, 39), "S2": (40, 64), "S3": (65, 84), "S4": (85, 99)}
+RAISED_REASONS = (
+    "Weapon visible earlier than the AI marked.",
+    "Injury looks more serious than the summary suggests.",
+    "The audio makes the threat clearer.",
+)
+LOWERED_REASONS = (
+    "Staged sports footage, not a real fight.",
+    "Brief contact and no visible injury.",
+    "Context shows a training exercise.",
+)
+
+
+def historical_scores(case_id: str, ai_tier: str, final_tier: str) -> dict:
+    """Synthetic CVI scores for a seeded history record, derived from its ID (FNV-1a) so they never disturb the seeded
+    random sequence. The same function runs in the frontend's mock data, so the demo and the deployed app agree."""
+    h = 2166136261
+    for ch in case_id:
+        h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+
+    def within(salt: int, band: tuple[int, int]) -> int:
+        lo, hi = band
+        return lo + ((h >> salt) & 0xFFFF) % (hi - lo + 1)
+
+    ai = within(0, CVI_BAND[ai_tier])
+    final = ai if ai_tier == final_tier else within(7, CVI_BAND[final_tier])
+    reasons = RAISED_REASONS if TIERS.index(final_tier) > TIERS.index(ai_tier) else LOWERED_REASONS
+    return {
+        "ai_score": ai,
+        "final_score": final,
+        "override_reason": None if ai_tier == final_tier else reasons[h % len(reasons)],
+    }
+
+
 def _historical_cases(now: datetime, rng: random.Random, organisation_id: str = COMMUNITYHUB_ID) -> list[CaseHistory]:
     start_month, _ = month_period(now.date(), -2)
     day = datetime.fromisoformat(start_month).replace(tzinfo=timezone.utc)
@@ -81,8 +116,9 @@ def _historical_cases(now: datetime, rng: random.Random, organisation_id: str = 
             violation_chance = {"S1": 0.1, "S2": 0.5, "S3": 0.9, "S4": 0.95}[final_tier]
             outcome = "POLICY_VIOLATION_FOUND" if rng.random() < violation_chance else "NO_VIOLATION_FOUND"
             chars = "".join(rng.choice(ID_ALPHABET) for _ in range(8))
+            case_id = f"RCS-{chars[:4]}-{chars[4:]}"
             rows.append(CaseHistory(
-                case_id=f"RCS-{chars[:4]}-{chars[4:]}",
+                case_id=case_id,
                 organisation_id=organisation_id,
                 created_at=created,
                 completed_at=completed,
@@ -90,6 +126,7 @@ def _historical_cases(now: datetime, rng: random.Random, organisation_id: str = 
                 final_tier=final_tier,
                 outcome=outcome,
                 declined_reassigned=1 if rng.random() < 0.05 else 0,
+                **historical_scores(case_id, ai_tier, final_tier),
             ))
         day += timedelta(days=1)
     return sorted(rows, key=lambda h: h.completed_at)

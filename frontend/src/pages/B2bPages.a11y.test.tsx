@@ -63,7 +63,7 @@ describe("B2B screens — automated accessibility", () => {
 
   it.each([
     ["Deliveries", "/manager/deliveries", "Deliveries"],
-    ["Delivery detail", "/manager/deliveries/DEL-AR-2026-00404", "DEL-AR-2026-00404"],
+    ["Delivery detail", "/manager/deliveries/DEL-AR-2026-00404", "Result for CommunityHub"],
     ["Client connections", "/manager/customers/communityhub", "Client connections"],
     ["Client reports", "/manager/reports", "Client reports"],
     ["Client messages", "/manager/messages", "Client messages"],
