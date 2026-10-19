@@ -1640,3 +1640,179 @@
 .lp-catalogue-col .lp-check-list li {
   @include type.type-style("body-compact-01");
 }
+
+// ---------------------------------------------------------------------------
+// Demo guide (/flow): the journey in four phases of stage cards.
+// ---------------------------------------------------------------------------
+.fl-title {
+  max-inline-size: 24ch;
+}
+.fl-hero-side {
+  align-self: end;
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 2rem;
+  }
+}
+.fl-phase-index {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  li {
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  a {
+    @include type.type-style("body-compact-02");
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+    color: var(--cds-text-primary);
+    text-decoration: none;
+    &:hover {
+      color: var(--cds-link-primary);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cds-focus);
+      outline-offset: 2px;
+    }
+  }
+}
+.fl-phase-num {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: #ffffff; // 6.4:1 on the deep purple
+  background-color: var(--rcs-brand-purple-deep);
+}
+.fl-phase {
+  scroll-margin-block-start: 4rem;
+  & + & {
+    margin-block-start: 4rem;
+  }
+}
+.fl-phase-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-block-end: 1.5rem;
+}
+.fl-phase-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.fl-phase-body {
+  @include type.type-style("body-01");
+  margin-block-start: 0.25rem;
+  color: var(--cds-text-secondary);
+}
+.fl-cards {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  li {
+    display: flex;
+  }
+}
+.fl-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--cds-text-primary);
+  text-decoration: none;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  transition: background-color 110ms ease-out, border-color 110ms ease-out;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+    border-color: var(--cds-border-strong-01);
+  }
+  &:hover .fl-card-cta {
+    text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  .cds--tag {
+    margin: 0;
+  }
+}
+.fl-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.fl-card-num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+.fl-card-title {
+  @include type.type-style("heading-03");
+}
+.fl-card-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.fl-card-cta {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: auto;
+  padding-block-start: 0.5rem;
+  color: var(--cds-link-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fl-card {
+    transition: none;
+  }
+}
+.fl-mono {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+}
+// Demo accounts: a plain Carbon-styled table on the tinted section.
+.fl-accounts {
+  inline-size: 100%;
+  border-collapse: collapse;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  th,
+  td {
+    @include type.type-style("body-compact-01");
+    padding: 1rem;
+    text-align: start;
+    vertical-align: top;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  thead th {
+    @include type.type-style("heading-compact-01");
+    background-color: var(--cds-layer-accent-01);
+  }
+  tbody th {
+    font-weight: 600;
+  }
+  td:last-child {
+    text-align: end;
+  }
+}

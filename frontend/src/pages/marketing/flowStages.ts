@@ -49,7 +49,7 @@ export const STAGES: Stage[] = [
   {
     n: "06",
     title: "AI pre-screen and protected review",
-    body: "Content warning, blur, exposure limits, support and SOS. The reviewer decides.",
+    body: "Content warning, blur, exposure limits, support and SOS. The Reviewer decides.",
     persona: "Auditor",
     to: "/auditor",
     signIn: isMockData ? "auditor-1" : "auditor-01",
@@ -73,7 +73,7 @@ export const STAGES: Stage[] = [
   {
     n: "08",
     title: "Manager oversight",
-    body: "SOS, reassignment, failed handoffs and reviewer exposure at a glance.",
+    body: "SOS, reassignment, failed handoffs and Reviewer exposure at a glance.",
     persona: "Manager",
     to: "/manager",
     signIn: isMockData ? "manager-1" : "manager-01",
