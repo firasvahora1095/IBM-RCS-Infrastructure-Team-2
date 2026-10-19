@@ -72,14 +72,11 @@ export function ContentWarningModal({
   const aiFailed = Boolean(caseDetail.ai_failure);
   const tags = [...new Set((caseDetail.incident_timeline ?? []).map((e) => e.tag).filter((t): t is string => !!t))];
 
+  // Two facts that are always true: how long the video is, and how much viewing time is left today. Not a forecast of
+  // what this case will use, because replays count too and a Reviewer may need longer than the video itself.
   const length = caseDetail.video_duration_seconds;
   const limit = wellbeing?.exposure_limit_minutes;
-  const exposureLine =
-    length && length > 0
-      ? `${formatLength(length)} long. Uses up to ${Math.max(1, Math.ceil(length / 60))}${
-          limit ? ` of your ${limit}` : ""
-        } min of exposure today.`
-      : null;
+  const left = limit != null && wellbeing ? Math.max(0, Math.floor(limit - wellbeing.exposure_minutes_today)) : null;
 
   return (
     <ComposedModal
@@ -147,7 +144,27 @@ export function ContentWarningModal({
 
           <h3 style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>Would you like to proceed?</h3>
 
-          {exposureLine && <p style={{ fontSize: 14, lineHeight: "20px" }}>{exposureLine}</p>}
+          {(length || left !== null) && (
+            <div className="rcs-cw-facts">
+              <dl>
+                {length ? (
+                  <div>
+                    <dt>Video length</dt>
+                    <dd>{formatLength(length)}</dd>
+                  </div>
+                ) : null}
+                {left !== null && (
+                  <div>
+                    <dt>Left today</dt>
+                    <dd>
+                      {left} of {limit} min
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <p>Viewing time counts while the video plays, including replays.</p>
+            </div>
+          )}
 
           <Checkbox
             id={`content-consent-${caseDetail.case_id}`}

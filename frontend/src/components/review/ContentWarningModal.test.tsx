@@ -40,7 +40,10 @@ describe("ContentWarningModal", () => {
     setup();
     expect(screen.getByText("Declining sends the case to the Manager to decide. It isn't reassigned automatically.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Decline" })).toBeInTheDocument();
-    expect(screen.getByText(/1:36 long\. Uses up to 2/)).toBeInTheDocument();
+    // The length, and what is left today; never a forecast of what the case will use.
+    expect(screen.getByText("Video length")).toBeInTheDocument();
+    expect(screen.getByText("1:36")).toBeInTheDocument();
+    expect(screen.queryByText(/Uses up to/)).not.toBeInTheDocument();
     expect(screen.getByText("CVI score (48 of 100)")).toBeInTheDocument();
   });
 
