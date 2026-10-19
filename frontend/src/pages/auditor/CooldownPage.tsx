@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { Breadcrumb, BreadcrumbItem, Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
@@ -149,6 +149,12 @@ export function CooldownPage() {
     <>
       {header}
       <StaffPage maxWidth={600}>
+        <Breadcrumb noTrailingSlash>
+          <BreadcrumbItem>
+            <RouterLink to="/auditor">Dashboard</RouterLink>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrentPage>Cooldown</BreadcrumbItem>
+        </Breadcrumb>
         <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>
           {cooldown ? "Cooldown in progress" : "Your cooldown has ended"}
         </h1>
@@ -189,8 +195,8 @@ export function CooldownPage() {
             kind="warning"
             lowContrast
             hideCloseButton
-            title="Your manager will check in before this ends"
-            subtitle="You don't need to do anything. Your manager or support starts the check-in. The options below are extra support if you want it."
+            title="Your Manager will check in before this ends"
+            subtitle="You don't need to do anything. Your Manager or support starts the check-in. The options below are extra support if you want it."
             style={{ maxWidth: "100%" }}
           />
         )}
@@ -203,7 +209,7 @@ export function CooldownPage() {
               ? "Return to queue"
               : remainingMs > 0
                 ? `Return to queue (available in ${formatCountdown(remainingMs)})`
-                : "Return to queue (after your manager's check-in)"}
+                : "Return to queue (after your Manager's check-in)"}
           </Button>
           <Button kind="tertiary" onClick={stopShift}>
             Stop my shift

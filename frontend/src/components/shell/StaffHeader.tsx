@@ -1,9 +1,9 @@
-import { Header, HeaderName, HeaderGlobalBar, Tag, Theme } from "@carbon/react";
+import { Header, HeaderGlobalBar, Tag, Theme } from "@carbon/react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import type { SosSummary } from "../../services/types";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
-import { RcsMark } from "../brand/RcsMark";
+import { AppBrand, UserMenu } from "./AppBrand";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -48,20 +48,12 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
 
   return (
     <Theme theme="g100">
-      <Header aria-label={`RCS — ${label}`}>
-        {/* On phones the header has room for the essentials only: the role
-            label, the staff ID and the word "today" drop out below the sm/lg
-            breakpoints, and the exposure bar narrows, so nothing runs off
-            the edge of the fixed 48px bar. */}
-        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
-        <span className="flex items-center pl-4" aria-hidden="true">
-          <RcsMark size={24} />
-        </span>
-        <HeaderName href={ROLE_HOME[role]} prefix="" aria-label={`RCS — ${label}`} style={{ paddingInlineStart: "0.5rem" }}>
-          RCS<span className="hidden sm:inline">{` — ${label}`}</span>
-        </HeaderName>
+      <Header aria-label={`RCS — ${label}`} className="rcs-app-header">
+        {/* On phones the header keeps the essentials: the area label, the name and the word "today" drop out
+            below the sm/lg breakpoints, and the exposure bar narrows, so nothing runs off the fixed 48px bar. */}
+        <AppBrand area={label} href={ROLE_HOME[role]} />
         <DemoDataBadge />
-        <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
+        <HeaderGlobalBar className="rcs-app-actions">
           {role === "auditor" && wellbeing && (
             <ExposureBar
               surface="dark"
@@ -82,33 +74,17 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
               </Tag>
             </RouterLink>
           )}
-          {staffId && (
-            <span
-              className="hidden lg:inline"
-              style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
-            >
-              {whoLabel}: {displayName || staffId}
-            </span>
-          )}
-          <AiBuddy />
+          <span className="rcs-header-divider" aria-hidden="true" />
           <DemoScenarioMenu role={role} />
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="cursor-pointer"
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--cds-text-primary)",
-              fontSize: 14,
-              fontFamily: "inherit",
-              textDecoration: "underline",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Sign out
-          </button>
+          <AiBuddy />
+          {staffId && (
+            <UserMenu
+              name={displayName || staffId}
+              role={whoLabel}
+              detail={displayName ? staffId : undefined}
+              onSignOut={handleSignOut}
+            />
+          )}
         </HeaderGlobalBar>
       </Header>
     </Theme>

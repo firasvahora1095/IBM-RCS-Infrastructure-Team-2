@@ -13,7 +13,8 @@ import {
   Tag,
   TextArea,
 } from "@carbon/react";
-import { Chat, Close, Send } from "@carbon/icons-react";
+import { ArrowRight, Chat, Close, Information, Send } from "@carbon/icons-react";
+import { RcsMark } from "../brand/RcsMark";
 import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
 import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
@@ -76,6 +77,10 @@ function BuddyBubble({ message, onNavigate }: { message: BuddyMessage; onNavigat
   }
   return (
     <div className="rcs-buddy__msg rcs-buddy__msg--buddy">
+      <span className="rcs-buddy__who" aria-hidden="true">
+        <RcsMark size={14} />
+        AI Buddy
+      </span>
       <span className="cds--visually-hidden">AI Buddy said: </span>
       {message.text}
       {reply?.case && <CaseSummary summary={reply.case} />}
@@ -200,7 +205,11 @@ export function AiBuddy() {
         createPortal(
           <aside id={panelId} className="rcs-buddy" aria-label="AI Buddy" onKeyDown={onKeyDown}>
             <div className="rcs-buddy__head">
-              <h2 className="rcs-buddy__title">AI Buddy</h2>
+              <RcsMark size={24} />
+              <div className="rcs-buddy__heading">
+                <h2 className="rcs-buddy__title">AI Buddy</h2>
+                <p className="rcs-buddy__sub">Built on watsonx.ai</p>
+              </div>
               <DefinitionTooltip definition="AI-generated. Check before acting." openOnHover align="bottom-end">
                 <Tag type="gray" size="sm">
                   Beta
@@ -211,30 +220,42 @@ export function AiBuddy() {
               </IconButton>
             </div>
 
+            {/* The early-version caveat as one quiet line under the head, not a box competing with the answers. */}
+            {!noticeDismissed && (
+              <div className="rcs-buddy__note">
+                <Information size={16} aria-hidden />
+                <p>
+                  <strong>Early version.</strong> I can make mistakes, so check anything important on the screen I
+                  point to.
+                </p>
+                <IconButton
+                  label="Dismiss"
+                  kind="ghost"
+                  size="sm"
+                  align="bottom-end"
+                  onClick={() => setNoticeDismissed(true)}
+                >
+                  <Close />
+                </IconButton>
+              </div>
+            )}
+
             <div className="rcs-buddy__log">
-              {!noticeDismissed && (
-                <InlineNotification
-                  kind="info"
-                  lowContrast
-                  title="Early version."
-                  subtitle="I can make mistakes, so check anything important on the screen I point to."
-                  statusIconDescription="Information"
-                  onCloseButtonClick={() => setNoticeDismissed(true)}
-                  style={{ maxInlineSize: "100%", marginBlockEnd: 0 }}
-                />
-              )}
               {empty && (
-                <div>
-                  <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>How can I help?</p>
-                  <p style={{ fontSize: 14, color: "var(--cds-text-secondary)", margin: "0.5rem 0 1rem" }}>
+                <div className="rcs-buddy__welcome">
+                  <p className="rcs-buddy__welcome-title">How can I help?</p>
+                  <p className="rcs-buddy__welcome-text">
                     I can explain RCS rules, your limits and your cases. You make the final call.
                   </p>
+                  <p className="rcs-buddy__label">Try asking</p>
                   <div className="rcs-buddy__suggestions">
                     {suggestedQuestions(role, isSuperAdmin, onCasePage).map((question) => (
                       <Button
                         key={question}
-                        kind="tertiary"
+                        kind="ghost"
                         size="md"
+                        renderIcon={ArrowRight}
+                        className="rcs-buddy__chip"
                         disabled={loading}
                         onClick={() => {
                           if (question === CASE_LOOKUP_PROMPT) {

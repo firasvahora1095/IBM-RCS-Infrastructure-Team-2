@@ -49,10 +49,18 @@ export const STAGES: Stage[] = [
   {
     n: "06",
     title: "AI pre-screen and protected review",
-    body: "Content warning, blur, exposure limits, support and SOS. The reviewer decides.",
+    body: "Content warning, blur, exposure limits, support and SOS. The Reviewer decides.",
     persona: "Auditor",
     to: "/auditor",
     signIn: isMockData ? "auditor-1" : "auditor-01",
+  },
+  {
+    n: "06b",
+    title: "Fallback review when no Reviewer is free",
+    body: "Cases no Reviewer can take wait in the fallback queue. The Super Auditor places them or reviews them.",
+    persona: "Super Auditor",
+    to: "/auditor",
+    signIn: isMockData ? "superauditor-1" : "superauditor-01",
   },
   {
     n: "07",
@@ -73,7 +81,7 @@ export const STAGES: Stage[] = [
   {
     n: "08",
     title: "Manager oversight",
-    body: "SOS, reassignment, failed handoffs and reviewer exposure at a glance.",
+    body: "SOS, reassignment, failed handoffs and Reviewer exposure at a glance.",
     persona: "Manager",
     to: "/manager",
     signIn: isMockData ? "manager-1" : "manager-01",
@@ -93,5 +101,13 @@ export const STAGES: Stage[] = [
     persona: "CommunityHub Client",
     to: "/client/reports",
     signIn: "ch-user-17",
+  },
+  {
+    n: "11",
+    title: "CommunityHub admin sees it all",
+    body: "An admin sees case results, service reports and messages together in one Client portal.",
+    persona: "CommunityHub Admin",
+    to: "/client/cases",
+    signIn: "ch-admin-01",
   },
 ];

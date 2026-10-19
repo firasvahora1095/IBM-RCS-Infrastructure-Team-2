@@ -244,7 +244,7 @@ function StatusResult({ result, onCheckAnother }: StatusResultProps) {
                   Being Reviewed
                 </h2>
                 <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-                  A reviewer is currently assessing your report against our content policy.
+                  A Reviewer is currently assessing your report against our content policy.
                 </p>
               </div>
             </div>

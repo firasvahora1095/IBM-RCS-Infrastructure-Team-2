@@ -89,7 +89,7 @@ describe("AuditorCaseDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("Graphic violence")).toBeInTheDocument();
-    expect(screen.getByText("weapon_present")).toBeInTheDocument();
+    expect(screen.getByText("weapon present")).toBeInTheDocument();
     expect(screen.queryByText(/physical altercation between two individuals/)).not.toBeInTheDocument();
 
     const proceed = screen.getByRole("button", { name: "Proceed" });
@@ -176,7 +176,7 @@ describe("AuditorCaseDetailPage", () => {
     expect(screen.getByRole("button", { name: "Continue to submit" })).toBeEnabled();
   });
 
-  it("hides the content immediately on SOS, then confirms the manager was notified (AR-WB-09, Figma 31:257)", async () => {
+  it("hides the content immediately on SOS, then confirms the Manager was notified (AR-WB-09, Figma 31:257)", async () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     let resolveSos: (value: Awaited<ReturnType<typeof services.triggerSos>>) => void = () => {};
     vi.spyOn(services, "triggerSos").mockReturnValueOnce(new Promise((resolve) => (resolveSos = resolve)));
@@ -192,7 +192,7 @@ describe("AuditorCaseDetailPage", () => {
     resolveSos({
       cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
     });
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
   });
@@ -220,7 +220,7 @@ describe("AuditorCaseDetailPage", () => {
     resolveReport({
       cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
     });
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     expect(screen.getByText(/a mandatory cooldown now applies/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
@@ -245,7 +245,7 @@ describe("AuditorCaseDetailPage", () => {
       window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
     });
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     expect(report).toHaveBeenCalledTimes(2);
     expect(triggerSos).not.toHaveBeenCalled();
   });
@@ -405,7 +405,7 @@ describe("AuditorCaseDetailPage", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Your session has timed out" });
     fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: "test123" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Log in to continue" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sign in to continue" }));
 
     await waitFor(() => expect(login).toHaveBeenCalledWith("auditor-1", "test123"));
     await waitFor(() => expect(sessionStorage.getItem("rcs_staff_token")).toBe("fresh-token"));

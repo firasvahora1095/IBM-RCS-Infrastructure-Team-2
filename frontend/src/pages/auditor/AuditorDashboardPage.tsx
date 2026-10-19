@@ -277,7 +277,7 @@ export function AuditorDashboardPage() {
             {isSuperAdmin && (
               <StatTile
                 compact
-                label="Needs a reviewer"
+                label="Needs a Reviewer"
                 value={needsReviewerCount === null ? "–" : needsReviewerCount}
                 helper={needsReviewerCount ? "In the fallback queue" : "Nothing waiting"}
               />
@@ -322,11 +322,17 @@ export function AuditorDashboardPage() {
                 <p className="rcs-helper">
                   {cooldownCause}
                   {waitingForCheckIn
-                    ? ". Your manager will check in before new cases resume."
+                    ? ". Your Manager will check in before new cases resume."
                     : ". No new harmful-content case is assigned until it ends."}
                 </p>
                 <div>
-                  <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
+                  {/* Wraps instead of spilling past the tile when the column narrows (e.g. with AI Buddy open). */}
+                  <Button
+                    kind="tertiary"
+                    size="sm"
+                    className="rcs-btn-wrap"
+                    onClick={() => navigate("/auditor/cooldown#take-a-moment")}
+                  >
                     Play block puzzle
                   </Button>
                 </div>
@@ -357,7 +363,7 @@ export function AuditorDashboardPage() {
                 </span>
                 {(onBreak || breakRequested) && (
                   <span className="rcs-stat-helper">
-                    {onBreak ? "Approved by your manager. No new cases until you're back." : "Waiting for your manager."}
+                    {onBreak ? "Approved by your Manager. No new cases until you're back." : "Waiting for your Manager."}
                   </span>
                 )}
               </div>
@@ -448,7 +454,7 @@ export function AuditorDashboardPage() {
                   {isSuperAdmin && needsReviewerCount ? (
                     <>
                       No cases assigned to you. {needsReviewerCount}{" "}
-                      {needsReviewerCount === 1 ? "case needs" : "cases need"} a reviewer.{" "}
+                      {needsReviewerCount === 1 ? "case needs" : "cases need"} a Reviewer.{" "}
                       <a href="#fallback-queue">View queue</a>.
                     </>
                   ) : (

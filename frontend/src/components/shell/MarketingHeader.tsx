@@ -72,6 +72,10 @@ export function MarketingHeader({ activeId }: { activeId?: string } = {}) {
         </HeaderNavigation>
         <HeaderGlobalBar className="items-center">
           <HeaderNavigation aria-label="Sign in" className="rcs-site-signin">
+            {/* The public's way in: someone who saw a harmful post shouldn't have to read a sales page to report it. */}
+            <HeaderMenuItem as={RouterLink} to="/report">
+              Report content
+            </HeaderMenuItem>
             <HeaderMenu aria-label="Sign in" menuLinkName="Sign in">
               {SIGN_INS.map((s) => (
                 <HeaderMenuItem key={s.to} as={RouterLink} to={s.to}>
@@ -92,6 +96,9 @@ export function MarketingHeader({ activeId }: { activeId?: string } = {}) {
                   {section.label}
                 </SideNavLink>
               ))}
+              <SideNavLink as={RouterLink} to="/report" onClick={close}>
+                Report content
+              </SideNavLink>
               {SIGN_INS.map((s) => (
                 <SideNavLink key={s.to} as={RouterLink} to={s.to} onClick={close}>
                   {s.label}

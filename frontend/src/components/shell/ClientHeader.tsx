@@ -1,8 +1,9 @@
-import { Button, Header, HeaderGlobalBar, HeaderName, Tag, Theme } from "@carbon/react";
+import { Header, HeaderGlobalBar, Theme } from "@carbon/react";
+import { Email } from "@carbon/icons-react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { clientHome, useClientAuth } from "../../hooks/useClientAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
-import { RcsMark } from "../brand/RcsMark";
+import { AppBrand, UserMenu } from "./AppBrand";
 
 /**
  * Header for the CommunityHub client surface (B2B spec S12): same g100
@@ -21,50 +22,32 @@ export function ClientHeader() {
 
   return (
     <Theme theme="g100">
-      <Header aria-label="RCS — Client portal">
-        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
-        <span className="flex items-center pl-4" aria-hidden="true">
-          <RcsMark size={24} />
-        </span>
-        <HeaderName as={RouterLink} to={clientHome(session?.role)} prefix="" aria-label="RCS — Client portal" style={{ paddingInlineStart: "0.5rem" }}>
-          RCS<span className="hidden sm:inline"> — Client portal</span>
-        </HeaderName>
+      <Header aria-label="RCS — Client portal" className="rcs-app-header">
+        <AppBrand area="Client portal" as={RouterLink} to={clientHome(session?.role)} />
         <DemoDataBadge />
-        <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
+        <HeaderGlobalBar className="rcs-app-actions">
           {session && (
             <>
-              {/* Always reachable: a client can contact RCS from any page. */}
-              <Button kind="tertiary" size="sm" onClick={() => navigate("/client/messages/new")}>
-                Contact RCS
-              </Button>
-              <Tag type="gray" size="md" style={{ margin: 0, whiteSpace: "nowrap" }}>
-                {session.organisationName}
-              </Tag>
-              <span
-                className="hidden lg:inline"
-                style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
+              {/* Always reachable: a Client can contact RCS from any page. */}
+              <button
+                type="button"
+                className="rcs-header-action"
+                onClick={() => navigate("/client/messages/new")}
               >
-                {session.displayName}
-              </span>
+                <Email size={16} aria-hidden />
+                <span className="hidden md:inline">Contact RCS</span>
+                <span className="cds--visually-hidden md:hidden">Contact RCS</span>
+              </button>
+              <span className="rcs-header-divider" aria-hidden="true" />
+              <span className="rcs-header-org">{session.organisationName}</span>
+              <UserMenu
+                name={session.displayName}
+                role={session.organisationName}
+                detail={session.userId}
+                onSignOut={handleSignOut}
+              />
             </>
           )}
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="cursor-pointer"
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--cds-text-primary)",
-              fontSize: 14,
-              fontFamily: "inherit",
-              textDecoration: "underline",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Sign out
-          </button>
         </HeaderGlobalBar>
       </Header>
     </Theme>

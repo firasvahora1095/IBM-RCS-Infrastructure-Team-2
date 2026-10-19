@@ -51,7 +51,7 @@ export const WELLBEING_TONE: Record<WellbeingRequestStatus, StatusTone> = {
 };
 
 export const WELLBEING_STATUS_LABEL: Record<WellbeingRequestStatus, string> = {
-  OPEN: "Waiting for your manager",
+  OPEN: "Waiting for your Manager",
   APPROVED: "Break approved",
   FOLLOWED_UP: "Followed up",
   WITHDRAWN: "Withdrawn",

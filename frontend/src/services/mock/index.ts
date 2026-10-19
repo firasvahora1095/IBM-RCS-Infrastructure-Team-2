@@ -1026,7 +1026,7 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "auditor");
       const request = db.wellbeingRequests.find((r) => r.id === requestId && r.auditor_id === session.staffId);
       if (!request) throw new ApiError("Request not found", 404);
-      if (request.status !== "OPEN") throw new ApiError("Your manager has already responded to this request.", 409);
+      if (request.status !== "OPEN") throw new ApiError("Your Manager has already responded to this request.", 409);
       request.status = "WITHDRAWN";
       request.resolved_at = new Date().toISOString();
       audit(db, session.staffId, "WELLBEING_REQUEST_WITHDRAWN", request.case_id, request.kind);

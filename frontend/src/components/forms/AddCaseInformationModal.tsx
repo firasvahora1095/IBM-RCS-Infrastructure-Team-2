@@ -81,7 +81,7 @@ export function AddCaseInformationModal({ caseId, open, onClose, onAdded }: AddC
           ref={detailsRef}
           id="add-case-information"
           labelText="Additional context or details"
-          placeholder="Add anything that helps the reviewer understand your case..."
+          placeholder="Add anything that helps the Reviewer understand your case..."
           rows={4}
           value={details}
           onChange={(e) => setDetails(e.target.value)}

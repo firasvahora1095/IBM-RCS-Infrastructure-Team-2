@@ -1,16 +1,15 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { ActionableNotification, Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
-import { StatusTag } from "../../components/ui/StatusTag";
 import { TablePagination, usePagination } from "../../components/ui/TablePagination";
 import { listClientMessages } from "../../services";
 import type { ClientMessage } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
-import { inScope, useClients } from "../../hooks/useClientScope";
-import { MANAGER_MESSAGE_STATUS_LABEL, MESSAGE_TONE, MESSAGE_TOPIC_LABEL } from "../../design-tokens/messageLabels";
+import { ALL_CLIENTS, inScope, useClientScope, useClients } from "../../hooks/useClientScope";
+import { MESSAGE_TOPIC_LABEL } from "../../design-tokens/messageLabels";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
@@ -22,6 +21,7 @@ export function ManagerClientMessagesPage() {
   const navigate = useNavigate();
   const { data: allMessages, error } = useStaffQuery(listClientMessages);
   const { scope, selected } = useClients();
+  const { setClientId } = useClientScope();
   const data = allMessages ? allMessages.filter((m) => inScope(scope, m)) : allMessages;
   const waiting = (data ?? [])
     .filter((m) => m.status !== "ANSWERED")
@@ -30,6 +30,10 @@ export function ManagerClientMessagesPage() {
     .filter((m) => m.status === "ANSWERED")
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const pagedAnswered = usePagination(answered, String(answered.length));
+  // The work-queue badge counts every Client's waiting messages; when one Client is selected, say where the rest are.
+  const waitingElsewhere = selected
+    ? (allMessages ?? []).filter((m) => m.status !== "ANSWERED" && !inScope(scope, m)).length
+    : 0;
 
   return (
     <ManagerLayout clientScope>
@@ -45,14 +49,38 @@ export function ManagerClientMessagesPage() {
         }
       />
       <LoadState error={error} loading={!data && !error} what="Client messages" />
+      {waitingElsewhere > 0 && (
+        <ActionableNotification
+          kind="info"
+          lowContrast
+          inline
+          hideCloseButton
+          title={`${waitingElsewhere} more ${waitingElsewhere === 1 ? "message is" : "messages are"} waiting from other Clients.`}
+          subtitle={`You're viewing ${selected?.name}. The count on Client messages includes every Client.`}
+          actionButtonLabel="Show all Clients"
+          onActionButtonClick={() => setClientId(ALL_CLIENTS)}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {data && waiting.length > 0 && (
         <Section id="waiting" title={`Waiting for a reply · ${waiting.length}`} description="Oldest first.">
-          <MessageTable label="Client messages waiting for a reply" rows={waiting} navigate={navigate} withReply showClient={!selected} />
+          <MessageTable
+            label="Client messages waiting for a reply"
+            rows={waiting}
+            navigate={navigate}
+            withReply
+            showClient={!selected}
+          />
         </Section>
       )}
       {data && answered.length > 0 && (
         <Section id="answered" title={`Answered · ${answered.length}`}>
-          <MessageTable label="Answered Client messages" rows={pagedAnswered.rows} navigate={navigate} showClient={!selected} />
+          <MessageTable
+            label="Answered Client messages"
+            rows={pagedAnswered.rows}
+            navigate={navigate}
+            showClient={!selected}
+          />
           <TablePagination paged={pagedAnswered} />
         </Section>
       )}
@@ -84,10 +112,9 @@ function MessageTable({
       <Table aria-label={label}>
         <TableHead>
           <TableRow>
-            <TableHeader>Subject</TableHeader>
+            <TableHeader className={withReply ? "rcs-msg-subject" : undefined}>Subject</TableHeader>
             <TableHeader>From</TableHeader>
             <TableHeader>Received</TableHeader>
-            <TableHeader>Status</TableHeader>
             {withReply && (
               <TableHeader>
                 <span className="cds--visually-hidden">Reply</span>
@@ -100,8 +127,18 @@ function MessageTable({
             const url = `/manager/messages/${encodeURIComponent(m.message_id)}`;
             return (
               <TableRow key={m.message_id} onClick={() => navigate(url)} style={{ cursor: "pointer" }}>
-                <TableCell style={{ fontWeight: m.status === "SENT" ? 600 : 400 }}>
+                {/* Unread, as in any inbox: a blue dot and a bold subject. Each list is already grouped by state, so a
+                    status tag on every row would say nothing the heading doesn't (docs/ux/tag-colour-system.md, rule 4). */}
+                <TableCell
+                  className={
+                    [withReply && "rcs-msg-subject", m.status === "SENT" && "rcs-msg-unread"]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                >
+                  {m.status === "SENT" && <span className="rcs-unread-dot" aria-hidden="true" />}
                   <RouterLink className="cds--link" to={url} onClick={(e) => e.stopPropagation()}>
+                    {m.status === "SENT" && <span className="cds--visually-hidden">Unread: </span>}
                     {m.subject}
                   </RouterLink>
                   <span className="rcs-helper" style={{ display: "block" }}>
@@ -117,11 +154,6 @@ function MessageTable({
                   )}
                 </TableCell>
                 <TableCell style={{ color: "var(--cds-text-secondary)" }}>{formatDayTime(m.created_at)}</TableCell>
-                <TableCell>
-                  <StatusTag tone={MESSAGE_TONE[m.status]} size="sm">
-                    {MANAGER_MESSAGE_STATUS_LABEL[m.status]}
-                  </StatusTag>
-                </TableCell>
                 {withReply && (
                   <TableCell style={{ textAlign: "end" }}>
                     <Button

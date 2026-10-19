@@ -167,7 +167,7 @@ export function ClientMessagesPage() {
   );
 
   return (
-    <ClientLayout maxWidth={1056}>
+    <ClientLayout maxWidth={1320}>
       <PageHeader
         title="Messages"
         subtitle={MESSAGE_RESPONSE_PROMISE}

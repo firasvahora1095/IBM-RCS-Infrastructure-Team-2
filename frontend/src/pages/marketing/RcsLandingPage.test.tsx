@@ -44,7 +44,7 @@ describe("RCS landing page", () => {
     const team = screen.getByRole("region", { name: "Built by RMIT Team 6, with IBM." });
     const cards = within(team).getAllByRole("listitem");
     const expected = [
-      ["Hyuna Bae", "Project Manager", "built the exposure and cooldown logic and led end-to-end testing"],
+      ["Hyuna Bae", "Project Manager", "built the AI Buddy and the exposure and cooldown logic, set up deployment and led end-to-end testing"],
       ["Janataarah Begum", "Business Analyst / QA", "S1–S4 severity scale"],
       ["Aleeya Ahmad", "UX / Research", "designed all three roles in Figma"],
       ["Firas Vahora", "Developer", "delivered the live watsonx Orchestrate integration"],
@@ -100,6 +100,19 @@ describe("RCS landing page", () => {
     expect(document.body.textContent).not.toMatch(/signature|signed (and|result|payload|webhook|deliver)/i);
   });
 
+  it("sells the outcomes and lists every feature by role, including AI Buddy", () => {
+    renderPage();
+    const value = screen.getByRole("region", { name: "Moderation you can stand behind." });
+    ["Meet your duty of care", "Decisions you can defend", "Live in two touchpoints", "Proof for your leadership"].forEach(
+      (t) => expect(within(value).getByRole("heading", { name: t })).toBeInTheDocument(),
+    );
+    const product = screen.getByRole("region", { name: "One service, three views." });
+    expect(within(product).getByRole("heading", { name: "AI Buddy, for every Reviewer and Manager" })).toBeInTheDocument();
+    ["For Reviewers", "For Managers", "For your platform", "For the public"].forEach((who) =>
+      expect(within(product).getByRole("heading", { name: who })).toBeInTheDocument(),
+    );
+  });
+
   it("writes the roles as proper nouns: Reviewer, Manager, Client", () => {
     const { container } = renderPage();
     const copy = container.cloneNode(true) as HTMLElement;
@@ -142,7 +155,7 @@ describe("RCS landing page", () => {
     await user.click(within(demo).getByRole("button", { name: "Start again" }));
 
     await user.click(within(demo).getByRole("button", { name: "Decline" }));
-    expect(within(demo).getByText("Declined. The case goes to the Manager to decide.")).toBeInTheDocument();
+    expect(within(demo).getByText("Case declined.")).toBeInTheDocument();
   });
 
   it("has no detectable accessibility violations", async () => {

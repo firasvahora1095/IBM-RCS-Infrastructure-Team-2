@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Accordion,
@@ -16,6 +16,10 @@ import {
 } from "@carbon/react";
 import {
   ArrowDown,
+  ArrowRight,
+  ChartColumn,
+  Chat,
+  Plug,
   Collaborate,
   DocumentView,
   Locked,
@@ -29,6 +33,8 @@ import { MarketingHeader, SITE_SECTIONS } from "../../components/shell/Marketing
 import { RcsLogo } from "../../components/brand/RcsMark";
 import { BlurRevealDemo } from "./BlurRevealDemo";
 import { ProductTour } from "./ProductTour";
+import { Section, SiteClose } from "./siteKit";
+import { TEAM, initialsOf, type TeamMember } from "./team";
 
 /**
  * The one worked example on the page. Every time and figure that describes it comes from here, so the page can never
@@ -49,48 +55,6 @@ const EXAMPLE_CASE = {
 const DEFAULT_DAILY_LIMIT_MINUTES = 120;
 /** Automatic delivery attempts before a Manager steps in (backend `MAX_AUTO_ATTEMPTS`). */
 const DELIVERY_ATTEMPTS = 3;
-
-/**
- * RMIT Team 6. `photo` is looked for in public/team (see the README there). Until a photo exists, the card shows the
- * person's initials on their own brand-gradient tile; both gradient stops carry white text at 5:1 or better.
- */
-const TEAM = [
-  {
-    name: "Hyuna Bae",
-    role: "Project Manager",
-    did: "Ran planning and Client sessions, wired the backend APIs, built the exposure and cooldown logic and led end-to-end testing.",
-    photo: "/team/hyuna-bae.jpg",
-    tile: "linear-gradient(135deg, #5b45d6, #0f62fe)",
-  },
-  {
-    name: "Janataarah Begum",
-    role: "Business Analyst / QA",
-    did: "Wrote the use cases, requirements and S1–S4 severity scale, then validated every flow through acceptance and edge-case testing.",
-    photo: "/team/janataarah-begum.jpg",
-    tile: "linear-gradient(135deg, #0b7a75, #005d5d)",
-  },
-  {
-    name: "Aleeya Ahmad",
-    role: "UX / Research",
-    did: "Researched personas through an expert interview, designed all three roles in Figma and built the production interface with accessibility QA.",
-    photo: "/team/aleeya-ahmad.jpg",
-    tile: "linear-gradient(135deg, #6929c4, #5b45d6)",
-  },
-  {
-    name: "Firas Vahora",
-    role: "Developer",
-    did: "Set up watsonx.ai, the repository and Code Engine, built weighted case assignment and the real-AI wiring, and delivered the live watsonx Orchestrate integration.",
-    photo: "/team/firas-vahora.jpg",
-    tile: "linear-gradient(135deg, #1d3f91, #0b7a75)",
-  },
-  {
-    name: "Aiden Brundell",
-    role: "Developer",
-    did: "Built the Cloud Object Storage and Speech to Text connections, the core database and API, the watsonx vision call and the audit log.",
-    photo: "/team/aiden-brundell.jpg",
-    tile: "linear-gradient(135deg, #0d1633, #5b45d6)",
-  },
-] as const;
 
 /** The cost of doing nothing, set against what RCS does instead. Qualitative on purpose: no invented statistics. */
 const BEFORE_AFTER = [
@@ -133,6 +97,79 @@ const PROTECTIONS: { icon: Icon; title: string; body: string }[] = [
     body: "A cooldown follows severe cases. A wellbeing check-in is always available, and SOS brings in a Manager.",
   },
 ];
+
+/** What a buyer gets: outcomes, not mechanisms. Every claim maps to something the product does today. */
+const VALUE: { icon: Icon; title: string; body: string }[] = [
+  {
+    icon: Security,
+    title: "Meet your duty of care",
+    body: "Limits, cooldowns and SOS are enforced by RCS on every case, with a record of each Reviewer's exposure, so protection never depends on a busy day.",
+  },
+  {
+    icon: DocumentView,
+    title: "Decisions you can defend",
+    body: "A trained person decides every case. The AI's rating and the Reviewer's decision are kept side by side, and every override carries a reason.",
+  },
+  {
+    icon: Plug,
+    title: "Live in two touchpoints",
+    body: "A report button on your posts and an endpoint for results. RCS handles review end to end, and a person follows up if a delivery fails.",
+  },
+  {
+    icon: ChartColumn,
+    title: "Proof for your leadership",
+    body: "Service reports on volumes, outcomes and timeliness, checked by an RCS Manager before your team sees them, ready to share as a PDF.",
+  },
+];
+
+/** Every feature, by who uses it. The product tour shows the screens; this is the complete list. */
+const CATALOGUE = [
+  {
+    who: "For Reviewers",
+    items: [
+      "Content warning with consent and the right to decline",
+      "Blur slider, grayscale and mute",
+      "AI summary, flagged-moment timeline and audio analysis",
+      "Severity override, with a reason the Manager sees",
+      "Live daily viewing limit",
+      "Cooldown after severe cases",
+      "Wellbeing check-in, break and talk requests",
+      "SOS that hides the content and alerts a Manager",
+    ],
+  },
+  {
+    who: "For Managers",
+    items: [
+      "One Needs you list for SOS, requests and declined cases",
+      "Reassignment to an eligible Reviewer",
+      "Exposure and limits for each Reviewer",
+      "Validation and audit: the AI against the Reviewer, case by case",
+      "Insights for any period",
+      "Delivery failures with a path to resolve them",
+      "Service reports: generate, review, release",
+      "Replies to Client messages",
+    ],
+  },
+  {
+    who: "For your platform",
+    items: [
+      "A report button and a results endpoint",
+      "Case results with a Needs action view",
+      "Apply RCS decisions in one go, or post by post",
+      "Service reports in the browser or as a PDF",
+      "Messages to RCS from inside the portal",
+      "Signed-in, organisation-only access, every view logged",
+    ],
+  },
+  {
+    who: "For the public",
+    items: [
+      "Report a video, link or screenshot without an account",
+      "Stay anonymous, or leave contact details",
+      "A case ID and a plain-language status page",
+    ],
+  },
+] as const;
 
 /** Accountability: the second, shorter row. */
 const ACCOUNTABILITY: { icon: Icon; title: string; body: string }[] = [
@@ -249,52 +286,6 @@ const FAQ = [
   },
 ];
 
-const FOOTER = [
-  {
-    title: "Product",
-    links: [
-      ["How it works", "/rcs#how-it-works"],
-      ["Product tour", "/rcs#product"],
-      ["Features", "/rcs#features"],
-      ["Integration", "/rcs#integration"],
-      ["Security", "/rcs#security"],
-    ],
-  },
-  {
-    title: "Get started",
-    links: [
-      ["Set up your organisation", "/rcs/get-started"],
-      ["Client sign in", "/client/login"],
-      ["Staff sign in", "/staff/login"],
-      ["Demo flow guide", "/flow"],
-    ],
-  },
-  {
-    title: "For the public",
-    links: [
-      ["Report content", "/report"],
-      ["Check a case status", "/report/status"],
-      ["Contact us", "/report/contact"],
-    ],
-  },
-  {
-    title: "About",
-    links: [
-      ["The team", "/rcs#team"],
-      ["About this prototype", "/rcs#prototype"],
-      ["CommunityHub (simulated)", "/communityhub"],
-      ["FAQ", "/rcs#faq"],
-    ],
-  },
-] as const;
-
-function initialsOf(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("");
-}
-
 /**
  * Marks the section crossing the middle of the screen in the header. Only the sections the header lists are watched,
  * so nothing is marked while the hero or a section outside the nav is being read.
@@ -319,44 +310,6 @@ function useActiveSection(): string | undefined {
     return () => observer.disconnect();
   }, []);
   return active;
-}
-
-/**
- * The one section template every content section uses: a header block (eyebrow, H2, optional lede) on lg 10 of 16
- * columns, then the content on the full 16 columns, starting on the same left edge, after the same gap (spacing-09).
- * Inside the content, layouts are CSS grids, never nested Carbon columns, so nothing drifts off the shared edge.
- */
-function Section({
-  id,
-  eyebrow,
-  title,
-  lede,
-  tint = false,
-  children,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  lede?: ReactNode;
-  tint?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className={`lp-section${tint ? " lp-section--tint" : ""}`} aria-labelledby={`${id}-title`}>
-      <Grid>
-        <Column sm={4} md={8} lg={10} className="lp-section-head">
-          <p className="lp-eyebrow">{eyebrow}</p>
-          <h2 id={`${id}-title`} className="lp-h2">
-            {title}
-          </h2>
-          {lede && <p className="lp-lede">{lede}</p>}
-        </Column>
-        <Column sm={4} md={8} lg={16} className="lp-section-body">
-          {children}
-        </Column>
-      </Grid>
-    </section>
-  );
 }
 
 /**
@@ -445,6 +398,16 @@ export function RcsLandingPage() {
           </div>
         </Section>
 
+        {/* Business value: what the buyer gets, in outcomes. */}
+        <Section
+          id="value"
+          eyebrow="Why platforms choose RCS"
+          title="Moderation you can stand behind."
+          lede="RCS gives your trust and safety team a review service that protects the people doing it, decisions you can explain, and a record you can show."
+        >
+          <FeatureGrid items={VALUE} columns={4} />
+        </Section>
+
         {/* 3. How a report is handled. */}
         <Section id="how-it-works" tint eyebrow="How it works" title="One report. Four steps. One human decision.">
           <ol className="lp-steps">
@@ -496,6 +459,29 @@ export function RcsLandingPage() {
           </div>
         </Section>
 
+        {/* For the public: someone who saw a harmful post reports it here, without reading the rest of the page. */}
+        <section className="lp-public" aria-labelledby="public-title">
+          <Grid>
+            <Column sm={4} md={8} lg={16}>
+              <div className="lp-public-band">
+                <WarningAlt size={24} aria-hidden />
+                <div className="lp-public-text">
+                  <h2 id="public-title" className="lp-public-title">
+                    Seen a harmful video?
+                  </h2>
+                  <p>Report it to RCS. No account needed, you can stay anonymous, and you get a case ID to follow it.</p>
+                </div>
+                <div className="lp-public-actions">
+                  <Button onClick={() => navigate("/report")}>Report content</Button>
+                  <Button kind="ghost" onClick={() => navigate("/report/status")}>
+                    Check a case status
+                  </Button>
+                </div>
+              </div>
+            </Column>
+          </Grid>
+        </section>
+
         {/* 4. Product tour, one real screen per role. */}
         <Section
           id="product"
@@ -504,6 +490,37 @@ export function RcsLandingPage() {
           lede="Each person sees what their role needs, and nothing more."
         >
           <ProductTour />
+          <div className="lp-buddy">
+            <div className="lp-buddy-head">
+              <Chat size={24} aria-hidden />
+              <h3 className="lp-buddy-title">AI Buddy, for every Reviewer and Manager</h3>
+              <span className="lp-buddy-tag">Built on watsonx.ai</span>
+            </div>
+            <p className="lp-buddy-body">
+              Ask in plain language how much viewing time is left today, which cases need attention, or where one case
+              stands. AI Buddy answers from live RCS data, only within your role, and links to the right screen.
+            </p>
+            <ul className="lp-buddy-points">
+              <li>Live figures, marked with the time they were read</li>
+              <li>A Reviewer only ever sees their own cases</li>
+              <li>Read-only: it guides, people decide</li>
+            </ul>
+          </div>
+          <div className="lp-catalogue">
+            <h3 className="lp-catalogue-title">Everything in RCS</h3>
+            <div className="lp-catalogue-grid">
+              {CATALOGUE.map((group) => (
+                <div key={group.who} className="lp-catalogue-col">
+                  <h4 className="lp-catalogue-who">{group.who}</h4>
+                  <ul className="lp-check-list">
+                    {group.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* 5. The team: who built it, credited as Emily asked. */}
@@ -519,6 +536,11 @@ export function RcsLandingPage() {
               <TeamCard key={member.name} member={member} />
             ))}
           </ul>
+          <div className="lp-team-more">
+            <Button kind="tertiary" renderIcon={ArrowRight} onClick={() => navigate("/rcs/team")}>
+              See each person&apos;s contributions
+            </Button>
+          </div>
         </Section>
 
         {/* 6. Features, grouped by the outcome they deliver. */}
@@ -658,55 +680,18 @@ export function RcsLandingPage() {
         </Section>
 
         {/* 10. One dark close: the call to action and the footer. */}
-        <Theme theme="g100" className="lp-close">
-          <div className="lp-close-rule" aria-hidden="true" />
-          <section className="lp-cta" aria-labelledby="cta-title">
-            <Grid>
-              <Column sm={4} md={5} lg={10} className="lp-section-head">
-                <h2 id="cta-title" className="lp-h2">
-                  Protect the people who review your reports.
-                </h2>
-                <p className="lp-lede">Set up your organisation, connect where results go and add the report button.</p>
-              </Column>
-              <Column sm={4} md={3} lg={6} className="lp-cta-actions">
-                <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
-                <RouterLink className="cds--link" to="/flow">
-                  Open the demo guide
-                </RouterLink>
-              </Column>
-            </Grid>
-          </section>
-
-          <footer className="lp-footer">
-            <Grid>
-              <Column sm={4} md={8} lg={4} className="lp-footer-brand">
-                <RcsLogo size={36} variant="onDark" tagline />
-                <p>Safer content. Healthier people. Stronger communities.</p>
-              </Column>
-              {FOOTER.map((col) => (
-                <Column key={col.title} sm={2} md={2} lg={3} className="lp-footer-col">
-                  <h2 className="lp-footer-heading">{col.title}</h2>
-                  <ul>
-                    {col.links.map(([label, to]) => (
-                      <li key={label}>
-                        <RouterLink className="cds--link" to={to}>
-                          {label}
-                        </RouterLink>
-                      </li>
-                    ))}
-                  </ul>
-                </Column>
-              ))}
-              <Column sm={4} md={8} lg={16} className="lp-footer-legal">
-                <p>
-                  Responsible Content Safety (RCS) is an IBM × RMIT capstone prototype built by RMIT Team 6.
-                  CommunityHub is simulated. Synthetic data only: no real organisations, people or footage.
-                </p>
-                <p>© 2026 RMIT Team 6</p>
-              </Column>
-            </Grid>
-          </footer>
-        </Theme>
+        <SiteClose
+          title="Protect the people who review your reports."
+          lede="Set up your organisation, connect where results go and add the report button."
+          actions={
+            <>
+              <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
+              <RouterLink className="cds--link" to="/flow">
+                Demo guide
+              </RouterLink>
+            </>
+          }
+        />
       </main>
     </div>
   );
@@ -728,7 +713,7 @@ function FeatureGrid({ items, columns }: { items: { icon: Icon; title: string; b
 }
 
 /** One person: their photo if one has been added, their initials on a brand tile if not, then what they did. */
-function TeamCard({ member }: { member: (typeof TEAM)[number] }) {
+function TeamCard({ member }: { member: TeamMember }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
     <li className="lp-member">

@@ -256,7 +256,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     await tabTo(user, screen.getByRole("button", { name: "Submit decline" }));
     await user.keyboard("{Enter}");
-    expect(await screen.findByText(/Your manager will review it directly\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Your Manager will review it directly\./)).toBeInTheDocument();
   });
 
   it("Cooldown: the support options, Request support and Stop my shift are reachable", async () => {

@@ -589,7 +589,7 @@ export function AuditorCaseDetailPage() {
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Wellbeing check-in</h1>
           <p style={secondaryText}>
-            Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
+            Optional and private to you and your Manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
             you need to stop right now, go back and use SOS.
           </p>
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
@@ -606,7 +606,7 @@ export function AuditorCaseDetailPage() {
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>You&apos;ve reached today&apos;s limit</h1>
           <p style={secondaryText}>
-            We&apos;ve stopped playback and saved your progress. This case will go back to your manager to be
+            We&apos;ve stopped playback and saved your progress. This case will go back to your Manager to be
             reassigned. You won&apos;t be given more harmful-content cases today.
           </p>
           <InlineNotification
@@ -614,7 +614,7 @@ export function AuditorCaseDetailPage() {
             lowContrast
             hideCloseButton
             title="Your daily total resets at 9:00 AM."
-            subtitle="Cooldowns don't reset it. Your manager can see that you've reached it."
+            subtitle="Cooldowns don't reset it. Your Manager can see that you've reached it."
             style={{ maxWidth: "100%" }}
           />
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
@@ -628,8 +628,9 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>Severity &amp; comment</h1>
-          {/* The form sits in the middle of the page; the breadcrumb and heading stay where they always are. */}
-          <div className="mx-auto flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
+          {/* The form starts on the same left edge as its breadcrumb and heading, like every other step; 720px keeps
+              the comment box and the outcome choice a comfortable reading width. */}
+          <div className="flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
             {submitError && (
               <InlineNotification
                 kind="error"
@@ -712,7 +713,7 @@ export function AuditorCaseDetailPage() {
                 </p>
                 <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
                   This determines what the reporting user sees when their case reaches Complete. Only applies if this
-                  case has no SOS or Decline flag — otherwise your manager decides the outcome.
+                  case has no SOS or Decline flag — otherwise your Manager decides the outcome.
                 </p>
                 {/* No option is pre-selected: a default would nudge the Auditor
                 towards one outcome, so the decision has to be explicit. */}
@@ -822,7 +823,7 @@ export function AuditorCaseDetailPage() {
             lowContrast
             hideCloseButton
             title="Case declined:"
-            subtitle="Your manager will review it directly."
+            subtitle="Your Manager will review it directly."
             style={{ maxWidth: "100%" }}
           />
           <h1 className="cds--visually-hidden">Case declined</h1>
@@ -860,9 +861,9 @@ export function AuditorCaseDetailPage() {
             {sosState === "failed" ? (
               <>
                 <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
-                  This case is paused, but we couldn&apos;t notify your manager.
+                  This case is paused, but we couldn&apos;t notify your Manager.
                 </h1>
-                <p style={secondaryText}>The content stays hidden. Try again, or contact your manager directly.</p>
+                <p style={secondaryText}>The content stays hidden. Try again, or contact your Manager directly.</p>
                 <div>
                   <Button kind="secondary" onClick={() => sendSos(pauseCause)}>
                     Try again
@@ -873,8 +874,8 @@ export function AuditorCaseDetailPage() {
               <>
                 <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
                   {sosState === "sending"
-                    ? "Pausing this case and notifying your manager…"
-                    : "We’ve paused this case and notified your manager."}
+                    ? "Pausing this case and notifying your Manager…"
+                    : "We’ve paused this case and notified your Manager."}
                 </h1>
                 <p style={secondaryText}>
                   They&apos;ll follow up with you directly. Resuming raw-content review — for this case or any other —

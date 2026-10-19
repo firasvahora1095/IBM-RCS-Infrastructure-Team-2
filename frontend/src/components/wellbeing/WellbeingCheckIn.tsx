@@ -28,12 +28,12 @@ const OPTIONS: { kind: WellbeingRequestKind; title: string; outcome: string }[] 
   {
     kind: "TALK_TO_MANAGER",
     title: "Talk to my manager",
-    outcome: "Your manager will reach out today, by message or a quick call. Nothing changes on your case.",
+    outcome: "Your Manager will reach out today, by message or a quick call. Nothing changes on your case.",
   },
   {
     kind: "BREAK_REQUEST",
     title: "Take a break",
-    outcome: "Your manager is notified. You get no new cases until you're back, and a case you're reviewing stays with you.",
+    outcome: "Your Manager is notified. You get no new cases until you're back, and a case you're reviewing stays with you.",
   },
 ];
 
@@ -129,8 +129,8 @@ export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: Wel
           title="Request sent."
           subtitle={
             sent === "TALK_TO_MANAGER"
-              ? "Your manager will reach out to you today."
-              : "Your manager has been notified and will check in with you."
+              ? "Your Manager will reach out to you today."
+              : "Your Manager has been notified and will check in with you."
           }
           style={{ maxWidth: "100%" }}
         />
@@ -199,7 +199,7 @@ export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: Wel
           <TextArea
             id={`support-reason${caseId ? `-${caseId}` : ""}`}
             labelText="What's going on? (optional)"
-            helperText="Only your manager sees this. You don't need to give a reason."
+            helperText="Only your Manager sees this. You don't need to give a reason."
             rows={3}
             maxCount={MAX_REASON}
             enableCounter

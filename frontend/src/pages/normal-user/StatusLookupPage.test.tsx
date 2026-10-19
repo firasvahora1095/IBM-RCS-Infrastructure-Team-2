@@ -135,7 +135,7 @@ describe("StatusLookupPage", () => {
     lookUp("INSZNNJI4P");
 
     expect(
-      await screen.findByText("A reviewer is currently assessing your report against our content policy."),
+      await screen.findByText("A Reviewer is currently assessing your report against our content policy."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Policy Violation Found")).not.toBeInTheDocument();
     expect(screen.queryByText("No Violation Found")).not.toBeInTheDocument();

@@ -1,34 +1,22 @@
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Header, HeaderName, HeaderGlobalBar, HeaderGlobalAction, Theme } from "@carbon/react";
 import { Help } from "@carbon/icons-react";
 import { DemoDataBadge } from "./DemoDataBadge";
-import { RcsMark } from "../brand/RcsMark";
+import { RcsLogo } from "../brand/RcsMark";
 
 /**
- * The persistent top bar on every public page. Matches the Normal User
- * Figma screens (nodes 5:3, 6:3, 7:16): a Gray 100 Carbon UI Shell Header
- * with the RCS mark and name ("RCS — Reporting", one product name across the app), and a help affordance on the
- * right. Staff pages use StaffHeader instead, because they need sign-out and
- * the logged-in staff ID.
- *
- * Carbon renders a Header in whatever theme surrounds it, so it is wrapped
- * in the g100 (Gray 100) theme to get the dark bar from the design while the
- * rest of the page stays on the default white theme.
- *
- * The Figma file flags the "?" button as "needs accessible label" — Carbon's
- * HeaderGlobalAction requires `aria-label`, which covers that dev note.
+ * The top bar on every public reporting page. Reporters arrive here from the product site's "Report content" and from
+ * a platform's report button, so it is the product site's white header: the RCS logo with the full name beside it
+ * (a member of the public has never heard of "RCS"), and help on the right. Staff and Client pages use the dark app
+ * shell instead, because they are signed-in tools.
  */
 export function AppHeader() {
   const navigate = useNavigate();
   return (
-    <Theme theme="g100">
-      <Header aria-label="Responsible Content Safety (RCS) — Reporting">
-        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
-        <span className="flex items-center pl-4" aria-hidden="true">
-          <RcsMark size={24} />
-        </span>
-        <HeaderName href="/report" prefix="" aria-label="Responsible Content Safety (RCS) — Reporting" style={{ paddingInlineStart: "0.5rem" }}>
-          RCS<span className="hidden md:inline"> · Responsible Content Safety</span>
+    <Theme theme="white">
+      <Header aria-label="Responsible Content Safety (RCS) — Reporting" className="rcs-site-header rcs-public-header">
+        <HeaderName as={RouterLink} to="/report" prefix="" aria-label="Responsible Content Safety (RCS) — Reporting">
+          <RcsLogo size={28} layout="inline" />
         </HeaderName>
         <DemoDataBadge />
         <HeaderGlobalBar>

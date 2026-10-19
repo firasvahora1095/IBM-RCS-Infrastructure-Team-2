@@ -58,7 +58,7 @@ export function SessionExpiredModal({ open, preservedWorkMessage, onReauthentica
       open={open}
       size="sm"
       modalHeading="Your session has timed out"
-      primaryButtonText={isSubmitting ? "Logging in…" : "Log in to continue"}
+      primaryButtonText={isSubmitting ? "Signing in…" : "Sign in to continue"}
       primaryButtonDisabled={!password || isSubmitting}
       onRequestSubmit={handleSubmit}
       onRequestClose={signOut}

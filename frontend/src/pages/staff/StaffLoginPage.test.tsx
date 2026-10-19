@@ -20,7 +20,7 @@ function renderPage(state?: unknown) {
 function submit(staffId: string, password: string) {
   fireEvent.change(screen.getByLabelText("Staff ID"), { target: { value: staffId } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
-  fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 }
 
 describe("StaffLoginPage", () => {
@@ -47,7 +47,7 @@ describe("StaffLoginPage", () => {
     expect(services.staffLogin).toHaveBeenCalledWith("auditor-1", "test123");
   });
 
-  it("redirects a manager to the manager view", async () => {
+  it("redirects a Manager to the Manager view", async () => {
     vi.spyOn(services, "staffLogin").mockResolvedValueOnce({ token: "m1", role: "manager" });
     renderPage();
     submit("manager-1", "pw");

@@ -7,7 +7,7 @@ type Stage = "warning" | "reviewing" | "declined" | "sos";
 const ANNOUNCE: Record<Stage, string> = {
   warning: "Content warning shown. Nothing from this case is visible yet.",
   reviewing: "Footage shown at 100 percent blur, in grayscale. Lower the blur to see more.",
-  declined: "Case declined. It goes to the Manager to decide.",
+  declined: "Case declined. Your Manager decides what happens next.",
   sos: "SOS sent. The content is hidden and your Manager has been alerted.",
 };
 
@@ -101,15 +101,15 @@ export function BlurRevealDemo() {
           {stage === "warning" && (
             <div className="rcs-reveal-overlay">
               <span className="rcs-reveal-tag">Content warning</span>
-              <p className="rcs-reveal-lead">
-                <strong>This case was flagged for:</strong> Graphic violence
-              </p>
+              <p className="rcs-reveal-lead">Graphic violence</p>
               <div className="rcs-reveal-flags">
                 <SeverityTag tier="S3" size="sm" />
-                <span className="rcs-reveal-cvi">CVI 71 / 100</span>
+                <span className="rcs-reveal-cvi">CVI score (71 of 100)</span>
+              </div>
+              <div className="rcs-reveal-flags">
                 {FLAGS.map((f) => (
                   <span key={f} className="rcs-reveal-flag">
-                    {f}
+                    {f.replace(/_/g, " ")}
                   </span>
                 ))}
               </div>
@@ -128,15 +128,15 @@ export function BlurRevealDemo() {
                   Proceed
                 </Button>
               </div>
-              <p className="rcs-reveal-note">Declining sends the case to the Manager to decide.</p>
+              <p className="rcs-reveal-note">Declining is a normal part of the job. Your Manager decides what happens next.</p>
             </div>
           )}
 
           {stage === "declined" && (
             <div className="rcs-reveal-overlay">
-              <p className="rcs-reveal-lead">Declined. The case goes to the Manager to decide.</p>
+              <p className="rcs-reveal-lead">Case declined.</p>
               <p className="rcs-reveal-copy">
-                It isn&apos;t reassigned automatically, and declining is a normal part of the job, not a mark against you.
+                Declining is a normal part of the job. Your Manager decides what happens next.
               </p>
               <div className="rcs-reveal-actions">
                 <Button size="md" kind="ghost" data-focus-first onClick={restart}>
@@ -177,8 +177,7 @@ export function BlurRevealDemo() {
                 id="reveal-grayscale"
                 size="sm"
                 labelText="Grayscale"
-                labelA="Off"
-                labelB="On"
+                hideLabel
                 toggled={grayscale}
                 onToggle={setGrayscale}
               />

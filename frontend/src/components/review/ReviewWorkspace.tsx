@@ -622,7 +622,7 @@ export function ReviewWorkspace({
               <div>
                 <p className="rcs-support-guide-title">Wellbeing check-in: not urgent</p>
                 <p className="rcs-helper">
-                  Talk to your manager or ask for a break. Your case stays open.
+                  Talk to your Manager or ask for a break. Your case stays open.
                 </p>
                 {onTalkToManager && (
                   <Button kind="tertiary" size="sm" onClick={onTalkToManager} style={{ marginTop: 8 }}>
@@ -633,7 +633,7 @@ export function ReviewWorkspace({
               <div>
                 <p className="rcs-support-guide-title">SOS: stop now</p>
                 <p className="rcs-helper">
-                  Use the red SOS button on the video. The content is hidden at once, your manager is alerted and a
+                  Use the red SOS button on the video. The content is hidden at once, your Manager is alerted and a
                   cooldown starts.
                 </p>
               </div>
