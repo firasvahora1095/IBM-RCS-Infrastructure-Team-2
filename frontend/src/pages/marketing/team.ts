@@ -105,7 +105,7 @@ export const TEAM: TeamMember[] = [
     ],
     highlights: [
       "Set up the watsonx.ai project, the GitHub repository and environments, and the backend skeleton on IBM Cloud Code Engine.",
-      "Migrated the backend from Node.js to FastAPI and aligned the frontend's API client with the backend contract.",
+      "Migrated the backend from Node.js to FastAPI and aligned the frontend's API layer with the backend contract.",
       "Designed the watsonx Orchestrate workflow and delivered the live Orchestrate integration.",
       "Researched and built video frame extraction, and integrated it with backend storage.",
       "Built weighted case assignment and wired the real AI pipeline into the product, validated with schema checks and cross-tests.",
