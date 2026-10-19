@@ -57,7 +57,7 @@ function BigFigure({ label, value, helper }: { label: string; value: ReactNode; 
   return (
     <div className="flex flex-col gap-1">
       <span className="rcs-stat-label">{label}</span>
-      <span className="rcs-stat-value" style={{ marginBlockStart: 0 }}>
+      <span className="rcs-stat-value" style={{ marginBlockStart: 0, whiteSpace: "nowrap" }}>
         {value}
       </span>
       {helper && <span className="rcs-helper">{helper}</span>}
@@ -119,7 +119,8 @@ export function ReportSheet({
                 decided ? `${violationRate}% of decided cases were found to violate policy. ` : ""
               }${deliveredRate === null ? "" : `${deliveredRate}% of results reached ${report.organisation_name}.`}`}
         </p>
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
+        {/* Fits the sheet's own width, so a figure such as "1 h 34 min" never breaks across lines. */}
+        <div className="rcs-figure-grid">
           <BigFigure label="Cases completed" value={m.cases_completed} />
           <BigFigure label="Policy violations found" value={`${violationRate}%`} helper={decided ? `${m.violation_count} of ${decided} decided` : undefined} />
           <BigFigure

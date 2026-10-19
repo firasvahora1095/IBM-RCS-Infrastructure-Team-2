@@ -1031,3 +1031,18 @@ html {
   border-radius: 50%;
   background-color: var(--cds-interactive);
 }
+
+// A link-styled button inside a table reads like the table's other links: no underline until hover.
+.rcs-link-button.rcs-link-button--plain {
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Report figures: as many columns as fit, each at least wide enough for its value on one line.
+.rcs-figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.5rem;
+}

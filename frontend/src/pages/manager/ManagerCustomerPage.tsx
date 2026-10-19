@@ -130,7 +130,7 @@ export function ManagerCustomerPage() {
                   <TableCell style={{ fontWeight: 600 }}>
                     <button
                       type="button"
-                      className="cds--link rcs-link-button"
+                      className="cds--link rcs-link-button rcs-link-button--plain"
                       onClick={(e) => {
                         e.stopPropagation();
                         setClientId(c.organisation_id);

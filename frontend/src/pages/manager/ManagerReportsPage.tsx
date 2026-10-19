@@ -43,7 +43,7 @@ export function ManagerReportsPage() {
         actions={
           <>
             <Button kind="tertiary" onClick={() => navigate("/manager/customers/communityhub")}>
-              Client connection
+              {selected ? `${selected.name} connection` : "Client connections"}
             </Button>
             <Button onClick={() => setOpen(true)}>
               Generate report
@@ -100,7 +100,16 @@ export function ManagerReportsPage() {
                     <TableCell className="rcs-mono">{r.metrics.cases_completed}</TableCell>
                     <TableCell>{formatShortDateTime(r.generated_at)}</TableCell>
                     <TableCell>
-                      {r.released_at ? `${formatShortDateTime(r.released_at)} · ${r.released_by}` : "Not released"}
+                      {r.released_at ? (
+                        <>
+                          {formatShortDateTime(r.released_at)}
+                          <span className="rcs-helper" style={{ display: "block" }}>
+                            by {r.released_by}
+                          </span>
+                        </>
+                      ) : (
+                        "Not released"
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
