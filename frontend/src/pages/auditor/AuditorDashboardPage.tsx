@@ -326,7 +326,13 @@ export function AuditorDashboardPage() {
                     : ". No new harmful-content case is assigned until it ends."}
                 </p>
                 <div>
-                  <Button kind="tertiary" size="sm" onClick={() => navigate("/auditor/cooldown#take-a-moment")}>
+                  {/* Wraps instead of spilling past the tile when the column narrows (e.g. with AI Buddy open). */}
+                  <Button
+                    kind="tertiary"
+                    size="sm"
+                    className="rcs-btn-wrap"
+                    onClick={() => navigate("/auditor/cooldown#take-a-moment")}
+                  >
                     Play block puzzle
                   </Button>
                 </div>

@@ -1003,3 +1003,12 @@ html {
     transition: none;
   }
 }
+
+// A button that may sit in a narrow tile: it fits the tile and wraps its label rather than overflowing.
+.rcs-btn-wrap.cds--btn {
+  max-inline-size: 100%;
+  block-size: auto;
+  min-block-size: 2rem;
+  white-space: normal;
+  text-align: start;
+}
