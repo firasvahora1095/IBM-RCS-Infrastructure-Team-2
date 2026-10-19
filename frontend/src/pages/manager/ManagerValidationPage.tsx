@@ -137,9 +137,11 @@ export function ManagerValidationPage() {
               </Tag>
             )}
           </dt>
-          <dd>{data ? `${data.match_rate_pct}%` : "—"}</dd>
+          <dd>{data && data.validation_set_size > 0 ? `${data.match_rate_pct}%` : "—"}</dd>
           <p>
-            {data
+            {data && data.validation_set_size === 0
+              ? "No test videos have been rated by our team yet."
+              : data
               ? `The AI rated severity the same as our team on ${data.validation_set_size} test videos.`
               : "How often the AI agrees with our team's ratings."}
           </p>
@@ -279,6 +281,15 @@ function RecentAuditHistory() {
 
 /** Section 1. The chart's values are written beside each bar; the numbers also have a text equivalent for screen readers. */
 function GroundTruth({ data }: { data: ValidationSummary }) {
+  // A 0% match over no videos would read as a failing AI, so an empty set says what is missing instead.
+  if (data.validation_set_size === 0) {
+    return (
+      <p className="rcs-helper" style={{ maxInlineSize: "72ch" }}>
+        No test videos have been rated by our team yet. Once the labelled set is loaded, the AI&apos;s ratings are
+        compared with it here.
+      </p>
+    );
+  }
   return (
     <>
       <DistributionChart data={data} />
