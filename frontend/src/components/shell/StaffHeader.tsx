@@ -3,6 +3,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import type { SosSummary } from "../../services/types";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { RcsMark } from "../brand/RcsMark";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -52,7 +53,11 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
             label, the staff ID and the word "today" drop out below the sm/lg
             breakpoints, and the exposure bar narrows, so nothing runs off
             the edge of the fixed 48px bar. */}
-        <HeaderName href={ROLE_HOME[role]} prefix="" aria-label={`RCS — ${label}`}>
+        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
+        <span className="flex items-center pl-4" aria-hidden="true">
+          <RcsMark size={24} />
+        </span>
+        <HeaderName href={ROLE_HOME[role]} prefix="" aria-label={`RCS — ${label}`} style={{ paddingInlineStart: "0.5rem" }}>
           RCS<span className="hidden sm:inline">{` — ${label}`}</span>
         </HeaderName>
         <DemoDataBadge />

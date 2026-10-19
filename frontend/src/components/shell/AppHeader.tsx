@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Header, HeaderName, HeaderGlobalBar, HeaderGlobalAction, Theme } from "@carbon/react";
 import { Help } from "@carbon/icons-react";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { RcsMark } from "../brand/RcsMark";
 
 /**
  * The persistent top bar on every public page. Matches the Normal User
@@ -22,7 +23,11 @@ export function AppHeader() {
   return (
     <Theme theme="g100">
       <Header aria-label="IBM Content Safety Reporting">
-        <HeaderName href="/report" prefix="IBM">
+        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
+        <span className="flex items-center pl-4" aria-hidden="true">
+          <RcsMark size={24} />
+        </span>
+        <HeaderName href="/report" prefix="IBM" style={{ paddingInlineStart: "0.5rem" }}>
           Content Safety Reporting
         </HeaderName>
         <DemoDataBadge />

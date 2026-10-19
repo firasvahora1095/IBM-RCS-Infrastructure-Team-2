@@ -2,6 +2,7 @@ import { Button, Header, HeaderGlobalBar, HeaderName, Tag, Theme } from "@carbon
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { clientHome, useClientAuth } from "../../hooks/useClientAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { RcsMark } from "../brand/RcsMark";
 
 /**
  * Header for the CommunityHub client surface (B2B spec S12): same g100
@@ -21,7 +22,11 @@ export function ClientHeader() {
   return (
     <Theme theme="g100">
       <Header aria-label="RCS — Client portal">
-        <HeaderName as={RouterLink} to={clientHome(session?.role)} prefix="" aria-label="RCS — Client portal">
+        {/* The RCS mark sits with the name so the product is recognisable on every page. */}
+        <span className="flex items-center pl-4" aria-hidden="true">
+          <RcsMark size={24} />
+        </span>
+        <HeaderName as={RouterLink} to={clientHome(session?.role)} prefix="" aria-label="RCS — Client portal" style={{ paddingInlineStart: "0.5rem" }}>
           RCS<span className="hidden sm:inline"> — Client portal</span>
         </HeaderName>
         <DemoDataBadge />
