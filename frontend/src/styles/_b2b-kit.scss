@@ -878,3 +878,128 @@ html {
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+// ---------------------------------------------------------------------------
+// App shells (Reviewer, Manager, Client): the RCS brand in the dark header, a
+// gradient hairline under it, and one tab style for every section bar.
+// ---------------------------------------------------------------------------
+.rcs-app-header {
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -2px;
+    block-size: 2px;
+    background: linear-gradient(100deg, #c4a3ff 0%, #8f7cff 35%, #7fd3ff 70%, #6fd8c9 100%);
+    pointer-events: none;
+  }
+}
+.rcs-app-brand.cds--header__name {
+  padding-inline: 1rem;
+  font-weight: 400;
+  // Carbon wraps the name's children in a span; that span is what lines the logo and the area up.
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+.rcs-app-area {
+  @include type.type-style("body-compact-01");
+  padding-inline-start: 0.75rem;
+  line-height: 1.5rem;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+  border-inline-start: 1px solid var(--cds-border-strong-01);
+  @include breakpoint.breakpoint-down(sm) {
+    display: none;
+  }
+}
+.rcs-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.rcs-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff; // 6.4:1 on the deep purple
+  background: linear-gradient(135deg, #6929c4, #5b45d6);
+  border-radius: 50%;
+}
+.rcs-user-label {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-primary);
+}
+.rcs-header-action {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  &:hover {
+    background-color: var(--cds-background-hover);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+}
+.rcs-app-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 1rem;
+  padding-inline: 1rem;
+  background-color: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    padding-inline: 2rem;
+  }
+}
+.rcs-app-tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+.rcs-app-tab {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  transition: background-color 110ms ease-out, color 110ms ease-out;
+  &:hover {
+    color: var(--cds-text-primary);
+    background-color: var(--cds-layer-hover-01);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  &[aria-current="page"] {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    border-block-end-color: var(--cds-border-interactive);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rcs-app-tab {
+    transition: none;
+  }
+}
