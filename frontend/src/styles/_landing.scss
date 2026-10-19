@@ -1228,3 +1228,286 @@
   inset-block-start: 0.75rem;
   inset-inline-end: 0.75rem;
 }
+
+// ---------------------------------------------------------------------------
+// Team page (/rcs/team): the brief, each person's contributions and the stack.
+// ---------------------------------------------------------------------------
+.tp-title {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  max-inline-size: 20ch;
+  color: var(--cds-text-primary);
+}
+.tp-facts {
+  display: grid;
+  gap: 1px;
+  margin: 3rem 0 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem 1.25rem;
+    background-color: var(--cds-background);
+  }
+  dt {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+  }
+  dd {
+    @include type.type-style("heading-compact-02");
+    margin: 0;
+    color: var(--cds-text-primary);
+  }
+}
+// The five people as an index into their profiles below.
+.tp-index {
+  margin-block-start: 2rem;
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--cds-text-primary);
+    text-decoration: none;
+    &:hover .tp-index-name {
+      text-decoration: underline;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cds-focus);
+      outline-offset: 2px;
+    }
+  }
+}
+.tp-index-face {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff; // 5:1 or better on every tile gradient
+  border-radius: 50%;
+}
+.tp-index-text {
+  display: flex;
+  flex-direction: column;
+}
+.tp-index-name {
+  @include type.type-style("heading-compact-01");
+}
+.tp-index-role {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+
+// The brief: what IBM asked for beside what we delivered, top-aligned.
+.tp-brief {
+  display: grid;
+  gap: 2.5rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+  }
+  > div {
+    padding: 2rem;
+    background-color: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle-01);
+  }
+}
+.tp-brief-title {
+  @include type.type-style("heading-03");
+  margin-block-end: 1.25rem;
+  color: var(--cds-text-primary);
+}
+.tp-brief-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-block-start: 1.5rem;
+}
+
+// One profile per person: identity on 4 of 16 columns, the work on the other 12.
+.tp-people {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.tp-person {
+  display: grid;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--cds-background);
+  scroll-margin-block-start: 4rem; // clear of the fixed header when jumped to
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 4fr 12fr;
+    gap: 2.5rem;
+    padding: 2.5rem 2rem;
+  }
+}
+.tp-person-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.tp-person-photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  inline-size: 6rem;
+  block-size: 6rem;
+  margin-block-end: 1rem;
+  padding: 0.75rem;
+  overflow: hidden;
+  span {
+    @include type.type-style("heading-04");
+    font-weight: 600;
+    color: #ffffff; // 5:1 or better on every tile gradient
+  }
+  img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+.tp-person-name {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.tp-person-role {
+  @include type.type-style("body-compact-01");
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+}
+.tp-person-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.tp-person-label {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.tp-person-sprints {
+  display: flex;
+  flex-direction: column;
+  margin: 0.75rem 0 2rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  div {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-block: 0.75rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  dt {
+    @include type.type-style("heading-compact-01");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    @include type.type-style("body-01");
+    margin: 0;
+    color: var(--cds-text-secondary);
+  }
+}
+.tp-person-highlights-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  .cds--btn--ghost {
+    margin-inline-end: -1rem; // text flush with the column edge
+  }
+}
+.tp-person-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-02");
+    position: relative;
+    padding-inline-start: 1.25rem;
+    color: var(--cds-text-primary);
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0.7rem;
+      inset-inline-start: 0;
+      inline-size: 0.5rem;
+      block-size: 2px;
+      background-color: var(--rcs-brand-purple-deep);
+    }
+  }
+}
+
+// Stack: one row per group, label beside its tags.
+.tp-stack {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  div {
+    display: grid;
+    gap: 0.75rem;
+    padding-block: 1.25rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+    @include breakpoint.breakpoint(md) {
+      grid-template-columns: 12rem minmax(0, 1fr);
+      align-items: center;
+    }
+  }
+  dt {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    .cds--tag {
+      margin: 0;
+    }
+  }
+}
+.tp-sprints {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.lp-team-more {
+  @include type.type-style("body-02");
+  margin-block-start: 2rem;
+}

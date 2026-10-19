@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Accordion,
@@ -29,6 +29,8 @@ import { MarketingHeader, SITE_SECTIONS } from "../../components/shell/Marketing
 import { RcsLogo } from "../../components/brand/RcsMark";
 import { BlurRevealDemo } from "./BlurRevealDemo";
 import { ProductTour } from "./ProductTour";
+import { Section, SiteClose } from "./siteKit";
+import { TEAM, initialsOf, type TeamMember } from "./team";
 
 /**
  * The one worked example on the page. Every time and figure that describes it comes from here, so the page can never
@@ -49,48 +51,6 @@ const EXAMPLE_CASE = {
 const DEFAULT_DAILY_LIMIT_MINUTES = 120;
 /** Automatic delivery attempts before a Manager steps in (backend `MAX_AUTO_ATTEMPTS`). */
 const DELIVERY_ATTEMPTS = 3;
-
-/**
- * RMIT Team 6. `photo` is looked for in public/team (see the README there). Until a photo exists, the card shows the
- * person's initials on their own brand-gradient tile; both gradient stops carry white text at 5:1 or better.
- */
-const TEAM = [
-  {
-    name: "Hyuna Bae",
-    role: "Project Manager",
-    did: "Ran planning and Client sessions, wired the backend APIs, built the exposure and cooldown logic and led end-to-end testing.",
-    photo: "/team/hyuna-bae.jpg",
-    tile: "linear-gradient(135deg, #5b45d6, #0f62fe)",
-  },
-  {
-    name: "Janataarah Begum",
-    role: "Business Analyst / QA",
-    did: "Wrote the use cases, requirements and S1–S4 severity scale, then validated every flow through acceptance and edge-case testing.",
-    photo: "/team/janataarah-begum.jpg",
-    tile: "linear-gradient(135deg, #0b7a75, #005d5d)",
-  },
-  {
-    name: "Aleeya Ahmad",
-    role: "UX / Research",
-    did: "Researched personas through an expert interview, designed all three roles in Figma and built the production interface with accessibility QA.",
-    photo: "/team/aleeya-ahmad.jpg",
-    tile: "linear-gradient(135deg, #6929c4, #5b45d6)",
-  },
-  {
-    name: "Firas Vahora",
-    role: "Developer",
-    did: "Set up watsonx.ai, the repository and Code Engine, built weighted case assignment and the real-AI wiring, and delivered the live watsonx Orchestrate integration.",
-    photo: "/team/firas-vahora.jpg",
-    tile: "linear-gradient(135deg, #1d3f91, #0b7a75)",
-  },
-  {
-    name: "Aiden Brundell",
-    role: "Developer",
-    did: "Built the Cloud Object Storage and Speech to Text connections, the core database and API, the watsonx vision call and the audit log.",
-    photo: "/team/aiden-brundell.jpg",
-    tile: "linear-gradient(135deg, #0d1633, #5b45d6)",
-  },
-] as const;
 
 /** The cost of doing nothing, set against what RCS does instead. Qualitative on purpose: no invented statistics. */
 const BEFORE_AFTER = [
@@ -249,52 +209,6 @@ const FAQ = [
   },
 ];
 
-const FOOTER = [
-  {
-    title: "Product",
-    links: [
-      ["How it works", "/rcs#how-it-works"],
-      ["Product tour", "/rcs#product"],
-      ["Features", "/rcs#features"],
-      ["Integration", "/rcs#integration"],
-      ["Security", "/rcs#security"],
-    ],
-  },
-  {
-    title: "Get started",
-    links: [
-      ["Set up your organisation", "/rcs/get-started"],
-      ["Client sign in", "/client/login"],
-      ["Staff sign in", "/staff/login"],
-      ["Demo flow guide", "/flow"],
-    ],
-  },
-  {
-    title: "For the public",
-    links: [
-      ["Report content", "/report"],
-      ["Check a case status", "/report/status"],
-      ["Contact us", "/report/contact"],
-    ],
-  },
-  {
-    title: "About",
-    links: [
-      ["The team", "/rcs#team"],
-      ["About this prototype", "/rcs#prototype"],
-      ["CommunityHub (simulated)", "/communityhub"],
-      ["FAQ", "/rcs#faq"],
-    ],
-  },
-] as const;
-
-function initialsOf(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("");
-}
-
 /**
  * Marks the section crossing the middle of the screen in the header. Only the sections the header lists are watched,
  * so nothing is marked while the hero or a section outside the nav is being read.
@@ -319,44 +233,6 @@ function useActiveSection(): string | undefined {
     return () => observer.disconnect();
   }, []);
   return active;
-}
-
-/**
- * The one section template every content section uses: a header block (eyebrow, H2, optional lede) on lg 10 of 16
- * columns, then the content on the full 16 columns, starting on the same left edge, after the same gap (spacing-09).
- * Inside the content, layouts are CSS grids, never nested Carbon columns, so nothing drifts off the shared edge.
- */
-function Section({
-  id,
-  eyebrow,
-  title,
-  lede,
-  tint = false,
-  children,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  lede?: ReactNode;
-  tint?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className={`lp-section${tint ? " lp-section--tint" : ""}`} aria-labelledby={`${id}-title`}>
-      <Grid>
-        <Column sm={4} md={8} lg={10} className="lp-section-head">
-          <p className="lp-eyebrow">{eyebrow}</p>
-          <h2 id={`${id}-title`} className="lp-h2">
-            {title}
-          </h2>
-          {lede && <p className="lp-lede">{lede}</p>}
-        </Column>
-        <Column sm={4} md={8} lg={16} className="lp-section-body">
-          {children}
-        </Column>
-      </Grid>
-    </section>
-  );
 }
 
 /**
@@ -519,6 +395,11 @@ export function RcsLandingPage() {
               <TeamCard key={member.name} member={member} />
             ))}
           </ul>
+          <p className="lp-team-more">
+            <RouterLink className="cds--link" to="/rcs/team">
+              See each person&apos;s contributions, the brief and the code
+            </RouterLink>
+          </p>
         </Section>
 
         {/* 6. Features, grouped by the outcome they deliver. */}
@@ -658,55 +539,18 @@ export function RcsLandingPage() {
         </Section>
 
         {/* 10. One dark close: the call to action and the footer. */}
-        <Theme theme="g100" className="lp-close">
-          <div className="lp-close-rule" aria-hidden="true" />
-          <section className="lp-cta" aria-labelledby="cta-title">
-            <Grid>
-              <Column sm={4} md={5} lg={10} className="lp-section-head">
-                <h2 id="cta-title" className="lp-h2">
-                  Protect the people who review your reports.
-                </h2>
-                <p className="lp-lede">Set up your organisation, connect where results go and add the report button.</p>
-              </Column>
-              <Column sm={4} md={3} lg={6} className="lp-cta-actions">
-                <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
-                <RouterLink className="cds--link" to="/flow">
-                  Demo guide
-                </RouterLink>
-              </Column>
-            </Grid>
-          </section>
-
-          <footer className="lp-footer">
-            <Grid>
-              <Column sm={4} md={8} lg={4} className="lp-footer-brand">
-                <RcsLogo size={36} variant="onDark" tagline />
-                <p>Safer content. Healthier people. Stronger communities.</p>
-              </Column>
-              {FOOTER.map((col) => (
-                <Column key={col.title} sm={2} md={2} lg={3} className="lp-footer-col">
-                  <h2 className="lp-footer-heading">{col.title}</h2>
-                  <ul>
-                    {col.links.map(([label, to]) => (
-                      <li key={label}>
-                        <RouterLink className="cds--link" to={to}>
-                          {label}
-                        </RouterLink>
-                      </li>
-                    ))}
-                  </ul>
-                </Column>
-              ))}
-              <Column sm={4} md={8} lg={16} className="lp-footer-legal">
-                <p>
-                  Responsible Content Safety (RCS) is an IBM × RMIT capstone prototype built by RMIT Team 6.
-                  CommunityHub is simulated. Synthetic data only: no real organisations, people or footage.
-                </p>
-                <p>© 2026 RMIT Team 6</p>
-              </Column>
-            </Grid>
-          </footer>
-        </Theme>
+        <SiteClose
+          title="Protect the people who review your reports."
+          lede="Set up your organisation, connect where results go and add the report button."
+          actions={
+            <>
+              <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
+              <RouterLink className="cds--link" to="/flow">
+                Demo guide
+              </RouterLink>
+            </>
+          }
+        />
       </main>
     </div>
   );
@@ -728,7 +572,7 @@ function FeatureGrid({ items, columns }: { items: { icon: Icon; title: string; b
 }
 
 /** One person: their photo if one has been added, their initials on a brand tile if not, then what they did. */
-function TeamCard({ member }: { member: (typeof TEAM)[number] }) {
+function TeamCard({ member }: { member: TeamMember }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
     <li className="lp-member">

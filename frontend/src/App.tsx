@@ -39,6 +39,7 @@ import { CommunityHubModerationPage } from "./pages/marketing/CommunityHubModera
 import { ClientHomeRedirect } from "./components/shell/ClientHomeRedirect";
 import { ClientRoute } from "./components/shell/ClientRoute";
 import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
+import { TeamPage } from "./pages/marketing/TeamPage";
 import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
 import { CommunityHubPage } from "./pages/marketing/CommunityHubPage";
 import { FlowHubPage } from "./pages/marketing/FlowHubPage";
@@ -106,6 +107,7 @@ export function AppRoutes() {
           and a simulated CommunityHub page with the report button. /flow is the demo guide. */}
       <Route path="/rcs" element={<RcsLandingPage />} />
       <Route path="/rcs/get-started" element={<OrganisationOnboardingPage />} />
+      <Route path="/rcs/team" element={<TeamPage />} />
       <Route path="/communityhub" element={<CommunityHubPage />} />
       {/* CommunityHub's own moderation tool (simulated look, real case-results data). */}
       <Route path="/communityhub/moderation" element={<CommunityHubModerationPage />} />
