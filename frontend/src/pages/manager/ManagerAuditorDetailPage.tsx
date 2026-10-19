@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification, NumberInput } from "@carbon/react";
+import { Cafe, Chat } from "@carbon/icons-react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { ExposureStateTag, Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
@@ -123,9 +124,6 @@ export function ManagerAuditorDetailPage() {
             meta={
               <>
                 <ExposureStateTag state={data.exposure_state} />
-                {openRequests > 0 && (
-                  <StatusTag tone="request">{`${openRequests} support request${openRequests === 1 ? "" : "s"} waiting`}</StatusTag>
-                )}
                 {data.pattern_flagged && (
                   <span title="A private marker that this Auditor's recent exposure is worth a check-in. Only the Manager sees it.">
                     <StatusTag tone="neutral">Pattern flagged</StatusTag>
@@ -136,10 +134,8 @@ export function ManagerAuditorDetailPage() {
           />
 
           {/* Actions first: what this person asked of you, then the figures. */}
-          <Panel title="Support requests">
-            <p style={secondaryText}>
-              Private requests from the Auditor, separate from SOS.
-            </p>
+          <Panel title={openRequests > 0 ? `Support requests · ${openRequests} waiting` : "Support requests"}>
+            <p style={secondaryText}>Private requests from the Auditor, separate from SOS.</p>
             {actionError && (
               <InlineNotification
                 kind="error"
@@ -154,40 +150,39 @@ export function ManagerAuditorDetailPage() {
             {data.wellbeing_requests.length === 0 ? (
               <p style={secondaryText}>No support requests.</p>
             ) : (
-              <ul className="flex flex-col gap-3" aria-live="polite">
-                {data.wellbeing_requests.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex flex-col gap-2 px-4 py-3"
-                    style={{ backgroundColor: "var(--cds-layer-01)" }}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>
-                        {r.kind === "TALK_TO_MANAGER" ? "Wants to talk to you" : "Asked for a break"}
-                        {r.case_id && <span style={{ fontWeight: 400 }}>{` · case ${r.case_id}`}</span>}
-                      </span>
-                      <span className="rcs-helper">{formatClockTime(r.created_at)}</span>
-                    </div>
-                    {r.reason && <p style={{ fontSize: 14 }}>&ldquo;{r.reason}&rdquo;</p>}
-                    <div className="rcs-align-row">
-                      {r.status !== "OPEN" && <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>}
-                      {r.status === "OPEN" && (
-                        <Button
-                          kind="tertiary"
-                          size="sm"
-                          disabled={actingId === r.id}
-                          onClick={() => void act(r)}
-                        >
-                          {actingId === r.id
-                            ? "Saving…"
-                            : r.kind === "BREAK_REQUEST"
-                              ? "Approve break"
-                              : "Mark as followed up"}
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                ))}
+              // One row per request: what they asked and when, their words, and the one action on the right.
+              <ul className="rcs-req-list" aria-live="polite">
+                {data.wellbeing_requests.map((r) => {
+                  const KindIcon = r.kind === "TALK_TO_MANAGER" ? Chat : Cafe;
+                  return (
+                    <li key={r.id} className="rcs-req">
+                      <KindIcon size={20} className="rcs-req-icon" aria-hidden="true" />
+                      <div className="rcs-req-body">
+                        <p className="rcs-req-title">
+                          {r.kind === "TALK_TO_MANAGER" ? "Wants to talk to you" : "Asked for a break"}
+                          <span className="rcs-req-meta">
+                            {formatClockTime(r.created_at)}
+                            {r.case_id && ` · case ${r.case_id}`}
+                          </span>
+                        </p>
+                        {r.reason && <p className="rcs-req-quote">&ldquo;{r.reason}&rdquo;</p>}
+                      </div>
+                      <div className="rcs-req-action">
+                        {r.status === "OPEN" ? (
+                          <Button kind="tertiary" size="sm" disabled={actingId === r.id} onClick={() => void act(r)}>
+                            {actingId === r.id
+                              ? "Saving…"
+                              : r.kind === "BREAK_REQUEST"
+                                ? "Approve break"
+                                : "Mark as followed up"}
+                          </Button>
+                        ) : (
+                          <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Panel>
