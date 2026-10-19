@@ -405,7 +405,7 @@ describe("AuditorCaseDetailPage", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Your session has timed out" });
     fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: "test123" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Log in to continue" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sign in to continue" }));
 
     await waitFor(() => expect(login).toHaveBeenCalledWith("auditor-1", "test123"));
     await waitFor(() => expect(sessionStorage.getItem("rcs_staff_token")).toBe("fresh-token"));
