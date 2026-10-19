@@ -1,5 +1,5 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { ActionableNotification, Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Section } from "../../components/ui/Blocks";
@@ -8,7 +8,7 @@ import { TablePagination, usePagination } from "../../components/ui/TablePaginat
 import { listClientMessages } from "../../services";
 import type { ClientMessage } from "../../services/types";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
-import { inScope, useClients } from "../../hooks/useClientScope";
+import { ALL_CLIENTS, inScope, useClientScope, useClients } from "../../hooks/useClientScope";
 import { MESSAGE_TOPIC_LABEL } from "../../design-tokens/messageLabels";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
@@ -21,6 +21,7 @@ export function ManagerClientMessagesPage() {
   const navigate = useNavigate();
   const { data: allMessages, error } = useStaffQuery(listClientMessages);
   const { scope, selected } = useClients();
+  const { setClientId } = useClientScope();
   const data = allMessages ? allMessages.filter((m) => inScope(scope, m)) : allMessages;
   const waiting = (data ?? [])
     .filter((m) => m.status !== "ANSWERED")
@@ -29,6 +30,10 @@ export function ManagerClientMessagesPage() {
     .filter((m) => m.status === "ANSWERED")
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const pagedAnswered = usePagination(answered, String(answered.length));
+  // The work-queue badge counts every Client's waiting messages; when one Client is selected, say where the rest are.
+  const waitingElsewhere = selected
+    ? (allMessages ?? []).filter((m) => m.status !== "ANSWERED" && !inScope(scope, m)).length
+    : 0;
 
   return (
     <ManagerLayout clientScope>
@@ -44,6 +49,19 @@ export function ManagerClientMessagesPage() {
         }
       />
       <LoadState error={error} loading={!data && !error} what="Client messages" />
+      {waitingElsewhere > 0 && (
+        <ActionableNotification
+          kind="info"
+          lowContrast
+          inline
+          hideCloseButton
+          title={`${waitingElsewhere} more ${waitingElsewhere === 1 ? "message is" : "messages are"} waiting from other Clients.`}
+          subtitle={`You're viewing ${selected?.name}. The count on Client messages includes every Client.`}
+          actionButtonLabel="Show all Clients"
+          onActionButtonClick={() => setClientId(ALL_CLIENTS)}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {data && waiting.length > 0 && (
         <Section id="waiting" title={`Waiting for a reply · ${waiting.length}`} description="Oldest first.">
           <MessageTable
