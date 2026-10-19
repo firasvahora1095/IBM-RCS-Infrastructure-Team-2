@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { Breadcrumb, BreadcrumbItem, Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
@@ -149,6 +149,12 @@ export function CooldownPage() {
     <>
       {header}
       <StaffPage maxWidth={600}>
+        <Breadcrumb noTrailingSlash>
+          <BreadcrumbItem>
+            <RouterLink to="/auditor">Dashboard</RouterLink>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrentPage>Cooldown</BreadcrumbItem>
+        </Breadcrumb>
         <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>
           {cooldown ? "Cooldown in progress" : "Your cooldown has ended"}
         </h1>
