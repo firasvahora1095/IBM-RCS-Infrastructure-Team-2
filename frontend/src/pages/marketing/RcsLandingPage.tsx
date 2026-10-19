@@ -699,7 +699,7 @@ export function RcsLandingPage() {
               ))}
               <Column sm={4} md={8} lg={16} className="lp-footer-legal">
                 <p>
-                  Responsible Content Safety (RCS) is an IBM × RMIT capstone prototype by RMIT Team 6, with IBM.
+                  Responsible Content Safety (RCS) is an IBM × RMIT capstone prototype built by RMIT Team 6.
                   CommunityHub is simulated. Synthetic data only: no real organisations, people or footage.
                 </p>
                 <p>© 2026 RMIT Team 6</p>
