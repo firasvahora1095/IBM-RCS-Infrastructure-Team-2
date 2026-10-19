@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification, NumberInput } from "@carbon/react";
-import { Cafe, Chat } from "@carbon/icons-react";
+import { Cafe, UserSpeaker } from "@carbon/icons-react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { ExposureStateTag, Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
@@ -153,7 +153,7 @@ export function ManagerAuditorDetailPage() {
               // One row per request: what they asked and when, their words, and the one action on the right.
               <ul className="rcs-req-list" aria-live="polite">
                 {data.wellbeing_requests.map((r) => {
-                  const KindIcon = r.kind === "TALK_TO_MANAGER" ? Chat : Cafe;
+                  const KindIcon = r.kind === "TALK_TO_MANAGER" ? UserSpeaker : Cafe;
                   return (
                     <li key={r.id} className="rcs-req">
                       <KindIcon size={20} className="rcs-req-icon" aria-hidden="true" />
