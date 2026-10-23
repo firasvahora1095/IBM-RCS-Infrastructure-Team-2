@@ -7,15 +7,16 @@ import { RcsLogo } from "../brand/RcsMark";
 /**
  * The top bar on every public reporting page. Reporters arrive here from the product site's "Report content" and from
  * a platform's report button, so it is the product site's white header: the RCS logo with the full name beside it
- * (a member of the public has never heard of "RCS"), and help on the right. Staff and Client pages use the dark app
- * shell instead, because they are signed-in tools.
+ * (a member of the public has never heard of "RCS"), and help on the right. The logo leads to the product site, the
+ * way it does on every other public page, not back to the form the Reporter is already on. Staff and Client pages use
+ * the dark app shell instead, because they are signed-in tools.
  */
 export function AppHeader() {
   const navigate = useNavigate();
   return (
     <Theme theme="white">
       <Header aria-label="Responsible Content Safety (RCS) — Reporting" className="rcs-site-header rcs-public-header">
-        <HeaderName as={RouterLink} to="/report" prefix="" aria-label="Responsible Content Safety (RCS) — Reporting">
+        <HeaderName as={RouterLink} to="/" prefix="" aria-label="Responsible Content Safety (RCS) home">
           <RcsLogo size={28} layout="inline" />
         </HeaderName>
         <DemoDataBadge />
