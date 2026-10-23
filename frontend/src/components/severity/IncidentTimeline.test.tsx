@@ -66,7 +66,7 @@ describe("IncidentTimeline", () => {
     expect(screen.getByText("00:05")).toBeInTheDocument();
   });
 
-  it("labels a tagged point detection with its time and tag, as in Figma 437:232", () => {
+  it("labels a tagged point detection with its time and tag in words (Figma 437:232)", () => {
     render(
       <IncidentTimeline
         durationSeconds={150}
@@ -74,7 +74,8 @@ describe("IncidentTimeline", () => {
       />,
     );
     expect(screen.getByText("01:15")).toBeInTheDocument();
-    expect(screen.getByText("weapon_present")).toBeInTheDocument();
+    expect(screen.getByText("weapon present")).toBeInTheDocument();
+    expect(screen.queryByText("weapon_present")).not.toBeInTheDocument();
     // 75s of a 150s video sits at the midpoint.
     expect(screen.getByTestId("timeline-marker").style.left).toBe("calc(50% - 5px)");
   });
@@ -100,6 +101,6 @@ describe("IncidentTimeline", () => {
       />,
     );
     expect(screen.getByText("00:12 to 00:20, S3 High")).toBeInTheDocument();
-    expect(screen.getByText("At 01:15, weapon_present, S3 High")).toBeInTheDocument();
+    expect(screen.getByText("At 01:15, weapon present, S3 High")).toBeInTheDocument();
   });
 });

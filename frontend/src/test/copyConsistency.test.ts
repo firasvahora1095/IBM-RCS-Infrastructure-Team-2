@@ -75,6 +75,13 @@ describe("copy consistency", () => {
     expect(hits).toEqual([]);
   });
 
+  it("starts every seeded AI narrative summary with a capital letter", () => {
+    const lowercase = ["/src/services/mock/seed.ts", "/src/services/mock/index.ts"].flatMap((path) =>
+      [...SOURCES[path].matchAll(/narrative_summary:\s*"([a-z][^"]{0,40})/g)].map((m) => `${path}: ${m[1]}`),
+    );
+    expect(lowercase).toEqual([]);
+  });
+
   it("starts every seeded Client message and reply with a capital letter", () => {
     const seed = SOURCES["/src/services/mock/b2bSeed.ts"];
     const lowercaseStarts = [...seed.matchAll(/\b(?:body|subject):\s*"([a-z][^"]{0,40})/g)].map((m) => m[1]);
