@@ -1935,16 +1935,23 @@
   inline-size: 100%;
   max-inline-size: 26rem;
 }
+// "Back to RCS" above the sign-in form. A real link: the same blue as the other links on the page ("Staff sign in",
+// "Client sign in"), 14px, and tall enough to hit on a phone (the old 12px grey caption was about 16px tall).
 .si-back {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  @include type.type-style("label-01");
-  color: var(--cds-text-secondary);
+  gap: 0.5rem;
+  min-block-size: 2rem;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-link-primary);
   text-decoration: none;
   &:hover {
-    color: var(--cds-text-primary);
+    color: var(--cds-link-primary-hover);
     text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 2px;
   }
 }
 .si-form {
