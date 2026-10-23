@@ -652,7 +652,7 @@ export function AuditorCaseDetailPage() {
                 <p style={secondaryText}>
                   {aiScore === null
                     ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
-                    : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) See the AI summary for the model's original score."}
+                    : "This is the AI's score, raised to a minimum when a weapon was detected. The AI summary shows the model's original score."}
                 </p>
                 <CviRatingSlider
                   initialValue={auditorScore}

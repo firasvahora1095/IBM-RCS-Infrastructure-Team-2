@@ -20,6 +20,8 @@ import type { BuddyCaseSummary } from "../../services/types";
 import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
 import { useBuddyConversation, type BuddyMessage } from "./useBuddyConversation";
 import { formatClockTime } from "../../utils/formatRelativeTime";
+import { DELIVERY_STATUS_LABEL } from "../../design-tokens/deliveryLabels";
+import type { DeliveryStatus } from "../../services/types";
 
 const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }[] = [
   { key: "status", label: "Status", empty: "Not available" },
@@ -41,7 +43,9 @@ function CaseSummary({ summary }: { summary: BuddyCaseSummary }) {
   return (
     <dl className="rcs-buddy__case" aria-label={`Summary of ${summary.case_id}`}>
       {rows.map((f) => {
-        const value = summary[f.key];
+        const raw = summary[f.key];
+        // Delivery arrives as its code (SUCCESS, NEEDS_ATTENTION); show the same words as the Deliveries page.
+        const value = f.key === "delivery_status" && raw ? (DELIVERY_STATUS_LABEL[raw as DeliveryStatus] ?? raw) : raw;
         return (
           <div key={f.key} style={{ display: "contents" }}>
             <dt>{f.label}</dt>

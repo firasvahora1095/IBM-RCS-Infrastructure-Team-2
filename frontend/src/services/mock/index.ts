@@ -126,7 +126,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 48,
         severity_tier: "S2",
         flag_reason: "Physical conflict",
-        narrative_summary: "two people in a heated confrontation; brief pushing detected.",
+        narrative_summary: "Two people in a heated confrontation; brief pushing detected.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
         flagged_entities: [
           { label: "Person A", start: 5, end: 40 },
@@ -140,7 +140,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 72,
         severity_tier: "S3",
         flag_reason: "Graphic violence",
-        narrative_summary: "physical altercation detected between two people.",
+        narrative_summary: "Physical altercation detected between two people.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
         flagged_entities: [{ label: "Person A", start: 10, end: 30 }],
         transcript: null,
@@ -428,7 +428,9 @@ function buddyCaseSummary(db: MockDb, role: "auditor" | "manager", staffId: stri
     case_id: c.case_id,
     status: managerStatusLabel(c.status, c.manager_flag),
     ai_severity: c.severity_tier,
-    final_auditor_severity: c.auditor_severity_score === null ? null : scoreToTier(c.auditor_severity_score),
+    // Confirming the AI's rating stores no score, so a completed case's final tier is then the AI's (as on every screen).
+    final_auditor_severity:
+      c.auditor_severity_score !== null ? scoreToTier(c.auditor_severity_score) : c.status === "COMPLETE" ? c.severity_tier : null,
     final_outcome: c.final_outcome ? (BUDDY_OUTCOME[c.final_outcome] ?? null) : null,
   };
   if (role === "manager") {

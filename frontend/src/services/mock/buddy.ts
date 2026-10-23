@@ -1,4 +1,5 @@
-import type { BuddyCaseSummary, BuddyLink, BuddyReply, StaffRole } from "../types";
+import type { BuddyCaseSummary, BuddyLink, BuddyReply, DeliveryStatus, StaffRole } from "../types";
+import { DELIVERY_STATUS_LABEL } from "../../design-tokens/deliveryLabels";
 
 /**
  * The mock AI Buddy: fixed answers that follow the same rules as the real one
@@ -168,7 +169,10 @@ function caseAnswer(c: BuddyCaseSummary): string {
   lines.push(`AI severity: ${c.ai_severity ?? "not yet assessed"}.`);
   lines.push(`Final Auditor severity: ${c.final_auditor_severity ?? "not yet set"}.`);
   lines.push(`Final outcome: ${c.final_outcome ?? "not yet set"}.`);
-  if (c.delivery_status !== undefined) lines.push(`Delivery: ${c.delivery_status ?? "not applicable"}.`);
+  if (c.delivery_status !== undefined) {
+    const delivery = c.delivery_status ? (DELIVERY_STATUS_LABEL[c.delivery_status as DeliveryStatus] ?? c.delivery_status) : "not applicable";
+    lines.push(`Delivery: ${delivery}.`);
+  }
   return lines.join(" ");
 }
 
