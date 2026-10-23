@@ -32,15 +32,17 @@ export function wholeMonthName(start: string, end: string): string | null {
   return null;
 }
 
-/** "2 Oct 2026, 10:41 am" */
+/** "2 Oct 2026, 10:41 AM". AM and PM are capitals, as on every other screen (formatDateTime, formatClockTime). */
 export function formatShortDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return new Date(iso)
+    .toLocaleString("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
 }
 
 /** "2 Oct 2026" */
