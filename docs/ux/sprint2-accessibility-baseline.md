@@ -192,3 +192,7 @@ Figma's Gray 50 secondary text (`#8d8d8d` on white, 3.32:1) was replaced by Carb
 | 3 | The whole sweep ran on the local build; re-run axe on the deployed build once Task 104 is done (with Task 101) | Firas / Aleeya |
 | 4 | Only the mock data source was swept; re-check api-mode screens once real data flows (longer names, empty states) | Firas |
 | 5 | The Review Workspace's pinned column scrolls within itself on short screens — usable by keyboard and wheel, but worth watching in usability testing | Aleeya |
+
+## 8. Sprint 3 Week 3 update
+
+The final accessibility pass measured 49 screens and states on the finished build, with no axe violations after 12 fixes, and added the measurements this baseline could not make (contrast on gradients, focus indicators with a real keyboard, hover-state contrast). See [`week3-final-visual-qa-and-accessibility.md`](week3-final-visual-qa-and-accessibility.md). Open items 2, 3 and 4 above are still open: an NVDA pass, a hand-check of the deployed site, and api-mode screens with real data.

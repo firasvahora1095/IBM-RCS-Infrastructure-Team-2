@@ -75,3 +75,7 @@
 - **Screen copy:** 3 mismatches found and fixed: the AI-failure footnote, the saved-limit message and the Manager time formats.
 - **Deliberate keeps:** 5, each with its reason.
 - **Needs sign-off:** 2 BA items (RT-01 third outcome, RT-02 Manager Review state), owned by Jana. All UX items were closed on 18 Sep 2026.
+
+## 6. Sprint 3 Week 3 update
+
+This audit checked labels against the confirmed documents. The Week 3 pass checked the wording **across screens** instead (the same thing spelled the same way everywhere), corrected about 35 strings, added tests that keep them correct, and recorded the one open decision, Reviewer or Auditor. See [`week3-microcopy-and-consistency-pass.md`](week3-microcopy-and-consistency-pass.md).
