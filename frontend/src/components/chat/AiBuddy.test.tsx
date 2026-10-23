@@ -142,7 +142,8 @@ describe("AiBuddy", () => {
     const list = await screen.findByLabelText("Summary of AR-2026-00500");
     expect(within(list).getByText("Final Auditor severity")).toBeInTheDocument();
     expect(within(list).getByText("Not yet set")).toBeInTheDocument(); // an empty field is spelled out, not left blank
-    expect(within(list).getByText("NEEDS_ATTENTION")).toBeInTheDocument();
+    expect(within(list).getByText("Failed")).toBeInTheDocument(); // the delivery code in the Deliveries page's words
+    expect(within(list).queryByText("NEEDS_ATTENTION")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open case review" })).toHaveAttribute("href", "/manager/cases/AR-2026-00500/review");
   });
 
