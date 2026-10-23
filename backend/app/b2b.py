@@ -49,7 +49,7 @@ from app.models import (
 )
 from app.rate_limit import InvalidLookupRateLimiter
 from app.severity import get_severity_tier
-from app.support import open_support_request_counts, unresolved_sos_auditors
+from app.support import open_support_request_counts, pending_check_in_auditors, unresolved_sos_auditors
 
 
 COMMUNITYHUB_ID = "COMMUNITYHUB"
@@ -558,7 +558,8 @@ DEFINITIONS = {
         "This is the current backlog, so it isn't Total minus Completed."
     ),
     "needs_manager_action": (
-        "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases "
+        "Open items that need a Manager decision or follow-up: unresolved SOS, check-ins owed to Reviewers after "
+        "a critical (S4) case, declined cases, cases "
         "interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic "
         "retries, and support requests (a break to approve or a request to talk) waiting for a reply. "
         "SOS and support requests concern people, so they are counted here and named only in each Auditor's record."
@@ -689,6 +690,7 @@ def compute_intelligence(
     attention = [
         {"kind": "SOS", "count": len(unresolved_sos_auditors(db))},
         {"kind": "SUPPORT_REQUEST", "count": support["break_requests"] + support["talk_requests"]},
+        {"kind": "CHECK_IN", "count": len(pending_check_in_auditors(db))},
         {"kind": "REASSIGNMENT", "count": len(declined)},
         {"kind": "CAP_INTERRUPTED", "count": len(capped)},
         {"kind": "FAILED_HANDOFF", "count": len(failed)},

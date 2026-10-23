@@ -144,6 +144,13 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
                 ends_at = ends_at.replace(tzinfo=timezone.utc)
         if ends_at is not None and ends_at > now:
             continue
+        # An S4 or SOS cooldown holds the Auditor after its timer ends, until the Manager's check-in is logged.
+        if (
+            ends_at is not None
+            and auditor.cooldown_trigger in ("S4", "SOS")
+            and not auditor.cooldown_check_in_done
+        ):
+            continue
         # Exclude auditors at or over their daily exposure limit
         if auditor.exposure_minutes >= (auditor.exposure_limit_minutes or DAILY_EXPOSURE_REFERENCE_MINUTES):
             continue

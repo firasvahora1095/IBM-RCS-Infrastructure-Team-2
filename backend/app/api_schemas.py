@@ -81,6 +81,12 @@ class SosFollowUpRequest(BaseModel):
     outcome: SosFollowUpOutcome
 
 
+class CheckInRequest(BaseModel):
+    """The Manager's record of speaking to a Reviewer after an S4 case."""
+
+    notes: str = Field(min_length=1, max_length=5000)
+
+
 class ExposureSampleRequest(BaseModel):
     active_seconds: float = Field(default=0, ge=0)
     replay_seconds: float = Field(default=0, ge=0)

@@ -788,12 +788,34 @@ class B2bContractTests(unittest.TestCase):
         counts = {item["kind"]: item["count"] for item in body["attention"]}
         self.assertEqual(
             counts,
-            {"SOS": 1, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "SUPPORT_REQUEST": 2},
+            {"SOS": 1, "CHECK_IN": 0, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "SUPPORT_REQUEST": 2},
         )
         # Which kinds are waiting, so the Manager knows whether to approve a break or talk.
         self.assertEqual(body["support_requests"], {"break_requests": 1, "talk_requests": 1})
         self.assertEqual(body["kpis"]["needs_manager_action"], 6)
         self.assertEqual(body["delivery"]["failed"][0]["case_id"], "RCS-AT-00003")
+
+    def test_attention_counts_s4_check_ins_that_are_still_owed(self) -> None:
+        now = datetime.now(timezone.utc)
+        with self.Session.begin() as db:
+            # The timer has ended but the Manager hasn't checked in, so this Reviewer still needs them.
+            db.add(Auditor(
+                auditor_id="auditor-2", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S4", cooldown_check_in_done=0, cooldown_ends_at=now - timedelta(minutes=5),
+            ))
+            # A check-in already logged, and a lower-tier cooldown, are not waiting for anyone.
+            db.add(Auditor(
+                auditor_id="auditor-3", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S4", cooldown_check_in_done=1, cooldown_ends_at=now - timedelta(minutes=5),
+            ))
+            db.add(Auditor(
+                auditor_id="auditor-4", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S3", cooldown_check_in_done=0, cooldown_ends_at=now + timedelta(minutes=5),
+            ))
+        body = self.intel()
+        counts = {item["kind"]: item["count"] for item in body["attention"]}
+        self.assertEqual(counts["CHECK_IN"], 1)
+        self.assertEqual(body["kpis"]["needs_manager_action"], 1)
 
     def test_comparison_matrix_and_override_rate(self) -> None:
         for i, (ai, final) in enumerate([("S2", "S2"), ("S2", "S3"), ("S2", "S3"), ("S1", "S1"), ("S3", "S2")]):
