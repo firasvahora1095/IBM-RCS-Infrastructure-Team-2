@@ -2,7 +2,7 @@
 
 **Owner:** Aleeya Ahmad (UX) · **Branch:** `docs/week3-ux-final-qa`
 **Plan task:** `[QUALITY ASSURANCE]` Final Visual QA & Accessibility Pass Across All Screens (90 min).
-**Acceptance criteria:** all tested keyboard-only; contrast measured, not eyeballed; Master Document updated.
+**Acceptance criteria:** all tested keyboard-only; contrast measured, not eyeballed.
 **Where it was run:** the local build (Vite dev server, mock data source) in Chrome, signed in as each person with the seed's test accounts. The deployed site was not tested; see section 7.
 
 ## Result in short
@@ -112,9 +112,3 @@ Two items the check lists but are not defects: Carbon's dropdown chevron is deli
 3. Press Tab once in the page, then run `await rcsA11ySweep(["/manager", "/manager/cases"])`. It prints a table: violations, lowest contrast, worst gradient text, controls without a focus indicator.
 
 For a screen that needs a click (a dialog, a tab), open it by hand and run `await rcsA11ySweep([location.pathname + location.search])`.
-
-## Master Document Update
-
-- This document is the Week 3 accessibility and visual QA record. [`sprint2-accessibility-baseline.md`](sprint2-accessibility-baseline.md) now points here, so the baseline and the final pass read as one history.
-- [`week2-b2b-click-through-and-accessibility.md`](week2-b2b-click-through-and-accessibility.md) is the Week 2 predecessor (15 screens, Lighthouse); this pass extends it to all 49 and adds the measurements Lighthouse's score hides.
-- Open items for the team's blocker log: NVDA pass (owner: UX, needs a person with NVDA); hand-check of the deployed site (owner: Dev, with the Final Deploy check).

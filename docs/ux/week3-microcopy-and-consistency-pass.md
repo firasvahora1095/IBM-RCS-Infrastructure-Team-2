@@ -2,7 +2,7 @@
 
 **Owner:** Aleeya Ahmad (UX), with Janataarah Begum (BA) for the open wording decision · **Branch:** `docs/week3-ux-final-qa`
 **Plan task:** `[QUALITY ASSURANCE]` Microcopy & Consistency Pass on Final Build (45 min).
-**Acceptance criteria:** no contradictory terminology across screens; Master Document updated.
+**Acceptance criteria:** no contradictory terminology across screens.
 **Where it was run:** the local build on the mock data source, plus the source code and the backend seed. Not the deployed site.
 
 ## Result in short
@@ -106,9 +106,3 @@ In the code, the screen text splits the same way: roughly 65 lines say "Auditor"
 ## 7. Risk to note
 
 Several sentences exist in three places: the backend, the mock data and a frontend wording file. The report definitions had three copies, and one copy was missed by the first search. The guard test now covers the frontend copies; the backend copy is covered only where a backend test asserts it. A single source for these strings would remove the risk. It is not needed for the demo.
-
-## Master Document Update
-
-- This document is the Week 3 wording record. [`sprint2-microcopy-audit.md`](sprint2-microcopy-audit.md) (Sprint 2: labels against the confirmed documents) now points here.
-- **The wording standard gains four rules**, all enforced by tests: role names are always capitalised; RCS calls the organisations it serves Clients, never customers; the all-Clients view is "All Clients"; a time of day ends in capital AM or PM.
-- **Open for the BA:** the Reviewer or Auditor decision (section 3), then the "Super Auditor" sub-decision. Record the outcome in the requirements document and in the presentation material.

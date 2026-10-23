@@ -2,7 +2,7 @@
 
 **Owner:** Aleeya Ahmad (UX) · **Branch:** `docs/week3-ux-final-qa`
 **Plan task:** `[PRESENTATION PREP]` Polish Demo Materials for Live Presentation (60 min).
-**Acceptance criteria:** no placeholder content left visible; Master Document updated.
+**Acceptance criteria:** no placeholder content left visible.
 **Where it was run:** the local build on the mock data source, plus the backend's own demo seed run against a throwaway SQLite file, to see what the **live** demo will show. The deployed site was not tested.
 
 ## Result in short
@@ -77,9 +77,3 @@ Sign-in IDs are those the demo guide shows on the deployed site (password `test1
 | 8. The map | `/flow` | none | The four journey phases, with a sign-in row for every role | The HD section is gone |
 
 Emily's guidance for the story: link every screen back to the problem, and be clear on the dashboard's purpose.
-
-## Master Document Update
-
-- This document is the Week 3 demo-materials record. Add the six to-dos above to the team's blocker log, with owners.
-- [`b2b-flow-build-handoff.md`](b2b-flow-build-handoff.md) holds the original 10-minute script; section 4 above is the updated route for the final build and the check-in step.
-- The Manager screenshot on the landing page (`public/landing/manager-overview.webp`) was retaken; the two other tour images were reviewed and are current.
