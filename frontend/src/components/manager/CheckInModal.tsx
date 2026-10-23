@@ -6,7 +6,7 @@ import { logCheckIn } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 
 interface CheckInModalProps {
-  /** The Reviewer being checked in on. Mount the dialog only while it is open, so a closed one leaves nothing in the page. */
+  /** The Auditor being checked in on. Mount the dialog only while it is open, so a closed one leaves nothing in the page. */
   reviewer: { id: string; name: string };
   onClose: () => void;
   /** Called once the check-in is saved, so the page can refresh and say it is done. */
@@ -14,7 +14,7 @@ interface CheckInModalProps {
 }
 
 /**
- * The Manager's check-in after a Reviewer finishes a critical (S4) case (AR-WB-12). The Reviewer can't take new
+ * The Manager's check-in after an Auditor finishes a critical (S4) case (AR-WB-12). The Auditor can't take new
  * cases until it is logged, so this is the one thing the "Needs you" row asks for: speak to them, then say how they
  * are. A note is required so the record shows the check-in happened and what support was offered. An SOS is checked
  * in through its follow-up page instead.

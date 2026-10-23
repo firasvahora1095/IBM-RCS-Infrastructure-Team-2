@@ -460,8 +460,8 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             created_at=released_at + timedelta(hours=30),
             seen_at=released_at + timedelta(hours=31),
             reply_body=(
-                "No. An override is when the Reviewer's final severity differs from the AI's first "
-                "estimate. The Reviewer's decision is always final; it's never changed afterwards."
+                "No. An override is when the Auditor's final severity differs from the AI's first "
+                "estimate. The Auditor's decision is always final; it's never changed afterwards."
             ),
             reply_at=released_at + timedelta(hours=32),
             reply_by="manager-01",

@@ -66,7 +66,7 @@ describe("Team page", () => {
     expect(within(aleeya).getByText("Copied")).toBeInTheDocument();
   });
 
-  it("writes the roles as proper nouns: Reviewer, Manager, Client", () => {
+  it("writes the roles as proper nouns: Auditor, Manager, Client", () => {
     const { container } = renderPage();
     expect(container.textContent).not.toMatch(/\b(reviewer|manager|client)s?\b/);
   });

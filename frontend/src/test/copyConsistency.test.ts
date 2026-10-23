@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Sprint 3 Week 3, "Microcopy & consistency pass": Emily is strict that role names are capitalised (Manager, Client,
- * Reviewer) and spelled one way on every screen. This scans the app's own source for the slips the pass found, so
+ * Auditor) and spelled one way on every screen. This scans the app's own source for the slips the pass found, so
  * they can't come back. It reads strings and screen text only, not comments, and only checks phrases that are wrong in
- * every context. The Reviewer/Auditor wording is a separate decision (see docs/ux/week3-microcopy-and-consistency-pass.md).
+ * every context. The person who reviews video is an Auditor on every screen (decided 24 Oct 2026; see
+ * docs/ux/week3-microcopy-and-consistency-pass.md).
  */
 const SOURCES = import.meta.glob("/src/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true }) as Record<
   string,
@@ -21,6 +22,9 @@ const BANNED: { pattern: RegExp; why: string }[] = [
   { pattern: /\b[Aa]ll clients\b/, why: 'the all-Clients view is "All Clients"' },
   { pattern: /\bCommunity Hub\b/, why: "the platform is spelled CommunityHub, one word" },
   { pattern: /\b[Cc]ustomers?\b/, why: "RCS calls the organisations it serves Clients, never customers" },
+  // Capitalised only: lower-case "reviewer" in a sentence is caught by the role-name test below, and code names
+  // (a `reviewer` prop, the reviewer-workspace image) aren't screen text.
+  { pattern: /\bReviewers?\b/, why: "the person who reviews video is an Auditor on every screen, never a Reviewer" },
 ];
 
 /** Screen text and strings only: drop whole-line comments and anything after a trailing // comment. */
@@ -47,7 +51,7 @@ describe("copy consistency", () => {
     expect(hits).toEqual([]);
   });
 
-  it("capitalises every role name in a sentence: Manager, Reviewer, Client, Auditor", () => {
+  it("capitalises every role name in a sentence: Manager, Auditor, Client", () => {
     // Quoted strings that read as a sentence (two or more words), not an ID, a route, a class name or a CSS value.
     const QUOTED = /"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g;
     const LOWER_ROLE = /\b(managers?|reviewers?|auditors?|clients?)\b/;

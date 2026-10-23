@@ -45,13 +45,13 @@ describe("FallbackQueueSection (Super Auditor)", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("opens on the cases that need a Reviewer, so owned cases don't bury them", async () => {
+  it("opens on the cases that need an Auditor, so owned cases don't bury them", async () => {
     renderFallback();
     expect(await screen.findByText("FREE-0001")).toBeInTheDocument();
     expect(screen.getByText("FREE-0002")).toBeInTheDocument();
     expect(screen.queryByText("OWNED-001")).not.toBeInTheDocument();
     expect(screen.queryByText("DECL-0001")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Needs a Reviewer (2)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Needs an Auditor (2)" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "All open cases (4)" })).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe("FallbackQueueSection (Super Auditor)", () => {
   it("says so plainly when there are no open cases", async () => {
     vi.spyOn(services, "getAllOpenCases").mockResolvedValue([]);
     renderFallback();
-    expect(await screen.findByText("No cases need a Reviewer right now.")).toBeInTheDocument();
+    expect(await screen.findByText("No cases need an Auditor right now.")).toBeInTheDocument();
   });
 
   it("has no accessibility violations", async () => {

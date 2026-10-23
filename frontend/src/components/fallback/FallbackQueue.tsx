@@ -259,7 +259,7 @@ export function FallbackQueueSection({
           onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}
         >
           <TabList aria-label="Fallback queue views">
-            <Tab>{`Needs a Reviewer (${rows.filter(needsReviewer).length})`}</Tab>
+            <Tab>{`Needs an Auditor (${rows.filter(needsReviewer).length})`}</Tab>
             <Tab>{`All open cases (${rows.length})`}</Tab>
           </TabList>
           <TabPanels>
@@ -272,7 +272,7 @@ export function FallbackQueueSection({
                       style={{ backgroundColor: "var(--cds-layer-01)" }}
                     >
                       <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
-                        {view === "needs" ? "No cases need a Reviewer right now." : "No open cases."}
+                        {view === "needs" ? "No cases need an Auditor right now." : "No open cases."}
                       </p>
                     </div>
                   )}

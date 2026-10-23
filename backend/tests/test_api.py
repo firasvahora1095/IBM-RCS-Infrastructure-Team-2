@@ -1369,7 +1369,7 @@ class ApiContractTests(unittest.TestCase):
         auditor = self.auth_headers("auditor-1")
         manager = self.auth_headers("manager-1")
 
-        # The timer is over, but the Reviewer is still held, and the Manager can see who is waiting.
+        # The timer is over, but the Auditor is still held, and the Manager can see who is waiting.
         held = self.client.get("/api/auditor/wellbeing", headers=auditor).json()["cooldown"]
         self.assertTrue(held["requires_check_in"])
         self.assertIsNone(held["check_in_completed_at"])
@@ -1402,14 +1402,14 @@ class ApiContractTests(unittest.TestCase):
             self.client.post("/api/manager/auditors/auditor-1/check-in", headers=manager, json={"notes": "Checked in."}).status_code,
             200,
         )
-        # The timer still has time on it, so the Reviewer waits for that, not for the Manager.
+        # The timer still has time on it, so the Auditor waits for that, not for the Manager.
         cooldown = self.client.get("/api/auditor/wellbeing", headers=self.auth_headers("auditor-1")).json()["cooldown"]
         self.assertIsNotNone(cooldown["check_in_completed_at"])
 
     def test_check_in_needs_a_note_and_something_to_check_in_on(self) -> None:
         manager = self.auth_headers("manager-1")
         url = "/api/manager/auditors/auditor-1/check-in"
-        # Nothing is waiting for a Reviewer with no cooldown.
+        # Nothing is waiting for a Auditor with no cooldown.
         self.assertEqual(self.client.post(url, headers=manager, json={"notes": "Hi"}).status_code, 409)
 
         self._finish_s4_case("CHECKINTEST000003", timer_ended=True)

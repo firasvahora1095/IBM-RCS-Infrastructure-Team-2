@@ -66,7 +66,7 @@ export function StaffLoginPage() {
 
   return (
     <SignInLayout
-      audience="For RCS Reviewers and Managers"
+      audience="For RCS Auditors and Managers"
       statement="Review harmful video with protection built into every case."
       points={[
         "Content warnings and blur on every case",
@@ -92,7 +92,7 @@ export function StaffLoginPage() {
             lowContrast
             hideCloseButton
             title="Demo sign-in:"
-            subtitle={`auditor-1 to auditor-5, superauditor-1 (fallback Reviewer) or manager-1, password ${DEMO_PASSWORD}`}
+            subtitle={`auditor-1 to auditor-5, superauditor-1 (Super Auditor) or manager-1, password ${DEMO_PASSWORD}`}
           />
         )}
 

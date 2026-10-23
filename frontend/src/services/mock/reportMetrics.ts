@@ -142,7 +142,7 @@ const REPORT_EVIDENCE: Record<ReportEvidenceKey, [title: string, definition: str
   ],
   workflow: [
     "Declined and reassigned",
-    "Completed cases that were declined by one Reviewer and decided by another.",
+    "Completed cases that were declined by one Auditor and decided by another.",
     ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
   ],
   delivery: [

@@ -430,7 +430,7 @@ REPORT_EVIDENCE = {
     ),
     "workflow": (
         "Declined and reassigned",
-        "Completed cases that were declined by one Reviewer and decided by another.",
+        "Completed cases that were declined by one Auditor and decided by another.",
         ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
     ),
     "delivery": (
@@ -558,7 +558,7 @@ DEFINITIONS = {
         "This is the current backlog, so it isn't Total minus Completed."
     ),
     "needs_manager_action": (
-        "Open items that need a Manager decision or follow-up: unresolved SOS, check-ins owed to Reviewers after "
+        "Open items that need a Manager decision or follow-up: unresolved SOS, check-ins owed to Auditors after "
         "a critical (S4) case, declined cases, cases "
         "interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic "
         "retries, and support requests (a break to approve or a request to talk) waiting for a reply. "

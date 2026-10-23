@@ -79,7 +79,7 @@ describe("RCS landing page", () => {
     renderPage();
     const tour = screen.getByRole("region", { name: "One service, three views." });
     const tabs = within(tour).getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(["Reviewer workspace", "Manager oversight", "Client portal"]);
+    expect(tabs).toEqual(["Auditor workspace", "Manager oversight", "Client portal"]);
     const images = [...tour.querySelectorAll("img")];
     expect(images.map((img) => img.getAttribute("src"))).toEqual([
       "/landing/reviewer-workspace.webp?v=3",
@@ -107,13 +107,13 @@ describe("RCS landing page", () => {
       (t) => expect(within(value).getByRole("heading", { name: t })).toBeInTheDocument(),
     );
     const product = screen.getByRole("region", { name: "One service, three views." });
-    expect(within(product).getByRole("heading", { name: "AI Buddy, for every Reviewer and Manager" })).toBeInTheDocument();
-    ["For Reviewers", "For Managers", "For your platform", "For the public"].forEach((who) =>
+    expect(within(product).getByRole("heading", { name: "AI Buddy, for every Auditor and Manager" })).toBeInTheDocument();
+    ["For Auditors", "For Managers", "For your platform", "For the public"].forEach((who) =>
       expect(within(product).getByRole("heading", { name: who })).toBeInTheDocument(),
     );
   });
 
-  it("writes the roles as proper nouns: Reviewer, Manager, Client", () => {
+  it("writes the roles as proper nouns: Auditor, Manager, Client", () => {
     const { container } = renderPage();
     const copy = container.cloneNode(true) as HTMLElement;
     // Code samples and URLs are not prose.

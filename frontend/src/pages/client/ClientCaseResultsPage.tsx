@@ -63,7 +63,7 @@ function postLabel(url: string | null): string {
  * Case results (CommunityHub Trust & Safety and Admin): every result RCS has
  * sent, newest first, as a record CommunityHub can reconcile against its own
  * moderation queue. Agreed facts only: never a narrative, footage, transcript
- * or reviewer identity, and never RCS's delivery errors.
+ * or Auditor identity, and never RCS's delivery errors.
  */
 export function ClientCaseResultsPage() {
   const { token } = useClientAuth();

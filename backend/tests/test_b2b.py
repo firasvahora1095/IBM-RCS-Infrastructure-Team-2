@@ -798,7 +798,7 @@ class B2bContractTests(unittest.TestCase):
     def test_attention_counts_s4_check_ins_that_are_still_owed(self) -> None:
         now = datetime.now(timezone.utc)
         with self.Session.begin() as db:
-            # The timer has ended but the Manager hasn't checked in, so this Reviewer still needs them.
+            # The timer has ended but the Manager hasn't checked in, so this Auditor still needs them.
             db.add(Auditor(
                 auditor_id="auditor-2", login_hash=self.password_hash, role="auditor",
                 cooldown_trigger="S4", cooldown_check_in_done=0, cooldown_ends_at=now - timedelta(minutes=5),

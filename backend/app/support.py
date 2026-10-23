@@ -291,7 +291,7 @@ async def log_check_in(
     if row.cooldown_trigger == "SOS" and not row.cooldown_check_in_done and row.cooldown_ends_at is not None:
         raise HTTPException(status_code=409, detail="This is an SOS. Log the check-in in the SOS follow-up.")
     if row.cooldown_trigger != "S4" or row.cooldown_check_in_done or row.cooldown_ends_at is None:
-        raise HTTPException(status_code=409, detail="No check-in is waiting for this Reviewer.")
+        raise HTTPException(status_code=409, detail="No check-in is waiting for this Auditor.")
     row.cooldown_check_in_done = 1
     # The audit trail hangs off a case: the S4 case that earned the cooldown is the Auditor's latest completed one.
     s4_case = db.scalars(

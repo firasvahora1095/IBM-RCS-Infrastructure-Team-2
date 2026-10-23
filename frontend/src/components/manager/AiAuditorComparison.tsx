@@ -63,7 +63,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
     <>
       <dl className="rcs-figure-row">
         <Figure label="Cases compared" value={data.compared_cases} />
-        <Figure label="Changed by the Reviewer" value={overrides} />
+        <Figure label="Changed by the Auditor" value={overrides} />
         <Figure label="Override rate" value={`${rate}%`} />
         <Figure label="Most common change" value={top ? `${top.from} → ${top.to}` : "None yet"} />
       </dl>

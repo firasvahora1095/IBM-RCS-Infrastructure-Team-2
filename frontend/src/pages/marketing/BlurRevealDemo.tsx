@@ -18,9 +18,9 @@ const FLAGS = ["physical_violence", "weapon_present", "weapon_use", "visible_inj
 const MAX_BLUR_PX = 28;
 
 /**
- * The Reviewer's first look at a flagged case, made interactive. Wording, tags and rules match the real Reviewer
+ * The Auditor's first look at a flagged case, made interactive. Wording, tags and rules match the real Auditor
  * workspace (case AR-2026-00417 in the demo data): the content warning names the flag, severity and CVI score, Proceed
- * stays disabled until the Reviewer consents, declining goes to the Manager, footage opens at 100% blur in grayscale
+ * stays disabled until the Auditor consents, declining goes to the Manager, footage opens at 100% blur in grayscale
  * with a continuous blur slider (BA decision, 27 Aug), and SOS sits on the video. The frame is a drawn landscape, never
  * footage.
  */
