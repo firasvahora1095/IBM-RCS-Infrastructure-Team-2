@@ -56,6 +56,13 @@ function Purpose({ view }: { view: ViewKey }) {
 
 const AI_COLOUR = "var(--cds-support-info)";
 const TRUTH_COLOUR = "var(--cds-support-success)";
+/** Why the local prompt leakage check was skipped for a response, in words a Manager can read. */
+const LEAKAGE_SKIP_REASON: Record<string, string> = {
+  INPUT_TOO_LARGE: "The input was over the check's size limit.",
+  PROMPT_TOO_COMPLEX: "The prompt examples were over the check's processing limit.",
+  INSUFFICIENT_INSTRUCTION_TEXT: "There was too little instruction text to check.",
+  UNSUPPORTED_INPUT: "The response wasn't text this check can read.",
+};
 
 /**
  * Validation & Audit (Manager Figma 136:257, MR-OV-08 / CV-10; BA screen
@@ -466,15 +473,16 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
         <Figure label="No outcome recorded" value={data.unknown_calls ?? 0} />
       </dl>
       <p className="rcs-helper">
-        Accumulated score is the case's highest effective severity, from 0 to 100. The prompt leakage check applies a
-        local rule and is not a guarantee. Source attribution links to the stored evidence.
+        Accumulated score is the case's highest effective severity, from 0 to 100. The prompt leakage check looks for
+        copied instructions, including ones with changed formatting. Nothing detected means no matching text was found; it
+        doesn't rule out a paraphrase or an encoded leak. Source attribution links to the stored evidence.
       </p>
       <Layer>
         <Table aria-label="watsonx.ai call log">
           <TableHead>
             <TableRow>
               <TableExpandHeader aria-label="Expand to see details" />
-              {["Time", "Case", "Model", "Outcome", "Output check"].map((h) => (
+              {["Time", "Case", "Model", "Outcome", "Output check", "Prompt leakage"].map((h) => (
                 <TableHeader key={h}>{h}</TableHeader>
               ))}
             </TableRow>
@@ -483,6 +491,7 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
             {rows.flatMap((row) => {
               const open = expanded.has(row.entry_id);
               const failed = row.outcome && row.outcome !== "RECEIVED";
+              const overlap = row.prompt_leakage_status === "DETECTED";
               const toggle = () =>
                 setExpanded((prev) => {
                   const next = new Set(prev);
@@ -496,8 +505,9 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
                   isExpanded={open}
                   aria-label={`Show details for the call at ${formatShortDateTime(row.at)}`}
                   onExpand={toggle}
-                  // A call that did not come back clean carries the same red edge as other rows that need a look.
-                  style={{ cursor: "pointer", ...(failed ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : {}) }}
+                  // A call that did not come back clean, or copied its instructions into the answer, carries the same
+                  // red edge as other rows that need a look.
+                  style={{ cursor: "pointer", ...(failed || overlap ? { boxShadow: "inset 3px 0 0 var(--cds-support-error)" } : {}) }}
                 >
                   {/* Every cell opens the details, so the whole row works like every other row that leads somewhere. */}
                   <TableCell onClick={toggle}>{formatShortDateTime(row.at)}</TableCell>
@@ -514,9 +524,14 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
                     </StatusTag>
                   </TableCell>
                   <TableCell onClick={toggle}>{row.validation_status ?? "Not recorded"}</TableCell>
+                  <TableCell onClick={toggle}>
+                    <StatusTag tone={overlap ? "error" : "neutral"} size="sm">
+                      {LEAKAGE_LABEL[row.prompt_leakage_status ?? "NOT_CHECKED"] ?? row.prompt_leakage_status}
+                    </StatusTag>
+                  </TableCell>
                 </TableExpandRow>,
                 open && (
-                  <TableExpandedRow key={`${row.entry_id}-details`} colSpan={6}>
+                  <TableExpandedRow key={`${row.entry_id}-details`} colSpan={7}>
                     <CallDetails row={row} onSelectCase={onSelectCase} />
                   </TableExpandedRow>
                 ),
@@ -541,13 +556,26 @@ const NOT_RECORDED = "Not recorded";
 /** What one AI call recorded, grouped so a Manager can read it: the checks, then the request itself. */
 function CallDetails({ row, onSelectCase }: { row: GovernanceLogRow; onSelectCase: (id: string) => void }) {
   const sources = Array.isArray(row.source_attribution) ? row.source_attribution : null;
+  const evidence = row.prompt_leakage_evidence;
   return (
     <div className="rcs-call-details">
       <section aria-label="Checks on the response">
         <h4 className="rcs-subheading">Checks on the response</h4>
         <KeyValueList
+          mono={["Evidence hash"]}
           items={[
             { label: "Prompt leakage check", value: LEAKAGE_LABEL[row.prompt_leakage_status ?? "NOT_CHECKED"] ?? row.prompt_leakage_status },
+            // Evidence holds counts and a hash, never the copied instruction text. Only what was recorded is shown.
+            ...(evidence?.reason
+              ? [{ label: "Why it wasn't checked", value: LEAKAGE_SKIP_REASON[evidence.reason] ?? "The check couldn't be completed." }]
+              : []),
+            ...(evidence?.matched_token_count != null
+              ? [{ label: "Matching instruction text", value: `${evidence.matched_token_count} tokens` }]
+              : []),
+            ...(evidence?.prompt_token_count != null && evidence.output_token_count != null
+              ? [{ label: "Compared", value: `${evidence.prompt_token_count} instruction tokens with ${evidence.output_token_count} output tokens` }]
+              : []),
+            ...(evidence?.matched_text_hash ? [{ label: "Evidence hash", value: evidence.matched_text_hash }] : []),
             { label: "Source attribution", value: sources ? `${sources.length} ${sources.length === 1 ? "reference" : "references"}` : NOT_RECORDED },
             {
               label: "Accumulated score",

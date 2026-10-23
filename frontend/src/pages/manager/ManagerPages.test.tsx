@@ -58,6 +58,45 @@ describe("Manager screens", () => {
   );
 
   describe("Validation & Audit (one screen, separate views)", () => {
+    it("surfaces detected prompt leakage and explains a skipped check without inventing an evidence hash", async () => {
+      updateDb((db) => {
+        const sample = db.governanceLog[0];
+        db.governanceLog = [
+          {
+            ...sample, entry_id: "detected-call", model_id: "governance-detection-model",
+            schema_version: 2, outcome: "RECEIVED", prompt_leakage_status: "DETECTED",
+            source_attribution: [],
+            prompt_leakage_evidence: {
+              rule: "normalized-instruction-overlap", matched_token_count: 11, matched_text_hash: "a".repeat(64),
+            },
+          },
+          {
+            ...sample, entry_id: "skipped-call", model_id: "governance-skipped-model",
+            schema_version: 2, outcome: "RECEIVED", prompt_leakage_status: "NOT_CHECKED",
+            source_attribution: [],
+            prompt_leakage_evidence: { rule: "normalized-instruction-overlap", reason: "INPUT_TOO_LARGE" },
+          },
+        ];
+      });
+      renderAt("/manager/validation?view=audit-log");
+      const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
+      expect(within(log).getByRole("columnheader", { name: "Prompt leakage" })).toBeInTheDocument();
+
+      const detected = within(log).getByText(/^governance-detection-model/).closest("tr")!;
+      expect(within(detected).getByText("Detected")).toBeInTheDocument();
+      fireEvent.click(within(detected).getByRole("button", { name: /^Show details for the call/ }));
+      expect(await within(log).findByText("11 tokens")).toBeInTheDocument();
+      expect(within(log).getByText("a".repeat(64))).toBeInTheDocument();
+
+      const skipped = within(log).getByText(/^governance-skipped-model/).closest("tr")!;
+      expect(within(skipped).getByText("Not checked")).toBeInTheDocument();
+      fireEvent.click(within(skipped).getByRole("button", { name: /^Show details for the call/ }));
+      expect(await within(log).findByText("The input was over the check's size limit.")).toBeInTheDocument();
+      // A skipped check recorded no match, so no hash is made up for it.
+      expect(within(log).getAllByText("Evidence hash")).toHaveLength(1);
+      expect(log.textContent).not.toContain("undefined");
+    });
+
     it("has one tab per view and shows only the chosen one, landing on AI vs Auditor", async () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
