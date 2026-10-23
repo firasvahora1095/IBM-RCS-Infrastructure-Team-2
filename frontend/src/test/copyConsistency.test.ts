@@ -76,4 +76,16 @@ describe("copy consistency", () => {
     const lowercaseStarts = [...seed.matchAll(/\b(?:body|subject):\s*"([a-z][^"]{0,40})/g)].map((m) => m[1]);
     expect(lowercaseStarts).toEqual([]);
   });
+
+  it("formats a time of day only through the shared helpers, so AM and PM stay in capitals", () => {
+    // The browser writes "12:33 am" for en-AU. formatClockTime and its siblings in utils/ correct that.
+    const RAW_TIME = /toLocaleTimeString\(|toLocaleString\([^)]*hour:|hour: "numeric"/;
+    const hits = FILES.filter(([path]) => !path.startsWith("/src/utils/")).flatMap(([path, source]) =>
+      visibleText(source)
+        .map((line, i) => ({ line, i }))
+        .filter(({ line }) => RAW_TIME.test(line))
+        .map(({ line, i }) => `${path.replace("/src/", "")}:${i + 1}  ${line.trim().slice(0, 90)}`),
+    );
+    expect(hits).toEqual([]);
+  });
 });

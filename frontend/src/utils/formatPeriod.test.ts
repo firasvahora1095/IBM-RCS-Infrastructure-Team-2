@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClockTime, formatDateTime } from "./formatRelativeTime";
+import { formatClockTime, formatDateTime, formatDayMonthTime, formatWeekdayTime } from "./formatRelativeTime";
 import { formatShortDateTime } from "./formatPeriod";
 
 /** Sprint 3 Week 3, microcopy pass: a time of day is written one way on every screen, with AM and PM in capitals. */
@@ -12,6 +12,8 @@ describe("time of day", () => {
       expect(formatShortDateTime(iso)).toMatch(/\d{1,2}:\d{2} (AM|PM)$/);
       expect(formatDateTime(iso)).toMatch(/\d{1,2}:\d{2} (AM|PM)$/);
       expect(formatClockTime(iso)).toMatch(/\d{1,2}:\d{2} (AM|PM)$/);
+      expect(formatDayMonthTime(iso)).toMatch(/\d{1,2}:\d{2} (AM|PM)$/);
+      expect(formatWeekdayTime(iso)).toMatch(/\d{1,2}:\d{2} (AM|PM)$/);
     }
   });
 
@@ -19,6 +21,8 @@ describe("time of day", () => {
     const clock = formatClockTime(evening);
     expect(formatShortDateTime(evening).endsWith(clock)).toBe(true);
     expect(formatDateTime(evening).endsWith(clock)).toBe(true);
+    expect(formatDayMonthTime(evening)).toBe(`2 Oct, ${clock}`);
+    expect(formatWeekdayTime(evening)).toBe(`Fri ${clock}`);
   });
 
   it("keeps the day, month and year in the short form", () => {

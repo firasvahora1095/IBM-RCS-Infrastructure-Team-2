@@ -23,6 +23,7 @@ import { claimCase, getAllOpenCases, getAvailableCases, takeCase } from "../../s
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 const DECLINED_KEY = "rcs_declined_available_cases";
 
@@ -94,7 +95,7 @@ function placementNote(row: FallbackCaseRow, now: number): string | null {
   if (!row.auto_release_at || row.assigned_auditor_id !== null) return null;
   const due = Date.parse(row.auto_release_at);
   if (Number.isNaN(due)) return null;
-  const time = new Date(due).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+  const time = formatClockTime(row.auto_release_at);
   return due > now ? `Placed automatically from ${time}` : "Being placed automatically when an Auditor is free";
 }
 

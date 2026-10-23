@@ -11,9 +11,9 @@ import { DEMO_PASSWORD } from "../../services/mock/seed";
 import { PAYLOAD_OUTCOME_LABEL, PLATFORM_ACTION_LABEL } from "../../design-tokens/deliveryLabels";
 import { POST_TITLES } from "./CommunityHubPage";
 import { safeHttpUrl } from "../../utils/safeUrl";
+import { formatDayMonthTime } from "../../utils/formatRelativeTime";
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const when = formatDayMonthTime;
 
 const postId = (url: string | null) => url?.match(/post\/([\w-]+)/)?.[1] ?? null;
 
