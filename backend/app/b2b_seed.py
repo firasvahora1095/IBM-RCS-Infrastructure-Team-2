@@ -229,13 +229,13 @@ def wipe_b2b(db: Session) -> None:
 # The other clients. CommunityHub is the original customer (b2b.COMMUNITYHUB_ID).
 OTHER_CLIENTS = (
     {
-        "id": "STREAMNEST", "code": "SN", "name": "StreamNest", "description": "Video platform · Customer organisation",
+        "id": "STREAMNEST", "code": "SN", "name": "StreamNest", "description": "Video platform · Client organisation",
         "destination": "https://hooks.streamnest.example/••••••/rcs-results", "seed": 3101,
         "host": "streamnest.example/watch", "user": ("sn-user-01", "Riley Chen"), "failed": True,
         "tag_slot": 2,
     },
     {
-        "id": "PIXELCIRCLE", "code": "PC", "name": "PixelCircle", "description": "Photo community · Customer organisation",
+        "id": "PIXELCIRCLE", "code": "PC", "name": "PixelCircle", "description": "Photo community · Client organisation",
         "destination": "https://api.pixelcircle.example/••••••/rcs-results", "seed": 3102,
         "host": "pixelcircle.example/photo", "user": ("pc-user-01", "Morgan Ellis"), "failed": False,
         "tag_slot": 4,
@@ -322,7 +322,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
     db.add(Organisation(
         organisation_id=COMMUNITYHUB_ID,
         name=COMMUNITYHUB_NAME,
-        description="Social platform · Customer organisation",
+        description="Social platform · Client organisation",
         status="READY",
         destination_masked="https://api.communityhub.example/••••••/rcs-results",
         last_tested_at=now - timedelta(hours=3),
@@ -455,13 +455,13 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             topic="REPORT_QUESTION",
             report_id=released.report_id,
             subject="What counts as an override?",
-            body="the report lists an override rate. Does that mean RCS changed a decision after review?",
+            body="The report lists an override rate. Does that mean RCS changed a decision after review?",
             status="ANSWERED",
             created_at=released_at + timedelta(hours=30),
             seen_at=released_at + timedelta(hours=31),
             reply_body=(
-                "no. An override is when the reviewer's final severity differs from the AI's first "
-                "estimate. The reviewer's decision is always final; it's never changed afterwards."
+                "No. An override is when the Reviewer's final severity differs from the AI's first "
+                "estimate. The Reviewer's decision is always final; it's never changed afterwards."
             ),
             reply_at=released_at + timedelta(hours=32),
             reply_by="manager-01",
@@ -472,7 +472,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             user_id=CLIENT_USER_ID,
             topic="DELIVERY_ISSUE",
             subject="One result hasn't reached us",
-            body="our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+            body="Our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
             status="SENT",
             created_at=now - timedelta(minutes=40),
         ),

@@ -35,13 +35,13 @@ export const ACCESS_DISCLOSURE = "Access to this page is logged.";
 /** Plain-language definitions behind each report figure ("How is this calculated?"). */
 export const METRIC_DEFINITIONS = {
   cases: "Reports received in the period, cases with a final human decision in the period, and cases still open on its last day.",
-  received: "Reports submitted to RCS for this customer during the period.",
+  received: "Reports submitted to RCS for this Client during the period.",
   completed: "Cases with a final human decision recorded during the period.",
   open: "Cases received on or before the last day of the period that weren't complete by then.",
   outcomes: "The Auditor's final outcome for each case completed in the period.",
   severity: "The final severity after human review: the Auditor's rating where they changed it, otherwise the AI rating they confirmed.",
   timeliness: "The middle value of time from report received to final decision, for cases completed in the period.",
   overrides: "Completed cases where the final human severity differs from the AI's initial severity.",
-  workflow: "Completed cases that were declined by one reviewer and decided by another.",
+  workflow: "Completed cases that were declined by one Reviewer and decided by another.",
   delivery: "Results sent to the Client for cases completed in the period, by delivery status.",
 } as const;

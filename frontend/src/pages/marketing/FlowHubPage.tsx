@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Column, Grid, Tag } from "@carbon/react";
 import { ArrowRight } from "@carbon/icons-react";
@@ -68,10 +67,6 @@ const ACCOUNTS = [
 export function FlowHubPage() {
   const navigate = useNavigate();
   const byNumber = new Map(STAGES.map((s) => [s.n, s]));
-
-  useEffect(() => {
-    document.title = "Demo guide · Responsible Content Safety (RCS)";
-  }, []);
 
   return (
     <div className="rcs-site lp">
@@ -144,32 +139,34 @@ export function FlowHubPage() {
               </>
             }
           >
-            <table className="fl-accounts">
-              <thead>
-                <tr>
-                  <th scope="col">Role</th>
-                  <th scope="col">User ID</th>
-                  <th scope="col">Can see</th>
-                  <th scope="col">
-                    <span className="cds--visually-hidden">Sign in</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {ACCOUNTS.map((a) => (
-                  <tr key={a.role}>
-                    <th scope="row">{a.role}</th>
-                    <td className="fl-mono">{a.ids}</td>
-                    <td>{a.scope}</td>
-                    <td>
-                      <RouterLink className="cds--link" to={a.to} aria-label={`Sign in as ${a.role}`}>
-                        Sign in
-                      </RouterLink>
-                    </td>
+            <div className="fl-accounts-scroll" role="region" aria-label="Demo accounts" tabIndex={0}>
+              <table className="fl-accounts">
+                <thead>
+                  <tr>
+                    <th scope="col">Role</th>
+                    <th scope="col">User ID</th>
+                    <th scope="col">Can see</th>
+                    <th scope="col">
+                      <span className="cds--visually-hidden">Sign in</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ACCOUNTS.map((a) => (
+                    <tr key={a.role}>
+                      <th scope="row">{a.role}</th>
+                      <td className="fl-mono">{a.ids}</td>
+                      <td>{a.scope}</td>
+                      <td>
+                        <RouterLink className="cds--link" to={a.to} aria-label={`Sign in as ${a.role}`}>
+                          Sign in
+                        </RouterLink>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Section>
         )}
 

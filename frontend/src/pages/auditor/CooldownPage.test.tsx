@@ -47,7 +47,7 @@ describe("CooldownPage (Figma 31:99)", () => {
     expect(screen.getByRole("button", { name: /Return to queue \(available in/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop my shift" })).toBeEnabled();
     // The optional check-in is offered inline, with what each option gives.
-    expect(await screen.findByRole("radio", { name: /Talk to my manager/ })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: /Talk to my Manager/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Take a break/ })).toBeInTheDocument();
   });
 

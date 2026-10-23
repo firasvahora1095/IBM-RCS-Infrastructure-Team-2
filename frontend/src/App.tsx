@@ -3,6 +3,7 @@ import { AppHeader } from "./components/shell/AppHeader";
 import { PublicTabs } from "./components/shell/PublicTabs";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
 import { ScrollToTop } from "./components/shell/ScrollToTop";
+import { PageTitle } from "./components/shell/PageTitle";
 import { UploadPage } from "./pages/normal-user/UploadPage";
 import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
@@ -360,6 +361,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <PageTitle />
       <AppRoutes />
     </BrowserRouter>
   );

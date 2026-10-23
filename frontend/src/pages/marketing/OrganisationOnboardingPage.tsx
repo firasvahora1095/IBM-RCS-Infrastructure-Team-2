@@ -75,6 +75,7 @@ export function OrganisationOnboardingPage() {
     <>
       <MarketingHeader />
       <main
+        id="main-content"
         style={{ paddingTop: 48 + 48, paddingBottom: 64, backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
       >
         <Grid>

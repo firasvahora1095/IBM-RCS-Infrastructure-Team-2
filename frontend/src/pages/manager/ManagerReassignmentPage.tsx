@@ -145,7 +145,7 @@ export function ManagerReassignmentPage() {
                 labelText={
                   <>
                     {c.name} <span style={{ ...mono, fontSize: 13 }}>{c.headroom_minutes} min headroom</span>
-                    {c.fallback_reviewer && " · Fallback reviewer"}
+                    {c.fallback_reviewer && " · Fallback Reviewer"}
                     {c.auditor_id === suggested?.auditor_id && " · Suggested"}
                     {!c.available ? " · Unavailable" : c.limited_headroom ? " · Limited headroom" : ""}
                   </>

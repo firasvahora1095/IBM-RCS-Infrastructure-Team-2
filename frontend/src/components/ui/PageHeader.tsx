@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 interface PageHeaderProps {
   title: ReactNode;
-  /** Small label above the title, e.g. "Customer organisation". */
+  /** Small label above the title, e.g. "Client organisation". */
   eyebrow?: ReactNode;
   subtitle?: ReactNode;
   /** A Carbon Breadcrumb, shown above everything else. */

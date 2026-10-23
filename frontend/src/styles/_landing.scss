@@ -72,6 +72,16 @@
   .cds--header__name {
     padding-inline: 1rem 1.5rem;
   }
+  // Carbon's header focus style is built for its dark header and draws nothing on this white one (measured: outline
+  // none, no border or background change), so a keyboard user could not see where they were. Same 2px ring as the app.
+  .cds--header__name:focus-visible,
+  .cds--header__menu-item:focus-visible,
+  .cds--header__menu-title:focus-visible,
+  .cds--header__menu-toggle:focus-visible,
+  .cds--header__action:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
   // The "Sign in" menu sits in the global bar; it needs no divider of its own.
   .rcs-site-signin {
     padding-inline-start: 0;
@@ -1804,8 +1814,20 @@
   font-size: 0.875rem;
 }
 // Demo accounts: a plain Carbon-styled table on the tinted section.
+// A four-column table cannot shrink below its content, so on a phone it scrolls inside its own labelled region.
+.fl-accounts-scroll {
+  // Positioned, so the table's visually-hidden header text stays inside the scroll area instead of sticking out of it.
+  position: relative;
+  overflow-x: auto;
+  max-inline-size: 100%;
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 2px;
+  }
+}
 .fl-accounts {
   inline-size: 100%;
+  min-inline-size: 30rem;
   border-collapse: collapse;
   background-color: var(--cds-background);
   border: 1px solid var(--cds-border-subtle-01);

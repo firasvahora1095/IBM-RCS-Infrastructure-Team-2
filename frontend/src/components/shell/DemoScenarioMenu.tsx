@@ -47,7 +47,7 @@ const SCENARIOS: Scenario[] = [
   { label: "Put me at my exposure limit", run: (token) => demoScenarios.reachExposureLimit(token) },
   { label: "Start a 15-minute S3 cooldown", run: (token) => demoScenarios.startCooldown(token, "S3", 15) },
   { label: "Start a 30-minute S4 cooldown", run: (token) => demoScenarios.startCooldown(token, "S4", 30) },
-  { label: "End my cooldown (manager checked in)", run: (token) => demoScenarios.finishCooldown(token) },
+  { label: "End my cooldown (Manager checked in)", run: (token) => demoScenarios.finishCooldown(token) },
 ];
 
 /**

@@ -465,7 +465,7 @@ export const b2bMockOps: Pick<
       requireManager(db, token);
       advanceDeliveries(db);
       const org = findOrganisation(db, organisationId);
-      if (!org) throw new ApiError("Customer not found", 404);
+      if (!org) throw new ApiError("Client not found", 404);
       const ownDeliveries = inClient(db.deliveries, org.organisation_id);
       const lastSuccess = ownDeliveries
         .flatMap((d) => d.attempts.filter((a) => a.result === "SUCCESS").map((a) => Date.parse(a.at)))
@@ -492,7 +492,7 @@ export const b2bMockOps: Pick<
     return updateDb((db) => {
       const session = requireManager(db, token);
       const org = findOrganisation(db, organisationId);
-      if (!org) throw new ApiError("Customer not found", 404);
+      if (!org) throw new ApiError("Client not found", 404);
       const testedAt = new Date().toISOString();
       org.last_tested_at = testedAt;
       const ok = org.status === "READY";
@@ -739,7 +739,7 @@ export const b2bMockOps: Pick<
       requireManager(db, token);
       const all = organisationId.toUpperCase() === ALL_CLIENTS;
       const org = findOrganisation(db, organisationId);
-      if (!all && !org) throw new ApiError("Customer not found", 404);
+      if (!all && !org) throw new ApiError("Client not found", 404);
       advanceDeliveries(db);
       const now = Date.now();
       return computeIntelligence(
@@ -760,7 +760,7 @@ export const b2bMockOps: Pick<
               .length,
           },
           auditorCount: db.staff.filter((s) => s.role === "auditor").length,
-          organisation: all ? { organisation_id: ALL_CLIENTS, name: "All clients" } : org!,
+          organisation: all ? { organisation_id: ALL_CLIENTS, name: "All Clients" } : org!,
           // The mock data source is always synthetic (MR-OV-08).
           provenance: "DEMO",
         },

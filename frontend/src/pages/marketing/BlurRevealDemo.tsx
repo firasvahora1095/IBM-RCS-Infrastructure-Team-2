@@ -55,7 +55,7 @@ export function BlurRevealDemo() {
 
   return (
     <Theme theme="g100" className="rcs-reveal-theme">
-      <div ref={card} className="rcs-reveal" aria-labelledby="reveal-title">
+      <div ref={card} className="rcs-reveal" role="group" aria-labelledby="reveal-title">
         <div className="rcs-reveal-bar">
           <h2 id="reveal-title" className="rcs-reveal-title">
             Try it: a flagged case
