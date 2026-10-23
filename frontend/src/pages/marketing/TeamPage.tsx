@@ -63,10 +63,6 @@ const SPRINTS = [
 export function TeamPage() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.title = "The team · Responsible Content Safety (RCS)";
-  }, []);
-
   return (
     <div className="rcs-site lp">
       <MarketingHeader activeId="team" />

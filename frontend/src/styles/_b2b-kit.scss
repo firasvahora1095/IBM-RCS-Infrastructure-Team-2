@@ -885,6 +885,25 @@ html {
     pointer-events: none;
   }
 }
+// Measured with axe: Carbon draws Blue 60 text on the row-hover grey (#e8e8e8) at 4.08:1, under the 4.5:1 AA bar. While a
+// row is hovered, its buttons and links use the darker link blue (Blue 80, about 9:1) until the control itself is hovered.
+.cds--data-table tbody tr:hover,
+.rcs-inbox-row:hover {
+  .cds--btn--tertiary:not(:hover):not(:disabled) {
+    color: var(--cds-link-primary-hover);
+    border-color: var(--cds-link-primary-hover);
+  }
+  .cds--btn--ghost:not(:hover):not(:disabled),
+  .cds--link:not(:hover),
+  .rcs-link-button:not(:hover) {
+    color: var(--cds-link-primary-hover);
+  }
+}
+// The logo link in the app header had no visible focus: nothing changed when a keyboard user reached it.
+.rcs-app-brand.cds--header__name:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
 .rcs-app-brand.cds--header__name {
   padding-inline: 1rem;
   font-weight: 400;

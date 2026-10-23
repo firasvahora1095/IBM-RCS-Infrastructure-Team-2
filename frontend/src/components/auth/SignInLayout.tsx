@@ -21,7 +21,7 @@ export function SignInLayout({
 }) {
   return (
     <div className="si-page">
-      <Theme theme="g100" className="si-brand">
+      <Theme as="aside" theme="g100" className="si-brand" aria-label={audience}>
         <div className="si-brand-wash" aria-hidden="true" />
         <RouterLink to="/rcs" className="si-brand-logo" aria-label="Responsible Content Safety (RCS) home">
           <RcsLogo size={40} variant="onDark" />

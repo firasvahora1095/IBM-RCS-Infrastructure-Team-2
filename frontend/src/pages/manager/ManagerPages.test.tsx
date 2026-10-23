@@ -58,6 +58,15 @@ describe("Manager screens", () => {
   );
 
   describe("Validation & Audit (one screen, separate views)", () => {
+    it("says what an empty AI request log means, rather than blaming filters nobody applied", async () => {
+      updateDb((db) => {
+        db.governanceLog = [];
+      });
+      renderAt("/manager/validation?view=audit-log");
+      expect(await screen.findByText(/No AI requests have been recorded yet./)).toBeInTheDocument();
+      expect(screen.queryByText(/match these filters/)).not.toBeInTheDocument();
+    });
+
     it("surfaces detected prompt leakage and explains a skipped check without inventing an evidence hash", async () => {
       updateDb((db) => {
         const sample = db.governanceLog[0];

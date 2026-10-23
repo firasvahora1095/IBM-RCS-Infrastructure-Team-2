@@ -92,16 +92,21 @@ export function ManagerValidationPage() {
     JSON.stringify({ ...query, organisation_id }),
   );
 
+  const filtered = Boolean(
+    query.case_id || query.from_at || query.to_at || query.leakage || action || (query.context && query.context !== "live"),
+  );
+
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const view = VIEWS.find((v) => v.key === params.get("view")) ?? VIEWS[0];
 
-  const filters = (
-    // Progressive disclosure: the filters apply to the comparison and the audit log, so they sit inside those views.
+  // Progressive disclosure: the filters apply to the comparison and the audit log, so they sit inside those views.
+  // Carbon keeps every tab panel in the page, so each panel names its own copy: two forms must not share field IDs.
+  const filtersFor = (key: ViewKey) => (
     <Accordion>
       <AccordionItem title="Filters">
         <GovernanceFilters
-          view={view.key}
+          view={key}
           onApply={(next, auditAction) => {
             setQuery({ ...next, limit: 25 });
             setAction(auditAction);
@@ -180,7 +185,7 @@ export function ManagerValidationPage() {
         <TabPanels>
           <TabPanel>
             <Section id="ai-vs-auditor" description={<Purpose view="ai-vs-auditor" />}>
-              {filters}
+              {filtersFor("ai-vs-auditor")}
               <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the comparison" />
               {governance.data && <AiAuditorComparison data={governance.data} />}
               {governance.data?.next_comparison_offset != null && (
@@ -211,9 +216,9 @@ export function ManagerValidationPage() {
           </TabPanel>
           <TabPanel>
             <Section id="audit-log" description={<Purpose view="audit-log" />}>
-              {filters}
+              {filtersFor("audit-log")}
               <LoadState error={governance.error} loading={!governance.data && !governance.error} what="the audit log" />
-              {governance.data && <AuditLog data={governance.data} onSelectCase={setSelectedCase} />}
+              {governance.data && <AuditLog data={governance.data} filtered={filtered} onSelectCase={setSelectedCase} />}
               {governance.data?.next_before && (
                 <Button kind="ghost" onClick={() => setQuery({ ...query, before: governance.data?.next_before ?? undefined })}>
                   Older calls
@@ -454,7 +459,16 @@ function GovernanceFilters({
   );
 }
 
-function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCase: (id: string) => void }) {
+function AuditLog({
+  data,
+  filtered,
+  onSelectCase,
+}: {
+  data: GovernanceSummary;
+  /** Whether any filter is applied, which changes what an empty log means. */
+  filtered: boolean;
+  onSelectCase: (id: string) => void;
+}) {
   const paged = usePagination(data.rows, String(data.rows.length));
   const rows = paged.rows;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -466,7 +480,7 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
         </p>
       )}
       {/* Says what is being counted; the figures don't repeat themselves in a sentence. */}
-      <h3 className="rcs-subheading">Requests RCS sent to the AI model in this view</h3>
+      <h2 className="rcs-subheading">Requests RCS sent to the AI model in this view</h2>
       <dl className="rcs-figure-row">
         <Figure label="Sent" value={data.total_calls} />
         <Figure label="Failed: no usable answer" value={data.failed_calls} />
@@ -481,7 +495,9 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
         <Table aria-label="watsonx.ai call log">
           <TableHead>
             <TableRow>
-              <TableExpandHeader aria-label="Expand to see details" />
+              <TableExpandHeader>
+                <span className="cds--visually-hidden">Expand to see details</span>
+              </TableExpandHeader>
               {["Time", "Case", "Model", "Outcome", "Output check", "Prompt leakage"].map((h) => (
                 <TableHeader key={h}>{h}</TableHeader>
               ))}
@@ -540,7 +556,13 @@ function AuditLog({ data, onSelectCase }: { data: GovernanceSummary; onSelectCas
           </TableBody>
         </Table>
       </Layer>
-      {!rows.length && <p>No invocations match these filters.</p>}
+      {!rows.length && (
+        <p className="rcs-body">
+          {filtered
+            ? "No AI requests match these filters. Clear the filters to see them all."
+            : "No AI requests have been recorded yet. One appears here each time RCS sends a case to the AI model."}
+        </p>
+      )}
       <TablePagination paged={paged} />
     </>
   );

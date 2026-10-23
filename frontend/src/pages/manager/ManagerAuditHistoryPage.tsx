@@ -180,7 +180,9 @@ export function ManagerAuditHistoryPage() {
                 <Table aria-label="Audit history">
                   <TableHead>
                     <TableRow>
-                      <TableExpandHeader aria-label="Expand to see what changed" />
+                      <TableExpandHeader>
+                        <span className="cds--visually-hidden">Expand to see what changed</span>
+                      </TableExpandHeader>
                       <TableHeader>Time</TableHeader>
                       <TableHeader>Event</TableHeader>
                       <TableHeader>Case</TableHeader>
