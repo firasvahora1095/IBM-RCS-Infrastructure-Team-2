@@ -42,7 +42,7 @@ const VIEWS = [
       "Apply RCS decisions in one go, or record an action post by post",
       "Never footage, summaries or who reviewed a case",
     ],
-    image: "/landing/client-case-results.webp?v=3",
+    image: "/landing/client-case-results.webp?v=4",
     window: "RCS · Client portal",
     alt: "The RCS Client portal case results for CommunityHub: figures for violations found, posts removed and results acted on, and a Needs action table listing each case ID, post, RCS result, final severity and a Record action button.",
   },

@@ -84,7 +84,7 @@ describe("RCS landing page", () => {
     expect(images.map((img) => img.getAttribute("src"))).toEqual([
       "/landing/reviewer-workspace.webp?v=3",
       "/landing/manager-overview.webp?v=4",
-      "/landing/client-case-results.webp?v=3",
+      "/landing/client-case-results.webp?v=4",
     ]);
     images.forEach((img) => expect(img.getAttribute("alt")?.length).toBeGreaterThan(60));
   });
