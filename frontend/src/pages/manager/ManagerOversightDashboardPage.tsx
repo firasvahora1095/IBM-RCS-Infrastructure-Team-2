@@ -114,7 +114,14 @@ export function ManagerOversightDashboardPage() {
         description="Resolve items here, or open one for the full detail."
         actions={evidenceButton("needs_manager_action")}
       >
-        <NeedsYouInbox intelligence={data} overview={overview.data} />
+        <NeedsYouInbox
+          intelligence={data}
+          overview={overview.data}
+          onChanged={() => {
+            overview.reload();
+            intel.reload();
+          }}
+        />
       </Section>
 
       <Section

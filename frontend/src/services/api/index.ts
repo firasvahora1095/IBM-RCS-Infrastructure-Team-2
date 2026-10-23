@@ -58,6 +58,7 @@ export const apiDataService: DataService = {
   getSosAlert: http.getSosAlert,
   acknowledgeSosAlert: http.acknowledgeSosAlert,
   logSosFollowUp: http.logSosFollowUp,
+  logCheckIn: http.logCheckIn,
   listDeclinedCases: http.listDeclinedCases,
   getManagerCaseReview: http.getManagerCaseReview,
   getReassignmentContext: http.getReassignmentContext,

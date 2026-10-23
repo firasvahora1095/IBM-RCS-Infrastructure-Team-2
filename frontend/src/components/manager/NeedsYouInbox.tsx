@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, InlineLoading } from "@carbon/react";
+import { Button, InlineLoading, InlineNotification } from "@carbon/react";
 import { CheckmarkFilled, WarningFilled } from "@carbon/icons-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
@@ -15,6 +15,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AuditorOverviewRow, ManagerIntelligence } from "../../services/types";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import { StatusTag } from "../ui/StatusTag";
+import { CheckInModal } from "./CheckInModal";
 import { deliveryFailureKind } from "../../design-tokens/deliveryLabels";
 import { SOS_TONE, type StatusTone } from "../../design-tokens/statusTones";
 
@@ -27,6 +28,7 @@ type InboxKind =
   | "SOS alert"
   | "Break request"
   | "Talk request"
+  | "Check-in"
   | "Reassignment"
   | "Exposure limit"
   | "Delivery failed"
@@ -42,13 +44,18 @@ interface InboxRow {
   urgent?: boolean;
   /** A short written state beside the detail, so what is waiting is clear without colour. */
   status?: { label: string; tone: StatusTone };
-  /** The row's one button, and the row itself: both open the item's details. */
-  open: { label: string; to: string };
+  /**
+   * The row's one button, and the row itself: both do the same thing. Most rows open the item's details (`to`); a
+   * check-in is logged in a dialog on the Overview (`onClick`), because it is one note, not a decision to read up on.
+   */
+  open: { label: string; to?: string; onClick?: () => void };
 }
 
 interface Props {
   intelligence: ManagerIntelligence | null;
   overview: AuditorOverviewRow[] | null;
+  /** Called after an item is resolved here, so the page can refetch the figures and the Reviewers. */
+  onChanged?: () => void;
 }
 
 const CASE_KINDS: InboxKind[] = ["Reassignment", "Exposure limit", "Delivery failed"];
@@ -58,13 +65,16 @@ const CASE_KINDS: InboxKind[] = ["Reassignment", "Exposure limit", "Delivery fai
  * details: the Manager reads why before deciding, so nothing is approved, retried or dismissed from the list. The
  * whole row opens the same place as its button. Spans every Client; the Client's name is on each row that has one.
  */
-export function NeedsYouInbox({ intelligence, overview }: Props) {
+export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
   const navigate = useNavigate();
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
   const [rows, setRows] = useState<InboxRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [checkInFor, setCheckInFor] = useState<{ id: string; name: string } | null>(null);
+  // What the Manager is told once a check-in is saved: whether the Reviewer is free now or when the timer ends.
+  const [loggedMessage, setLoggedMessage] = useState<string | null>(null);
 
   const failed = intelligence?.delivery.failed;
   const requesters = useMemo(
@@ -74,9 +84,18 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
       ),
     [overview],
   );
+  // Reviewers who finished an S4 case and are waiting for the Manager to check in. An SOS is checked in through its
+  // follow-up, so it is not listed twice.
+  const checkIns = useMemo(
+    () =>
+      (overview ?? []).filter(
+        (r) => r.cooldown?.trigger === "S4" && r.cooldown.requires_check_in && !r.cooldown.check_in_completed_at,
+      ),
+    [overview],
+  );
   const ready = Boolean(token && intelligence && overview);
   // Reload when what the inbox depends on changes, not on every poll of unchanged data.
-  const dependencyKey = `${requesters.map((r) => r.auditor_id).join(",")}|${(failed ?? []).map((f) => f.delivery_id).join(",")}`;
+  const dependencyKey = `${requesters.map((r) => r.auditor_id).join(",")}|${(failed ?? []).map((f) => f.delivery_id).join(",")}|${checkIns.map((r) => r.auditor_id).join(",")}`;
 
   useEffect(() => {
     if (!ready || !token) return;
@@ -126,6 +145,23 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
             open: { label: "View request", to: `/manager/auditors/${encodeURIComponent(detail.auditor_id)}` },
           });
         }
+      }
+      for (const reviewer of checkIns) {
+        const ends = Date.parse(reviewer.cooldown!.ends_at);
+        next.push({
+          key: `checkin-${reviewer.auditor_id}`,
+          kind: "Check-in",
+          subject: reviewer.display_name,
+          detail:
+            ends > Date.now()
+              ? `Cooldown ends in ${Math.ceil((ends - Date.now()) / 60_000)} min`
+              : `Cooldown ended ${formatRelativeTime(reviewer.cooldown!.ends_at)}`,
+          status: { label: "Can't take cases", tone: "warning" },
+          open: {
+            label: "Log check-in",
+            onClick: () => setCheckInFor({ id: reviewer.auditor_id, name: reviewer.display_name }),
+          },
+        });
       }
       declined.forEach((c, i) => {
         const capped = c.reason === "EXPOSURE_CAP_REACHED";
@@ -188,15 +224,29 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
   if (!rows) return <InlineLoading description="Loading your inbox…" />;
 
   const shown = showAll ? rows : rows.slice(0, VISIBLE_ROWS);
+  const activate = (row: InboxRow) => (row.open.onClick ? row.open.onClick() : navigate(row.open.to ?? "/manager"));
 
   return (
     <div className="flex flex-col gap-3">
+      {loggedMessage && (
+        <InlineNotification
+          kind="success"
+          lowContrast
+          role="status"
+          title="Check-in logged."
+          subtitle={loggedMessage}
+          onCloseButtonClick={() => setLoggedMessage(null)}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {rows.length === 0 ? (
         <div className="rcs-inbox-empty">
           <CheckmarkFilled aria-hidden="true" size={20} style={{ fill: "var(--rcs-success-strong)" }} />
           <div>
             <p className="rcs-inbox-empty-title">Nothing needs your attention</p>
-            <p className="rcs-helper">No SOS alerts, requests, reassignments or failed deliveries are waiting.</p>
+            <p className="rcs-helper">
+              No SOS alerts, check-ins, requests, reassignments or failed deliveries are waiting.
+            </p>
           </div>
         </div>
       ) : (
@@ -207,13 +257,15 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
               key={row.key}
               className="rcs-inbox-row rcs-inbox-row--open"
               data-urgent={row.urgent ? "error" : undefined}
-              onClick={() => navigate(row.open.to)}
+              onClick={() => activate(row)}
             >
               <span className="rcs-inbox-kind">
                 {row.urgent && <WarningFilled aria-hidden="true" size={16} className="rcs-inbox-kind-icon" />}
                 {row.kind}
               </span>
-              <span className={`rcs-inbox-subject ${CASE_KINDS.includes(row.kind) ? "rcs-mono" : ""}`}>{row.subject}</span>
+              <span className={`rcs-inbox-subject ${CASE_KINDS.includes(row.kind) ? "rcs-mono" : ""}`}>
+                {row.subject}
+              </span>
               <span className="rcs-inbox-detail">
                 {row.status && (
                   <StatusTag tone={row.status.tone} size="sm">
@@ -228,7 +280,7 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(row.open.to);
+                    activate(row);
                   }}
                 >
                   {row.open.label}
@@ -242,6 +294,22 @@ export function NeedsYouInbox({ intelligence, overview }: Props) {
         <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
           {showAll ? "Show fewer" : `Show all ${rows.length}`}
         </Button>
+      )}
+      {checkInFor && (
+        <CheckInModal
+          reviewer={checkInFor}
+          onClose={() => setCheckInFor(null)}
+          onLogged={(reviewer) => {
+            const cooldown = checkIns.find((r) => r.auditor_id === reviewer.id)?.cooldown;
+            const timerRunning = cooldown ? Date.parse(cooldown.ends_at) > Date.now() : false;
+            setLoggedMessage(
+              timerRunning
+                ? `${reviewer.name} can take new cases when their cooldown ends.`
+                : `${reviewer.name} can take new cases again.`,
+            );
+            onChanged?.();
+          }}
+        />
       )}
     </div>
   );

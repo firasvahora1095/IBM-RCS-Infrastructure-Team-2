@@ -1,5 +1,6 @@
 import { cleanup, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { axe } from "jest-axe";
 import { describe, it, expect, beforeEach } from "vitest";
 import { AppRoutes } from "../../App";
 import { mockDataService } from "../../services/mock";
@@ -363,6 +364,66 @@ describe("Manager screens", () => {
     expect(await screen.findByText(/This SOS alert is now resolved\./)).toBeInTheDocument();
     const marcus = readDb().staff.find((s) => s.staff_id === "auditor-5")!;
     expect(marcus.cooldown?.check_in_completed_at).toBeTruthy();
+  });
+
+  it("asks for the check-in an S4 case needs, logs it from the Overview and frees the Reviewer (AR-WB-12)", async () => {
+    // A Reviewer whose 30-minute S4 cooldown ended ten minutes ago, with no check-in yet.
+    const name = updateDb((db) => {
+      const member = db.staff.find((s) => s.role === "auditor" && !s.cooldown)!;
+      member.cooldown = {
+        started_at: new Date(Date.now() - 40 * 60_000).toISOString(),
+        ends_at: new Date(Date.now() - 10 * 60_000).toISOString(),
+        trigger: "S4",
+        requires_check_in: true,
+        check_in_completed_at: null,
+      };
+      return member.display_name;
+    });
+    renderAt("/manager");
+    const inbox = await screen.findByRole("list", { name: "Items that need you" });
+    const row = within(inbox).getByText("Check-in").closest("li")!;
+    expect(within(row).getByText(name)).toBeInTheDocument();
+    expect(within(row).getByText("Can't take cases")).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "Log check-in" }));
+
+    // The dialog asks for a note before it will save anything.
+    const notes = await screen.findByLabelText("How are they?");
+    const dialog = notes.closest(".cds--modal") as HTMLElement;
+    expect(await axe(document.body)).toHaveNoViolations();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log check-in" }));
+    expect(await screen.findByText(/Add a short note about how they are/)).toBeInTheDocument();
+    expect(readDb().staff.find((s) => s.display_name === name)?.cooldown?.check_in_completed_at).toBeNull();
+
+    fireEvent.change(notes, { target: { value: "Spoke on a call. Doing okay." } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log check-in" }));
+    expect(await screen.findByText("Check-in logged.")).toBeInTheDocument();
+    expect(readDb().staff.find((s) => s.display_name === name)?.cooldown?.check_in_completed_at).toBeTruthy();
+    // The row leaves the inbox, so nobody is left waiting on a Manager who has already checked in.
+    await waitFor(() =>
+      expect(within(screen.getByRole("list", { name: "Items that need you" })).queryByText("Check-in")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers the same check-in on the Reviewer's own record, and clears it once logged", async () => {
+    updateDb((db) => {
+      db.staff.find((s) => s.staff_id === "auditor-1")!.cooldown = {
+        started_at: new Date(Date.now() - 40 * 60_000).toISOString(),
+        ends_at: new Date(Date.now() - 10 * 60_000).toISOString(),
+        trigger: "S4",
+        requires_check_in: true,
+        check_in_completed_at: null,
+      };
+    });
+    renderAt("/manager/auditors/auditor-1");
+    expect(await screen.findByText("Check in with Jordan Lee.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Log check-in" }));
+    const notes = await screen.findByLabelText("How are they?");
+    fireEvent.change(notes, { target: { value: "Called after the case. Okay." } });
+    const dialog = notes.closest(".cds--modal") as HTMLElement;
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log check-in" }));
+    expect(await screen.findByText("Check-in logged.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Check in with Jordan Lee.")).not.toBeInTheDocument());
+    expect(readDb().staff.find((s) => s.staff_id === "auditor-1")?.cooldown?.check_in_completed_at).toBeTruthy();
   });
 
   it("shows the Manager when an SOS alert was raised by an AI failure mid-review (AR-AI-11)", async () => {

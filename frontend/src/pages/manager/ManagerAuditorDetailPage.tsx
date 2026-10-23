@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
-import { Button, InlineNotification, NumberInput } from "@carbon/react";
+import { ActionableNotification, Button, InlineNotification, NumberInput } from "@carbon/react";
 import { Cafe, UserSpeaker } from "@carbon/icons-react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { ExposureStateTag, Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
 import { formatClockTime, mono, secondaryText } from "../../components/manager/managerStyles";
+import { CheckInModal } from "../../components/manager/CheckInModal";
 import { ExposureBar } from "../../components/exposure/ExposureBar";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { StatusTag } from "../../components/ui/StatusTag";
@@ -55,6 +56,8 @@ export function ManagerAuditorDetailPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkedIn, setCheckedIn] = useState(false);
   const limitRef = useRef<HTMLDivElement>(null);
 
   const limit = limitDraft ?? data?.exposure_limit_minutes ?? DEFAULT_LIMIT_MINUTES;
@@ -111,6 +114,10 @@ export function ManagerAuditorDetailPage() {
     count: data?.recent_cases.filter((c) => c.severity_tier === tier).length ?? 0,
   })).filter((t) => t.count > 0);
   const openRequests = data?.wellbeing_requests.filter((r) => r.status === "OPEN").length ?? 0;
+  // An S4 cooldown holds the Reviewer until the Manager checks in; an SOS is checked in through its follow-up.
+  const checkInOwed = Boolean(
+    data?.cooldown?.trigger === "S4" && data.cooldown.requires_check_in && !data.cooldown.check_in_completed_at,
+  );
 
   return (
     <ManagerLayout>
@@ -119,6 +126,40 @@ export function ManagerAuditorDetailPage() {
       <LoadState error={error} loading={!data && !error} what="this Auditor" />
       {data && (
         <>
+          {checkInOwed && (
+            <ActionableNotification
+              kind="warning"
+              lowContrast
+              inline
+              hideCloseButton
+              title={`Check in with ${data.display_name}.`}
+              subtitle="They finished a critical case and can't take new cases until you have."
+              actionButtonLabel="Log check-in"
+              onActionButtonClick={() => setCheckingIn(true)}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+          {checkedIn && (
+            <InlineNotification
+              kind="success"
+              lowContrast
+              role="status"
+              title="Check-in logged."
+              subtitle={`${data.display_name} can take new cases again.`}
+              onCloseButtonClick={() => setCheckedIn(false)}
+              style={{ maxWidth: "100%" }}
+            />
+          )}
+          {checkingIn && (
+            <CheckInModal
+              reviewer={{ id: data.auditor_id, name: data.display_name }}
+              onClose={() => setCheckingIn(false)}
+              onLogged={() => {
+                setCheckedIn(true);
+                reload();
+              }}
+            />
+          )}
           <PageHeader
             title={data.display_name}
             meta={
@@ -229,7 +270,9 @@ export function ManagerAuditorDetailPage() {
                         <span style={{ ...mono, fontSize: 12, width: 120 }}>{c.case_id}</span>
                         {c.severity_tier ? <SeverityTag tier={c.severity_tier} size="sm" /> : <span>—</span>}
                         {c.final_outcome && (
-                          <span style={{ fontSize: 12 }}>{mapOutcomeToDisplay(c.final_outcome)?.title ?? c.final_outcome}</span>
+                          <span style={{ fontSize: 12 }}>
+                            {mapOutcomeToDisplay(c.final_outcome)?.title ?? c.final_outcome}
+                          </span>
                         )}
                         <span style={{ fontSize: 12, color: "var(--cds-text-secondary)", marginInlineStart: "auto" }}>
                           {formatClockTime(c.completed_at)}
@@ -255,9 +298,7 @@ export function ManagerAuditorDetailPage() {
                           minute: "2-digit",
                         })}
                       </RouterLink>
-                      <StatusTag tone={SOS_TONE[e.status]}>
-                        {SOS_STATUS_LABEL[e.status]}
-                      </StatusTag>
+                      <StatusTag tone={SOS_TONE[e.status]}>{SOS_STATUS_LABEL[e.status]}</StatusTag>
                     </li>
                   ))}
                 </ul>

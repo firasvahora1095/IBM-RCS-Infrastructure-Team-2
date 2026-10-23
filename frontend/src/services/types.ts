@@ -615,7 +615,13 @@ export type Provenance = "DEMO" | "LIVE";
 export type OpenBucket = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "MANAGER_ACTION";
 
 /** Items that need the Manager to act. A support request is a break to approve or a request to talk. */
-export type AttentionKind = "SOS" | "SUPPORT_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
+export type AttentionKind =
+  | "SOS"
+  | "SUPPORT_REQUEST"
+  | "CHECK_IN"
+  | "REASSIGNMENT"
+  | "CAP_INTERRUPTED"
+  | "FAILED_HANDOFF";
 
 export type EvidenceKey =
   | "total_cases"
@@ -1029,6 +1035,11 @@ export interface DataService {
     notes: string,
     outcome: SosFollowUpOutcome,
   ): Promise<{ resolved: true }>;
+  /**
+   * AR-WB-12: the Manager's check-in after a Reviewer finishes an S4 case. The Reviewer stays in cooldown, even
+   * after the timer ends, until it is logged. An SOS is checked in through its follow-up instead.
+   */
+  logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }>;
   listDeclinedCases(token: string): Promise<DeclinedCaseRow[]>;
   getManagerCaseReview(caseId: string, token: string): Promise<ManagerCaseReview>;
   getReassignmentContext(caseId: string, token: string): Promise<ReassignmentContext>;

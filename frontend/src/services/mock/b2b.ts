@@ -749,6 +749,10 @@ export const b2bMockOps: Pick<
           deliveries: inClient(db.deliveries, organisationId),
           // Counted, never named: the dashboard shows how many need the Manager, not who.
           openSosAuditors: new Set(db.sosEvents.filter((e) => !e.resolved_at).map((e) => e.auditor_id)).size,
+          // S4 cooldowns still waiting for the Manager. An SOS is checked in through its follow-up, so it isn't here.
+          pendingCheckIns: db.staff.filter(
+            (s) => s.role === "auditor" && s.cooldown?.trigger === "S4" && !s.cooldown.check_in_completed_at,
+          ).length,
           openSupportRequests: {
             break_requests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
               .length,

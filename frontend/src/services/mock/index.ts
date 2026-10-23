@@ -1343,6 +1343,31 @@ export const mockDataService: DataService = {
     });
   },
 
+  async logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+    await delay();
+    if (consumeDemoFailure()) throw new TypeError("Failed to fetch");
+    if (!notes.trim()) throw new ApiError("Add a short note about how they are.", 422);
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const auditor = staffById(db, auditorId);
+      const cooldown = auditor.cooldown;
+      if (cooldown?.trigger === "SOS" && !cooldown.check_in_completed_at) {
+        throw new ApiError("This is an SOS. Log the check-in in the SOS follow-up.", 409);
+      }
+      if (cooldown?.trigger !== "S4" || cooldown.check_in_completed_at) {
+        throw new ApiError("No check-in is waiting for this Reviewer.", 409);
+      }
+      cooldown.check_in_completed_at = new Date().toISOString();
+      // The audit trail hangs off the case that earned the cooldown. It starts when a case is completed, so that is
+      // the Reviewer's latest completed one.
+      const latest = db.cases
+        .filter((c) => c.assigned_auditor === auditorId && c.completed_at)
+        .sort((a, b) => Date.parse(b.completed_at!) - Date.parse(a.completed_at!))[0];
+      if (latest) audit(db, session.staffId, "CHECK_IN_LOGGED", latest.case_id, notes.trim());
+      return { checked_in: true as const };
+    });
+  },
+
   async listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
     await delay();
     return updateDb((db) => {
