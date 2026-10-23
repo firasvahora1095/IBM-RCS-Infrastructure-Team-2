@@ -110,8 +110,8 @@ describe("Manager screens", () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
       const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
-      expect(names).toEqual(["Reviewer overrides", "AI accuracy", "Audit history", "Technical log"]);
-      expect(within(tabs).getByRole("tab", { name: "Reviewer overrides" })).toHaveAttribute("aria-selected", "true");
+      expect(names).toEqual(["Auditor overrides", "AI accuracy", "Audit history", "Technical log"]);
+      expect(within(tabs).getByRole("tab", { name: "Auditor overrides" })).toHaveAttribute("aria-selected", "true");
       expect(await screen.findByRole("table", { name: /AI severity against final Auditor severity/ })).toBeVisible();
       // The other views are not on screen until chosen.
       expect(screen.queryByRole("table", { name: "watsonx.ai call log" })).not.toBeInTheDocument();
@@ -414,8 +414,8 @@ describe("Manager screens", () => {
     expect(marcus.cooldown?.check_in_completed_at).toBeTruthy();
   });
 
-  it("asks for the check-in an S4 case needs, logs it from the Overview and frees the Reviewer (AR-WB-12)", async () => {
-    // A Reviewer whose 30-minute S4 cooldown ended ten minutes ago, with no check-in yet.
+  it("asks for the check-in an S4 case needs, logs it from the Overview and frees the Auditor (AR-WB-12)", async () => {
+    // An Auditor whose 30-minute S4 cooldown ended ten minutes ago, with no check-in yet.
     const name = updateDb((db) => {
       const member = db.staff.find((s) => s.role === "auditor" && !s.cooldown)!;
       member.cooldown = {
@@ -452,7 +452,7 @@ describe("Manager screens", () => {
     );
   });
 
-  it("offers the same check-in on the Reviewer's own record, and clears it once logged", async () => {
+  it("offers the same check-in on the Auditor's own record, and clears it once logged", async () => {
     updateDb((db) => {
       db.staff.find((s) => s.staff_id === "auditor-1")!.cooldown = {
         started_at: new Date(Date.now() - 40 * 60_000).toISOString(),

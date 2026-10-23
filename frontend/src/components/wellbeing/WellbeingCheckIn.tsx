@@ -11,6 +11,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { notifyWellbeingChanged, useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { StatusTag } from "../ui/StatusTag";
 import { WELLBEING_STATUS_LABEL, WELLBEING_TONE } from "../../design-tokens/statusTones";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 interface WellbeingCheckInProps {
   /** The case the request is about, when raised from a review. */
@@ -39,7 +40,7 @@ const OPTIONS: { kind: WellbeingRequestKind; title: string; outcome: string }[] 
 
 const kindTitle = (kind: WellbeingRequestKind) => OPTIONS.find((o) => o.kind === kind)!.title;
 
-const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const timeOf = formatClockTime;
 
 /**
  * Wellbeing check-in (AR-WB-16, Figma 31:188): the calm, private path, distinct

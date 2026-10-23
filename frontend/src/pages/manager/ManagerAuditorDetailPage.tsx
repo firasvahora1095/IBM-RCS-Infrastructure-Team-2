@@ -19,6 +19,7 @@ import { cooldownSummary, SOS_STATUS_LABEL } from "../../design-tokens/managerLa
 import { WELLBEING_TONE, SOS_TONE } from "../../design-tokens/statusTones";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
+import { formatWeekdayTime } from "../../utils/formatRelativeTime";
 
 const DEFAULT_LIMIT_MINUTES = 120;
 const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
@@ -114,7 +115,7 @@ export function ManagerAuditorDetailPage() {
     count: data?.recent_cases.filter((c) => c.severity_tier === tier).length ?? 0,
   })).filter((t) => t.count > 0);
   const openRequests = data?.wellbeing_requests.filter((r) => r.status === "OPEN").length ?? 0;
-  // An S4 cooldown holds the Reviewer until the Manager checks in; an SOS is checked in through its follow-up.
+  // An S4 cooldown holds the Auditor until the Manager checks in; an SOS is checked in through its follow-up.
   const checkInOwed = Boolean(
     data?.cooldown?.trigger === "S4" && data.cooldown.requires_check_in && !data.cooldown.check_in_completed_at,
   );
@@ -292,11 +293,7 @@ export function ManagerAuditorDetailPage() {
                   {data.sos_history!.map((e) => (
                     <li key={e.id} className="rcs-align-row" style={{ columnGap: "1rem" }}>
                       <RouterLink className="cds--link" to={`/manager/sos/${encodeURIComponent(e.id)}`}>
-                        {new Date(e.triggered_at).toLocaleString([], {
-                          weekday: "short",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                        {formatWeekdayTime(e.triggered_at)}
                       </RouterLink>
                       <StatusTag tone={SOS_TONE[e.status]}>{SOS_STATUS_LABEL[e.status]}</StatusTag>
                     </li>

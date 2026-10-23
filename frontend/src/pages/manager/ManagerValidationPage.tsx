@@ -19,7 +19,7 @@ import { formatShortDateTime } from "../../utils/formatPeriod";
 
 /** The three views, in the order shown. Auditor overrides is the landing view: it changes with every completed case and is the one a Manager returns to. The accuracy test runs on a fixed reference set, so it is checked far less often. */
 const VIEWS = [
-  { key: "ai-vs-auditor", label: "Reviewer overrides" },
+  { key: "ai-vs-auditor", label: "Auditor overrides" },
   { key: "ai-vs-ground-truth", label: "AI accuracy" },
   { key: "audit-history", label: "Audit history" },
   { key: "audit-log", label: "Technical log" },
@@ -33,7 +33,7 @@ const PURPOSE: Record<ViewKey, { shows: string; use: string }> = {
     use: "Use it to trace a decision from report to delivered result.",
   },
   "ai-vs-auditor": {
-    shows: "Cases where the Reviewer's final severity differs from the AI's first rating.",
+    shows: "Cases where the Auditor's final severity differs from the AI's first rating.",
     use: "A difference isn't a mistake by either side; it's a reason to look closer. Select a case to see its history.",
   },
   "ai-vs-ground-truth": {
@@ -132,13 +132,13 @@ export function ManagerValidationPage() {
       {/* The answers first, in plain words; each tab below holds the detail. */}
       <dl className="rcs-val-summary">
         <div>
-          <dt>Reviewer overrides</dt>
+          <dt>Auditor overrides</dt>
           <dd>
             {governance.data
               ? `${governance.data.comparisons.filter((c) => c.override).length} of ${governance.data.compared_cases}`
               : "—"}
           </dd>
-          <dd className="rcs-val-note">Cases where the Reviewer changed the AI&apos;s severity.</dd>
+          <dd className="rcs-val-note">Cases where the Auditor changed the AI&apos;s severity.</dd>
         </div>
         <div>
           <dt>
@@ -168,7 +168,7 @@ export function ManagerValidationPage() {
           <dd className="rcs-val-note">
             {governance.data && governance.data.failed_calls === 0
               ? "The AI analysed every video."
-              : "Each time, the Reviewer saw a warning and the footage opened at full blur."}
+              : "Each time, the Auditor saw a warning and the footage opened at full blur."}
           </dd>
         </div>
       </dl>

@@ -8,8 +8,8 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
 /** Bump `v` whenever the screenshots are retaken, so browsers never show a cached older capture. */
 const VIEWS = [
   {
-    tab: "Reviewer workspace",
-    title: "The Reviewer starts from a summary, not raw footage",
+    tab: "Auditor workspace",
+    title: "The Auditor starts from a summary, not raw footage",
     points: [
       "Footage opens at 100% blur and in grayscale, with SOS on the video itself",
       "The AI summary, severity and flagged moments sit beside the player",
@@ -18,14 +18,14 @@ const VIEWS = [
     ],
     image: "/landing/reviewer-workspace.webp?v=3",
     window: "RCS · Review workspace",
-    alt: "The RCS Reviewer workspace for case AR-2026-00417: the video is fully blurred at 100% with grayscale on and a red SOS button over it, the AI summary and S3 High severity are on the right, and the header shows 62 of 120 minutes of exposure used today.",
+    alt: "The RCS Auditor workspace for case AR-2026-00417: the video is fully blurred at 100% with grayscale on and a red SOS button over it, the AI summary and S3 High severity are on the right, and the header shows 62 of 120 minutes of exposure used today.",
   },
   {
     tab: "Manager oversight",
     title: "The Manager sees who needs them, first",
     points: [
       "SOS alerts, break requests and talk requests at the top of one Needs you list",
-      "Declined cases waiting for reassignment, with a suggested Reviewer",
+      "Declined cases waiting for reassignment, with a suggested Auditor",
       "Failed deliveries to a Client, with the reason",
       "Open cases, completed cases and delivery success for the period",
     ],
@@ -42,7 +42,7 @@ const VIEWS = [
       "Apply RCS decisions in one go, or record an action post by post",
       "Never footage, summaries or who reviewed a case",
     ],
-    image: "/landing/client-case-results.webp?v=3",
+    image: "/landing/client-case-results.webp?v=4",
     window: "RCS · Client portal",
     alt: "The RCS Client portal case results for CommunityHub: figures for violations found, posts removed and results acted on, and a Needs action table listing each case ID, post, RCS result, final severity and a Record action button.",
   },

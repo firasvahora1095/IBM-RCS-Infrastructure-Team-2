@@ -19,6 +19,7 @@ import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
 import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
 import { useBuddyConversation, type BuddyMessage } from "./useBuddyConversation";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }[] = [
   { key: "status", label: "Status", empty: "Not available" },
@@ -31,7 +32,7 @@ const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "" : formatClockTime(iso);
 }
 
 /** Only the fields this person's role was sent are shown; a missing field is never listed as empty. */

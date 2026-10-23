@@ -31,7 +31,7 @@ const FAQ_GROUPS: { title: string; questions: { question: string; answer: string
       {
         question: "What happens next?",
         answer:
-          "Your case moves from Received to Being Reviewed to Complete. A trained Reviewer looks at the content and decides whether it breaks the content policy. When it is complete, you see the outcome.",
+          "Your case moves from Received to Being Reviewed to Complete. A trained Auditor looks at the content and decides whether it breaks the content policy. When it is complete, you see the outcome.",
       },
       {
         question: "How long does a review take?",
@@ -59,7 +59,7 @@ const FAQ_GROUPS: { title: string; questions: { question: string; answer: string
       {
         question: "Who can see my report?",
         answer:
-          "Only the trained Reviewer assigned to your case, behind a content warning. Reviewers are not shown your name or email. The platform you reported on only receives the outcome.",
+          "Only the trained Auditor assigned to your case, behind a content warning. Auditors are not shown your name or email. The platform you reported on only receives the outcome.",
       },
     ],
   },

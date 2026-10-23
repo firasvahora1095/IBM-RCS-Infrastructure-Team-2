@@ -277,7 +277,7 @@ export function AuditorDashboardPage() {
             {isSuperAdmin && (
               <StatTile
                 compact
-                label="Needs a Reviewer"
+                label="Needs an Auditor"
                 value={needsReviewerCount === null ? "–" : needsReviewerCount}
                 helper={needsReviewerCount ? "In the fallback queue" : "Nothing waiting"}
               />
@@ -454,7 +454,7 @@ export function AuditorDashboardPage() {
                   {isSuperAdmin && needsReviewerCount ? (
                     <>
                       No cases assigned to you. {needsReviewerCount}{" "}
-                      {needsReviewerCount === 1 ? "case needs" : "cases need"} a Reviewer.{" "}
+                      {needsReviewerCount === 1 ? "case needs" : "cases need"} an Auditor.{" "}
                       <a href="#fallback-queue">View queue</a>.
                     </>
                   ) : (

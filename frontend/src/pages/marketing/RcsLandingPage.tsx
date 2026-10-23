@@ -45,7 +45,7 @@ const EXAMPLE_CASE = {
   steps: [
     { time: "09:12", label: "Reported from CommunityHub" },
     { time: "09:14", label: "AI pre-screen: S3 High" },
-    { time: "09:41", label: "Decided by a Reviewer" },
+    { time: "09:41", label: "Decided by an Auditor" },
     { time: "09:41", label: "Result delivered" },
   ],
   minutes: 29,
@@ -60,7 +60,7 @@ const DELIVERY_ATTEMPTS = 3;
 const BEFORE_AFTER = [
   {
     today: "Every flagged video opens in full.",
-    rcs: "AI reads it first. The Reviewer sees a content warning, then footage that starts fully blurred.",
+    rcs: "AI reads it first. The Auditor sees a content warning, then footage that starts fully blurred.",
   },
   {
     today: "Exposure goes uncounted. Tools measure throughput, not harm.",
@@ -84,7 +84,7 @@ const PROTECTIONS: { icon: Icon; title: string; body: string }[] = [
   {
     icon: ViewOff,
     title: "Blurred by default",
-    body: "Footage opens fully blurred and in grayscale. Reviewers lower the blur only as far as they need, or mute the sound.",
+    body: "Footage opens fully blurred and in grayscale. Auditors lower the blur only as far as they need, or mute the sound.",
   },
   {
     icon: Timer,
@@ -103,12 +103,12 @@ const VALUE: { icon: Icon; title: string; body: string }[] = [
   {
     icon: Security,
     title: "Meet your duty of care",
-    body: "Limits, cooldowns and SOS are enforced by RCS on every case, with a record of each Reviewer's exposure, so protection never depends on a busy day.",
+    body: "Limits, cooldowns and SOS are enforced by RCS on every case, with a record of each Auditor's exposure, so protection never depends on a busy day.",
   },
   {
     icon: DocumentView,
     title: "Decisions you can defend",
-    body: "A trained person decides every case. The AI's rating and the Reviewer's decision are kept side by side, and every override carries a reason.",
+    body: "A trained person decides every case. The AI's rating and the Auditor's decision are kept side by side, and every override carries a reason.",
   },
   {
     icon: Plug,
@@ -125,7 +125,7 @@ const VALUE: { icon: Icon; title: string; body: string }[] = [
 /** Every feature, by who uses it. The product tour shows the screens; this is the complete list. */
 const CATALOGUE = [
   {
-    who: "For Reviewers",
+    who: "For Auditors",
     items: [
       "Content warning with consent and the right to decline",
       "Blur slider, grayscale and mute",
@@ -141,9 +141,9 @@ const CATALOGUE = [
     who: "For Managers",
     items: [
       "One Needs you list for SOS, requests and declined cases",
-      "Reassignment to an eligible Reviewer",
-      "Exposure and limits for each Reviewer",
-      "Validation and audit: the AI against the Reviewer, case by case",
+      "Reassignment to an eligible Auditor",
+      "Exposure and limits for each Auditor",
+      "Validation and audit: the AI against the Auditor, case by case",
       "Insights for any period",
       "Delivery failures with a path to resolve them",
       "Service reports: generate, review, release",
@@ -176,12 +176,12 @@ const ACCOUNTABILITY: { icon: Icon; title: string; body: string }[] = [
   {
     icon: UserMultiple,
     title: "People decide",
-    body: "The AI pre-screens and rates severity. A Reviewer makes every final call and can change the AI's severity.",
+    body: "The AI pre-screens and rates severity. An Auditor makes every final call and can change the AI's severity.",
   },
   {
     icon: DocumentView,
     title: "Both views kept",
-    body: "The AI's rating and the Reviewer's decision are both recorded, so differences can be reviewed later.",
+    body: "The AI's rating and the Auditor's decision are both recorded, so differences can be reviewed later.",
   },
 ];
 
@@ -207,11 +207,11 @@ const SECURITY: { icon: Icon; title: string; body: string }[] = [
   {
     icon: Locked,
     title: "Footage stays in RCS",
-    body: "Videos, AI summaries and Reviewer notes never leave RCS. Your platform receives the outcome, final severity, time and post link.",
+    body: "Videos, AI summaries and Auditor notes never leave RCS. Your platform receives the outcome, final severity, time and post link.",
   },
   {
     icon: UserMultiple,
-    title: "Reviewers stay private",
+    title: "Auditors stay private",
     body: "Results and reports never say who reviewed a case, and never include wellbeing or SOS details.",
   },
   {
@@ -222,7 +222,7 @@ const SECURITY: { icon: Icon; title: string; body: string }[] = [
   {
     icon: Security,
     title: "AI under governance",
-    body: "AI use is monitored with IBM watsonx.governance, and a Reviewer is told when the AI could not analyse a video.",
+    body: "AI use is monitored with IBM watsonx.governance, and an Auditor is told when the AI could not analyse a video.",
   },
 ];
 
@@ -266,10 +266,10 @@ const FAQ = [
   },
   {
     q: "Does the AI make decisions?",
-    a: "No. The AI pre-screens each video so the Reviewer knows what to expect. A trained person makes every final decision and can change the AI's severity.",
+    a: "No. The AI pre-screens each video so the Auditor knows what to expect. A trained person makes every final decision and can change the AI's severity.",
   },
   {
-    q: "What happens if a Reviewer sees something they didn't expect?",
+    q: "What happens if an Auditor sees something they didn't expect?",
     a: "They press SOS. The content is hidden at once, a Manager is alerted and follows up with them, and a cooldown starts.",
   },
   {
@@ -343,7 +343,7 @@ export function RcsLandingPage() {
               </p>
               <p className="lp-hero-sub">
                 Responsible Content Safety (RCS) reviews the harmful video your users report, with protection for the
-                Reviewer built into every case. You get a clear, human decision back.
+                Auditor built into every case. You get a clear, human decision back.
               </p>
               <div className="lp-hero-actions">
                 <Button onClick={() => navigate("/rcs/get-started")}>Get started</Button>
@@ -378,7 +378,7 @@ export function RcsLandingPage() {
           id="problem"
           eyebrow="Why it matters"
           title="Moderation tools clear the queue. Nobody protects the person clearing it."
-          lede="If you run trust and safety, your Reviewers carry the harm your users report. Doing nothing asks them to absorb it without limit, with nothing to show for your duty of care. RCS makes that care part of the workflow."
+          lede="If you run trust and safety, your Auditors carry the harm your users report. Doing nothing asks them to absorb it without limit, with nothing to show for your duty of care. RCS makes that care part of the workflow."
         >
           <div className="lp-compare" role="table" aria-label="Today, and with RCS">
             <div className="lp-compare-head" role="row">
@@ -429,7 +429,7 @@ export function RcsLandingPage() {
             </li>
             <Theme theme="g100" as="li" className="lp-step lp-step--decision">
               <span className="lp-step-num">03</span>
-              <h3 className="lp-step-title">A trained Reviewer decides</h3>
+              <h3 className="lp-step-title">A trained Auditor decides</h3>
               <p className="lp-step-body">
                 They see what was flagged before choosing to proceed or decline, then review behind blur, within a daily
                 viewing limit, with support one click away. This is the step RCS is built around.
@@ -440,7 +440,7 @@ export function RcsLandingPage() {
               <h3 className="lp-step-title">You get the result</h3>
               <p className="lp-step-body">
                 Your platform receives the outcome and final severity, and your team chooses the action. Footage and
-                Reviewer details never leave RCS.
+                Auditor details never leave RCS.
               </p>
             </li>
           </ol>
@@ -493,7 +493,7 @@ export function RcsLandingPage() {
           <div className="lp-buddy">
             <div className="lp-buddy-head">
               <Chat size={24} aria-hidden />
-              <h3 className="lp-buddy-title">AI Buddy, for every Reviewer and Manager</h3>
+              <h3 className="lp-buddy-title">AI Buddy, for every Auditor and Manager</h3>
               <span className="lp-buddy-tag">Built on watsonx.ai</span>
             </div>
             <p className="lp-buddy-body">
@@ -502,7 +502,7 @@ export function RcsLandingPage() {
             </p>
             <ul className="lp-buddy-points">
               <li>Live figures, marked with the time they were read</li>
-              <li>A Reviewer only ever sees their own cases</li>
+              <li>An Auditor only ever sees their own cases</li>
               <li>Read-only: it guides, people decide</li>
             </ul>
           </div>
@@ -551,7 +551,7 @@ export function RcsLandingPage() {
           lede={
             <>
               Every protection is enforced by RCS on every case, so none depends on anyone&apos;s judgement in a hard
-              moment. Try the Reviewer&apos;s first look at a case in the{" "}
+              moment. Try the Auditor&apos;s first look at a case in the{" "}
               <a className="cds--link lp-inline-link" href="#top">
                 demo at the top of the page
               </a>
@@ -646,7 +646,7 @@ export function RcsLandingPage() {
               <div>
                 <dt>Real</dt>
                 <dd>
-                  The Reviewer workspace, Manager dashboard, Client portal, AI pre-screen, wellbeing rules and result
+                  The Auditor workspace, Manager dashboard, Client portal, AI pre-screen, wellbeing rules and result
                   delivery run as working code on a real backend and database on IBM Cloud.
                 </dd>
               </div>

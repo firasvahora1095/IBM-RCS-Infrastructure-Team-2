@@ -1355,11 +1355,11 @@ export const mockDataService: DataService = {
         throw new ApiError("This is an SOS. Log the check-in in the SOS follow-up.", 409);
       }
       if (cooldown?.trigger !== "S4" || cooldown.check_in_completed_at) {
-        throw new ApiError("No check-in is waiting for this Reviewer.", 409);
+        throw new ApiError("No check-in is waiting for this Auditor.", 409);
       }
       cooldown.check_in_completed_at = new Date().toISOString();
       // The audit trail hangs off the case that earned the cooldown. It starts when a case is completed, so that is
-      // the Reviewer's latest completed one.
+      // the Auditor's latest completed one.
       const latest = db.cases
         .filter((c) => c.assigned_auditor === auditorId && c.completed_at)
         .sort((a, b) => Date.parse(b.completed_at!) - Date.parse(a.completed_at!))[0];

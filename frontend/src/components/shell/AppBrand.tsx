@@ -4,7 +4,7 @@ import { Logout } from "@carbon/icons-react";
 import { RcsLogo } from "../brand/RcsMark";
 
 /**
- * The left of every app header (Reviewer, Manager, Client): the RCS logo, a hairline, and which part of RCS this is.
+ * The left of every app header (Auditor, Manager, Client): the RCS logo, a hairline, and which part of RCS this is.
  * The accessible name stays "RCS — {area}", so screen readers and tests hear one clear label. Below sm the area
  * label drops out and only the logo remains.
  */

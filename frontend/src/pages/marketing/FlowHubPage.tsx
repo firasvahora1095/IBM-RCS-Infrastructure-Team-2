@@ -37,13 +37,13 @@ const ROLE_TAG: Record<string, "cool-gray" | "teal" | "purple" | "blue" | "green
 
 const ACCOUNTS = [
   {
-    role: "Auditor (Reviewer)",
+    role: "Auditor",
     ids: isMockData ? "auditor-1 to auditor-5" : "auditor-01 to auditor-04",
     scope: "Reviews cases",
     to: "/staff/login",
   },
   {
-    role: "Super Auditor (fallback Reviewer)",
+    role: "Super Auditor",
     ids: isMockData ? "superauditor-1" : "superauditor-01",
     scope: "The fallback queue, and cases to review",
     to: "/staff/login",

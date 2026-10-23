@@ -40,7 +40,7 @@ export const TEAM: TeamMember[] = [
     highlights: [
       "Led planning, Client sessions and delivery for a five-person IBM × RMIT team across three sprints, from flow diagrams and tech-stack choice to the final presentation.",
       "Built the first end-to-end slice (database, API and frontend), then wired the FastAPI backend to the AI pipeline, including Manager, wellbeing and SOS endpoints covered by contract tests.",
-      "Built the Reviewer protection logic: severity-triggered cooldowns, a scheduled daily exposure reset, and case assignment that skips Reviewers in cooldown or at their limit.",
+      "Built the Auditor protection logic: severity-triggered cooldowns, a scheduled daily exposure reset, and case assignment that skips Auditors in cooldown or at their limit.",
       "Built the AI Buddy assistant on watsonx.ai (Llama 3.3 70B), answering from live, role-scoped RCS data.",
       "Set up deployment to IBM Cloud Code Engine: Docker images with a bundled PostgreSQL, a demo seed and GitHub Actions auto-deploy; added Watson Speech to Text with speaker diarization and the internal endpoints the watsonx Orchestrate agent calls.",
       "Owned end-to-end testing and UAT: wrote the UAT checklist, ran edge-case QA and prepared the live Client demo.",
@@ -83,10 +83,10 @@ export const TEAM: TeamMember[] = [
     ],
     highlights: [
       "Researched three user roles through personas and an expert interview on ethical design, which shaped the consent and decline flows.",
-      "Designed click-through Figma prototypes for the Reviewer, Manager and public Reporter on the IBM Carbon Design System.",
-      "Built the production React and TypeScript interface for every role on IBM Carbon: the Reviewer workspace, the Manager dashboard and the Client portal.",
+      "Designed click-through Figma prototypes for the Auditor, Manager and public Reporter on the IBM Carbon Design System.",
+      "Built the production React and TypeScript interface for every role on IBM Carbon: the Auditor workspace, the Manager dashboard and the Client portal.",
       "Designed and built the B2B flow end to end: the simulated CommunityHub platform, result delivery, service reports and the product site, with the FastAPI endpoints behind them.",
-      "Designed the Validation and Audit screen that compares the AI with the Reviewer case by case, and rebuilt AI Buddy as a role-scoped Carbon side panel.",
+      "Designed the Validation and Audit screen that compares the AI with the Auditor case by case, and rebuilt AI Buddy as a role-scoped Carbon side panel.",
       "Ran UI and accessibility QA towards WCAG 2.1 AA, with automated axe checks, keyboard walkthroughs and a final accessibility pass.",
     ],
     skills: ["UX research", "Personas", "Figma", "IBM Carbon", "React", "TypeScript", "Accessibility (WCAG 2.1)"],

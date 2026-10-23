@@ -54,7 +54,7 @@ interface InboxRow {
 interface Props {
   intelligence: ManagerIntelligence | null;
   overview: AuditorOverviewRow[] | null;
-  /** Called after an item is resolved here, so the page can refetch the figures and the Reviewers. */
+  /** Called after an item is resolved here, so the page can refetch the figures and the Auditors. */
   onChanged?: () => void;
 }
 
@@ -73,7 +73,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [checkInFor, setCheckInFor] = useState<{ id: string; name: string } | null>(null);
-  // What the Manager is told once a check-in is saved: whether the Reviewer is free now or when the timer ends.
+  // What the Manager is told once a check-in is saved: whether the Auditor is free now or when the timer ends.
   const [loggedMessage, setLoggedMessage] = useState<string | null>(null);
 
   const failed = intelligence?.delivery.failed;
@@ -84,7 +84,7 @@ export function NeedsYouInbox({ intelligence, overview, onChanged }: Props) {
       ),
     [overview],
   );
-  // Reviewers who finished an S4 case and are waiting for the Manager to check in. An SOS is checked in through its
+  // Auditors who finished an S4 case and are waiting for the Manager to check in. An SOS is checked in through its
   // follow-up, so it is not listed twice.
   const checkIns = useMemo(
     () =>

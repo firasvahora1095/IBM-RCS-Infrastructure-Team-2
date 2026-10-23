@@ -28,7 +28,7 @@ describe("Manager check-in after an S4 case (AR-WB-12)", () => {
     resetDb();
   });
 
-  it("holds the Reviewer in cooldown, tells the Manager, and releases them once it is logged", async () => {
+  it("holds the Auditor in cooldown, tells the Manager, and releases them once it is logged", async () => {
     const manager = await managerToken();
     expect(await checkIns(manager)).toBe(0);
 
@@ -39,7 +39,7 @@ describe("Manager check-in after an S4 case (AR-WB-12)", () => {
     const row = (await mock.getAuditorOverview(manager)).find((r) => r.auditor_id === "auditor-1")!;
     expect(row.cooldown?.requires_check_in).toBe(true);
 
-    // Even after the 30-minute timer, the Reviewer stays held until the Manager checks in.
+    // Even after the 30-minute timer, the Auditor stays held until the Manager checks in.
     await mock.logCheckIn("auditor-1", manager, "  Spoke on a call. Doing okay.  ");
     const after = readDb().staff.find((s) => s.staff_id === "auditor-1")!;
     expect(after.cooldown?.check_in_completed_at).toBeTruthy();

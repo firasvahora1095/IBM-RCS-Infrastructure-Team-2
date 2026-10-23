@@ -640,7 +640,7 @@ export function createB2bSeed(now: number, liveCases: MockCase[], demoPassword: 
         status: "ANSWERED",
         seen_at: new Date(Date.parse(releasedAt) + 31 * 60 * 60_000).toISOString(),
         reply: {
-          body: "No. An override is when the Reviewer's final severity differs from the AI's first estimate. The Reviewer's decision is always final; it's never changed afterwards.",
+          body: "No. An override is when the Auditor's final severity differs from the AI's first estimate. The Auditor's decision is always final; it's never changed afterwards.",
           at: new Date(Date.parse(releasedAt) + 32 * 60 * 60_000).toISOString(),
           by: "Alex Morgan",
         },

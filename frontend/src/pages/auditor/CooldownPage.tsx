@@ -9,13 +9,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { stopShift as stopShiftApi } from "../../services/api/httpClient";
 import type { CooldownState } from "../../services/types";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 /** AR-WB-12 standard lengths, used for the progress bar when the start time isn't provided. */
 const STANDARD_MINUTES: Record<CooldownState["trigger"], number> = { S1: 0, S2: 5, S3: 15, S4: 30, SOS: 30 };
-
-function formatClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
-}
 
 function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -165,7 +162,7 @@ export function CooldownPage() {
               {introFor(cooldown.trigger)}
             </p>
             <ProgressBar
-              label={`Cooldown ends at ${formatClock(cooldown.ends_at)}`}
+              label={`Cooldown ends at ${formatClockTime(cooldown.ends_at)}`}
               value={progress}
               max={100}
               helperText={remainingMs > 0 ? `${formatCountdown(remainingMs)} remaining` : "Cooldown time complete"}

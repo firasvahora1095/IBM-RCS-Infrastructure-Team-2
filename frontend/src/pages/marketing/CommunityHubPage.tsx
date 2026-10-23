@@ -418,7 +418,7 @@ export function CommunityHubPage() {
               Safety on CommunityHub
             </h2>
             <p className="ch-muted">
-              Reports of violent or harmful video are reviewed by RCS, our independent safety partner. Trained reviewers
+              Reports of violent or harmful video are reviewed by RCS, our independent safety partner. Trained Auditors
               make every decision; we decide what action to take.
             </p>
           </section>

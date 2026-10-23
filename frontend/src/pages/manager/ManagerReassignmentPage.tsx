@@ -107,7 +107,7 @@ export function ManagerReassignmentPage() {
       <ManagerBreadcrumb trail={trail} />
       <PageHeader
         title={`Reassignment decision — ${caseId}`}
-        subtitle="Choose who takes this case. The suggested Auditor has the most exposure headroom; the fallback reviewer is last."
+        subtitle="Choose who takes this case. The suggested Auditor has the most exposure headroom; the Super Auditor is last."
       />
       <LoadState error={error} loading={!data && !error} what="reassignment details" />
       {data && (
@@ -145,7 +145,7 @@ export function ManagerReassignmentPage() {
                 labelText={
                   <>
                     {c.name} <span style={{ ...mono, fontSize: 13 }}>{c.headroom_minutes} min headroom</span>
-                    {c.fallback_reviewer && " · Fallback Reviewer"}
+                    {c.fallback_reviewer && " · Super Auditor"}
                     {c.auditor_id === suggested?.auditor_id && " · Suggested"}
                     {!c.available ? " · Unavailable" : c.limited_headroom ? " · Limited headroom" : ""}
                   </>

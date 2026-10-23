@@ -261,8 +261,8 @@ export function ReportSheet({
 
       <footer className="rcs-sheet-section">
         <p className="rcs-helper">
-          Generated from completed case records. Final outcomes and severities are decided by trained human
-          reviewers; AI analysis assists them and never makes the final decision. This report contains aggregate figures
+          Generated from completed case records. Final outcomes and severities are decided by trained
+          Auditors; AI analysis assists them and never makes the final decision. This report contains aggregate figures
           only. Figures were calculated on {formatShortDateTime(calculatedAt)} and are fixed for version{" "}
           {report.version}: a released version never changes.
         </p>

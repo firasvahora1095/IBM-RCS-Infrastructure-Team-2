@@ -82,7 +82,7 @@ class SosFollowUpRequest(BaseModel):
 
 
 class CheckInRequest(BaseModel):
-    """The Manager's record of speaking to a Reviewer after an S4 case."""
+    """The Manager's record of speaking to an Auditor after an S4 case."""
 
     notes: str = Field(min_length=1, max_length=5000)
 

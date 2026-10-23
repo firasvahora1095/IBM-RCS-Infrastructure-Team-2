@@ -23,6 +23,7 @@ import { claimCase, getAllOpenCases, getAvailableCases, takeCase } from "../../s
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { AvailableCases, CaseVisibility, FallbackCaseRow, InternalCaseStatus } from "../../services/types";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 const DECLINED_KEY = "rcs_declined_available_cases";
 
@@ -94,7 +95,7 @@ function placementNote(row: FallbackCaseRow, now: number): string | null {
   if (!row.auto_release_at || row.assigned_auditor_id !== null) return null;
   const due = Date.parse(row.auto_release_at);
   if (Number.isNaN(due)) return null;
-  const time = new Date(due).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+  const time = formatClockTime(row.auto_release_at);
   return due > now ? `Placed automatically from ${time}` : "Being placed automatically when an Auditor is free";
 }
 
@@ -258,7 +259,7 @@ export function FallbackQueueSection({
           onChange={({ selectedIndex }) => setView(selectedIndex === 1 ? "all" : "needs")}
         >
           <TabList aria-label="Fallback queue views">
-            <Tab>{`Needs a Reviewer (${rows.filter(needsReviewer).length})`}</Tab>
+            <Tab>{`Needs an Auditor (${rows.filter(needsReviewer).length})`}</Tab>
             <Tab>{`All open cases (${rows.length})`}</Tab>
           </TabList>
           <TabPanels>
@@ -271,7 +272,7 @@ export function FallbackQueueSection({
                       style={{ backgroundColor: "var(--cds-layer-01)" }}
                     >
                       <p style={{ fontSize: 14, color: "var(--cds-text-secondary)" }}>
-                        {view === "needs" ? "No cases need a Reviewer right now." : "No open cases."}
+                        {view === "needs" ? "No cases need an Auditor right now." : "No open cases."}
                       </p>
                     </div>
                   )}

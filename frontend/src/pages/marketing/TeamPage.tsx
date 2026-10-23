@@ -15,17 +15,17 @@ const FACTS = [
 
 const ASKED = [
   "A way for the public to report suspected abusive or violent video, with a case ID to follow it.",
-  "AI that analyses each video first, so human Reviewers aren't exposed to it raw.",
+  "AI that analyses each video first, so human Auditors aren't exposed to it raw.",
   "Exposure limits, cooldowns and an SOS that brings in a Manager when something goes wrong.",
-  "A Manager view to oversee Reviewers, respond to SOS and decide declined cases.",
+  "A Manager view to oversee Auditors, respond to SOS and decide declined cases.",
   "Deployment on IBM Cloud, using synthetic or staged footage only.",
 ];
 
 const DELIVERED = [
   "Public reporting with anonymous case IDs and a status page in plain language.",
   "An AI pre-screen on watsonx.ai and Watson Speech to Text: a severity, a safe summary and a timeline.",
-  "A Reviewer workspace with a content warning, blur by default, a 120-minute daily limit, cooldowns and SOS.",
-  "A Manager dashboard for oversight, SOS, reassignment, AI-versus-Reviewer validation and service reports.",
+  "An Auditor workspace with a content warning, blur by default, a 120-minute daily limit, cooldowns and SOS.",
+  "A Manager dashboard for oversight, SOS, reassignment, AI-versus-Auditor validation and service reports.",
   "A B2B layer: a simulated pilot platform, CommunityHub, with a report button, result delivery and a Client portal.",
 ];
 
@@ -45,7 +45,7 @@ const SPRINTS = [
   {
     name: "Sprint 2",
     title: "The core product",
-    body: "The working MVP: real AI analysis, the Reviewer and Manager screens on a live backend, and end-to-end UAT.",
+    body: "The working MVP: real AI analysis, the Auditor and Manager screens on a live backend, and end-to-end UAT.",
   },
   {
     name: "Sprint 3",

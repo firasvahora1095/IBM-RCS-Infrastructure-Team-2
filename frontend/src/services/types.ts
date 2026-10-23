@@ -1047,7 +1047,7 @@ export interface DataService {
     outcome: SosFollowUpOutcome,
   ): Promise<{ resolved: true }>;
   /**
-   * AR-WB-12: the Manager's check-in after a Reviewer finishes an S4 case. The Reviewer stays in cooldown, even
+   * AR-WB-12: the Manager's check-in after an Auditor finishes an S4 case. The Auditor stays in cooldown, even
    * after the timer ends, until it is logged. An SOS is checked in through its follow-up instead.
    */
   logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }>;
