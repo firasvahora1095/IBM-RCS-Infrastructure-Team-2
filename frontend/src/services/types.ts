@@ -740,10 +740,21 @@ export interface ReportAccessEntry {
   at: string;
 }
 
-/**
- * One logged watsonx.ai call in the simplified governance log (Naresh's
- * fallback: our own call log and evaluation instead of watsonx.governance).
- */
+/** Versioned local-check evidence contains hashes/counts, never copied instruction text. */
+export interface GovernanceLeakageEvidence {
+  rule: string;
+  matched_text_hash?: string;
+  matched_token_count?: number;
+  match_type?: "TOKEN_SPAN" | "COMPLETE_INSTRUCTION_LINE";
+  minimum_token_count?: number;
+  minimum_line_characters?: number;
+  prompt_token_count?: number;
+  output_token_count?: number;
+  output_text_hash?: string;
+  reason?: string;
+}
+
+/** One invocation in the local governance log; legacy demo rows retain their own schema. */
 export interface GovernanceLogRow {
   entry_id: string;
   case_id: string;
@@ -761,7 +772,7 @@ export interface GovernanceLogRow {
   received_at?: string | null;
   checked_at?: string | null;
   leakage_rule_version?: string | null;
-  prompt_leakage_evidence?: { rule: string; matched_text_hash: string } | null;
+  prompt_leakage_evidence?: GovernanceLeakageEvidence | null;
   error_type?: string | null;
   frame_num?: string | null;
   source_timestamp?: number | null;
