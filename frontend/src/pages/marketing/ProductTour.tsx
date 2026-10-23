@@ -29,7 +29,7 @@ const VIEWS = [
       "Failed deliveries to a Client, with the reason",
       "Open cases, completed cases and delivery success for the period",
     ],
-    image: "/landing/manager-overview.webp?v=3",
+    image: "/landing/manager-overview.webp?v=4",
     window: "RCS · Manager overview",
     alt: "The RCS Manager overview: an SOS banner, figures for open cases, completed cases and delivery success, and a Needs you list led by an unacknowledged SOS alert, then break and talk requests and declined cases awaiting reassignment.",
   },
