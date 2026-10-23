@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { TextInput, PasswordInput, Button, InlineNotification, Link } from "@carbon/react";
-import { ArrowRight } from "@carbon/icons-react";
+import { ArrowLeft, ArrowRight } from "@carbon/icons-react";
 import { useAuth, ROLE_HOME } from "../../hooks/useAuth";
 import { SignInLayout } from "../../components/auth/SignInLayout";
 import { ApiError } from "../../services/types";
@@ -75,6 +75,10 @@ export function StaffLoginPage() {
       ]}
     >
       <form onSubmit={handleSubmit} className="si-form">
+        <RouterLink to="/rcs" className="si-back">
+          <ArrowLeft aria-hidden="true" />
+          Back to RCS
+        </RouterLink>
         <div className="si-form-head">
           <p className="si-eyebrow">RCS — Staff</p>
           <h1 className="si-title">Sign in</h1>
@@ -136,9 +140,6 @@ export function StaffLoginPage() {
               Client sign in
             </Link>
           </p>
-          <Link as={RouterLink} to="/rcs">
-            Back to RCS
-          </Link>
         </div>
       </form>
     </SignInLayout>

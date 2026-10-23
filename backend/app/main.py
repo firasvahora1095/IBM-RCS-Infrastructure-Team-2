@@ -1358,10 +1358,12 @@ def _auditor_cooldown_payload(row: Auditor) -> dict | None:
     ends_at = row.cooldown_ends_at
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
-    if ends_at <= datetime.now(timezone.utc):
-        return None
     requires_check_in = row.cooldown_trigger in ("S4", "SOS")
     check_in_done = bool(row.cooldown_check_in_done)
+    # An S4/SOS cooldown stays in force after its timer ends until the Manager's check-in is recorded, so the
+    # Manager still sees who is waiting (the Auditor's own view already works this way).
+    if ends_at <= datetime.now(timezone.utc) and not (requires_check_in and not check_in_done):
+        return None
     return {
         "ends_at": ends_at.isoformat(),
         "trigger": row.cooldown_trigger,

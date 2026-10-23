@@ -58,6 +58,7 @@ function source(partial: Partial<IntelligenceSource>): IntelligenceSource {
     cases: [],
     deliveries: [],
     openSosAuditors: 0,
+    pendingCheckIns: 0,
     openSupportRequests: { break_requests: 0, talk_requests: 0 },
     auditorCount: 4,
     organisation: { organisation_id: "COMMUNITYHUB", name: "CommunityHub" },
@@ -117,6 +118,7 @@ describe("computeIntelligence", () => {
     );
     expect(Object.fromEntries(body.attention.map((a) => [a.kind, a.count]))).toEqual({
       SOS: 1,
+      CHECK_IN: 0,
       SUPPORT_REQUEST: 2,
       REASSIGNMENT: 1,
       CAP_INTERRUPTED: 1,

@@ -89,6 +89,7 @@ export const listSosAlerts = delegate("listSosAlerts");
 export const getSosAlert = delegate("getSosAlert");
 export const acknowledgeSosAlert = delegate("acknowledgeSosAlert");
 export const logSosFollowUp = delegate("logSosFollowUp");
+export const logCheckIn = delegate("logCheckIn");
 export const listDeclinedCases = delegate("listDeclinedCases");
 export const getManagerCaseReview = delegate("getManagerCaseReview");
 export const getReassignmentContext = delegate("getReassignmentContext");

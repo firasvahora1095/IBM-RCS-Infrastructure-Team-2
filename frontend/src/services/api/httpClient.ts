@@ -442,6 +442,15 @@ export async function logSosFollowUp(
   return parseJsonOrThrow<{ resolved: true }>(r);
 }
 
+export async function logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/auditors/${encodeURIComponent(auditorId)}/check-in`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+  return parseJsonOrThrow<{ checked_in: true }>(r);
+}
+
 export async function listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/manager/declined-cases`, {
     headers: { Authorization: `Bearer ${token}` },
