@@ -7,7 +7,7 @@
 
 ## Result in short
 
-- Every term below is now spelled **one way on every screen, with one exception**: the person who reviews video is called a **Reviewer** on the public site and the sign-in page, and an **Auditor** everywhere after they sign in (section 3). That contradiction is the acceptance criterion, and it is **not fixed**. It needs a decision from you and the BA, and the numbers and a recommendation are in section 3.
+- Every term below is now spelled **one way on every screen, with one exception**: the person who reviews video is called a **Reviewer** on the public site and the sign-in page, and an **Auditor** everywhere after they sign in (section 3). That contradiction was the acceptance criterion. It is now resolved: "Auditor" everywhere (section 3).
 - About **35 strings in 21 files were corrected**: role names that were in lower case, "customer" where RCS says Client, "All clients", three Client messages that began in lower case, and two different ways of writing a time of day. A test now stops each of them coming back.
 - Two further checks (tone and emoji) came back clean.
 
@@ -35,7 +35,11 @@ Counted on all 33 screens. Zero means the wrong variant was not found anywhere.
 | The case identifier | Case ID | "case id": 0 |
 | The assistant | AI Buddy | "AI buddy": 0 |
 
-## 3. The one open decision: Reviewer or Auditor
+## 3. Reviewer or Auditor: decided, Auditor
+
+**Decision (24 Oct 2026): option B, "Auditor" on every screen.** The recommendation below was A. It changed once the final slides and the handover document were written: both use "Auditor", as do the BA requirements (every AR-* ID), every client session since Sprint 1 and most of the app. The client brief says "reviewer" only as a job description, never as a role name. Option B is also the smaller change, and it keeps requirement traceability. It is applied in `fix/copy-auditor-role-name`, and `copyConsistency.test.ts` now fails if "Reviewer" returns to screen text. The fallback role is "Super Auditor" everywhere.
+
+The analysis that led to the decision is kept below.
 
 The same person is called two things. Counted on the rendered screens:
 
