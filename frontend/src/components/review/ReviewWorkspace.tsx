@@ -223,7 +223,7 @@ export function ReviewWorkspace({
         setPlaybackError(
           name === "NotAllowedError"
             ? "Your browser blocked playback. Check this site's playback permissions and try Play again."
-            : "The video could not start. Reload the page and sign in again if prompted. If it still fails, contact your manager.",
+            : "The video could not start. Reload the page and sign in again if prompted. If it still fails, contact your Manager.",
         );
       });
     } else video.pause();
@@ -411,8 +411,8 @@ export function ReviewWorkspace({
                     setBuffering(false);
                     setPlaybackError(
                       e.currentTarget.error?.code === 3
-                        ? "Your browser could not decode this video. Try another browser or ask your manager to check the file."
-                        : "The video could not be loaded. Reload the page and sign in again if prompted. If it still fails, contact your manager.",
+                        ? "Your browser could not decode this video. Try another browser or ask your Manager to check the file."
+                        : "The video could not be loaded. Reload the page and sign in again if prompted. If it still fails, contact your Manager.",
                     );
                   }}
                   onLoadedMetadata={(e) => {

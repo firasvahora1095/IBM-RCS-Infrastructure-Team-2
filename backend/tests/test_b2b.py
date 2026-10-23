@@ -918,7 +918,7 @@ class B2bContractTests(unittest.TestCase):
         hub = self.intel_for(COMMUNITYHUB_ID)
         stream = self.intel_for("STREAMNEST")
 
-        self.assertEqual(everyone["organisation_name"], "All clients")
+        self.assertEqual(everyone["organisation_name"], "All Clients")
         self.assertEqual(hub["kpis"]["total_cases"], 1)
         self.assertEqual(stream["kpis"]["total_cases"], 2)
         for key in ("total_cases", "completed", "open_cases"):

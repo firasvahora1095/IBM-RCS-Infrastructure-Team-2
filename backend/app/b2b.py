@@ -321,7 +321,7 @@ def _find_delivery(db: Session, delivery_id: str) -> Delivery:
 def _find_organisation(db: Session, organisation_id: str) -> Organisation:
     org = db.get(Organisation, organisation_id.upper())
     if org is None:
-        raise HTTPException(status_code=404, detail="Customer not found")
+        raise HTTPException(status_code=404, detail="Client not found")
     return org
 
 
@@ -398,7 +398,7 @@ def _records(db: Session, organisation_id: str | None = None) -> list[dict]:
 REPORT_EVIDENCE = {
     "cases_received": (
         "Reports received",
-        "Reports submitted to RCS for this customer during the period.",
+        "Reports submitted to RCS for this Client during the period.",
         ["cases.created_at", "case_history.created_at", "organisation_id"],
     ),
     "cases_completed": (
@@ -764,7 +764,7 @@ def compute_intelligence(
 
     return {
         "organisation_id": org.organisation_id if org else ALL_CLIENTS,
-        "organisation_name": org.name if org else "All clients",
+        "organisation_name": org.name if org else "All Clients",
         "period_start": period_start,
         "period_end": period_end,
         "calculated_at": iso(now),

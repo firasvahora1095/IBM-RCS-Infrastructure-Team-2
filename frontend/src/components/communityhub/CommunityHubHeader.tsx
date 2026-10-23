@@ -55,7 +55,7 @@ export function CommunityHubHeader() {
       hideCloseButton
       statusIconDescription="Information"
       title="CommunityHub is a simulation."
-      subtitle="It is modelled on platforms like Reddit. We couldn't get a real platform's API key, so we built this stand-in to show how RCS works inside a customer's product. Nothing here is a real platform, person or post."
+      subtitle="It is modelled on platforms like Reddit. We couldn't get a real platform's API key, so we built this stand-in to show how RCS works inside a Client's product. Nothing here is a real platform, person or post."
       style={{ maxInlineSize: "100%", marginBlock: 0 }}
     />
     </>
