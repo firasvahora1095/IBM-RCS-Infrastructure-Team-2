@@ -42,6 +42,6 @@ export const METRIC_DEFINITIONS = {
   severity: "The final severity after human review: the Auditor's rating where they changed it, otherwise the AI rating they confirmed.",
   timeliness: "The middle value of time from report received to final decision, for cases completed in the period.",
   overrides: "Completed cases where the final human severity differs from the AI's initial severity.",
-  workflow: "Completed cases that were declined by one reviewer and decided by another.",
+  workflow: "Completed cases that were declined by one Reviewer and decided by another.",
   delivery: "Results sent to the Client for cases completed in the period, by delivery status.",
 } as const;

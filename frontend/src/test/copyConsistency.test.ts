@@ -47,6 +47,30 @@ describe("copy consistency", () => {
     expect(hits).toEqual([]);
   });
 
+  it("capitalises every role name in a sentence: Manager, Reviewer, Client, Auditor", () => {
+    // Quoted strings that read as a sentence (two or more words), not an ID, a route, a class name or a CSS value.
+    const QUOTED = /"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g;
+    const LOWER_ROLE = /\b(managers?|reviewers?|auditors?|clients?)\b/;
+    const LOOKS_LIKE_CODE = /[/_=#.{}<>:()[\]$@|\\-]|\b[a-z]+[A-Z]/;
+    // Words written straight into the markup: on one line (`<p>text</p>`), or on a line of their own inside a tag.
+    const JSX_TEXT = />([^<>{}\n]+)</g;
+    const PROSE_LINE = /^\s*[A-Za-z][^<>{}=;:()[\]"`]*$/;
+    const CODE_START = /^\s*(import|export|const|let|type|interface|return|case|default)\b/;
+    const hits = FILES.flatMap(([path, source]) =>
+      visibleText(source).flatMap((line, i) => {
+        const found = [
+          ...[...line.matchAll(QUOTED)].map((m) => m[1] ?? m[2] ?? m[3]),
+          ...[...line.matchAll(JSX_TEXT)].map((m) => m[1]),
+          ...(PROSE_LINE.test(line) && !CODE_START.test(line) ? [line.trim()] : []),
+        ];
+        return found
+          .filter((text) => /\s/.test(text.trim()) && LOWER_ROLE.test(text) && !LOOKS_LIKE_CODE.test(text))
+          .map((text) => `${path.replace("/src/", "")}:${i + 1}  "${text.slice(0, 80)}"`);
+      }),
+    );
+    expect(hits).toEqual([]);
+  });
+
   it("starts every seeded Client message and reply with a capital letter", () => {
     const seed = SOURCES["/src/services/mock/b2bSeed.ts"];
     const lowercaseStarts = [...seed.matchAll(/\b(?:body|subject):\s*"([a-z][^"]{0,40})/g)].map((m) => m[1]);

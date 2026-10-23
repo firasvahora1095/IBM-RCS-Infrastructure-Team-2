@@ -430,7 +430,7 @@ REPORT_EVIDENCE = {
     ),
     "workflow": (
         "Declined and reassigned",
-        "Completed cases that were declined by one reviewer and decided by another.",
+        "Completed cases that were declined by one Reviewer and decided by another.",
         ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
     ),
     "delivery": (
@@ -623,7 +623,7 @@ TITLES = {
     "total_cases": "Total cases",
     "completed": "Completed",
     "open_cases": "Open cases",
-    "needs_manager_action": "Needs manager action",
+    "needs_manager_action": "Needs Manager action",
     "case_flow": "Case flow",
     "outcomes": "Moderation outcomes",
     "severity": "Final severity",

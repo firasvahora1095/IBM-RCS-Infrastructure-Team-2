@@ -268,7 +268,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     await screen.findByRole("heading", { name: "Cooldown in progress" });
     // A radio group is one tab stop; arrow keys move between its options.
-    await tabTo(user, await screen.findByRole("radio", { name: /Talk to my manager/ }));
+    await tabTo(user, await screen.findByRole("radio", { name: /Talk to my Manager/ }));
     await tabTo(user, screen.getByRole("button", { name: "Request support" }));
     await tabTo(user, screen.getByRole("button", { name: "Stop my shift" }));
   });

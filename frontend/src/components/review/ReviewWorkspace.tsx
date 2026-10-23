@@ -467,7 +467,7 @@ export function ReviewWorkspace({
 
             {onSos && (
               <div className="absolute right-4 top-4">
-                <Button kind="danger" size="md" onClick={onSos} aria-label="SOS: pause this case and notify my manager">
+                <Button kind="danger" size="md" onClick={onSos} aria-label="SOS: pause this case and notify my Manager">
                   SOS
                 </Button>
               </div>

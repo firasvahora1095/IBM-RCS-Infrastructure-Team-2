@@ -27,7 +27,7 @@ const MAX_REASON = 500;
 const OPTIONS: { kind: WellbeingRequestKind; title: string; outcome: string }[] = [
   {
     kind: "TALK_TO_MANAGER",
-    title: "Talk to my manager",
+    title: "Talk to my Manager",
     outcome: "Your Manager will reach out today, by message or a quick call. Nothing changes on your case.",
   },
   {

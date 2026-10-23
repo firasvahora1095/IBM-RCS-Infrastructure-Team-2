@@ -90,7 +90,7 @@ const TITLES: Record<EvidenceKey, string> = {
   total_cases: "Total cases",
   completed: "Completed",
   open_cases: "Open cases",
-  needs_manager_action: "Needs manager action",
+  needs_manager_action: "Needs Manager action",
   case_flow: "Case flow",
   outcomes: "Moderation outcomes",
   severity: "Final severity",

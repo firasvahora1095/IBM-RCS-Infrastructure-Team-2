@@ -39,7 +39,7 @@ const DOCUMENTS: Record<PolicyKind, PolicyDocument> = {
       },
       {
         heading: "How a report is reviewed",
-        body: "An automated check flags the moments that matter and suggests a severity from low to critical. A trained reviewer then watches the flagged content and makes the decision. A person always has the final say.",
+        body: "An automated check flags the moments that matter and suggests a severity from low to critical. A trained Reviewer then watches the flagged content and makes the decision. A person always has the final say.",
       },
       {
         heading: "What you will see",
@@ -72,7 +72,7 @@ const DOCUMENTS: Record<PolicyKind, PolicyDocument> = {
       {
         heading: "Who can see it",
         points: [
-          "The trained reviewer assigned to your case sees the reported content, behind a content warning",
+          "The trained Reviewer assigned to your case sees the reported content, behind a content warning",
           "Reviewers are not shown your name or email",
           "The platform you reported on receives the outcome, the severity and the case ID, not your details",
         ],
