@@ -12,6 +12,8 @@ see every open case. The rules, kept in one place:
   unassigned and visible to the Super Auditor only.
 * The Super Auditor or a Manager can release an unassigned case to standard
   Auditors, who then see queue metadata only and claim it if they are eligible.
+  A released case is left alone by automatic placement, so the same two people
+  can take it back (withdraw-release) and the system places it again.
 * Only the owner can open the full review, so raw content is never exposed by
   visibility alone.
 * The Super Auditor is still an Auditor for wellbeing: nobody, including them, is
@@ -360,3 +362,47 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         )
         db.commit()
         return {"available": True, "case_id": case.case_id}
+
+
+    @app.post("/api/cases/{case_id}/withdraw-release")
+    async def withdraw_release(
+        case_id: str,
+        session: StaffSession = Depends(get_current_session),
+        db: Session = Depends(get_db),
+    ):
+        """Take a released case back: the system places it by itself again. Super Auditor or Manager only.
+
+        A released case is left alone by automatic placement, so without this a case nobody claims would wait
+        for ever. If an Auditor is free the case is placed straight away.
+        """
+        if session.role == "manager":
+            actor = session.staff_id
+        else:
+            actor = _require_super_admin(session, db).auditor_id
+        case = _get_case(db, case_id, for_update=True)
+        if case.manager_flag:
+            raise HTTPException(status_code=409, detail=WITH_MANAGER)
+        if case.assigned_auditor_id is not None:
+            # Claimed in the meantime: nothing to take back.
+            raise HTTPException(status_code=409, detail="An Auditor has already claimed this case.")
+        if case.status == "COMPLETE":
+            raise HTTPException(status_code=409, detail="This case is already complete.")
+        if case.case_visibility != AVAILABLE_TO_AUDITORS:
+            return {"withdrawn": True, "case_id": case.case_id}
+        before = {"case_visibility": case.case_visibility}
+        case.case_visibility = SUPER_ADMIN_ONLY
+        # Automatic placement only touches cases with a queued time, so the clock starts again now.
+        case.fallback_queued_at = datetime.now(timezone.utc)
+        db.add(
+            AuditLog(
+                case_id=case.case_id,
+                actor=actor,
+                action="CASE_RELEASE_WITHDRAWN",
+                before_value=before,
+                after_value={"case_visibility": SUPER_ADMIN_ONLY},
+            )
+        )
+        db.flush()
+        release_waiting_cases(db)
+        db.commit()
+        return {"withdrawn": True, "case_id": case.case_id}

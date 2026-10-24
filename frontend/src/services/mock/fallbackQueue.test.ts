@@ -246,3 +246,61 @@ describe("fallback queue (mock data source, extra-features 1.6)", () => {
     });
   });
 });
+
+describe("taking a released case back (mock data source)", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    resetDb();
+  });
+
+  /** A parked case: nobody was eligible when it arrived. */
+  async function parkedCase() {
+    nobodyEligible();
+    return (await mock.createReport(video())).case_id;
+  }
+
+  it("lets the Manager release a waiting case and take it back, and the system then places it", async () => {
+    const manager = (await login("manager-1")).token;
+    const caseId = await parkedCase();
+    await mock.makeCaseAvailable(caseId, manager);
+    expect(readDb().cases.find((c) => c.case_id === caseId)!.case_visibility).toBe("AVAILABLE_TO_AUDITORS");
+
+    // Released cases are left alone, so someone becoming free doesn't place it.
+    updateDb((db) =>
+      db.staff.filter((s) => s.role === "auditor").forEach((s) => (s.exposure_seconds_today = 0)),
+    );
+    await mock.getAllOpenCases((await login("superauditor-1")).token);
+    expect(readDb().cases.find((c) => c.case_id === caseId)!.assigned_auditor).toBeNull();
+
+    await mock.withdrawCaseRelease(caseId, manager);
+    const placed = readDb().cases.find((c) => c.case_id === caseId)!;
+    expect(placed.assigned_auditor).not.toBeNull();
+    expect(placed.assigned_auditor).not.toBe("superauditor-1");
+    expect(placed.case_visibility).toBe("ASSIGNED_ONLY");
+    expect(readDb().auditLog.some((e) => e.action === "CASE_RELEASE_WITHDRAWN" && e.case_id === caseId)).toBe(true);
+  });
+
+  it("with nobody free, a case taken back waits to be placed, and is no longer offered to claim", async () => {
+    const caseId = await parkedCase();
+    const admin = (await login("superauditor-1")).token;
+    await mock.makeCaseAvailable(caseId, admin);
+    await mock.withdrawCaseRelease(caseId, admin);
+    const stored = readDb().cases.find((c) => c.case_id === caseId)!;
+    expect(stored.case_visibility).toBe("SUPER_ADMIN_ONLY");
+    expect(stored.assigned_auditor).toBeNull();
+    expect(stored.fallback_queued_at).toBeTruthy();
+    const standard = (await login("auditor-1")).token;
+    expect((await mock.getAvailableCases(standard)).cases.map((c) => c.case_id)).not.toContain(caseId);
+  });
+
+  it("is refused for a standard Auditor, a claimed case, and a case with the Manager", async () => {
+    const caseId = await parkedCase();
+    const manager = (await login("manager-1")).token;
+    await mock.makeCaseAvailable(caseId, manager);
+    await expect(mock.withdrawCaseRelease(caseId, (await login("auditor-1")).token)).rejects.toMatchObject({ status: 403 });
+    updateDb((db) => {
+      db.cases.find((c) => c.case_id === caseId)!.assigned_auditor = "auditor-1";
+    });
+    await expect(mock.withdrawCaseRelease(caseId, manager)).rejects.toMatchObject({ status: 409 });
+  });
+});

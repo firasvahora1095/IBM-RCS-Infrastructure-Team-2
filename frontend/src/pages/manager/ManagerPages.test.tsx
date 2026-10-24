@@ -72,16 +72,26 @@ describe("Manager screens", () => {
         const sample = db.governanceLog[0];
         db.governanceLog = [
           {
-            ...sample, entry_id: "detected-call", model_id: "governance-detection-model",
-            schema_version: 2, outcome: "RECEIVED", prompt_leakage_status: "DETECTED",
+            ...sample,
+            entry_id: "detected-call",
+            model_id: "governance-detection-model",
+            schema_version: 2,
+            outcome: "RECEIVED",
+            prompt_leakage_status: "DETECTED",
             source_attribution: [],
             prompt_leakage_evidence: {
-              rule: "normalized-instruction-overlap", matched_token_count: 11, matched_text_hash: "a".repeat(64),
+              rule: "normalized-instruction-overlap",
+              matched_token_count: 11,
+              matched_text_hash: "a".repeat(64),
             },
           },
           {
-            ...sample, entry_id: "skipped-call", model_id: "governance-skipped-model",
-            schema_version: 2, outcome: "RECEIVED", prompt_leakage_status: "NOT_CHECKED",
+            ...sample,
+            entry_id: "skipped-call",
+            model_id: "governance-skipped-model",
+            schema_version: 2,
+            outcome: "RECEIVED",
+            prompt_leakage_status: "NOT_CHECKED",
             source_attribution: [],
             prompt_leakage_evidence: { rule: "normalized-instruction-overlap", reason: "INPUT_TOO_LARGE" },
           },
@@ -91,13 +101,17 @@ describe("Manager screens", () => {
       const log = await screen.findByRole("table", { name: "watsonx.ai call log" });
       expect(within(log).getByRole("columnheader", { name: "Prompt leakage" })).toBeInTheDocument();
 
-      const detected = within(log).getByText(/^governance-detection-model/).closest("tr")!;
+      const detected = within(log)
+        .getByText(/^governance-detection-model/)
+        .closest("tr")!;
       expect(within(detected).getByText("Detected")).toBeInTheDocument();
       fireEvent.click(within(detected).getByRole("button", { name: /^Show details for the call/ }));
       expect(await within(log).findByText("11 tokens")).toBeInTheDocument();
       expect(within(log).getByText("a".repeat(64))).toBeInTheDocument();
 
-      const skipped = within(log).getByText(/^governance-skipped-model/).closest("tr")!;
+      const skipped = within(log)
+        .getByText(/^governance-skipped-model/)
+        .closest("tr")!;
       expect(within(skipped).getByText("Not checked")).toBeInTheDocument();
       fireEvent.click(within(skipped).getByRole("button", { name: /^Show details for the call/ }));
       expect(await within(log).findByText("The input was over the check's size limit.")).toBeInTheDocument();
@@ -109,7 +123,9 @@ describe("Manager screens", () => {
     it("has one tab per view and shows only the chosen one, landing on AI vs Auditor", async () => {
       renderAt("/manager/validation");
       const tabs = await screen.findByRole("tablist", { name: "Validation and audit views" });
-      const names = within(tabs).getAllByRole("tab").map((t) => t.textContent);
+      const names = within(tabs)
+        .getAllByRole("tab")
+        .map((t) => t.textContent);
       expect(names).toEqual(["Auditor overrides", "AI accuracy", "Audit history", "Technical log"]);
       expect(within(tabs).getByRole("tab", { name: "Auditor overrides" })).toHaveAttribute("aria-selected", "true");
       expect(await screen.findByRole("table", { name: /AI severity against final Auditor severity/ })).toBeVisible();
@@ -220,7 +236,9 @@ describe("Manager screens", () => {
     it("has one primary button, which jumps to Needs you: every inbox action is secondary, and reports are made from Insights and Reports", async () => {
       renderAt("/manager");
       await screen.findByRole("list", { name: "Items that need you" });
-      const primary = (await screen.findAllByRole("link", { name: "Needs you" })).find((a) => a.getAttribute("href") === "#needs-attention")!;
+      const primary = (await screen.findAllByRole("link", { name: "Needs you" })).find(
+        (a) => a.getAttribute("href") === "#needs-attention",
+      )!;
       expect(primary).toHaveAttribute("href", "#needs-attention");
       expect(document.querySelectorAll(".cds--btn--primary:not(.cds--modal-footer *)")).toHaveLength(1);
       expect(screen.queryByRole("button", { name: "Generate report" })).not.toBeInTheDocument();
@@ -257,8 +275,11 @@ describe("Manager screens", () => {
       expect(within(list).getAllByText("Reassignment").length).toBeGreaterThan(0);
       expect(within(list).getAllByText("Delivery failed").length).toBeGreaterThan(0);
       // Every row has exactly one button, and none of them decides anything from the list.
-      for (const row of within(list).getAllByRole("listitem")) expect(within(row).getAllByRole("button")).toHaveLength(1);
-      expect(within(list).queryByRole("button", { name: /^(Approve|Retry|Follow up|Reassign)/ })).not.toBeInTheDocument();
+      for (const row of within(list).getAllByRole("listitem"))
+        expect(within(row).getAllByRole("button")).toHaveLength(1);
+      expect(
+        within(list).queryByRole("button", { name: /^(Approve|Retry|Follow up|Reassign)/ }),
+      ).not.toBeInTheDocument();
     });
 
     it("opens a request instead of acting on it, so the Manager reads why first", async () => {
@@ -275,7 +296,9 @@ describe("Manager screens", () => {
       renderAt("/manager");
       const row = (await screen.findByText("AR-2026-00398")).closest("li")!;
       fireEvent.click(row);
-      expect(await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" }),
+      ).toBeInTheDocument();
     });
 
     it("never reassigns from the list: View case opens the decision with the suggested Auditor selected", async () => {
@@ -284,7 +307,9 @@ describe("Manager screens", () => {
       expect(within(row).getByText(/Suggested: /)).toBeInTheDocument();
       expect(within(row).queryByRole("button", { name: /^Reassign/ })).not.toBeInTheDocument();
       fireEvent.click(within(row).getByRole("button", { name: "View case" }));
-      expect(await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { level: 1, name: "Reassignment decision — AR-2026-00398" }),
+      ).toBeInTheDocument();
       // Nothing moved until the Manager confirms on that page.
       expect(readDb().cases.find((c) => c.case_id === "AR-2026-00398")!.assigned_auditor).toBeNull();
     });
@@ -304,8 +329,14 @@ describe("Manager screens", () => {
       renderAt("/manager");
       const links = await screen.findByRole("navigation", { name: "Work queues" });
       expect(within(links).getByRole("link", { name: /^SOS inbox/ })).toHaveAttribute("href", "/manager/sos");
-      expect(within(links).getByRole("link", { name: /^Reassignment queue/ })).toHaveAttribute("href", "/manager/reassignment");
-      expect(within(links).getByRole("link", { name: /^Client messages/ })).toHaveAttribute("href", "/manager/messages");
+      expect(within(links).getByRole("link", { name: /^Reassignment queue/ })).toHaveAttribute(
+        "href",
+        "/manager/reassignment",
+      );
+      expect(within(links).getByRole("link", { name: /^Client messages/ })).toHaveAttribute(
+        "href",
+        "/manager/messages",
+      );
     });
 
     it("opens a failed delivery, where it is retried, rather than retrying from the list", async () => {
@@ -380,7 +411,9 @@ describe("Manager screens", () => {
       const needs = await screen.findByRole("table", { name: "Cases that need you" });
       const all = screen.getByRole("table", { name: "All cases" });
       // Blocked (an open SOS) comes before Needs reassignment.
-      const tags = within(needs).getAllByText(/^(Blocked|Needs reassignment|Held back)$/).map((n) => n.textContent);
+      const tags = within(needs)
+        .getAllByText(/^(Blocked|Needs reassignment|Held back)$/)
+        .map((n) => n.textContent);
       const firstReassign = tags.indexOf("Needs reassignment");
       if (firstReassign > -1) expect(tags.slice(firstReassign)).not.toContain("Blocked");
       // Nothing that needs the Manager is repeated in the long list.
@@ -388,10 +421,37 @@ describe("Manager screens", () => {
       expect(within(all).queryByText("Needs reassignment")).not.toBeInTheDocument();
     });
 
-    it("has no manual release button: cases are released to Auditors automatically", async () => {
+    it("lists cases nobody owns as waiting, apart from the long list, with one switch each", async () => {
       renderAt("/manager/cases");
-      await screen.findByRole("table", { name: "All cases" });
-      expect(screen.queryByRole("button", { name: /Release to Auditors|Make available/ })).not.toBeInTheDocument();
+      const waiting = await screen.findByRole("table", { name: "Cases waiting for an Auditor" });
+      const all = screen.getByRole("table", { name: "All cases" });
+      // The seed has one case parked for the system to assign and one already open for claiming.
+      expect(within(waiting).getByText("AR-2026-00433")).toBeInTheDocument();
+      expect(within(waiting).getByText("AR-2026-00434")).toBeInTheDocument();
+      expect(within(waiting).getByRole("columnheader", { name: "Auditors can claim" })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Auditors can claim AR-2026-00433" })).not.toBeChecked();
+      expect(screen.getByRole("switch", { name: "Auditors can claim AR-2026-00434" })).toBeChecked();
+      expect(within(all).queryByText("AR-2026-00433")).not.toBeInTheDocument();
+      expect(within(all).queryByText("AR-2026-00434")).not.toBeInTheDocument();
+      // Only a waiting case has the switch: a case an Auditor holds does not.
+      expect(screen.queryByRole("switch", { name: /AR-2026-00417/ })).not.toBeInTheDocument();
+    });
+
+    it("lets Auditors claim a waiting case once confirmed, and turns it off again in one click", async () => {
+      renderAt("/manager/cases");
+      fireEvent.click(await screen.findByRole("switch", { name: "Auditors can claim AR-2026-00433" }));
+      const dialog = await screen.findByRole("dialog", { name: "Let Auditors claim AR-2026-00433?" });
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).toBe("SUPER_ADMIN_ONLY");
+      expect(within(dialog).getByText(/The system stops assigning it until/)).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Allow claiming" }));
+      expect(await screen.findByText(/AR-2026-00433: Auditors can now claim it/)).toBeInTheDocument();
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).toBe("AVAILABLE_TO_AUDITORS");
+      // The way back is the same switch.
+      fireEvent.click(await screen.findByRole("switch", { name: "Auditors can claim AR-2026-00433" }));
+      expect(await screen.findByText(/AR-2026-00433 is back with the system/)).toBeInTheDocument();
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).not.toBe(
+        "AVAILABLE_TO_AUDITORS",
+      );
     });
   });
 
@@ -448,7 +508,9 @@ describe("Manager screens", () => {
     expect(readDb().staff.find((s) => s.display_name === name)?.cooldown?.check_in_completed_at).toBeTruthy();
     // The row leaves the inbox, so nobody is left waiting on a Manager who has already checked in.
     await waitFor(() =>
-      expect(within(screen.getByRole("list", { name: "Items that need you" })).queryByText("Check-in")).not.toBeInTheDocument(),
+      expect(
+        within(screen.getByRole("list", { name: "Items that need you" })).queryByText("Check-in"),
+      ).not.toBeInTheDocument(),
     );
   });
 

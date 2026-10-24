@@ -47,6 +47,7 @@ MATRIX = [
     ("manager deliveries", "GET", "/api/manager/deliveries", None, (401, 403, 403, 200)),
     ("set an Auditor's exposure limit (S)", "PUT", "/api/manager/auditors/auditor-1/exposure-limit", {"minutes": 90}, (401, 403, 403, 200)),
     ("reassign a case (S)", "POST", "/api/manager/cases/OWNED1/reassign", {"auditor_id": "auditor-2"}, (401, 403, 403, 200)),
+    ("take a released case back to automatic placement (S)", "POST", "/api/cases/POOL1/withdraw-release", None, (401, 403, 200, 200)),
 ]
 
 

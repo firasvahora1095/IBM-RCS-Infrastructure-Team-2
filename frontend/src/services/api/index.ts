@@ -25,6 +25,7 @@ export const apiDataService: DataService = {
   takeCase: http.takeCase,
   claimCase: http.claimCase,
   makeCaseAvailable: http.makeCaseAvailable,
+  withdrawCaseRelease: http.withdrawCaseRelease,
   getAuditorCaseDetail: http.getAuditorCaseDetail,
   resolveCase: http.resolveCase,
   getManagerDashboard: http.getManagerDashboard,

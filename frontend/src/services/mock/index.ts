@@ -904,6 +904,28 @@ export const mockDataService: DataService = {
     });
   },
 
+  async withdrawCaseRelease(caseId: string, token: string): Promise<{ withdrawn: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = db.sessions[token];
+      if (!session) throw new ApiError("Not authenticated", 401);
+      if (session.role === "auditor") requireSuperAdmin(db, token);
+      const c = db.cases.find((x) => x.case_id === caseId);
+      if (!c) throw new ApiError("Case not found", 404);
+      if (c.manager_flag) throw new ApiError("This case is waiting for a Manager decision.", 409);
+      if (c.assigned_auditor !== null) throw new ApiError("An Auditor has already claimed this case.", 409);
+      if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
+      if (c.case_visibility === "AVAILABLE_TO_AUDITORS") {
+        c.case_visibility = "SUPER_ADMIN_ONLY";
+        // Automatic placement only touches cases with a queued time, so the clock starts again now.
+        c.fallback_queued_at = new Date().toISOString();
+        audit(db, session.staffId, "CASE_RELEASE_WITHDRAWN", c.case_id);
+        autoReleaseFallback(db);
+      }
+      return { withdrawn: true as const };
+    });
+  },
+
   async getAuditorCases(token: string): Promise<AuditorCaseListItem[]> {
     await delay();
     return updateDb((db) => {

@@ -983,6 +983,11 @@ export interface DataService {
   claimCase(caseId: string, token: string): Promise<{ claimed: true }>;
   /** Super Auditor or Manager releases an unowned case to eligible Auditors. */
   makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }>;
+  /**
+   * Super Auditor or Manager takes a released case back, so the system places it by itself again. A released case is left
+   * alone by automatic placement, so this is the way back for one nobody claims. Placed straight away if an Auditor is free.
+   */
+  withdrawCaseRelease(caseId: string, token: string): Promise<{ withdrawn: true }>;
   /** Read-only guidance for staff. Never changes anything. */
   aiChat(message: string, token: string, history?: BuddyTurn[]): Promise<BuddyReply>;
   getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
