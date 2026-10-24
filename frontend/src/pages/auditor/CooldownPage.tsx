@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { Breadcrumb, BreadcrumbItem, Button, InlineNotification, ProgressBar, SkeletonText } from "@carbon/react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
@@ -9,13 +9,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { stopShift as stopShiftApi } from "../../services/api/httpClient";
 import type { CooldownState } from "../../services/types";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 /** AR-WB-12 standard lengths, used for the progress bar when the start time isn't provided. */
 const STANDARD_MINUTES: Record<CooldownState["trigger"], number> = { S1: 0, S2: 5, S3: 15, S4: 30, SOS: 30 };
-
-function formatClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
-}
 
 function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -47,6 +44,7 @@ function introFor(trigger: CooldownState["trigger"]): string {
  */
 export function CooldownPage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { logout, token } = useAuth();
   const { wellbeing, error, refresh } = useMyWellbeing();
   const [now, setNow] = useState(() => Date.now());
@@ -58,6 +56,19 @@ export function CooldownPage() {
   }, []);
 
   const cooldown = wellbeing?.cooldown ?? null;
+
+  // "Play block puzzle" on the dashboard lands here: open the game and scroll it into view.
+  const wantsPuzzle = hash === "#take-a-moment" && cooldown !== null;
+  useEffect(() => {
+    if (!wantsPuzzle) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPuzzleOpen(true);
+    const frame = requestAnimationFrame(() => {
+      const section = document.getElementById("take-a-moment");
+      if (typeof section?.scrollIntoView === "function") section.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [wantsPuzzle]);
   const endsAt = cooldown ? Date.parse(cooldown.ends_at) : 0;
   const remainingMs = Math.max(0, endsAt - now);
   const waitingForCheckIn = cooldown !== null && cooldown.requires_check_in && !cooldown.check_in_completed_at;
@@ -135,6 +146,12 @@ export function CooldownPage() {
     <>
       {header}
       <StaffPage maxWidth={600}>
+        <Breadcrumb noTrailingSlash>
+          <BreadcrumbItem>
+            <RouterLink to="/auditor">Dashboard</RouterLink>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrentPage>Cooldown</BreadcrumbItem>
+        </Breadcrumb>
         <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>
           {cooldown ? "Cooldown in progress" : "Your cooldown has ended"}
         </h1>
@@ -145,7 +162,7 @@ export function CooldownPage() {
               {introFor(cooldown.trigger)}
             </p>
             <ProgressBar
-              label={`Cooldown ends at ${formatClock(cooldown.ends_at)}`}
+              label={`Cooldown ends at ${formatClockTime(cooldown.ends_at)}`}
               value={progress}
               max={100}
               helperText={remainingMs > 0 ? `${formatCountdown(remainingMs)} remaining` : "Cooldown time complete"}
@@ -161,8 +178,13 @@ export function CooldownPage() {
           className="px-4 py-3"
           style={{ fontSize: 14, color: "var(--cds-text-secondary)", backgroundColor: "var(--cds-layer-01)" }}
         >
-          {formatReviewed(wellbeing.exposure_minutes_today)} reviewed today
-          {wellbeing.cases_reviewed_today !== undefined ? ` across ${wellbeing.cases_reviewed_today} cases` : ""}
+          {wellbeing.exposure_minutes_today < 1 && !wellbeing.cases_reviewed_today
+            ? "Nothing reviewed yet today"
+            : `${formatReviewed(wellbeing.exposure_minutes_today)} reviewed today${
+                wellbeing.cases_reviewed_today !== undefined
+                  ? ` across ${wellbeing.cases_reviewed_today} ${wellbeing.cases_reviewed_today === 1 ? "case" : "cases"}`
+                  : ""
+              }`}
         </p>
 
         {waitingForCheckIn && (
@@ -170,8 +192,8 @@ export function CooldownPage() {
             kind="warning"
             lowContrast
             hideCloseButton
-            title="Your manager will check in before this ends"
-            subtitle="This isn't something you need to trigger — this cooldown includes a mandatory check-in that your manager or support initiates."
+            title="Your Manager will check in before this ends"
+            subtitle="You don't need to do anything. Your Manager or support starts the check-in. The options below are extra support if you want it."
             style={{ maxWidth: "100%" }}
           />
         )}
@@ -184,7 +206,7 @@ export function CooldownPage() {
               ? "Return to queue"
               : remainingMs > 0
                 ? `Return to queue (available in ${formatCountdown(remainingMs)})`
-                : "Return to queue (after your manager's check-in)"}
+                : "Return to queue (after your Manager's check-in)"}
           </Button>
           <Button kind="tertiary" onClick={stopShift}>
             Stop my shift

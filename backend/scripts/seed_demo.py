@@ -77,7 +77,7 @@ a4 = Auditor(
     auditor_id="auditor-04",
     login_hash=hash_password("test123"),
     role="auditor",
-    exposure_minutes=120.0,
+    exposure_minutes=119.0,
     exposure_last_reset_at=now,
     active_case_count=0,
 )
@@ -88,7 +88,17 @@ m1 = Auditor(
     role="manager",
 )
 
-db.add_all([a1, a2, a3, a4, m1])
+# The fallback reviewer (extra-features 1.6). Not part of the weighted pool.
+sa1 = Auditor(
+    auditor_id="superauditor-01",
+    login_hash=hash_password("test123"),
+    role="auditor",
+    is_super_admin=True,
+    exposure_minutes=0.0,
+    exposure_last_reset_at=now,
+)
+
+db.add_all([a1, a2, a3, a4, m1, sa1])
 db.commit()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -276,7 +286,7 @@ c6 = Case(
 c7 = Case(
     case_id=generate_case_id(),
     status="DECLINED",
-    assigned_auditor_id=None,
+    assigned_auditor_id="auditor-01",
     watson_severity_score=70,
     effective_severity_score=70,
     severity_tier="S3",
@@ -297,7 +307,122 @@ c7 = Case(
     video_storage_path="/tmp/ibm-rcs-uploads/demo-declined.mp4",
 )
 
-db.add_all([c1, c2, c3, c4, c5, c6, c7])
+# FALLBACK DEMO: two cases no standard Auditor owns. The first waits in the Super Auditor's
+# queue; the second has been made available for eligible Auditors to claim.
+fb1 = Case(
+    case_id=generate_case_id(),
+    status="READY_FOR_REVIEW",
+    assigned_auditor_id=None,
+    case_visibility="SUPER_ADMIN_ONLY",
+    watson_severity_score=48,
+    effective_severity_score=48,
+    severity_tier="S2",
+    narrative_summary="Demo case waiting in the fallback queue. No standard Auditor was eligible when it arrived.",
+    incident_timeline=timeline([(10, 25, "S2", "Verbal confrontation")]),
+    flagged_entities=entities([("Verbal resistance", 10.0, 25.0)]),
+    transcript=transcript_sample,
+    audio_intensity=audio_sample,
+    video_duration_seconds=60.0,
+    video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-1.mp4",
+)
+fb2 = Case(
+    case_id=generate_case_id(),
+    status="READY_FOR_REVIEW",
+    assigned_auditor_id=None,
+    case_visibility="AVAILABLE_TO_AUDITORS",
+    watson_severity_score=22,
+    effective_severity_score=22,
+    severity_tier="S1",
+    narrative_summary="Demo case released to eligible Auditors to claim.",
+    incident_timeline=timeline([(5, 5, "S1", "Routine interaction")]),
+    flagged_entities=entities([("Vehicle", 0.0, 40.0)]),
+    transcript=transcript_sample,
+    audio_intensity=audio_sample,
+    video_duration_seconds=45.0,
+    video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-2.mp4",
+)
+
+db.add_all([c1, c2, c3, c4, c5, c6, c7, fb1, fb2])
+db.commit()
+
+# ── Validation set (10 manually reviewed clips, team ground truth) ───────────
+# AI score → tier: 0-39=S1, 40-64=S2, 65-84=S3, 85-100=S4
+# 8/10 match (v_9 and v_10 are AI misclassifications)
+val_cases = [
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=85, effective_severity_score=85, severity_tier="S4",
+         auditor_severity_score=85, final_outcome="POLICY_VIOLATION_FOUND",
+         narrative_summary="Validation clip 1 — severe force.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-01.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S4"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=10, effective_severity_score=10, severity_tier="S1",
+         auditor_severity_score=10, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 2 — no violation.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-02.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=15, effective_severity_score=15, severity_tier="S1",
+         auditor_severity_score=15, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 3 — no violation.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-03.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=20, effective_severity_score=20, severity_tier="S1",
+         auditor_severity_score=20, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 4 — no violation.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-04.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=70, effective_severity_score=70, severity_tier="S3",
+         auditor_severity_score=70, final_outcome="POLICY_VIOLATION_FOUND",
+         narrative_summary="Validation clip 5 — significant force.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-05.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S3"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=75, effective_severity_score=75, severity_tier="S3",
+         auditor_severity_score=75, final_outcome="POLICY_VIOLATION_FOUND",
+         narrative_summary="Validation clip 6 — significant force.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-06.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S3"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=90, effective_severity_score=90, severity_tier="S4",
+         auditor_severity_score=90, final_outcome="POLICY_VIOLATION_FOUND",
+         narrative_summary="Validation clip 7 — severe force.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-07.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S4"),
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=25, effective_severity_score=25, severity_tier="S1",
+         auditor_severity_score=25, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 8 — no violation.", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-08.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+    # AI misclassification: ground truth S1, AI predicted S2
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=50, effective_severity_score=50, severity_tier="S2",
+         auditor_severity_score=50, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 9 — AI over-predicted (S2 vs S1 ground truth).", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-09.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+    # AI misclassification: ground truth S1, AI predicted S3
+    Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+         watson_severity_score=70, effective_severity_score=70, severity_tier="S3",
+         auditor_severity_score=70, final_outcome="NO_VIOLATION_FOUND",
+         narrative_summary="Validation clip 10 — AI over-predicted (S3 vs S1 ground truth).", incident_timeline=[], flagged_entities=[],
+         transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+         video_storage_path="/tmp/ibm-rcs-uploads/val-10.mp4", completed_at=now - timedelta(days=1),
+         is_validation_case=True, ground_truth_tier="S1"),
+]
+db.add_all(val_cases)
 db.commit()
 
 # ── B2B: CommunityHub, result handoffs, reports, client user ────────────────

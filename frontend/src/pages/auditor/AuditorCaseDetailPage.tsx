@@ -10,7 +10,11 @@ import {
   Breadcrumb,
   BreadcrumbItem,
   SkeletonText,
+  Toggletip,
+  ToggletipButton,
+  ToggletipContent,
 } from "@carbon/react";
+import { Information } from "@carbon/icons-react";
 import { StaffHeader } from "../../components/shell/StaffHeader";
 import { StaffPage } from "../../components/layout/StaffPage";
 import { SeverityTag } from "../../components/severity/SeverityTag";
@@ -86,7 +90,7 @@ function isNetworkFailure(err: unknown): boolean {
  * Auditor case review: one route, stepping through the Figma click-through.
  *
  *   Content warning (16:19, or 25:212 when AI failed)
- *     → AI Analysis Summary (18:26; skipped when AI failed)
+ *     → AI summary (18:26; skipped when AI failed)
  *     → Review Workspace (20:35) ⇄ Wellbeing check-in (31:188)
  *     → Severity & comment (25:53; 42:405 when sending fails)
  *     → Submission Confirmation (25:280) → Cooldown (31:99) when earned
@@ -109,6 +113,12 @@ export function AuditorCaseDetailPage() {
   const [caseDetail, setCaseDetail] = useState<AuditorCaseDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Every step opens at the top. Without this the page keeps the dashboard's scroll position (or wherever focus
+  // landed), so a case opens part-way down with its header and controls cut off.
+  useEffect(() => {
+    window.scrollTo?.({ top: 0, left: 0 });
+  }, [step]);
+
   const [gateError, setGateError] = useState<string | null>(null);
   const [isProceeding, setIsProceeding] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -129,7 +139,8 @@ export function AuditorCaseDetailPage() {
   const [sosState, setSosState] = useState<"sending" | "sent" | "failed">("sending");
   const [pauseCause, setPauseCause] = useState<PauseCause>("sos");
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [signedVideoUrl, setSignedVideoUrl] = useState<string | null>(null);
+  // Reauthentication replaces the token; the media source must follow it too.
+  const signedVideoUrl = caseId && token ? `${getCaseVideoStreamUrl(caseId)}?token=${encodeURIComponent(token)}` : null;
 
   const tokenRef = useRef(token);
   const unsentExposureRef = useRef<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
@@ -171,12 +182,6 @@ export function AuditorCaseDetailPage() {
       .then((detail) => {
         if (cancelled) return;
         setCaseDetail(detail);
-        if (tokenRef.current) {
-          // Pass token as query param so <video src> can stream without needing
-          // an Authorization header (browsers don't send custom headers for video).
-          const streamUrl = `${getCaseVideoStreamUrl(caseId)}?token=${encodeURIComponent(tokenRef.current)}`;
-          if (!cancelled) setSignedVideoUrl(streamUrl);
-        }
         // Task 102: an in-progress review resumes where it left off — but only
         // after the content warning again. Otherwise the rating starts at the
         // AI's effective score, since the Auditor adjusts FROM that suggestion.
@@ -473,6 +478,7 @@ export function AuditorCaseDetailPage() {
               setDeclineOpen(true);
             }}
             onClose={() => navigate("/auditor")}
+            closeLabel="Back to dashboard"
           />
           <DeclineReasonModal
             open={declineOpen && !sessionExpired}
@@ -487,18 +493,28 @@ export function AuditorCaseDetailPage() {
       {step === "summary" && (
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
-          <h1 style={pageTitle}>AI Analysis Summary</h1>
+          <h1 style={pageTitle}>AI summary</h1>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3">
+          {/* Case ID, severity and CVI score together in one tile, as the case's headline. */}
+          <div className="flex flex-col gap-3 p-6" style={{ border: "1px solid var(--cds-border-subtle-01)" }}>
+            <p style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>Case {caseDetail.case_id}</p>
+            <div className="flex flex-wrap items-center gap-4">
               <SeverityTag tier={caseDetail.severity_tier!} />
-              <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>CVI {aiScore} / 100</span>
-              <span style={secondaryText}>AI&apos;s own pre-screen figure — may be adjusted after your review</span>
+              <span style={{ ...mono, fontSize: 20, lineHeight: "28px" }}>{`CVI ${aiScore} / 100`}</span>
+              <span style={secondaryText}>AI pre-screen</span>
+              <Toggletip align="bottom-start">
+                <ToggletipButton label="About this score">
+                  <Information size={16} aria-hidden="true" />
+                </ToggletipButton>
+                <ToggletipContent>
+                  <p>
+                    The effective score, after the weapon-detection floor where it applies. The model&apos;s original
+                    score is kept separately in the audit log and never overwritten. You can adjust it after your
+                    review.
+                  </p>
+                </ToggletipContent>
+              </Toggletip>
             </div>
-            <p style={secondaryText}>
-              This is the effective score — reflects the weapon-detection floor rule where it applies. The model&apos;s
-              original, pre-floor score is preserved separately in the case&apos;s audit log, never overwritten.
-            </p>
           </div>
 
           <section
@@ -535,7 +551,10 @@ export function AuditorCaseDetailPage() {
             durationSeconds={caseDetail.video_duration_seconds}
           />
 
-          <div>
+          <div className="rcs-action-bar">
+            <Button kind="tertiary" onClick={() => navigate("/auditor")}>
+              ← Back to dashboard
+            </Button>
             <Button onClick={() => setStep("workspace")}>Continue to review</Button>
           </div>
         </StaffPage>
@@ -565,13 +584,13 @@ export function AuditorCaseDetailPage() {
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Wellbeing check-in</h1>
           <p style={secondaryText}>
-            Optional and private to you and your manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
+            Optional and private to you and your Manager. This isn&apos;t an SOS and doesn&apos;t pause your case. If
             you need to stop right now, go back and use SOS.
           </p>
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
           <div>
             <Button kind="tertiary" onClick={() => setStep("workspace")}>
-              ← Return to Review Workspace
+              ← Back to review
             </Button>
           </div>
         </StaffPage>
@@ -582,7 +601,7 @@ export function AuditorCaseDetailPage() {
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>You&apos;ve reached today&apos;s limit</h1>
           <p style={secondaryText}>
-            We&apos;ve stopped playback and saved your progress. This case will go back to your manager to be
+            We&apos;ve stopped playback and saved your progress. This case will go back to your Manager to be
             reassigned. You won&apos;t be given more harmful-content cases today.
           </p>
           <InlineNotification
@@ -590,7 +609,7 @@ export function AuditorCaseDetailPage() {
             lowContrast
             hideCloseButton
             title="Your daily total resets at 9:00 AM."
-            subtitle="Cooldowns don't reset it. Your manager can see that you've reached it."
+            subtitle="Cooldowns don't reset it. Your Manager can see that you've reached it."
             style={{ maxWidth: "100%" }}
           />
           <WellbeingCheckIn caseId={caseDetail.case_id} onSessionExpired={handleSessionError} />
@@ -604,132 +623,132 @@ export function AuditorCaseDetailPage() {
         <StaffPage>
           <CaseBreadcrumb caseId={caseDetail.case_id} />
           <h1 style={pageTitle}>Severity &amp; comment</h1>
+          {/* The form starts on the same left edge as its breadcrumb and heading, like every other step; 720px keeps
+              the comment box and the outcome choice a comfortable reading width. */}
+          <div className="flex w-full flex-col gap-6" style={{ maxWidth: 720 }}>
+            {submitError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                hideCloseButton
+                role="alert"
+                title={submitError.network ? "Error:" : "This case wasn't submitted."}
+                subtitle={submitError.message}
+                style={{ maxWidth: "100%" }}
+              />
+            )}
 
-          {submitError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title={submitError.network ? "Error:" : "This case wasn't submitted."}
-              subtitle={submitError.message}
-              style={{ maxWidth: "100%" }}
-            />
-          )}
-
-          <section
-            aria-labelledby="cvi-rating-title"
-            className="flex flex-col gap-3 p-5"
-            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
-                CVI rating
-              </h2>
-              <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                {aiScore === null ? "No AI suggestion" : `AI-suggested: ${aiScore}`}
-              </span>
-            </div>
-            <p style={secondaryText}>
-              {aiScore === null
-                ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
-                : "AI-suggested value is the effective score (floor-adjusted if a detected weapon applied) — see AI Analysis Summary for the model's original pre-floor score."}
-            </p>
-            <CviRatingSlider
-              initialValue={auditorScore}
-              onChange={(score) => {
-                setAuditorScore(score);
-                setRatingTouched(true);
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-2" aria-live="polite">
-              {ratingMissing ? (
-                <span style={secondaryText}>Your rating: not set yet</span>
-              ) : (
-                <>
-                  <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>Your rating: {auditorScore} / 100</span>
-                  <SeverityTag tier={scoreToTier(auditorScore)} />
-                  {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
-                </>
-              )}
-            </div>
-          </section>
-
-          <div style={{ maxWidth: 600 }}>
-            <TextArea
-              id="auditor-comment"
-              labelText={
-                scoreWasChanged ? (
-                  <>
-                    Comment <span style={{ color: "var(--cds-text-error)", fontWeight: 600 }}>*</span> required — you
-                    changed the AI&apos;s rating
-                  </>
-                ) : (
-                  "Comment (optional)"
-                )
-              }
-              rows={4}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-          </div>
-
-          <section
-            aria-labelledby="outcome-title"
-            className="flex flex-col gap-2.5 px-5 py-4"
-            style={{ backgroundColor: "var(--cds-layer-01)", maxWidth: 600 }}
-          >
-            <p className="flex items-center gap-1.5">
-              <span id="outcome-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
-                Final case outcome
-              </span>
-              <span style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>required for standard cases</span>
-            </p>
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-              This determines what the reporting user sees when their case reaches Complete. Only applies if this case
-              has no SOS or Decline flag — otherwise your manager decides the outcome.
-            </p>
-            {/* No option is pre-selected: a default would nudge the Auditor
-                towards one outcome, so the decision has to be explicit. */}
-            <RadioButtonGroup
-              name="final-outcome"
-              legendText={<span className="cds--visually-hidden">Final case outcome</span>}
-              orientation="vertical"
-              valueSelected={outcome ?? undefined}
-              onChange={(value) => setOutcome(value as FinalOutcome)}
-            >
-              {OUTCOME_OPTIONS.map((option) => (
-                <RadioButton
-                  key={option.value}
-                  id={`outcome-${option.value}`}
-                  labelText={option.label}
-                  value={option.value}
-                />
-              ))}
-            </RadioButtonGroup>
-          </section>
-
-          <div className="flex flex-col items-start gap-4">
-            <div className="flex flex-col gap-2">
-              <div>
-                <Button disabled={!canSubmit || isSubmitting} onClick={handleResolve}>
-                  {isSubmitting ? "Submitting…" : submitError?.network ? "Retry submit" : "Continue to submit"}
-                </Button>
-              </div>
-              {/* A disabled button can't explain itself, so say what's missing. */}
-              {!canSubmit && (
-                <p style={{ fontSize: 12, color: "var(--cds-text-secondary)" }}>
-                  {ratingMissing
-                    ? "Set your CVI rating to continue."
-                    : commentMissing
-                      ? "Add a comment explaining why you changed the AI's rating to continue."
-                      : "Choose a final case outcome to continue."}
+            {/* One bordered card with three sections divided by lines, not three grey boxes. */}
+            <div style={{ border: "1px solid var(--cds-border-subtle-01)" }}>
+              <section aria-labelledby="cvi-rating-title" className="flex flex-col gap-3 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 id="cvi-rating-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
+                    CVI rating
+                  </h2>
+                  <span style={{ ...mono, fontSize: 12, color: "var(--cds-text-secondary)" }}>
+                    {aiScore === null ? "No AI suggestion" : `AI-suggested: ${aiScore}`}
+                  </span>
+                </div>
+                <p style={secondaryText}>
+                  {aiScore === null
+                    ? "AI analysis failed for this case, so there is no suggested score. Set the rating from your own review."
+                    : "This is the AI's score, raised to a minimum when a weapon was detected. The AI summary shows the model's original score."}
                 </p>
-              )}
+                <CviRatingSlider
+                  initialValue={auditorScore}
+                  onChange={(score) => {
+                    setAuditorScore(score);
+                    setRatingTouched(true);
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+                  {ratingMissing ? (
+                    <span style={secondaryText}>Your rating: not set yet</span>
+                  ) : (
+                    <>
+                      <span style={{ ...mono, fontSize: 14, lineHeight: "20px" }}>
+                        Your rating: {auditorScore} / 100
+                      </span>
+                      <SeverityTag tier={scoreToTier(auditorScore)} />
+                      {scoreWasChanged && <span style={secondaryText}>(AI originally scored {tierText(aiScore)})</span>}
+                    </>
+                  )}
+                </div>
+              </section>
+
+              <div className="p-6" style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}>
+                <TextArea
+                  id="auditor-comment"
+                  labelText={
+                    scoreWasChanged ? (
+                      <>
+                        Comment <span style={{ color: "var(--cds-text-error)", fontWeight: 600 }}>*</span> required —
+                        you changed the AI&apos;s rating
+                      </>
+                    ) : (
+                      "Comment (optional)"
+                    )
+                  }
+                  rows={4}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+              </div>
+
+              <section
+                aria-labelledby="outcome-title"
+                className="flex flex-col gap-2.5 p-6"
+                style={{ borderBlockStart: "1px solid var(--cds-border-subtle-01)" }}
+              >
+                <p className="flex items-center gap-1.5">
+                  <span id="outcome-title" style={{ fontSize: 14, lineHeight: "18px", fontWeight: 600 }}>
+                    Final case outcome
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--cds-text-helper)" }}>required for standard cases</span>
+                </p>
+                <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+                  This determines what the reporting user sees when their case reaches Complete. Only applies if this
+                  case has no SOS or Decline flag — otherwise your Manager decides the outcome.
+                </p>
+                {/* No option is pre-selected: a default would nudge the Auditor
+                towards one outcome, so the decision has to be explicit. */}
+                <RadioButtonGroup
+                  name="final-outcome"
+                  legendText={<span className="cds--visually-hidden">Final case outcome</span>}
+                  orientation="vertical"
+                  valueSelected={outcome ?? undefined}
+                  onChange={(value) => setOutcome(value as FinalOutcome)}
+                >
+                  {OUTCOME_OPTIONS.map((option) => (
+                    <RadioButton
+                      key={option.value}
+                      id={`outcome-${option.value}`}
+                      labelText={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </RadioButtonGroup>
+              </section>
             </div>
-            <Button kind="tertiary" onClick={() => setStep("workspace")}>
-              ← Back to Review Workspace
-            </Button>
+
+            {/* A disabled button can't explain itself, so say what's missing. */}
+            {!canSubmit && (
+              <p style={{ fontSize: 12, color: "var(--cds-text-secondary)", textAlign: "end" }}>
+                {ratingMissing
+                  ? "Set your CVI rating to continue."
+                  : commentMissing
+                    ? "Add a comment explaining why you changed the AI's rating to continue."
+                    : "Choose a final case outcome to continue."}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button kind="tertiary" onClick={() => setStep("workspace")}>
+                ← Back to review
+              </Button>
+              <Button disabled={!canSubmit || isSubmitting} onClick={handleResolve}>
+                {isSubmitting ? "Submitting…" : submitError?.network ? "Retry submit" : "Continue to submit"}
+              </Button>
+            </div>
           </div>
         </StaffPage>
       )}
@@ -759,9 +778,9 @@ export function AuditorCaseDetailPage() {
                 ? "AI's original rating: unavailable (AI analysis failed)"
                 : `AI's original rating: ${tierText(aiScore)} (CVI ${aiScore}/100)`}
             </p>
-            <p className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               Your final rating: {auditorScore} / 100 <SeverityTag tier={scoreToTier(auditorScore)} />
-            </p>
+            </div>
             <p>Comment attached: {comment.trim() !== "" ? "yes" : "no"}</p>
             <p>Final case outcome selected: {mapOutcomeToDisplay(confirmation.final_outcome)?.title ?? "Recorded"}</p>
           </section>
@@ -799,7 +818,7 @@ export function AuditorCaseDetailPage() {
             lowContrast
             hideCloseButton
             title="Case declined:"
-            subtitle="Your manager will review it directly."
+            subtitle="Your Manager will review it directly."
             style={{ maxWidth: "100%" }}
           />
           <h1 className="cds--visually-hidden">Case declined</h1>
@@ -837,9 +856,9 @@ export function AuditorCaseDetailPage() {
             {sosState === "failed" ? (
               <>
                 <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
-                  This case is paused, but we couldn&apos;t notify your manager.
+                  This case is paused, but we couldn&apos;t notify your Manager.
                 </h1>
-                <p style={secondaryText}>The content stays hidden. Try again, or contact your manager directly.</p>
+                <p style={secondaryText}>The content stays hidden. Try again, or contact your Manager directly.</p>
                 <div>
                   <Button kind="secondary" onClick={() => sendSos(pauseCause)}>
                     Try again
@@ -850,8 +869,8 @@ export function AuditorCaseDetailPage() {
               <>
                 <h1 style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
                   {sosState === "sending"
-                    ? "Pausing this case and notifying your manager…"
-                    : "We’ve paused this case and notified your manager."}
+                    ? "Pausing this case and notifying your Manager…"
+                    : "We’ve paused this case and notified your Manager."}
                 </h1>
                 <p style={secondaryText}>
                   They&apos;ll follow up with you directly. Resuming raw-content review — for this case or any other —

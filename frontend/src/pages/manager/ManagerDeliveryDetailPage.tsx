@@ -5,8 +5,6 @@ import {
   AccordionItem,
   Button,
   CodeSnippet,
-  Column,
-  Grid,
   InlineLoading,
   InlineNotification,
   Modal,
@@ -22,6 +20,7 @@ import { escalateDelivery, getDelivery, retryDelivery } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE, type Delivery } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
+import { useClients } from "../../hooks/useClientScope";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import {
   DELIVERY_BOUNDARY_NOTE,
@@ -45,23 +44,31 @@ function payloadFor(d: Delivery): string {
   return JSON.stringify(payload, null, 2);
 }
 
-function attemptItems(d: Delivery): TimelineItem[] {
+/** What went wrong, as a Manager would say it. The raw reason stays in the technical details. */
+function plainReason(reason: string | null, client: string): string {
+  if (!reason) return `${client}'s system didn't accept it.`;
+  if (/503|unavailable/i.test(reason)) return `${client}'s system was down when RCS sent it.`;
+  if (/timeout|respond/i.test(reason)) return `${client}'s system didn't answer in time.`;
+  return reason;
+}
+
+function attemptItems(d: Delivery, client: string): TimelineItem[] {
   const items: TimelineItem[] = d.attempts.map((a) => ({
-    title: `${a.manual ? "Manual retry" : `Attempt ${a.attempt}`} · ${a.result === "SUCCESS" ? "Delivered" : "Failed"}`,
+    title: `${a.manual ? "You retried" : `Try ${a.attempt}`}: ${a.result === "SUCCESS" ? "delivered" : "didn't arrive"}`,
     time: formatShortDateTime(a.at),
-    detail: a.reason ?? (a.result === "SUCCESS" ? "CommunityHub accepted the result." : undefined),
+    detail: a.result === "SUCCESS" ? `${client} accepted the result.` : plainReason(a.reason ?? null, client),
     tone: a.result === "SUCCESS" ? "success" : "error",
   }));
   if (d.next_attempt_at) {
     items.push({
-      title: d.attempts.length === 0 ? "First attempt scheduled" : "Next automatic attempt scheduled",
+      title: d.attempts.length === 0 ? "First try scheduled" : "RCS will try again",
       time: formatShortDateTime(d.next_attempt_at),
       tone: "info",
     });
   } else if (d.delivery_status === "NEEDS_ATTENTION") {
     items.push({
-      title: "No further automatic attempts · Waiting for a Manager",
-      detail: "Retry once CommunityHub's endpoint is back, or escalate to the integration owner.",
+      title: "RCS stopped trying. Waiting for you.",
+      detail: `Retry once ${client}'s system is back, or tell the integration owner.`,
       tone: "neutral",
     });
   }
@@ -69,15 +76,19 @@ function attemptItems(d: Delivery): TimelineItem[] {
 }
 
 /**
- * Delivery detail (B2B spec S8b). The Manager handles the operational
- * problem, never the moderation decision: there is deliberately no control
- * here to approve or change the Auditor's outcome.
+ * Delivery detail (B2B spec S8b), written for the Manager: one plain statement of where the result is and what to do,
+ * then the case and what happened, with IDs, the endpoint and the payload one step away for the integration owner.
+ * The Manager handles the delivery, never the moderation decision: there is deliberately no control here to change
+ * the Auditor's outcome.
  */
 export function ManagerDeliveryDetailPage() {
   const { deliveryId = "" } = useParams();
   const { token } = useAuth();
   const handleSessionExpiry = useSessionExpiryHandler();
   const { data, error, reload } = useStaffQuery((t) => getDelivery(deliveryId, t), deliveryId);
+  const { clients } = useClients();
+  // The delivery's own Client, not the one selected in the header: a link can open any Client's delivery.
+  const clientName = clients.find((c) => c.organisation_id === data?.organisation_id)?.name ?? "the Client";
   const [retrying, setRetrying] = useState(false);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; title: string; subtitle?: string } | null>(null);
   const [escalating, setEscalating] = useState(false);
@@ -92,7 +103,7 @@ export function ManagerDeliveryDetailPage() {
       const updated = await retryDelivery(data.delivery_id, token);
       setNotice(
         updated.delivery_status === "SUCCESS"
-          ? { kind: "success", title: "Delivered.", subtitle: "CommunityHub accepted the result." }
+          ? { kind: "success", title: "Delivered.", subtitle: `${clientName} accepted the result.` }
           : { kind: "error", title: "Still failing.", subtitle: updated.failure_reason ?? undefined },
       );
       reload();
@@ -123,43 +134,82 @@ export function ManagerDeliveryDetailPage() {
   }
 
   const failed = data?.delivery_status === "NEEDS_ATTENTION";
-  const retryingAuto = data?.delivery_status === "RETRYING" || data?.delivery_status === "PENDING";
+
+  const autoTries = data ? data.attempts.filter((a) => !a.manual).length : 0;
+  const headline = !data
+    ? ""
+    : data.delivery_status === "SUCCESS"
+      ? `${clientName} has this result`
+      : failed
+        ? `This result didn't reach ${clientName}`
+        : `RCS is still sending this result to ${clientName}`;
 
   return (
     <ManagerLayout>
       <PageHeader
         breadcrumb={
-          <ManagerBreadcrumb trail={[{ label: "Deliveries", to: "/manager/deliveries" }, { label: deliveryId }]} />
+          <ManagerBreadcrumb trail={[{ label: "Deliveries", to: "/manager/deliveries" }, { label: data?.case_id ?? deliveryId }]} />
         }
-        title={<span className="rcs-mono">{deliveryId}</span>}
+        title={`Result for ${clientName}`}
+        subtitle={data ? `Case ${data.case_id} · ${PAYLOAD_OUTCOME_LABEL[data.outcome]}` : undefined}
       />
       <LoadState error={error} loading={!data && !error} what="this delivery" />
       {data && (
-        <Grid className="rcs-grid">
-          <Column sm={4} md={8} lg={10} className="flex flex-col gap-6">
-            {/* Two separate facts, side by side, never merged into one badge. */}
-            <section className="rcs-section" aria-label="Status">
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <span className="rcs-stat-label">Moderation status</span>
-                  <StatusTag kind="moderation" value="COMPLETE" />
-                  <span className="rcs-helper">Decided by the Auditor. Final.</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="rcs-stat-label">Delivery status</span>
-                  <StatusTag kind="delivery" value={data.delivery_status} />
-                  <span className="rcs-helper">
-                    {data.delivery_status === "SUCCESS"
-                      ? "CommunityHub has the result."
-                      : retryingAuto
-                        ? "RCS is retrying automatically."
-                        : "Automatic retries have stopped."}
-                  </span>
-                </div>
+        <div className="rcs-client-page">
+          <Section
+            id="delivery-status"
+            title={headline}
+            description={
+              data.delivery_status === "SUCCESS"
+                ? `Delivered ${formatShortDateTime(data.attempts.at(-1)?.at ?? data.completed_at)}.`
+                : failed
+                  ? `${plainReason(data.failure_reason, clientName)} RCS tried ${autoTries} ${autoTries === 1 ? "time" : "times"} and stopped.`
+                  : data.next_attempt_at
+                    ? `Next try ${formatShortDateTime(data.next_attempt_at)}. Nothing for you to do yet.`
+                    : "Nothing for you to do yet."
+            }
+            actions={
+              data.delivery_status === "NEEDS_ATTENTION" && data.escalated_at ? (
+                <StatusTag tone="info">Escalated</StatusTag>
+              ) : (
+                <StatusTag kind="delivery" value={data.delivery_status} />
+              )
+            }
+          >
+            {failed &&
+              (data.escalated_at ? (
+                // The loop has a way out: the owner fixes it, the Manager retries, it is delivered. If nobody
+                // answers, it comes back to Needs you after a day.
+                <>
+                  <p className="rcs-body">
+                    <strong>With the integration owner</strong> since {formatShortDateTime(data.escalated_at)}.
+                  </p>
+                  <ol className="flex flex-col gap-1" style={{ paddingInlineStart: "1.25rem", listStyle: "decimal", fontSize: 14 }}>
+                    <li>The integration owner fixes the problem at {clientName}.</li>
+                    <li>When they confirm, retry. A delivered result closes this.</li>
+                    <li>If there is no answer within a day, this comes back to you as overdue.</li>
+                  </ol>
+                </>
+              ) : (
+                <p className="rcs-body">
+                  Try again first: this is usually a short outage at {clientName}. If it still fails, tell the
+                  integration owner.
+                </p>
+              ))}
+            {failed && (
+              <div className="flex flex-wrap items-center gap-3">
+                {retrying ? (
+                  <InlineLoading description="Retrying delivery…" status="active" />
+                ) : (
+                  <Button onClick={retry}>Retry delivery</Button>
+                )}
+                {!data.escalated_at && (
+                  <Button kind="tertiary" onClick={() => setEscalating(true)}>
+                    Escalate issue
+                  </Button>
+                )}
               </div>
-              {failed && <p className="rcs-body">{DELIVERY_SPLIT_SENTENCE}</p>}
-            </section>
-
+            )}
             {notice && (
               <InlineNotification
                 kind={notice.kind}
@@ -170,67 +220,11 @@ export function ManagerDeliveryDetailPage() {
                 onClose={() => setNotice(null)}
               />
             )}
+            {failed && <p className="rcs-helper">{DELIVERY_SPLIT_SENTENCE}</p>}
+          </Section>
 
-            {failed && (
-              <Section
-                title="What went wrong"
-                description="CommunityHub didn't accept this result after three automatic attempts."
-              >
-                <InlineNotification
-                  kind="error"
-                  lowContrast
-                  hideCloseButton
-                  title="Failure reason:"
-                  subtitle={data.failure_reason ?? "Unknown"}
-                />
-                {data.escalated_at && (
-                  <p className="rcs-helper">Escalated {formatShortDateTime(data.escalated_at)}.</p>
-                )}
-                <div className="flex flex-wrap items-center gap-3">
-                  {retrying ? (
-                    <InlineLoading description="Retrying delivery…" status="active" />
-                  ) : (
-                    <Button onClick={retry}>
-                      Retry delivery
-                    </Button>
-                  )}
-                  <Button kind="secondary" onClick={() => setEscalating(true)}>
-                    Escalate issue
-                  </Button>
-                </div>
-                <Accordion>
-                  <AccordionItem title="View technical details">
-                    <KeyValueList
-                      mono={["Delivery ID", "Last response", "Destination"]}
-                      items={[
-                        { label: "Delivery ID", value: data.delivery_id },
-                        { label: "Destination", value: "https://api.communityhub.example/••••••/rcs-results" },
-                        {
-                          label: "Last response",
-                          value: data.failure_reason?.includes("503") ? "HTTP 503 Service Unavailable" : "No response within 10 s",
-                        },
-                        { label: "Automatic attempts", value: `${data.attempts.filter((a) => !a.manual).length} of 3` },
-                      ]}
-                    />
-                  </AccordionItem>
-                </Accordion>
-              </Section>
-            )}
-
-            <Section title="Attempt history" description="Every attempt reuses the same delivery ID.">
-              <TimelineList label="Delivery attempts" items={attemptItems(data)} />
-            </Section>
-          </Column>
-
-          <Column sm={4} md={8} lg={6} className="flex flex-col gap-6">
-            <Section title="What CommunityHub receives" description="Structured facts only. No narrative, footage or Auditor details.">
-              <CodeSnippet type="multi" feedback="Copied" aria-label="Delivery payload" wrapText>
-                {payloadFor(data)}
-              </CodeSnippet>
-              <p className="rcs-helper">{IDEMPOTENCY_NOTE}</p>
-            </Section>
-
-            <Section title="Case">
+          <div className="rcs-client-columns">
+            <Section title="About this case">
               <KeyValueList
                 mono={["Case ID"]}
                 items={[
@@ -250,32 +244,64 @@ export function ManagerDeliveryDetailPage() {
                     value: data.final_severity ? <SeverityTag tier={data.final_severity} size="sm" /> : "None (closed without a decision)",
                   },
                   {
-                    label: "CommunityHub action",
+                    label: `What ${clientName} did`,
                     value: data.platform_action
                       ? `${PLATFORM_ACTION_LABEL[data.platform_action.action]}, ${formatShortDateTime(data.platform_action.at)}${data.platform_action.note ? ` — "${data.platform_action.note}"` : ""}`
                       : data.delivery_status === "SUCCESS"
-                        ? "Waiting for CommunityHub's moderators"
-                        : "Not delivered yet",
+                        ? `Waiting for ${clientName}'s moderators`
+                        : "Nothing yet: they don't have the result",
                   },
-                  { label: "Completed", value: formatShortDateTime(data.completed_at) },
-                  { label: "Source link", value: data.source_url ?? "Not provided (optional)" },
+                  { label: "Reviewed", value: formatShortDateTime(data.completed_at) },
                 ]}
               />
-              {!data.case_available && (
-                <p className="rcs-helper">This older case is no longer in the live queue.</p>
-              )}
+              {!data.case_available && <p className="rcs-helper">This older case is no longer in the live queue.</p>}
+              <p className="rcs-helper">{DELIVERY_BOUNDARY_NOTE}</p>
             </Section>
 
-            <p className="rcs-helper">{DELIVERY_BOUNDARY_NOTE}</p>
-          </Column>
-        </Grid>
+            <Section title="What happened" description="RCS tries three times on its own before asking you.">
+              <TimelineList label="Delivery attempts" items={attemptItems(data, clientName)} />
+            </Section>
+          </div>
+
+          {/* IDs, the endpoint and the payload are for whoever maintains the connection. */}
+          <Accordion>
+            <AccordionItem title="Technical details for the integration owner">
+              <div className="flex flex-col gap-6">
+                <KeyValueList
+                  mono={["Delivery ID", "Last response", "Destination"]}
+                  items={[
+                    { label: "Delivery ID", value: data.delivery_id },
+                    { label: "Destination", value: "https://api.communityhub.example/••••••/rcs-results" },
+                    ...(failed
+                      ? [
+                          {
+                            label: "Last response",
+                            value: data.failure_reason?.includes("503") ? "HTTP 503 Service Unavailable" : "No response within 10 s",
+                          },
+                        ]
+                      : []),
+                    { label: "Automatic attempts", value: `${autoTries} of 3` },
+                    { label: "Source link", value: data.source_url ?? "Not provided (optional)" },
+                  ]}
+                />
+                <div className="flex flex-col gap-2">
+                  <h3 className="rcs-subheading">What {clientName} receives</h3>
+                  <CodeSnippet type="multi" feedback="Copied" aria-label="Delivery payload" wrapText>
+                    {payloadFor(data)}
+                  </CodeSnippet>
+                  <p className="rcs-helper">Structured facts only. No narrative, footage or Auditor details. {IDEMPOTENCY_NOTE}</p>
+                </div>
+              </div>
+            </AccordionItem>
+          </Accordion>
+        </div>
       )}
 
       <Modal
         open={escalating}
         modalHeading="Escalate this delivery"
         modalLabel={deliveryId}
-        primaryButtonText="Send to integration owner"
+        primaryButtonText="Send escalation"
         secondaryButtonText="Cancel"
         onRequestClose={() => {
           setEscalating(false);
@@ -283,14 +309,24 @@ export function ManagerDeliveryDetailPage() {
         }}
         onRequestSubmit={submitEscalation}
       >
+        {/* The failure stays in view so the note can refer to it, and what happens next is said once. */}
+        <dl className="rcs-kv" style={{ marginBottom: "1rem" }}>
+          <div className="rcs-kv-row">
+            <dt>Failure</dt>
+            <dd>{data?.failure_reason ?? "Unknown"}</dd>
+          </div>
+          <div className="rcs-kv-row">
+            <dt>Attempts</dt>
+            <dd>{data?.attempts.length ?? 0}</dd>
+          </div>
+        </dl>
         <p className="rcs-body" style={{ marginBottom: "1rem" }}>
-          This sends the failure details and your note to the person who looks after the CommunityHub connection.
-          The case itself stays complete.
+          The integration owner receives the failure details and your note. The case stays complete.
         </p>
         <TextArea
           id="escalation-note"
-          labelText="Note"
-          helperText="What you've tried, and anything CommunityHub told you."
+          labelText="Note for the integration owner"
+          placeholder="What you have tried, and anything the Client told you."
           value={note}
           maxCount={600}
           enableCounter

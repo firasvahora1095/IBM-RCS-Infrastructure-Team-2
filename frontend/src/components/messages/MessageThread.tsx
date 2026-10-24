@@ -2,9 +2,9 @@ import { Link as RouterLink } from "react-router-dom";
 import { ProgressIndicator, ProgressStep } from "@carbon/react";
 import type { ClientMessage } from "../../services/types";
 import { MESSAGE_TOPIC_LABEL } from "../../design-tokens/messageLabels";
+import { formatDayMonthTime } from "../../utils/formatRelativeTime";
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const when = formatDayMonthTime;
 
 /**
  * One "Contact RCS" conversation, the same for the client and the Manager:

@@ -10,13 +10,17 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { notifyWellbeingChanged, useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { StatusTag } from "../ui/StatusTag";
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { WELLBEING_STATUS_LABEL, WELLBEING_TONE } from "../../design-tokens/statusTones";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 
 interface WellbeingCheckInProps {
   /** The case the request is about, when raised from a review. */
   caseId?: string;
   /** Session expiry is handled by the page that hosts the check-in. */
   onSessionExpired?: (err: unknown) => boolean;
+  /** Inside a modal or card that already frames it: no border or padding of its own. */
+  bare?: boolean;
 }
 
 const MAX_REASON = 500;
@@ -25,19 +29,19 @@ const MAX_REASON = 500;
 const OPTIONS: { kind: WellbeingRequestKind; title: string; outcome: string }[] = [
   {
     kind: "TALK_TO_MANAGER",
-    title: "Talk to my manager",
-    outcome: "Your manager will reach out today, by message or a quick call. Nothing changes on your case.",
+    title: "Talk to my Manager",
+    outcome: "Your Manager will reach out today, by message or a quick call. Nothing changes on your case.",
   },
   {
     kind: "BREAK_REQUEST",
     title: "Take a break",
-    outcome: "Your manager confirms it, and you get no new cases until you're back. A case you're reviewing stays with you.",
+    outcome: `Your Manager approves it, then you get ${BREAK_MINUTES} minutes with no new cases. A case you're reviewing stays with you.`,
   },
 ];
 
 const kindTitle = (kind: WellbeingRequestKind) => OPTIONS.find((o) => o.kind === kind)!.title;
 
-const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const timeOf = formatClockTime;
 
 /**
  * Wellbeing check-in (AR-WB-16, Figma 31:188): the calm, private path, distinct
@@ -46,7 +50,7 @@ const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "nu
  * The Manager sees it on that Auditor's record (MR-SOS-07), never in the SOS
  * inbox.
  */
-export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInProps) {
+export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: WellbeingCheckInProps) {
   const { token } = useAuth();
   const { wellbeing, refresh } = useMyWellbeing();
   const [kind, setKind] = useState<WellbeingRequestKind | null>(null);
@@ -57,7 +61,20 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
   const [sent, setSent] = useState<WellbeingRequestKind | null>(null);
 
   const requests: WellbeingRequestRecord[] = wellbeing?.requests ?? [];
+  // An approved break runs for BREAK_MINUTES and then ends by itself. The data source only sends break_ends_at while one
+  // is running, so only the newest approved break can still be in progress.
+  const runningBreakId = wellbeing?.break_ends_at
+    ? requests.find((r) => r.kind === "BREAK_REQUEST" && r.status === "APPROVED")?.id
+    : undefined;
+  const statusLabel = (r: WellbeingRequestRecord) =>
+    r.kind === "BREAK_REQUEST" && r.status === "APPROVED"
+      ? r.id === runningBreakId
+        ? `On a break until ${timeOf(wellbeing!.break_ends_at!)}`
+        : "Break over"
+      : WELLBEING_STATUS_LABEL[r.status];
+  // One break at a time: it isn't offered again while one is waiting for the Manager or still running.
   const openKinds = new Set(requests.filter((r) => r.status === "OPEN").map((r) => r.kind));
+  if (runningBreakId) openKinds.add("BREAK_REQUEST");
   const available = OPTIONS.filter((o) => !openKinds.has(o.kind));
 
   function fail(err: unknown) {
@@ -106,16 +123,15 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
   return (
     <section
       aria-labelledby="wellbeing-check-in-title"
-      className="flex flex-col gap-5 px-6 py-5"
-      style={{ border: "1px solid var(--cds-border-subtle-01)", maxWidth: 560 }}
+      className={bare ? "flex flex-col gap-5" : "flex flex-col gap-5 px-6 py-5"}
+      style={bare ? undefined : { border: "1px solid var(--cds-border-subtle-01)", maxWidth: 560 }}
     >
       <div className="flex flex-col gap-1">
         <h2 id="wellbeing-check-in-title" style={{ fontSize: 16, lineHeight: "22px", fontWeight: 600 }}>
           What would help right now?
         </h2>
         <p className="rcs-helper" style={{ fontSize: 14, lineHeight: "20px" }}>
-          This isn&apos;t an alert. Asking for support is a normal part of this job, and it stays between you and your
-          manager.
+          This isn&apos;t an alert. Asking for support is a normal part of this job.
         </p>
       </div>
 
@@ -123,14 +139,14 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
         <InlineNotification
           kind="success"
           lowContrast
+          hideCloseButton
           role="status"
           title="Request sent."
           subtitle={
             sent === "TALK_TO_MANAGER"
-              ? "Your manager will reach out to you today."
-              : "Your manager will confirm your break with you."
+              ? "Your Manager will reach out to you today."
+              : `Your Manager has been notified. Once they approve it, you get a ${BREAK_MINUTES}-minute break with no new cases.`
           }
-          onClose={() => setSent(null)}
           style={{ maxWidth: "100%" }}
         />
       )}
@@ -151,10 +167,14 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
                   </span>
                   {r.reason && <span className="rcs-helper">&ldquo;{r.reason}&rdquo;</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusTag tone={WELLBEING_TONE[r.status]}>{WELLBEING_STATUS_LABEL[r.status]}</StatusTag>
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center">
+                    <StatusTag tone={r.status === "OPEN" ? "neutral" : WELLBEING_TONE[r.status]}>
+                      {statusLabel(r)}
+                    </StatusTag>
+                  </span>
                   {r.status === "OPEN" && (
-                    <Button kind="ghost" size="sm" disabled={pending !== null} onClick={() => void withdraw(r)}>
+                    <Button kind="tertiary" size="sm" disabled={pending !== null} onClick={() => void withdraw(r)}>
                       {pending === r.id ? "Withdrawing…" : "Withdraw"}
                     </Button>
                   )}
@@ -168,6 +188,7 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
       {available.length > 0 ? (
         <>
           <TileGroup
+            className="rcs-radio-tiles"
             name={`support-kind${caseId ? `-${caseId}` : ""}`}
             legend="Choose one"
             valueSelected={kind ?? undefined}
@@ -193,7 +214,7 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
           <TextArea
             id={`support-reason${caseId ? `-${caseId}` : ""}`}
             labelText="What's going on? (optional)"
-            helperText="Only your manager sees this. You don't need to give a reason."
+            helperText="Only your Manager sees this. You don't need to give a reason."
             rows={3}
             maxCount={MAX_REASON}
             enableCounter
@@ -202,13 +223,13 @@ export function WellbeingCheckIn({ caseId, onSessionExpired }: WellbeingCheckInP
           />
           <div>
             <Button disabled={pending !== null} onClick={() => void send()}>
-              {pending === "send" ? "Sending…" : "Send request"}
+              {pending === "send" ? "Sending…" : "Request support"}
             </Button>
           </div>
         </>
       ) : (
         <p className="rcs-helper" style={{ fontSize: 14 }}>
-          Your manager has both requests. Withdraw one above if you no longer need it.
+          Both requests are open. Withdraw one above if you no longer need it.
         </p>
       )}
 

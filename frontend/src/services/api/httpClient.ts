@@ -1,4 +1,5 @@
 import type {
+  ClientOrganisation,
   AuditLogHistory,
   AuditLogQuery,
   AuditorCaseDetail,
@@ -6,7 +7,12 @@ import type {
   AuditorDetail,
   AuditorOverviewRow,
   AuditorWellbeing,
+  AvailableCases,
+  FallbackCaseRow,
+  BuddyReply,
+  BuddyTurn,
   CaseResult,
+  CaseResultsSummary,
   ClientAccount,
   ClientLoginResponse,
   PlatformAction,
@@ -436,6 +442,15 @@ export async function logSosFollowUp(
   return parseJsonOrThrow<{ resolved: true }>(r);
 }
 
+export async function logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/auditors/${encodeURIComponent(auditorId)}/check-in`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+  return parseJsonOrThrow<{ checked_in: true }>(r);
+}
+
 export async function listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/manager/declined-cases`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -731,6 +746,11 @@ export async function clientListCaseResults(token: string): Promise<CaseResult[]
   return parseJsonOrThrow<CaseResult[]>(r);
 }
 
+export async function clientCaseResultsSummary(token: string): Promise<CaseResultsSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/client/case-results/summary`, { headers: bearer(token) });
+  return parseJsonOrThrow<CaseResultsSummary>(r);
+}
+
 export async function clientRecordPlatformAction(
   deliveryId: string,
   token: string,
@@ -747,13 +767,13 @@ export async function clientRecordPlatformAction(
 
 // ---- AI Chatbot ----
 
-export async function aiChat(message: string, token: string): Promise<{ reply: string }> {
+export async function aiChat(message: string, token: string, history: BuddyTurn[] = []): Promise<BuddyReply> {
   const r = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
     headers: jsonBearer(token),
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history }),
   });
-  return parseJsonOrThrow<{ reply: string }>(r);
+  return parseJsonOrThrow<BuddyReply>(r);
 }
 
 export async function listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]> {
@@ -769,4 +789,46 @@ export async function getGovernanceCase(caseId: string, token: string): Promise<
     cache: "no-store",
   });
   return parseJsonOrThrow<GovernanceCase>(r);
+}
+
+// ---- Fallback queue (Super Auditor, extra-features 1.6) ----
+
+export async function getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/all-cases`, { headers: bearer(token), cache: "no-store" });
+  return parseJsonOrThrow<FallbackCaseRow[]>(r);
+}
+
+export async function getAvailableCases(token: string): Promise<AvailableCases> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/available-cases`, { headers: bearer(token), cache: "no-store" });
+  return parseJsonOrThrow<AvailableCases>(r);
+}
+
+export async function takeCase(caseId: string, token: string): Promise<{ taken: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/take`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ taken: true }>(r);
+}
+
+export async function claimCase(caseId: string, token: string): Promise<{ claimed: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/auditor/cases/${encodeURIComponent(caseId)}/claim`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ claimed: true }>(r);
+}
+
+export async function makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/cases/${encodeURIComponent(caseId)}/make-available`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ available: true }>(r);
+}
+
+/** The clients RCS serves, for the Manager's client selector. */
+export async function listClients(token: string): Promise<ClientOrganisation[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/clients`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientOrganisation[]>(r);
 }

@@ -12,33 +12,41 @@ function renderAt(path: string) {
 }
 
 describe("ManagerTopNav (Task 103)", () => {
-  it("links all eight sections (five Figma + Deliveries, Reports and Client messages) to real routes", () => {
+  it("links the six sections to real routes", () => {
     renderAt("/manager");
     const expected: [string, string][] = [
-      ["Dashboard", "/manager"],
-      ["Case Oversight", "/manager/cases"],
-      ["SOS Inbox", "/manager/sos"],
-      ["Reassignment Queue", "/manager/reassignment"],
+      ["Overview", "/manager"],
+      ["Cases", "/manager/cases"],
       ["Deliveries", "/manager/deliveries"],
       ["Reports", "/manager/reports"],
-      ["Client messages", "/manager/messages"],
+      ["Insights", "/manager/insights"],
       ["Validation", "/manager/validation"],
     ];
     for (const [label, href] of expected) {
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
-    expect(screen.getAllByRole("link")).toHaveLength(8);
+    expect(screen.getAllByRole("link")).toHaveLength(6);
     expect(screen.queryByText(/Sprint 3/)).not.toBeInTheDocument();
   });
 
   it("marks the current section for assistive technology", () => {
     renderAt("/manager/cases");
-    expect(screen.getByRole("link", { name: "Case Oversight" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Cases" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
   });
 
-  it("keeps a section highlighted on its sub-pages", () => {
-    renderAt("/manager/sos/SOS-demo0001");
-    expect(screen.getByRole("link", { name: "SOS Inbox" })).toHaveAttribute("aria-current", "page");
+  it.each([
+    ["/manager/sos/SOS-demo0001", "Overview"],
+    ["/manager/reassignment", "Overview"],
+    ["/manager/auditors/auditor-1", "Overview"],
+    ["/manager/cases/AR-1/reassign", "Overview"],
+    ["/manager/cases/AR-1/review", "Cases"],
+    ["/manager/messages/MSG-1", "Overview"],
+    ["/manager/validation", "Validation"],
+    ["/manager/audit-logs", "Validation"],
+  ])("keeps the owning section highlighted on %s", (path, section) => {
+    renderAt(path);
+    expect(screen.getByRole("link", { name: section })).toHaveAttribute("aria-current", "page");
+    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 });

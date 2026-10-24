@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { TextInput, PasswordInput, Button, InlineNotification } from "@carbon/react";
+import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { TextInput, PasswordInput, Button, InlineNotification, Link } from "@carbon/react";
+import { ArrowLeft, ArrowRight } from "@carbon/icons-react";
 import { useAuth, ROLE_HOME } from "../../hooks/useAuth";
+import { SignInLayout } from "../../components/auth/SignInLayout";
 import { ApiError } from "../../services/types";
 import { isMockData } from "../../services";
 import { DEMO_PASSWORD } from "../../services/mock/seed";
@@ -19,7 +21,8 @@ export interface StaffLoginLocationState {
  *
  * The two Figma files label the eyebrow "RCS — Auditor" and "RCS — Manager"
  * respectively. This single shared route can't know the role until after
- * login, so it reads "RCS — Staff" (pending UX sign-off).
+ * login, so it reads "RCS — Staff". "Sign in", not "Log in", matching every
+ * other sign-in label in the product.
  */
 export function StaffLoginPage() {
   const navigate = useNavigate();
@@ -62,26 +65,24 @@ export function StaffLoginPage() {
   }
 
   return (
-    <main
-      className="flex items-center justify-center px-4 py-10"
-      style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
+    <SignInLayout
+      audience="For RCS Auditors and Managers"
+      statement="Review harmful video with protection built into every case."
+      points={[
+        "Content warnings and blur on every case",
+        "A daily viewing limit the system keeps",
+        "Support and SOS, one click away",
+      ]}
     >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full flex-col gap-6 p-8"
-        style={{
-          maxWidth: 480,
-          backgroundColor: "var(--cds-background)",
-          borderTop: "4px solid var(--cds-border-interactive)",
-          boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
-        }}
-      >
-        <div className="flex flex-col gap-2">
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>RCS — Staff</p>
-          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Log in</h1>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-            Enter your staff ID and password to continue.
-          </p>
+      <form onSubmit={handleSubmit} className="si-form">
+        <RouterLink to="/rcs" className="si-back">
+          <ArrowLeft aria-hidden="true" />
+          Back to RCS
+        </RouterLink>
+        <div className="si-form-head">
+          <p className="si-eyebrow">RCS — Staff</p>
+          <h1 className="si-title">Sign in</h1>
+          <p className="si-sub">Enter your staff ID and password to continue.</p>
         </div>
 
         {/* Mock mode only: the demo has no real accounts, so say how to get in. */}
@@ -91,8 +92,7 @@ export function StaffLoginPage() {
             lowContrast
             hideCloseButton
             title="Demo sign-in:"
-            subtitle={`auditor-1, auditor-2, auditor-3, auditor-4, auditor-5 or manager-1 — password ${DEMO_PASSWORD}`}
-            style={{ maxWidth: "100%" }}
+            subtitle={`auditor-1 to auditor-5, superauditor-1 (Super Auditor) or manager-1, password ${DEMO_PASSWORD}`}
           />
         )}
 
@@ -102,21 +102,12 @@ export function StaffLoginPage() {
             lowContrast
             hideCloseButton
             title="Your session has ended."
-            subtitle="Log in again to continue."
-            style={{ maxWidth: "100%" }}
+            subtitle="Sign in again to continue."
           />
         )}
 
         {error && (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            role="alert"
-            title="Error:"
-            subtitle={error}
-            style={{ maxWidth: "100%" }}
-          />
+          <InlineNotification kind="error" lowContrast hideCloseButton role="alert" title="Error:" subtitle={error} />
         )}
 
         <TextInput
@@ -136,13 +127,21 @@ export function StaffLoginPage() {
         />
         <Button
           type="submit"
+          renderIcon={ArrowRight}
           disabled={isSubmitting || !staffId.trim() || !password}
-          className="w-full"
-          style={{ maxWidth: "100%" }}
+          className="si-submit"
         >
-          {isSubmitting ? "Logging in…" : "Log in"}
+          {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
+        <div className="si-links">
+          <p>
+            Signing in for your organisation?{" "}
+            <Link as={RouterLink} to="/client/login">
+              Client sign in
+            </Link>
+          </p>
+        </div>
       </form>
-    </main>
+    </SignInLayout>
   );
 }

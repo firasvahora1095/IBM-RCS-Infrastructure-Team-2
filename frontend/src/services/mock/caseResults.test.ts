@@ -58,8 +58,8 @@ describe("Per-case results for CommunityHub (mock)", () => {
     const waiting = (await mock.clientListCaseResults(moderator)).find(
       (r) => r.status === "DELIVERED" && !r.platform_action,
     )!;
-    const after = await mock.clientRecordPlatformAction(waiting.delivery_id, moderator, "REMOVED", "Mock: removed.");
-    expect(after.platform_action).toMatchObject({ action: "REMOVED", by: "ch-mod-04", note: "Mock: removed." });
+    const after = await mock.clientRecordPlatformAction(waiting.delivery_id, moderator, "REMOVED", "removed.");
+    expect(after.platform_action).toMatchObject({ action: "REMOVED", by: "ch-mod-04", note: "removed." });
 
     const delivery = await mock.getDelivery(waiting.delivery_id, await staff("manager-1"));
     expect(delivery.platform_action?.action).toBe("REMOVED");
@@ -84,7 +84,7 @@ describe("Per-case results for CommunityHub (mock)", () => {
 
   it("delivers 'closed without a decision' when a Manager closes a case, with no severity", async () => {
     const declined = readDb().cases.find((c) => c.manager_flag === "DECLINED")!;
-    await mock.closeWithoutReassignment(declined.case_id, await staff("manager-1"), "Mock: duplicate report.");
+    await mock.closeWithoutReassignment(declined.case_id, await staff("manager-1"), "duplicate report.");
     const delivery = readDb().deliveries.find((d) => d.case_id === declined.case_id)!;
     expect(delivery.outcome).toBe("CLOSED_NO_REASSIGNMENT");
     expect(delivery.final_severity).toBeNull();
@@ -102,5 +102,30 @@ describe("Per-case results for CommunityHub (mock)", () => {
   it("lists the client accounts and their roles for the Manager", async () => {
     const accounts = await mock.listClientAccounts("COMMUNITYHUB", await staff("manager-1"));
     expect(accounts.map((a) => a.role).sort()).toEqual(["ADMIN", "REPORTS", "TRUST_SAFETY"]);
+  });
+
+  it("works out the client's key figures once, the same way as the list and the backend", async () => {
+    const token = await client("ch-mod-04");
+    const results = await mock.clientListCaseResults(token);
+    const summary = await mock.clientCaseResultsSummary(token);
+    const delivered = results.filter((r) => r.status === "DELIVERED");
+    expect(summary.delivered).toBe(delivered.length);
+    expect(summary.needs_action).toBe(delivered.filter((r) => !r.platform_action).length);
+    expect(summary.violations).toBe(delivered.filter((r) => r.outcome === "POLICY_VIOLATION_FOUND").length);
+    expect(summary.decided).toBe(delivered.length - summary.not_reviewed);
+    // The demo leaves every kind waiting, so Needs action can be shown end to end.
+    expect(summary.needs_action_by_outcome.POLICY_VIOLATION_FOUND).toBeGreaterThan(0);
+    expect(summary.needs_action_by_outcome.NO_VIOLATION_FOUND).toBeGreaterThan(0);
+    expect(summary.needs_action_by_outcome.CLOSED_NO_REASSIGNMENT).toBeGreaterThan(0);
+
+    const next = delivered.find((r) => !r.platform_action)!;
+    await mock.clientRecordPlatformAction(next.delivery_id, token, "KEPT");
+    const after = await mock.clientCaseResultsSummary(token);
+    expect(after.needs_action).toBe(summary.needs_action - 1);
+    expect(after.actioned).toBe(summary.actioned + 1);
+  });
+
+  it("keeps the figures to the roles that may see case results", async () => {
+    await expect(mock.clientCaseResultsSummary(await client("ch-user-17"))).rejects.toMatchObject({ status: 403 });
   });
 });

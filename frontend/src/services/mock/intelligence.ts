@@ -41,7 +41,7 @@ const DEFINITIONS: Record<EvidenceKey, string> = {
   open_cases:
     "Cases that haven't reached Complete yet, including cases received before the period. This is the current backlog, so it isn't Total minus Completed.",
   needs_manager_action:
-    "Open items that need a Manager decision or follow-up: unresolved SOS, declined cases, cases interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic retries, and support requests (a break to approve or a request to talk) waiting for a reply. SOS and support requests concern people, so they are counted here and named only in each Auditor's record.",
+    "Open items that need a Manager decision or follow-up: unresolved SOS, check-ins owed to Auditors after a critical (S4) case, declined cases, cases interrupted by the daily exposure cap, results that failed to reach CommunityHub after automatic retries, and support requests (a break to approve or a request to talk) waiting for a reply. SOS and support requests concern people, so they are counted here and named only in each Auditor's record.",
   case_flow:
     "Current open cases by workflow stage. A case waiting for a Manager decision counts only there. Median decision time is the middle value of time from report to final decision for cases completed in the period.",
   outcomes: "The Auditor's final outcome for each case decided during the period.",
@@ -90,7 +90,7 @@ const TITLES: Record<EvidenceKey, string> = {
   total_cases: "Total cases",
   completed: "Completed",
   open_cases: "Open cases",
-  needs_manager_action: "Needs manager action",
+  needs_manager_action: "Needs Manager action",
   case_flow: "Case flow",
   outcomes: "Moderation outcomes",
   severity: "Final severity",
@@ -105,6 +105,8 @@ export interface IntelligenceSource {
   deliveries: MockDelivery[];
   /** Auditors with an unresolved SOS (counted, never named). */
   openSosAuditors: number;
+  /** Auditors finishing an S4 case whose Manager check-in isn't logged yet (counted, never named). */
+  pendingCheckIns: number;
   /** Support requests waiting for the Manager, by kind. */
   openSupportRequests: { break_requests: number; talk_requests: number };
   auditorCount: number;
@@ -169,6 +171,11 @@ const isDecided = (r: CaseRecord) => r.outcome === "POLICY_VIOLATION_FOUND" || r
 const isTier = (t: SeverityTier | null): t is SeverityTier => t !== null && TIERS.includes(t);
 const ids = (rows: CaseRecord[]) => rows.map((r) => r.caseId);
 
+/** An escalation the integration owner has not answered in this long comes back to the Manager. */
+export const ESCALATION_FOLLOW_UP_HOURS = 24;
+export const escalationOverdue = (escalatedAt: string, now: number) =>
+  now - Date.parse(escalatedAt) > ESCALATION_FOLLOW_UP_HOURS * 60 * 60_000;
+
 export function computeIntelligence(
   source: IntelligenceSource,
   periodStart: string,
@@ -187,14 +194,23 @@ export function computeIntelligence(
 
   const declined = openLive.filter((r) => r.flag === "DECLINED");
   const capped = openLive.filter((r) => r.flag === "CAP_REACHED");
-  const deliveries = source.deliveries.filter((d) => d.organisation_id === source.organisation.organisation_id);
-  const failed = deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION");
+  // "All clients" counts every delivery; one client counts only its own.
+  const deliveries =
+    source.organisation.organisation_id === "ALL"
+      ? source.deliveries
+      : source.deliveries.filter((d) => d.organisation_id === source.organisation.organisation_id);
+  // Once a failure has been escalated to the integration owner it is no longer the Manager's to act on, so it
+  // leaves "Needs you" (it still counts as failed in Delivery health, and Deliveries tags it Escalated).
+  const failed = deliveries.filter(
+    (d) => d.delivery_status === "NEEDS_ATTENTION" && (!d.escalated_at || escalationOverdue(d.escalated_at, now)),
+  );
   const attention: { kind: AttentionKind; count: number }[] = [
     { kind: "SOS", count: source.openSosAuditors },
     {
       kind: "SUPPORT_REQUEST",
       count: source.openSupportRequests.break_requests + source.openSupportRequests.talk_requests,
     },
+    { kind: "CHECK_IN", count: source.pendingCheckIns },
     { kind: "REASSIGNMENT", count: declined.length },
     { kind: "CAP_INTERRUPTED", count: capped.length },
     { kind: "FAILED_HANDOFF", count: failed.length },
@@ -231,6 +247,7 @@ export function computeIntelligence(
       attempts: d.attempts.length,
       reason: d.failure_reason,
       last_attempt_at: d.attempts.at(-1)?.at ?? null,
+      escalation_overdue: Boolean(d.escalated_at),
     }))
     .sort((a, b) => (b.last_attempt_at ?? "").localeCompare(a.last_attempt_at ?? ""))
     .slice(0, MAX_FAILED_LISTED);

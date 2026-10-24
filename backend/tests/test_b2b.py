@@ -632,6 +632,19 @@ class B2bContractTests(unittest.TestCase):
         )
         self.assertEqual(results[0]["status"], "DELIVERED")
 
+    def test_summary_endpoint_matches_the_list_and_follows_the_roles(self) -> None:
+        delivery_id = self.deliver("RCS-CRES-0009")
+        moderator = self.client_headers("ch-mod-04")
+        before = self.client.get("/api/client/case-results/summary", headers=moderator).json()
+        results = self.client.get("/api/client/case-results", headers=moderator).json()
+        self.assertEqual(before["delivered"], sum(1 for r in results if r["status"] == "DELIVERED"))
+        self.assertEqual(before["needs_action"], sum(1 for r in results if r["status"] == "DELIVERED" and not r["platform_action"]))
+        self.client.post(f"/api/client/case-results/{delivery_id}/action", json={"action": "KEPT"}, headers=moderator)
+        after = self.client.get("/api/client/case-results/summary", headers=moderator).json()
+        self.assertEqual(after["needs_action"], before["needs_action"] - 1)
+        self.assertEqual(after["actioned"], before["actioned"] + 1)
+        self.assertEqual(self.client.get("/api/client/case-results/summary", headers=self.client_headers("ch-user-17")).status_code, 403)
+
     def test_moderator_action_is_recorded_and_shown_to_the_manager(self) -> None:
         delivery_id = self.deliver("RCS-CRES-0002")
         moderator = self.client_headers("ch-mod-04")
@@ -775,12 +788,34 @@ class B2bContractTests(unittest.TestCase):
         counts = {item["kind"]: item["count"] for item in body["attention"]}
         self.assertEqual(
             counts,
-            {"SOS": 1, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "SUPPORT_REQUEST": 2},
+            {"SOS": 1, "CHECK_IN": 0, "REASSIGNMENT": 1, "CAP_INTERRUPTED": 1, "FAILED_HANDOFF": 1, "SUPPORT_REQUEST": 2},
         )
         # Which kinds are waiting, so the Manager knows whether to approve a break or talk.
         self.assertEqual(body["support_requests"], {"break_requests": 1, "talk_requests": 1})
         self.assertEqual(body["kpis"]["needs_manager_action"], 6)
         self.assertEqual(body["delivery"]["failed"][0]["case_id"], "RCS-AT-00003")
+
+    def test_attention_counts_s4_check_ins_that_are_still_owed(self) -> None:
+        now = datetime.now(timezone.utc)
+        with self.Session.begin() as db:
+            # The timer has ended but the Manager hasn't checked in, so this Auditor still needs them.
+            db.add(Auditor(
+                auditor_id="auditor-2", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S4", cooldown_check_in_done=0, cooldown_ends_at=now - timedelta(minutes=5),
+            ))
+            # A check-in already logged, and a lower-tier cooldown, are not waiting for anyone.
+            db.add(Auditor(
+                auditor_id="auditor-3", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S4", cooldown_check_in_done=1, cooldown_ends_at=now - timedelta(minutes=5),
+            ))
+            db.add(Auditor(
+                auditor_id="auditor-4", login_hash=self.password_hash, role="auditor",
+                cooldown_trigger="S3", cooldown_check_in_done=0, cooldown_ends_at=now + timedelta(minutes=5),
+            ))
+        body = self.intel()
+        counts = {item["kind"]: item["count"] for item in body["attention"]}
+        self.assertEqual(counts["CHECK_IN"], 1)
+        self.assertEqual(body["kpis"]["needs_manager_action"], 1)
 
     def test_comparison_matrix_and_override_rate(self) -> None:
         for i, (ai, final) in enumerate([("S2", "S2"), ("S2", "S3"), ("S2", "S3"), ("S1", "S1"), ("S3", "S2")]):
@@ -831,6 +866,109 @@ class B2bContractTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/manager/intelligence", params=backwards, headers=manager).status_code, 400)
         unknown = {**params, "organisation_id": "NOPE"}
         self.assertEqual(self.client.get("/api/manager/intelligence", params=unknown, headers=manager).status_code, 404)
+
+    # ---- more than one client -------------------------------------------------
+
+    def add_client(self, organisation_id: str, name: str) -> None:
+        with self.Session.begin() as db:
+            db.add(Organisation(
+                organisation_id=organisation_id, name=name, description="Customer organisation",
+                status="READY", destination_masked="https://example.invalid/••••••",
+            ))
+
+    def intel_for(self, organisation_id: str) -> dict:
+        today = datetime.now(timezone.utc).date()
+        query = {
+            "organisation_id": organisation_id,
+            "period_start": (today - timedelta(days=1)).isoformat(),
+            "period_end": (today + timedelta(days=1)).isoformat(),
+        }
+        response = self.client.get("/api/manager/intelligence", params=query, headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_clients_are_listed_for_the_selector(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        response = self.client.get("/api/manager/clients", headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        ids = {c["organisation_id"] for c in response.json()}
+        self.assertIn("STREAMNEST", ids)
+        self.assertIn(COMMUNITYHUB_ID, ids)
+        self.assertEqual(self.client.get("/api/manager/clients").status_code, 401)
+        self.assertEqual(
+            self.client.get("/api/manager/clients", headers=self.staff_headers("auditor-1")).status_code, 403
+        )
+
+    def test_all_clients_adds_up_to_the_sum_of_each_client(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        now = datetime.now(timezone.utc)
+        self.add_case("RCS-CH-00001", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00001", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+                      organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=3), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00002", status="AUDITOR_REVIEW", organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=1))
+        self.add_delivery("DEL-RCS-CH-00001", "SUCCESS")
+        self.add_delivery("DEL-RCS-SN-00001", "NEEDS_ATTENTION", organisation_id="STREAMNEST",
+                          failure_reason="StreamNest's endpoint was unavailable (503)")
+        self.add_delivery("DEL-RCS-SN-00002", "SUCCESS", organisation_id="STREAMNEST")
+
+        everyone = self.intel_for("ALL")
+        hub = self.intel_for(COMMUNITYHUB_ID)
+        stream = self.intel_for("STREAMNEST")
+
+        self.assertEqual(everyone["organisation_name"], "All Clients")
+        self.assertEqual(hub["kpis"]["total_cases"], 1)
+        self.assertEqual(stream["kpis"]["total_cases"], 2)
+        for key in ("total_cases", "completed", "open_cases"):
+            self.assertEqual(everyone["kpis"][key], hub["kpis"][key] + stream["kpis"][key], key)
+        for key in ("success", "pending", "retrying", "needs_attention"):
+            self.assertEqual(
+                everyone["delivery"]["health"][key],
+                hub["delivery"]["health"][key] + stream["delivery"]["health"][key],
+                key,
+            )
+        # The failed delivery belongs to StreamNest, so it is in All and in StreamNest, never in CommunityHub.
+        failed_ids = lambda body: [row["delivery_id"] for row in body["delivery"]["failed"]]
+        self.assertEqual(failed_ids(everyone), ["DEL-RCS-SN-00001"])
+        self.assertEqual(failed_ids(stream), ["DEL-RCS-SN-00001"])
+        self.assertEqual(failed_ids(hub), [])
+        self.assertEqual(self.intel_for("all")["kpis"], everyone["kpis"])
+
+    def test_a_report_counts_only_its_own_clients_cases(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        now = datetime.now(timezone.utc)
+        self.add_case("RCS-CH-00010", status="COMPLETE", final_outcome="POLICY_VIOLATION_FOUND",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        self.add_case("RCS-SN-00010", status="COMPLETE", final_outcome="NO_VIOLATION_FOUND",
+                      organisation_id="STREAMNEST",
+                      created_at=now - timedelta(hours=2), completed_at=now - timedelta(hours=1))
+        today = now.date()
+        body = {
+            "organisation_id": "STREAMNEST",
+            "period_start": (today - timedelta(days=1)).isoformat(),
+            "period_end": (today + timedelta(days=1)).isoformat(),
+        }
+        response = self.client.post("/api/manager/reports", json=body, headers=self.staff_headers("manager-1"))
+        self.assertEqual(response.status_code, 200, response.text)
+        report = response.json()
+        self.assertEqual(report["organisation_id"], "STREAMNEST")
+        self.assertTrue(report["report_id"].startswith("RPT-SN-"), report["report_id"])
+        self.assertEqual(report["metrics"]["cases_completed"], 1)
+        self.assertEqual(report["metrics"]["no_violation_count"], 1)
+        self.assertEqual(report["metrics"]["violation_count"], 0)
+
+    def test_the_comparison_follows_the_selected_client(self) -> None:
+        self.add_client("STREAMNEST", "StreamNest")
+        self.add_history("RCS-CHH-0001", "S2", "S3")
+        self.add_history("RCS-SNH-0001", "S1", "S1", organisation_id="STREAMNEST")
+        headers = self.staff_headers("manager-1")
+        everyone = self.client.get("/api/manager/governance", headers=headers).json()
+        stream = self.client.get("/api/manager/governance", params={"organisation_id": "STREAMNEST"}, headers=headers).json()
+        self.assertEqual(everyone["compared_cases"], 2)
+        self.assertEqual(stream["compared_cases"], 1)
+        self.assertEqual([r["case_id"] for r in stream["comparisons"]], ["RCS-SNH-0001"])
 
     def test_evidence_lists_at_most_two_hundred_case_ids(self) -> None:
         now = datetime.now(timezone.utc)
@@ -994,6 +1132,32 @@ class B2bContractTests(unittest.TestCase):
         data = self.governance()
         self.assertEqual(sum(1 for r in data["comparisons"] if r["override"]), sum(p["count"] for p in data["override_patterns"]))
         self.assertEqual(len(data["comparisons"]), data["compared_cases"])
+
+    def test_history_with_scores_shows_the_change_and_reason(self) -> None:
+        self.add_history("RCS-HSC-00001", "S2", "S3", ai_score=52, final_score=71, override_reason="The audio makes the threat clearer.")
+        row = {r["case_id"]: r for r in self.governance()["comparisons"]}["RCS-HSC-00001"]
+        self.assertEqual((row["ai_score"], row["auditor_score"], row["score_delta"]), (52, 71, 19))
+        self.assertEqual(row["override_reason"], "The audio makes the threat clearer.")
+
+    def test_seeded_history_scores_sit_in_their_tier_bands(self) -> None:
+        from app.b2b_seed import CVI_BAND, historical_scores
+
+        for case_id, ai, final in [("RCS-AB12-CD34", "S1", "S1"), ("RCS-ZZ99-QQ11", "S2", "S4"), ("RCS-K3M7-P2X9", "S4", "S3")]:
+            scores = historical_scores(case_id, ai, final)
+            self.assertTrue(CVI_BAND[ai][0] <= scores["ai_score"] <= CVI_BAND[ai][1])
+            self.assertTrue(CVI_BAND[final][0] <= scores["final_score"] <= CVI_BAND[final][1])
+            self.assertEqual(scores["override_reason"] is None, ai == final)
+            self.assertEqual(scores, historical_scores(case_id, ai, final))  # Same ID, same scores.
+        with self.Session() as db:
+            db.query(ClientUser).delete()
+            db.query(Organisation).delete()
+            db.commit()
+            seed_b2b(db, datetime.now(timezone.utc), [], client_password="test123")
+        with self.Session() as db:
+            history = db.scalars(select(CaseHistory)).all()
+        self.assertTrue(history)
+        self.assertTrue(all(h.ai_score is not None and h.final_score is not None for h in history))
+        self.assertTrue(all((h.override_reason is None) == (h.ai_tier == h.final_tier) for h in history))
 
 
 if __name__ == "__main__":

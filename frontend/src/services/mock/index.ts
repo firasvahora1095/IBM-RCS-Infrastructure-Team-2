@@ -1,3 +1,4 @@
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { safeHttpUrl } from "../../utils/safeUrl";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
@@ -38,6 +39,11 @@ import type {
   WellbeingRequestRecord,
   AuditLogHistory,
   AuditLogQuery,
+  AvailableCases,
+  FallbackCaseRow,
+  BuddyCaseSummary,
+  BuddyReply,
+  BuddyTurn,
 } from "../types";
 import {
   readDb,
@@ -49,6 +55,9 @@ import {
   type MockWellbeingRequest,
 } from "./store";
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
+import { findCaseId, mockBuddyReply, type BuddyLiveFigures } from "./buddy";
+import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { clientOf, findOrganisation } from "./clients";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -100,6 +109,7 @@ function newId(prefix: string): string {
 
 /** Finishes simulated AI analysis for any case whose time has come. */
 function advanceSimulatedAi(db: MockDb): void {
+  autoReleaseFallback(db);
   const now = Date.now();
   for (const c of db.cases) {
     if (c.status === "AI_PROCESSING" && c.ai_ready_at && Date.parse(c.ai_ready_at) <= now) {
@@ -117,7 +127,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 48,
         severity_tier: "S2",
         flag_reason: "Physical conflict",
-        narrative_summary: "Mock: two people in a heated confrontation; brief pushing detected.",
+        narrative_summary: "Two people in a heated confrontation; brief pushing detected.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
         flagged_entities: [
           { label: "Person A", start: 5, end: 40 },
@@ -131,7 +141,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 72,
         severity_tier: "S3",
         flag_reason: "Graphic violence",
-        narrative_summary: "Mock: physical altercation detected between two people.",
+        narrative_summary: "Physical altercation detected between two people.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
         flagged_entities: [{ label: "Person A", start: 10, end: 30 }],
         transcript: null,
@@ -149,14 +159,33 @@ function inCooldown(staff: MockStaff, now = Date.now()): boolean {
   return Date.parse(cd.ends_at) > now || (cd.requires_check_in && !cd.check_in_completed_at);
 }
 
+/** When this Auditor's approved break ends (ms), or null if they aren't on one. It ends by itself after BREAK_MINUTES. */
+function breakEndsAt(db: MockDb, staffId: string, now = Date.now()): number | null {
+  let latest: number | null = null;
+  for (const r of db.wellbeingRequests) {
+    if (r.auditor_id !== staffId || r.kind !== "BREAK_REQUEST" || r.status !== "APPROVED" || !r.resolved_at) continue;
+    const ends = Date.parse(r.resolved_at) + BREAK_MINUTES * 60_000;
+    if (ends > now && (latest === null || ends > latest)) latest = ends;
+  }
+  return latest;
+}
+
+/** The same moment as an ISO time, for the payloads. */
+function breakEndsIso(db: MockDb, staffId: string): string | null {
+  const ends = breakEndsAt(db, staffId);
+  return ends === null ? null : new Date(ends).toISOString();
+}
+
 /**
  * AR-AS-02: lowest (0.6 × exposure ratio + 0.4 × case ratio) wins; ties go to
- * whoever waited longest. At-limit (AR-WB-03) and cooling-down (AR-WB-04)
+ * whoever waited longest. At-limit (AR-WB-03), cooling-down (AR-WB-04) and on-a-break
  * Auditors are skipped.
  */
 function selectAuditor(db: MockDb): string | null {
   const eligible = db.staff.filter(
-    (s) => s.role === "auditor" && exposureMinutes(s) < s.exposure_limit_minutes && !inCooldown(s),
+    (s) => s.role === "auditor" && !s.is_super_admin && exposureMinutes(s) < s.exposure_limit_minutes &&
+      !inCooldown(s) &&
+      breakEndsAt(db, s.staff_id) === null,
   );
   if (eligible.length === 0) return null;
   const score = (s: MockStaff) => 0.6 * (exposureMinutes(s) / 120) + 0.4 * (s.active_case_count / 10);
@@ -165,11 +194,85 @@ function selectAuditor(db: MockDb): string | null {
   return eligible[0].staff_id;
 }
 
+/**
+ * How long a parked case waits for the Super Auditor before the system places it. The team decided on
+ * none, as in the backend (FALLBACK_HOLD_MINUTES defaults to 0): a case is placed as soon as a
+ * standard Auditor is eligible, unless the Super Auditor has already taken it.
+ */
+export const FALLBACK_HOLD_MS = 0;
+
+function autoReleaseAt(c: MockCase): number | null {
+  if (!c.fallback_queued_at || c.case_visibility !== "SUPER_ADMIN_ONLY") return null;
+  return Date.parse(c.fallback_queued_at) + FALLBACK_HOLD_MS;
+}
+
+/**
+ * Places parked cases automatically, so nobody has to click Make available. Same rule as the backend:
+ * once the hold has passed and a standard Auditor is eligible, the usual weighted choice is used. A case
+ * with the Manager, released for claiming, or never parked by the system is left alone.
+ */
+function autoReleaseFallback(db: MockDb): void {
+  const now = Date.now();
+  const waiting = db.cases
+    .filter((c) => c.assigned_auditor === null && c.manager_flag === null && c.status !== "COMPLETE")
+    .filter((c) => {
+      const due = autoReleaseAt(c);
+      return due !== null && due <= now;
+    })
+    .sort((a, b) => Date.parse(a.fallback_queued_at!) - Date.parse(b.fallback_queued_at!));
+  for (const c of waiting) {
+    const chosen = selectAuditor(db);
+    if (!chosen) return;
+    const member = db.staff.find((s) => s.staff_id === chosen)!;
+    const at = new Date(now).toISOString();
+    c.assigned_auditor = chosen;
+    c.case_visibility = "ASSIGNED_ONLY";
+    c.assigned_at = at;
+    c.updated_at = at;
+    member.active_case_count += 1;
+    member.last_assigned_at = at;
+    audit(db, "system", "CASE_ASSIGNED", c.case_id, "placed automatically");
+  }
+}
+
 function requireSession(db: MockDb, token: string, role: "auditor" | "manager") {
   const session = db.sessions[token];
   if (!session) throw new ApiError("Not authenticated", 401);
   if (session.role !== role) throw new ApiError("Not authorised for this action", 403);
   return session;
+}
+
+/** The same blocks as Manager reassignment: limit, cooldown, open SOS, and an approved break. Applies to the Super Auditor too. */
+function unavailableReason(db: MockDb, member: MockStaff): string | null {
+  if (exposureMinutes(member) >= member.exposure_limit_minutes) return "You have reached your daily exposure limit.";
+  if (inCooldown(member)) return "You are in a mandatory cooldown.";
+  if (db.cases.some((c) => c.assigned_auditor === member.staff_id && c.manager_flag === "SOS")) {
+    return "You have an open SOS alert.";
+  }
+  const breakEnd = breakEndsAt(db, member.staff_id);
+  if (breakEnd !== null) {
+    const left = Math.max(1, Math.ceil((breakEnd - Date.now()) / 60_000));
+    return `You are on a break for another ${left} minute${left === 1 ? "" : "s"}.`;
+  }
+  return null;
+}
+
+function requireSuperAdmin(db: MockDb, token: string): MockStaff {
+  const session = requireSession(db, token, "auditor");
+  const member = staffById(db, session.staffId);
+  if (!member.is_super_admin) throw new ApiError("Super Auditor access required", 403);
+  return member;
+}
+
+function assignUnownedCase(db: MockDb, c: MockCase, member: MockStaff, detail: string): void {
+  const now = new Date().toISOString();
+  c.assigned_auditor = member.staff_id;
+  c.case_visibility = "ASSIGNED_ONLY";
+  c.assigned_at = now;
+  c.updated_at = now;
+  member.active_case_count += 1;
+  member.last_assigned_at = now;
+  audit(db, member.staff_id, "CASE_ASSIGNED", c.case_id, detail);
 }
 
 function findOwnCase(db: MockDb, caseId: string, staffId: string): MockCase {
@@ -257,15 +360,18 @@ function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: s
   const caseId = newCaseId();
   db.cases.push({
     case_id: caseId,
-    status: assigned ? "AI_PROCESSING" : "SUBMITTED",
+    // No standard Auditor eligible: the case is kept, unowned, and still analysed (extra-features 1.6).
+    status: "AI_PROCESSING",
     assigned_auditor: assigned,
+    case_visibility: assigned ? "ASSIGNED_ONLY" : "SUPER_ADMIN_ONLY",
+    fallback_queued_at: assigned ? null : now.toISOString(),
     content_type: contentType,
     file_name: fileName,
     duration_seconds: null,
     created_at: now.toISOString(),
     assigned_at: assigned ? now.toISOString() : null,
     updated_at: now.toISOString(),
-    ai_ready_at: assigned ? new Date(now.getTime() + SIMULATED_AI_SECONDS * 1000).toISOString() : null,
+    ai_ready_at: new Date(now.getTime() + SIMULATED_AI_SECONDS * 1000).toISOString(),
     watson_severity_score: null,
     effective_severity_score: null,
     severity_tier: null,
@@ -292,7 +398,7 @@ function openCase(db: MockDb, contentType: MockCase["content_type"], fileName: s
   audit(db, "system", "CASE_CREATED", caseId, assigned ? `assigned:${assigned}` : "unassigned");
   return {
     case_id: caseId,
-    status: mapStatusToPublicLabel(assigned ? "AI_PROCESSING" : "SUBMITTED"),
+    status: mapStatusToPublicLabel("AI_PROCESSING"),
     assigned_auditor: assigned,
   };
 }
@@ -332,6 +438,62 @@ function startOfToday(): number {
 }
 
 /** The Auditor's cases completed today, newest first. The one source for every "cases today" figure. */
+const BUDDY_OUTCOME: Record<string, string> = {
+  NO_VIOLATION_FOUND: "No Violation Found",
+  POLICY_VIOLATION_FOUND: "Violation Found",
+  CLOSED_NO_REASSIGNMENT: "Closed without reassignment",
+};
+
+/** The compact case summary the Buddy may show: an Auditor only for their own case, a Manager for any. */
+function buddyCaseSummary(db: MockDb, role: "auditor" | "manager", staffId: string, caseId: string): BuddyCaseSummary | null {
+  const c = db.cases.find((x) => x.case_id === caseId);
+  if (!c) return null;
+  if (role === "auditor" && c.assigned_auditor !== staffId) return null;
+  const summary: BuddyCaseSummary = {
+    case_id: c.case_id,
+    status: managerStatusLabel(c.status, c.manager_flag),
+    ai_severity: c.severity_tier,
+    // Confirming the AI's rating stores no score, so a completed case's final tier is then the AI's (as on every screen).
+    final_auditor_severity:
+      c.auditor_severity_score !== null ? scoreToTier(c.auditor_severity_score) : c.status === "COMPLETE" ? c.severity_tier : null,
+    final_outcome: c.final_outcome ? (BUDDY_OUTCOME[c.final_outcome] ?? null) : null,
+  };
+  if (role === "manager") {
+    summary.assigned_auditor = c.assigned_auditor;
+    summary.delivery_status = db.deliveries.find((d) => d.case_id === c.case_id)?.delivery_status ?? null;
+  }
+  return summary;
+}
+
+function buddyLiveFigures(db: MockDb, role: "auditor" | "manager", staffId: string): BuddyLiveFigures {
+  if (role === "auditor") {
+    const me = staffById(db, staffId);
+    const open = db.cases.filter(
+      (c) => c.assigned_auditor === staffId && !c.manager_flag && (c.status === "READY_FOR_REVIEW" || c.status === "AUDITOR_REVIEW"),
+    );
+    const cd = me.cooldown;
+    const left = cd ? Math.ceil((Date.parse(cd.ends_at) - Date.now()) / 60_000) : 0;
+    return {
+      exposureMinutes: exposureMinutes(me),
+      exposureLimit: me.exposure_limit_minutes,
+      cooldownMinutesLeft: left > 0 ? left : null,
+      readyForReview: open.filter((c) => c.status === "READY_FOR_REVIEW").length,
+      openCases: open.length,
+    };
+  }
+  const openRequests = db.wellbeingRequests.filter((r) => r.status === "OPEN");
+  return {
+    awaitingReassignment: db.cases.filter(
+      (c) => (c.manager_flag === "DECLINED" || c.manager_flag === "CAP_REACHED") && c.status !== "COMPLETE",
+    ).length,
+    failedDeliveries: db.deliveries.filter((d) => d.delivery_status === "NEEDS_ATTENTION").length,
+    openSos: db.sosEvents.filter((e) => !e.resolved_at).length,
+    breakRequests: openRequests.filter((r) => r.kind === "BREAK_REQUEST").length,
+    talkRequests: openRequests.filter((r) => r.kind === "TALK_TO_MANAGER").length,
+    openCasesAll: db.cases.filter((c) => c.status !== "COMPLETE").length,
+  };
+}
+
 function completedToday(db: MockDb, staffId: string): MockCase[] {
   const since = startOfToday();
   return db.cases
@@ -365,6 +527,9 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
       talk_requests: db.wellbeingRequests.filter(
         (r) => r.auditor_id === staff.staff_id && r.kind === "TALK_TO_MANAGER" && r.status === "OPEN",
       ).length,
+      // A break the Manager approved that is still running: it ends by itself after BREAK_MINUTES.
+      on_break: breakEndsAt(db, staff.staff_id) !== null,
+      break_ends_at: breakEndsIso(db, staff.staff_id),
     },
   };
 }
@@ -442,6 +607,7 @@ function caseDetailFor(c: MockCase): AuditorCaseDetail {
     watson_severity_score: c.watson_severity_score,
     effective_severity_score: c.effective_severity_score,
     severity_tier: c.severity_tier,
+    final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
     narrative_summary: c.narrative_summary,
     incident_timeline: c.incident_timeline,
     video_duration_seconds: c.duration_seconds,
@@ -532,9 +698,9 @@ export const mockDataService: DataService = {
     });
   },
 
-  async addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }> {
+  async addCaseInformation(caseId: string, details: string, attachments?: File[]): Promise<{ added: true }> {
     await delay();
-    if (!details.trim() && !attachment) {
+    if (!details.trim() && !(attachments && attachments.length > 0)) {
       throw new ApiError("Add some details or attach a file before submitting.", 400);
     }
     return updateDb((db) => {
@@ -544,7 +710,7 @@ export const mockDataService: DataService = {
       db.caseAdditions.push({
         case_id: caseId,
         details: details.trim(),
-        attachment_name: attachment?.name ?? null,
+        attachment_names: (attachments ?? []).map((f) => f.name),
         added_at: new Date().toISOString(),
       });
       found.updated_at = new Date().toISOString();
@@ -622,7 +788,119 @@ export const mockDataService: DataService = {
       delete db.loginAttempts[key];
       const token = newToken();
       db.sessions[token] = { staffId: member.staff_id, role: member.role };
-      return { token, role: member.role };
+      return {
+        token,
+        role: member.role,
+        is_super_admin: member.role === "auditor" && member.is_super_admin === true,
+        display_name: member.display_name,
+      };
+    });
+  },
+
+  // ---- Fallback queue (Super Auditor, extra-features 1.6) ----
+
+  async getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
+    await delay();
+    return updateDb((db) => {
+      advanceSimulatedAi(db);
+      requireSuperAdmin(db, token);
+      return db.cases
+        .filter((c) => c.status !== "COMPLETE")
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+        .map((c) => ({
+          case_id: c.case_id,
+          status: c.status,
+          severity_tier: c.severity_tier,
+          final_severity_tier: c.auditor_severity_score === null ? c.severity_tier : scoreToTier(c.auditor_severity_score),
+          // A case with the Manager never shows who it came from (no per-Auditor scrutiny, MR-CR-04).
+          assigned_auditor_id: c.manager_flag ? null : c.assigned_auditor,
+          case_visibility: c.case_visibility ?? "ASSIGNED_ONLY",
+          manager_flag: c.manager_flag,
+          created_at: c.created_at,
+          auto_release_at: autoReleaseAt(c) === null ? null : new Date(autoReleaseAt(c)!).toISOString(),
+        }));
+    });
+  },
+
+  async getAvailableCases(token: string): Promise<AvailableCases> {
+    await delay();
+    return updateDb((db) => {
+      advanceSimulatedAi(db);
+      const session = requireSession(db, token, "auditor");
+      const reason = unavailableReason(db, staffById(db, session.staffId));
+      return {
+        can_claim: reason === null,
+        reason,
+        // Metadata only: no thumbnail, reporter detail or notes.
+        cases: db.cases
+          .filter(
+            (c) =>
+              c.case_visibility === "AVAILABLE_TO_AUDITORS" &&
+              c.assigned_auditor === null &&
+              c.manager_flag === null &&
+              c.status !== "COMPLETE",
+          )
+          .map((c) => ({
+            case_id: c.case_id,
+            severity_tier: c.severity_tier,
+            status: c.status,
+            ready: c.status === "READY_FOR_REVIEW",
+          })),
+      };
+    });
+  },
+
+  async takeCase(caseId: string, token: string): Promise<{ taken: true }> {
+    await delay();
+    return updateDb((db) => {
+      const admin = requireSuperAdmin(db, token);
+      const c = db.cases.find((x) => x.case_id === caseId);
+      if (!c) throw new ApiError("Case not found", 404);
+      if (c.manager_flag) throw new ApiError("This case is waiting for a Manager decision.", 409);
+      if (c.assigned_auditor !== null) {
+        throw new ApiError("This case already has an Auditor. A Manager can reassign it.", 409);
+      }
+      if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
+      const reason = unavailableReason(db, admin);
+      if (reason) throw new ApiError(reason, 409);
+      assignUnownedCase(db, c, admin, "taken by the Super Auditor");
+      return { taken: true };
+    });
+  },
+
+  async claimCase(caseId: string, token: string): Promise<{ claimed: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireSession(db, token, "auditor");
+      const me = staffById(db, session.staffId);
+      const c = db.cases.find((x) => x.case_id === caseId);
+      // A claimed, taken or never-released case looks the same, so the answer reveals nothing extra.
+      if (!c || c.case_visibility !== "AVAILABLE_TO_AUDITORS" || c.assigned_auditor !== null || c.manager_flag) {
+        throw new ApiError("Case not found", 404);
+      }
+      const reason = unavailableReason(db, me);
+      if (reason) throw new ApiError(reason, 409);
+      assignUnownedCase(db, c, me, "claimed");
+      return { claimed: true };
+    });
+  },
+
+  async makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }> {
+    await delay();
+    return updateDb((db) => {
+      const session = db.sessions[token];
+      if (!session) throw new ApiError("Not authenticated", 401);
+      if (session.role === "auditor") requireSuperAdmin(db, token);
+      const c = db.cases.find((x) => x.case_id === caseId);
+      if (!c) throw new ApiError("Case not found", 404);
+      if (c.manager_flag) throw new ApiError("This case is waiting for a Manager decision.", 409);
+      if (c.assigned_auditor !== null) throw new ApiError("This case already has an Auditor.", 409);
+      if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
+      if (c.case_visibility !== "AVAILABLE_TO_AUDITORS") {
+        c.case_visibility = "AVAILABLE_TO_AUDITORS";
+        audit(db, session.staffId, "CASE_MADE_AVAILABLE", c.case_id);
+      }
+      return { available: true };
     });
   },
 
@@ -655,6 +933,7 @@ export const mockDataService: DataService = {
         watson_severity_score: c.watson_severity_score,
         effective_severity_score: c.effective_severity_score,
         severity_tier: c.severity_tier,
+        final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
         narrative_summary: c.narrative_summary,
         incident_timeline: c.incident_timeline,
         video_duration_seconds: c.duration_seconds,
@@ -768,7 +1047,7 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "auditor");
       const request = db.wellbeingRequests.find((r) => r.id === requestId && r.auditor_id === session.staffId);
       if (!request) throw new ApiError("Request not found", 404);
-      if (request.status !== "OPEN") throw new ApiError("Your manager has already responded to this request.", 409);
+      if (request.status !== "OPEN") throw new ApiError("Your Manager has already responded to this request.", 409);
       request.status = "WITHDRAWN";
       request.resolved_at = new Date().toISOString();
       audit(db, session.staffId, "WELLBEING_REQUEST_WITHDRAWN", request.case_id, request.kind);
@@ -838,6 +1117,17 @@ export const mockDataService: DataService = {
     };
   },
 
+  async aiChat(message: string, token: string, _history: BuddyTurn[] = []): Promise<BuddyReply> {
+    await delay();
+    return updateDb((db) => {
+      const session = db.sessions[token];
+      if (!session) throw new ApiError("Not authenticated", 401);
+      const id = findCaseId(message);
+      const summary = id ? buddyCaseSummary(db, session.role, session.staffId, id) : null;
+      return mockBuddyReply(message, session.role, buddyLiveFigures(db, session.role, session.staffId), { id, summary });
+    });
+  },
+
   async getMyWellbeing(token: string): Promise<AuditorWellbeing> {
     await delay();
     return updateDb((db) => {
@@ -851,6 +1141,7 @@ export const mockDataService: DataService = {
         exposure_limit_minutes: me.exposure_limit_minutes,
         cooldown: me.cooldown,
         cases_reviewed_today: completedToday(db, me.staff_id).length,
+        break_ends_at: breakEndsIso(db, me.staff_id),
         requests: db.wellbeingRequests
           .filter((r) => r.auditor_id === me.staff_id && Date.parse(r.created_at) >= startOfToday())
           .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
@@ -911,6 +1202,7 @@ export const mockDataService: DataService = {
         recent_cases: today.map((c) => ({
           case_id: c.case_id,
           severity_tier: c.severity_tier,
+          final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
           completed_at: c.completed_at!,
           final_outcome: c.final_outcome,
         })),
@@ -990,10 +1282,14 @@ export const mockDataService: DataService = {
         .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
           severity_tier: c.severity_tier,
+          final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
           status: c.status,
           manager_flag: c.manager_flag,
+          case_visibility: c.case_visibility ?? "ASSIGNED_ONLY",
           sos_alert_id: [...db.sosEvents].reverse().find((e) => e.case_id === c.case_id)?.id ?? null,
         }));
     });
@@ -1069,6 +1365,31 @@ export const mockDataService: DataService = {
     });
   },
 
+  async logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+    await delay();
+    if (consumeDemoFailure()) throw new TypeError("Failed to fetch");
+    if (!notes.trim()) throw new ApiError("Add a short note about how they are.", 422);
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const auditor = staffById(db, auditorId);
+      const cooldown = auditor.cooldown;
+      if (cooldown?.trigger === "SOS" && !cooldown.check_in_completed_at) {
+        throw new ApiError("This is an SOS. Log the check-in in the SOS follow-up.", 409);
+      }
+      if (cooldown?.trigger !== "S4" || cooldown.check_in_completed_at) {
+        throw new ApiError("No check-in is waiting for this Auditor.", 409);
+      }
+      cooldown.check_in_completed_at = new Date().toISOString();
+      // The audit trail hangs off the case that earned the cooldown. It starts when a case is completed, so that is
+      // the Auditor's latest completed one.
+      const latest = db.cases
+        .filter((c) => c.assigned_auditor === auditorId && c.completed_at)
+        .sort((a, b) => Date.parse(b.completed_at!) - Date.parse(a.completed_at!))[0];
+      if (latest) audit(db, session.staffId, "CHECK_IN_LOGGED", latest.case_id, notes.trim());
+      return { checked_in: true as const };
+    });
+  },
+
   async listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
     await delay();
     return updateDb((db) => {
@@ -1086,6 +1407,8 @@ export const mockDataService: DataService = {
         })
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: c.decline
             ? (displayName(db, c.decline.declined_by) ?? c.decline.declined_by)
             : (c.assigned_auditor ? (displayName(db, c.assigned_auditor) ?? c.assigned_auditor) : "Unknown"),
@@ -1142,10 +1465,17 @@ export const mockDataService: DataService = {
               name: st.display_name,
               headroom_minutes: headroom,
               limited_headroom: headroom < LIMITED_HEADROOM_MINUTES,
-              available: headroom > 0 && !inCooldown(st),
+              fallback_reviewer: st.is_super_admin === true,
+              available: headroom > 0 && !inCooldown(st) && breakEndsAt(db, st.staff_id) === null,
             };
           })
-          .sort((a, b) => b.headroom_minutes - a.headroom_minutes),
+          // The fallback reviewer can be picked but is listed after the standard Auditors.
+          .sort(
+            (a, b) =>
+              Number(db.staff.find((st) => st.staff_id === a.auditor_id)?.is_super_admin === true) -
+                Number(db.staff.find((st) => st.staff_id === b.auditor_id)?.is_super_admin === true) ||
+              b.headroom_minutes - a.headroom_minutes,
+          ),
       };
     });
   },
@@ -1163,7 +1493,8 @@ export const mockDataService: DataService = {
         !target ||
         forcedUnavailable ||
         exposureMinutes(target) >= target.exposure_limit_minutes ||
-        inCooldown(target)
+        inCooldown(target) ||
+        breakEndsAt(db, target.staff_id) !== null
       ) {
         throw new ApiError("This Auditor is no longer available — please choose another.", 409);
       }

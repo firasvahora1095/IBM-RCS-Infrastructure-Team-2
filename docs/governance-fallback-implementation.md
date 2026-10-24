@@ -1,6 +1,6 @@
 # Governance fallback: practical guide
 
-This implementation keeps PostgreSQL in a container locally and in the backend Code Engine container. It does not provision a managed database. The BA contract is [validation-audit-governance-fields.md](ba/validation-audit-governance-fields.md). Changes are on `codex/governance-fallback`; deployment and cloud backup activation require a separate operational step.
+This implementation keeps PostgreSQL in a container locally and in the backend Code Engine container. It does not provision a managed database. The BA contract is [validation-audit-governance-fields.md](ba/validation-audit-governance-fields.md). Current hardening changes are on `feature/governance-fallback`; deployment and cloud backup activation require a separate operational step.
 
 ## Follow one report
 
@@ -19,7 +19,7 @@ flowchart LR
 
 `POST /api/reports` schedules `process_case_analysis`. It creates a persistent run ID, then `analyse_video` extracts frames. Each real frame call passes through `analyse_image` and `GovernanceRecorder`: an independent short DB transaction commits intent before calling IBM. Another commits receipt before parsing or COS writes. If intent cannot be recorded, IBM is not called. Successful provider transport can still have `INVALID` or `STORAGE_FAILED` output. Timeouts/crashes have unknown remote outcomes: a network request and a database commit cannot be one atomic transaction.
 
-The pinned IBM SDK is 1.3.42, with `max_retries=0`. An explicit application retry must create another call ID. This log counts application inference invocations, not IAM token exchange or other IBM services. Speech-to-text and Orchestrate are separate services. Fake analysers in unit tests do not generate paid IBM calls. Direct image/video smoke scripts require a DB and use explicit test context.
+The IBM SDK client is configured with `max_retries=0`; requirements currently allow `ibm-watsonx-ai>=1.3.42`, rather than pinning that version. An explicit application retry must create another call ID. This log counts application inference invocations, not IAM token exchange or other IBM services. Speech-to-text and Orchestrate are separate services. Fake analysers in unit tests do not generate paid IBM calls. Direct image/video smoke scripts require a DB and use explicit test context.
 
 ## Tables and evidence
 
@@ -37,12 +37,26 @@ Versioned migrations run explicitly with `python -m app.migrations` before the A
 
 | Field | Source and meaning |
 | --- | --- |
-| Prompt Leakage | Local `exact-prompt-line-v1` check compares eligible prompt lines with received content. `NOT_CHECKED` if no rule applies; `NOT_DETECTED` means this specific check found no match. A match stores a hash/rule reference, not leaked prompt text. This deliberately simple prototype check is not a security guarantee. |
-| Source Attribution | Real extracted frame ID/timestamp plus persisted normalized-result path and available model metadata. No transcript attribution is claimed by the vision pipeline. Missing provider model revision or token counts stay null. |
+| Prompt Leakage | Local `normalized-instruction-overlap-v2` checks normalized instruction spans, including partial echoes and formatting changes, while excluding the vision prompt's expected JSON example. `NOT_CHECKED` includes explicit skip reasons; `NOT_DETECTED` means no supported text overlap was found, not that disclosure is impossible. Evidence contains hashes and counts, never copied instruction text. |
+| Source Attribution | Extracted frame ID/timestamp plus normalized-result path and model/prompt metadata, checked against the persisted invocation before marking it VALID. This verifies reference consistency, not the truth of visual claims or current availability of a COS object. No transcript attribution is claimed by the vision pipeline. Missing provider model revision or token counts stay null. |
 | Accumulated Score | Run-level maximum effective severity, 0–100, from canonical `severity.calculate_case_severity`; includes deterministic floors (weapon use minimum 65). Never sum frames or average old demo quality metrics. Failed/incomplete runs have no final score. |
 | AI versus Auditor | Effective AI score/tier versus final human score/tier, raw Watson score retained separately. Delta is human minus effective AI. Same-tier score changes count as overrides and require a reason. An explicitly accepted AI score is labelled `ACCEPTED_AI`; legacy records without resolution evidence do not invent a human score. |
 
 Ground-truth validation remains a separate, clearly labelled placeholder until real manually labelled validation data exists. Human disagreements are not model accuracy or verdicts about an Auditor. The combined page uses an allowlisted timeline projection and excludes private wellbeing narratives and raw footage.
+
+## Governance hardening (18 October 2026)
+
+The previous leakage rule required an entire prompt line of at least 40 characters to appear unchanged in the response. It missed partial/cross-line copies, punctuation changes and common Unicode formatting variants, and could flag the requested example JSON itself.
+
+The replacement uses Unicode NFKC normalization, case folding, formatting-control removal and word tokens. It detects contiguous spans of at least eight instruction tokens across prompt line breaks, and retains complete-line coverage for shorter instructions of at least 40 normalized characters. Complete JSON objects/arrays in the vision prompt are treated as output examples; response JSON keys, values and list entries are scanned separately. They are never concatenated to manufacture a match. Markdown-fenced JSON is also supported.
+
+The check binds to the prompt hash recorded before dispatch. Evidence records the rule version, threshold, match length/type, normalized-match hash, output hash and evaluated token counts. Inputs over 64,000 characters, prompts requiring more than 32 JSON parse probes, or insufficient instruction text produce NOT_CHECKED with a reason. Manager rows expose overlap status directly and explain skipped checks instead of implying a clear result.
+
+This remains a deterministic overlap heuristic, not a semantic disclosure classifier. Paraphrases, translations, encoded text, homoglyph substitutions and copies distributed across separate fields can evade it; ordinary descriptions that repeat instruction text can still trigger it. JSON example exclusion is appropriate for this vision prompt, not for arbitrary secret-bearing JSON instructions. Thresholds are prototype choices tested against regression fixtures, not calibrated sensitivity/specificity. DETECTED remains a Manager review signal and does not automatically alter moderation scores or decisions.
+
+Direct SDK receipts now hash the entire provider JSON envelope, including content, so changed output cannot be accepted as an identical replay merely because token counts/request IDs match. HTTP receipt replay also resumes missing checks after an interruption between receipt and validation, preserving original receipt timestamps and rejecting different content. Older records are preserved; they are not silently re-evaluated under the new rule.
+
+Source attribution rejects a wrong frame, timestamp, model/prompt revision or missing output reference before marking a call VALID. It does not independently verify that the referenced object still exists or establish that the generated reasoning is grounded in that frame. No schema migration, new table, paid IBM call or new model dependency is required for these changes.
 
 ## API routes
 
@@ -65,7 +79,7 @@ The live Python pipeline calls the same recorder directly, so it need not send H
 
 | Desired change | Edit here |
 | --- | --- |
-| Leakage rules/version | `backend/app/governance_recorder.py`, `check_leakage`; add detector-specific tests |
+| Leakage rules/version | `backend/app/governance_checks.py`; recorder binds the check to its invocation; add detector-specific regression tests |
 | Severity | Existing `backend/app/severity.py`; keep this as the single canonical formula |
 | Invocation/provider integration | `watsonx_image.py`, `video_analysis.py`, `analysis_service.py` |
 | API validation or call metadata | `governance_api.py`, `governance_recorder.py`, `models.py`, new migration |
@@ -110,10 +124,17 @@ Code Engine storage remains ephemeral. Min/max scale is set to one in the deploy
 
 Official operational references: [IBM Code Engine scaling](https://cloud.ibm.com/docs/codeengine?topic=codeengine-app-scale), [ephemeral storage limits](https://cloud.ibm.com/docs/codeengine?topic=codeengine-limits), [COS data security](https://cloud.ibm.com/docs/cloud-object-storage?topic=cloud-object-storage-security), [COS encryption](https://cloud.ibm.com/docs/cloud-object-storage?topic=cloud-object-storage-faq-encryption).
 
-## Verification evidence
+## Prior baseline verification evidence
 
 No paid IBM calls, cloud writes, push or deployment were performed. An isolated user-space PostgreSQL 14 cluster was used because WSL Docker and a system server were unavailable; the image still targets PostgreSQL 16. Clean migration/replay and realistic legacy upgrade were checked; old demo floats and workflow data were preserved. Automated PostgreSQL acceptance test performs real pg_dump/pg_restore with in-memory fake COS transport, verifies restored records, rejects a populated target and detects checksum corruption.
 
 Local Python 3.10 required an isolated `/tmp` venv with focused runtime dependencies and `av==16.1.0`: the repository's preexisting `av>=18.1.0` was unavailable for this environment, and the unused OpenScale dependency had a packaging issue. Those requirements were not relaxed in the project. IBM SDK is pinned to the inspected 1.3.42. Frontend checks used installed Node 25.8.1 rather than the system's outdated Node. Container/PostgreSQL16 and live COS verification remain deployment checks.
 
-Final test results are recorded below after the closing checks.
+## Hardening verification (18 October 2026)
+
+- Regression tests first reproduced missed reformatted/partial instructions, a JSON-example false positive, changed-content replay acceptance, mismatched source attribution and interrupted checks. Additional replay tests preserve historical rule versions.
+- Full backend suite: 238 passed, 81 subtests passed, one opt-in PostgreSQL backup/restore test skipped because its explicit test-server URL was not supplied. These changes require no schema migration.
+- Full frontend suite: 458 passed, one existing AI Buddy Escape-key test failed. That same failure was reproduced from an unchanged HEAD source snapshot, with 20 other AI Buddy tests passing. The manager suite, including the new governance display test, passed all 39 tests.
+- Production frontend build passed. Lint passed with four warnings in unchanged files. git diff --check passed.
+- The governance regression suite is now included in the pull-request CI job.
+- No paid IBM calls, cloud writes, database migrations, push or deployment were performed. PostgreSQL-specific upgrade/restore acceptance remains a separately configured integration check.

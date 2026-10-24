@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StatusLookupPage } from "./StatusLookupPage";
@@ -77,6 +77,37 @@ describe("StatusLookupPage", () => {
     expect(screen.queryByRole("button", { name: "Submit update" })).not.toBeInTheDocument();
   });
 
+  it("attaches several files as tiles with a size, each removable, and sends them all", async () => {
+    vi.spyOn(services, "getStatus").mockResolvedValueOnce({
+      case_id: "INSZNNJI4P",
+      status: "Being Reviewed",
+      final_outcome: null,
+    });
+    const add = vi.spyOn(services, "addCaseInformation").mockResolvedValueOnce({ added: true });
+    renderPage();
+    lookUp("INSZNNJI4P");
+    fireEvent.click(await screen.findByRole("button", { name: "Add more information to this case" }));
+
+    const input = screen.getByLabelText("Attach files") as HTMLInputElement;
+    const one = new File(["a".repeat(2048)], "notes.pdf", { type: "application/pdf" });
+    const two = new File(["b"], "photo.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [one] } });
+    fireEvent.change(input, { target: { files: [two] } });
+
+    const list = screen.getByRole("list", { name: "Attached files" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByText("PDF file · 2 KB")).toBeInTheDocument();
+    // Once there is a file the button offers another, and it is secondary, not a second primary action.
+    expect(screen.getByRole("button", { name: "Attach another file" }).className).not.toContain("cds--btn--primary");
+
+    fireEvent.click(within(list).getByRole("button", { name: "Remove notes.pdf" }));
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit update" }));
+    expect(await screen.findByText("Your update has been added to this case.")).toBeInTheDocument();
+    expect(add).toHaveBeenCalledWith("INSZNNJI4P", "", [two]);
+  });
+
   it("says honestly when adding information isn't connected yet", async () => {
     vi.spyOn(services, "getStatus").mockResolvedValueOnce({
       case_id: "INSZNNJI4P",
@@ -104,7 +135,7 @@ describe("StatusLookupPage", () => {
     lookUp("INSZNNJI4P");
 
     expect(
-      await screen.findByText("A reviewer is currently assessing your report against our content policy."),
+      await screen.findByText("An Auditor is currently assessing your report against our content policy."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Policy Violation Found")).not.toBeInTheDocument();
     expect(screen.queryByText("No Violation Found")).not.toBeInTheDocument();

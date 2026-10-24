@@ -22,6 +22,7 @@ import type {
   SeverityTier,
   StaffRole,
   TranscriptLine,
+  CaseVisibility,
 } from "../types";
 import { createSeedDb, MOCK_DB_VERSION } from "./seed";
 
@@ -35,6 +36,8 @@ import { createSeedDb, MOCK_DB_VERSION } from "./seed";
 
 export interface MockCase {
   case_id: string;
+  /** The client whose content this is. Missing means CommunityHub, the original customer. */
+  organisation_id?: string;
   status: InternalCaseStatus;
   assigned_auditor: string | null;
   content_type: "Video" | "Link" | "Screenshot";
@@ -67,6 +70,13 @@ export interface MockCase {
    * a flag alongside the status — flagged for the BA.
    */
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** Who may see the case in a queue, apart from who owns it. Missing means ASSIGNED_ONLY. */
+  case_visibility?: CaseVisibility;
+  /**
+   * When the system parked this case in the fallback queue. Only a case with this set is placed
+   * automatically; hand-seeded demo cases leave it empty so they stay put.
+   */
+  fallback_queued_at?: string | null;
   decline: { reason: DeclineReason; other_text: string | null; declined_by: string; declined_at: string } | null;
 }
 
@@ -82,6 +92,8 @@ export interface MockStaff {
   cases_reviewed_today: number;
   /** A private wellbeing pattern marker, visible to the Manager only (Figma 86:150). */
   pattern_flagged: boolean;
+  /** The fallback reviewer (extra-features 1.6): sees every open case's queue metadata, not part of the weighted pool. */
+  is_super_admin?: boolean;
   last_assigned_at: string | null;
   cooldown: CooldownState | null;
 }
@@ -137,12 +149,17 @@ export interface MockOrganisation {
  */
 export interface MockHistoricalCase {
   case_id: string;
+  organisation_id?: string;
   created_at: string;
   completed_at: string;
   ai_tier: SeverityTier;
   final_tier: SeverityTier;
   outcome: FinalOutcome;
   declined_reassigned: boolean;
+  /** CVI scores (0–100) and, when the Auditor changed the tier, their reason. Synthetic, like every demo record. */
+  ai_score?: number;
+  final_score?: number;
+  override_reason?: string | null;
 }
 
 export interface MockDelivery {
@@ -184,7 +201,7 @@ export interface MockDb {
   /** Opt-in email/SMS update requests (UR-ID-05). Nothing is ever sent from mock mode. */
   statusUpdateRequests: { case_id: string; email: string | null; phone: string | null; requested_at: string }[];
   /** Follow-up context added to a case by the reporter (UR-NTH-05). File contents are never stored. */
-  caseAdditions: { case_id: string; details: string; attachment_name: string | null; added_at: string }[];
+  caseAdditions: { case_id: string; details: string; attachment_names: string[]; added_at: string }[];
   /** Staff login lockout, keyed by the staff ID that was typed. */
   loginAttempts: Record<string, { failureTimes: number[]; lockedUntil: number | null }>;
   sosEvents: MockSosEvent[];
@@ -195,6 +212,8 @@ export interface MockDb {
 
   // ---- B2B (docs/ux/b2b-end-to-end-flow-spec.md §6) ----
   organisation: MockOrganisation;
+  /** The other clients (CommunityHub is `organisation`). */
+  extraOrganisations?: MockOrganisation[];
   caseHistory: MockHistoricalCase[];
   deliveries: MockDelivery[];
   reports: ServiceReport[];

@@ -34,10 +34,9 @@ class MockWatsonxOrchestrator:
 
     async def assign_case(self, case_id: str) -> AssignmentDecision:
         del case_id
-        try:
-            candidate = select_auditor(self.db)
-        except NoEligibleAuditorError as error:
-            raise AssignmentOrchestrationError(str(error)) from error
+        # NoEligibleAuditorError is passed up as it is: it is not a failure, it sends the case
+        # to the Super Auditor's fallback queue (app.fallback_queue).
+        candidate = select_auditor(self.db)
         return AssignmentDecision(
             auditor_id=candidate.auditor_id,
             audit_actor="watsonx-orchestrate-mock",

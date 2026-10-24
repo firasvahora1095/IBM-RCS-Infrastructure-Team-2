@@ -25,6 +25,8 @@ describe("AuditorDashboardPage", () => {
     sessionStorage.setItem("rcs_staff_role", "auditor");
     sessionStorage.setItem("rcs_staff_id", "auditor-1");
     vi.restoreAllMocks();
+    // Nothing has been released to claim, so the "Available to claim" section stays out of these tests.
+    vi.spyOn(services, "getAvailableCases").mockResolvedValue({ can_claim: true, reason: null, cases: [] });
   });
 
   it("shows each case's severity tag and the Figma status copy", async () => {
@@ -36,7 +38,8 @@ describe("AuditorDashboardPage", () => {
 
     expect(await screen.findByText("AR-2026-00417")).toBeInTheDocument();
     expect(screen.getByText("S3 · High")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ready for review" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "AR-2026-00417" })).toBeInTheDocument();
+    expect(screen.getByText("Ready for review")).toBeInTheDocument();
     expect(screen.getByText("AI analysis in progress")).toBeInTheDocument();
     expect(services.getAuditorCases).toHaveBeenCalledWith("abc123");
   });
@@ -79,7 +82,7 @@ describe("AuditorDashboardPage", () => {
     vi.spyOn(services, "getAuditorCases").mockResolvedValueOnce([]);
     renderPage();
     expect(
-      await screen.findByText("No cases assigned right now — new cases are assigned automatically as they come in."),
+      await screen.findByText("No cases assigned to you right now. New cases are assigned automatically as they come in."),
     ).toBeInTheDocument();
   });
 
@@ -108,7 +111,7 @@ describe("AuditorDashboardPage", () => {
     ]);
     renderPage();
 
-    expect(await screen.findByText("Cooldown in progress — new assignments paused.")).toBeInTheDocument();
+    expect(await screen.findByText("Cooldown in progress.")).toBeInTheDocument();
     expect(await screen.findByText("Locked during cooldown")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ready for review" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("AR-2026-00417"));
@@ -149,7 +152,7 @@ describe("AuditorDashboardPage", () => {
       await waitFor(() => expect(figure("My open cases")).toHaveTextContent("4"));
       expect(figure("Ready to review")).toHaveTextContent("2");
       expect(figure("Completed today")).toHaveTextContent("1");
-      await waitFor(() => expect(figure("Exposure left today")).toHaveTextContent("75 min"));
+      await waitFor(() => expect(figure("Exposure left")).toHaveTextContent(/75\s?min/));
       expect(within(strip).getByText("Available")).toBeInTheDocument();
     });
 
@@ -161,10 +164,8 @@ describe("AuditorDashboardPage", () => {
       ]);
       renderPage();
       await screen.findByText("AR-1");
-      const tables = screen.getAllByRole("table").map((t) => t.getAttribute("aria-label"));
-      expect(tables).toEqual(["In review", "Ready for review", "Processing"]);
-      expect(within(screen.getByRole("table", { name: "In review" })).getByText("AR-3")).toBeInTheDocument();
-      expect(within(screen.getByRole("table", { name: "Processing" })).getByText("AR-4")).toBeInTheDocument();
+      const rows = within(screen.getByRole("table", { name: "My cases" })).getAllByRole("row").slice(1);
+      expect(rows.map((r) => within(r).getAllByRole("cell")[0].textContent)).toEqual(["AR-3", "AR-1", "AR-4"]);
     });
 
     it("keeps one primary action and one way into the wellbeing check-in", async () => {

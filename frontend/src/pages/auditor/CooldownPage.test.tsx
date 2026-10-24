@@ -43,15 +43,15 @@ describe("CooldownPage (Figma 31:99)", () => {
     expect(await screen.findByRole("heading", { name: "Cooldown in progress" })).toBeInTheDocument();
     expect(screen.getByText(/This cooldown is a built-in protection, not a penalty./)).toBeInTheDocument();
     expect(screen.getByText("3h 42m reviewed today across 6 cases")).toBeInTheDocument();
-    expect(screen.getByText("Your manager will check in before this ends")).toBeInTheDocument();
+    expect(screen.getByText("Your Manager will check in before this ends")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Return to queue \(available in/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop my shift" })).toBeEnabled();
     // The optional check-in is offered inline, with what each option gives.
-    expect(await screen.findByRole("radio", { name: /Talk to my manager/ })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: /Talk to my Manager/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Take a break/ })).toBeInTheDocument();
   });
 
-  it("keeps the queue locked after the timer until the manager has checked in", async () => {
+  it("keeps the queue locked after the timer until the Manager has checked in", async () => {
     vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
       exposure_minutes_today: 90,
       exposure_limit_minutes: 120,
@@ -64,7 +64,7 @@ describe("CooldownPage (Figma 31:99)", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("button", { name: "Return to queue (after your manager's check-in)" }),
+      await screen.findByRole("button", { name: "Return to queue (after your Manager's check-in)" }),
     ).toBeDisabled();
   });
 

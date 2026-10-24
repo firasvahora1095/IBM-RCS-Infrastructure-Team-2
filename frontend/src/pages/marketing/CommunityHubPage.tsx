@@ -1,6 +1,6 @@
 import { useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
-import { InlineNotification, Modal, RadioButton, RadioButtonGroup } from "@carbon/react";
+import { InlineNotification, ListItem, Modal, RadioButton, RadioButtonGroup, UnorderedList } from "@carbon/react";
 import { CommunityHubHeader } from "../../components/communityhub/CommunityHubHeader";
 import {
   ArrowDown,
@@ -184,7 +184,7 @@ export function CommunityHubPage() {
     if (!reporting || !reason) return;
     if (reason === "violent-video") {
       const params = new URLSearchParams({ from: "communityhub", source: postUrl(reporting.id) });
-      navigate(`/?${params.toString()}`);
+      navigate(`/report?${params.toString()}`);
       return;
     }
     setHandledLocally(reporting.title);
@@ -418,7 +418,7 @@ export function CommunityHubPage() {
               Safety on CommunityHub
             </h2>
             <p className="ch-muted">
-              Reports of violent or harmful video are reviewed by RCS, our independent safety partner. Trained reviewers
+              Reports of violent or harmful video are reviewed by RCS, our independent safety partner. Trained Auditors
               make every decision; we decide what action to take.
             </p>
           </section>
@@ -462,7 +462,9 @@ export function CommunityHubPage() {
         {sharing && savingVideo && (
           <div className="flex flex-col gap-4">
             <p className="ch-demo-note">Demo only: nothing is downloaded here.</p>
-            <p style={{ fontSize: 14 }}>On the real CommunityHub, this saves the video to your device. To report it to RCS yourself:</p>
+            <p style={{ fontSize: 14 }}>
+              On the real CommunityHub, this saves the video to your device. To report it to RCS yourself:
+            </p>
             <ol className="ch-steps">
               <li>Download the video. It's saved to your Downloads folder (or Photos on a phone).</li>
               <li>Open the RCS report form.</li>
@@ -470,8 +472,8 @@ export function CommunityHubPage() {
               <li>Submit. You'll get a case ID to check its progress; you can stay anonymous.</li>
             </ol>
             <p className="ch-muted">
-              Easier: use <strong>Report</strong> on the post and choose &ldquo;Violent or harmful video&rdquo;. It opens
-              the RCS form with this post&apos;s link already attached.
+              Easier: use <strong>Report</strong> on the post and choose &ldquo;Violent or harmful video&rdquo;. It
+              opens the RCS form with this post&apos;s link already attached.
             </p>
             <div className="flex flex-wrap gap-2">
               <button type="button" className="ch-button ch-button--outline" onClick={() => setSavingVideo(false)}>
@@ -482,7 +484,7 @@ export function CommunityHubPage() {
                 className="ch-button ch-button--primary"
                 onClick={() => {
                   const params = new URLSearchParams({ from: "communityhub", source: postUrl(sharing.id) });
-                  navigate(`/?${params.toString()}`);
+                  navigate(`/report?${params.toString()}`);
                 }}
               >
                 Open the RCS report form
@@ -504,6 +506,7 @@ export function CommunityHubPage() {
       >
         <div className="flex flex-col gap-5">
           <RadioButtonGroup
+            className="rcs-radio-spaced"
             legendText="Why are you reporting it?"
             name="report-reason"
             orientation="vertical"
@@ -515,13 +518,20 @@ export function CommunityHubPage() {
             ))}
           </RadioButtonGroup>
           {reason === "violent-video" && (
-            <div className="flex flex-col gap-2" style={{ padding: "1rem", backgroundColor: "var(--cds-layer-01)" }}>
+            <div
+              className="flex flex-col gap-3"
+              style={{
+                padding: "1rem",
+                backgroundColor: "var(--cds-layer-01)",
+                borderLeft: "4px solid var(--cds-border-interactive)",
+              }}
+            >
               <p style={{ fontSize: 14, fontWeight: 600 }}>Reviewed by RCS, our independent safety partner</p>
-              <ul className="rcs-site-list">
-                <li>You don&apos;t need an account, and you can stay anonymous.</li>
-                <li>We&apos;ll attach this post&apos;s link for you.</li>
-                <li>You&apos;ll get a case ID to check progress.</li>
-              </ul>
+              <UnorderedList>
+                <ListItem>You don&apos;t need an account, and you can stay anonymous.</ListItem>
+                <ListItem>We&apos;ll attach this post&apos;s link for you.</ListItem>
+                <ListItem>You&apos;ll get a case ID to check progress.</ListItem>
+              </UnorderedList>
             </div>
           )}
         </div>

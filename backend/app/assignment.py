@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.breaks import breaks_in_progress
 from app.models import AuditLog, Auditor, Case
 
 
@@ -115,7 +116,8 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
 
     auditors = db.scalars(
         select(Auditor)
-        .where(Auditor.role == "auditor")
+        # The Super Auditor is the fallback reviewer, not part of the weighted pool.
+        .where(Auditor.role == "auditor", Auditor.is_super_admin.is_(False))
         .order_by(Auditor.auditor_id)
     ).all()
 
@@ -131,8 +133,12 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
     )
     latest_assignments = _latest_assignment_events(db)
 
+    on_break = breaks_in_progress(db, now)
     candidates = []
     for auditor in auditors:
+        # An approved break: no new cases until it ends (the case they hold stays with them)
+        if auditor.auditor_id in on_break:
+            continue
         # Reset daily exposure if workday boundary has passed
         maybe_reset_daily_exposure(db, auditor)
         # Exclude auditors in active cooldown
@@ -142,6 +148,13 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
             if ends_at.tzinfo is None:
                 ends_at = ends_at.replace(tzinfo=timezone.utc)
         if ends_at is not None and ends_at > now:
+            continue
+        # An S4 or SOS cooldown holds the Auditor after its timer ends, until the Manager's check-in is logged.
+        if (
+            ends_at is not None
+            and auditor.cooldown_trigger in ("S4", "SOS")
+            and not auditor.cooldown_check_in_done
+        ):
             continue
         # Exclude auditors at or over their daily exposure limit
         if auditor.exposure_minutes >= (auditor.exposure_limit_minutes or DAILY_EXPOSURE_REFERENCE_MINUTES):
@@ -172,12 +185,12 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
     return candidates
 
 
-def select_auditor(db: Session) -> AuditorCandidate:
-    """Select the lowest-score Auditor, then the least recently assigned."""
-    candidates = list_assignment_candidates(db)
-    if not candidates:
-        raise NoEligibleAuditorError("No eligible Auditors are available")
+def pick_best(candidates: list[AuditorCandidate]) -> AuditorCandidate:
+    """The approved ordering: lowest weighted score, then whoever waited longest.
 
+    Shared by normal assignment and by the automatic release of fallback cases, so
+    a case released later is placed by exactly the same rule it would have been.
+    """
     return min(
         candidates,
         key=lambda candidate: (
@@ -187,3 +200,12 @@ def select_auditor(db: Session) -> AuditorCandidate:
             candidate.auditor_id,
         ),
     )
+
+
+def select_auditor(db: Session) -> AuditorCandidate:
+    """Select the lowest-score Auditor, then the least recently assigned."""
+    candidates = list_assignment_candidates(db)
+    if not candidates:
+        raise NoEligibleAuditorError("No eligible Auditors are available")
+
+    return pick_best(candidates)

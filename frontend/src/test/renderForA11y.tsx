@@ -23,8 +23,9 @@ export async function runAxeOnPage(page: ReactElement, path = "/", routePattern 
 }
 
 /** Logs in a staff role for tests of protected pages. */
-export function seedStaffSession(role: "auditor" | "manager") {
+export function seedStaffSession(role: "auditor" | "manager", superAdmin = false) {
   sessionStorage.setItem("rcs_staff_token", "test-token");
   sessionStorage.setItem("rcs_staff_role", role);
   sessionStorage.setItem("rcs_staff_id", `${role}-1`);
+  if (superAdmin) sessionStorage.setItem("rcs_staff_super_admin", "1");
 }

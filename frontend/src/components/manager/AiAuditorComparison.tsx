@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
-  Button,
   Dropdown,
   Layer,
   Search,
@@ -15,17 +14,17 @@ import {
 import type { ComparisonRow, GovernanceSummary, SeverityTier } from "../../services/types";
 import { SeverityTag } from "../severity/SeverityTag";
 import { StatusTag } from "../ui/StatusTag";
+import { TablePagination, usePagination } from "../ui/TablePagination";
 import { Figure } from "./ManagerBits";
 import { mono, secondaryText } from "./managerStyles";
 import { formatShortDateTime } from "../../utils/formatPeriod";
 
 const TIERS: SeverityTier[] = ["S1", "S2", "S3", "S4"];
 const ALL = "All";
-const RESULT_FILTERS = [ALL, "AI Override", "AI Match"] as const;
-const SHOWN_AT_FIRST = 8;
+const RESULT_FILTERS = [ALL, "AI override", "AI match"] as const;
 
 /** The labels the BA standard uses (extra-features §11.1). "AI wrong" and "Auditor wrong" are never used. */
-const RESULT_LABEL = { override: "AI Override", match: "AI Match" } as const;
+const RESULT_LABEL = { override: "AI override", match: "AI match" } as const;
 
 const delta = (n: number | null) => (n === null ? "—" : n > 0 ? `+${n}` : String(n));
 
@@ -40,7 +39,6 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
   const [result, setResult] = useState<(typeof RESULT_FILTERS)[number]>(ALL);
   const [aiTier, setAiTier] = useState<string>(ALL);
   const [finalTier, setFinalTier] = useState<string>(ALL);
-  const [showAll, setShowAll] = useState(false);
 
   const overrides = data.override_patterns.reduce((sum, p) => sum + p.count, 0);
   const rate = data.compared_cases ? Math.round((overrides / data.compared_cases) * 1000) / 10 : 0;
@@ -51,28 +49,27 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
       data.comparisons.filter((r) => {
         const q = query.trim().toLowerCase();
         if (q && !r.case_id.toLowerCase().includes(q)) return false;
-        if (result === "AI Override" && !r.override) return false;
-        if (result === "AI Match" && r.override) return false;
+        if (result === "AI override" && !r.override) return false;
+        if (result === "AI match" && r.override) return false;
         if (aiTier !== ALL && r.ai_tier !== aiTier) return false;
         if (finalTier !== ALL && r.final_tier !== finalTier) return false;
         return true;
       }),
     [data.comparisons, query, result, aiTier, finalTier],
   );
-  const visible = showAll ? rows : rows.slice(0, SHOWN_AT_FIRST);
+  const paged = usePagination(rows, `${query}|${result}|${aiTier}|${finalTier}`);
 
   return (
     <>
-      <p className="rcs-helper">
-        A score change within the same tier also counts as an override. Unavailable legacy values stay blank; accepting
-        an AI score is not an independent human measurement.
-      </p>
       <dl className="rcs-figure-row">
         <Figure label="Cases compared" value={data.compared_cases} />
-        <Figure label="AI Override" value={overrides} />
+        <Figure label="Changed by the Auditor" value={overrides} />
         <Figure label="Override rate" value={`${rate}%`} />
         <Figure label="Most common change" value={top ? `${top.from} → ${top.to}` : "None yet"} />
       </dl>
+      <p className="rcs-helper">
+        A score change within the same tier also counts as an override. Older cases without a score stay blank.
+      </p>
 
       <div className="flex flex-wrap items-end gap-4">
         <div style={{ inlineSize: "100%", maxInlineSize: 240 }}>
@@ -125,13 +122,10 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
                 <TableHeader>Reason</TableHeader>
                 <TableHeader>Decided</TableHeader>
                 <TableHeader>Provenance</TableHeader>
-                <TableHeader>
-                  <span className="cds--visually-hidden">Audit trail</span>
-                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
-              {visible.map((r) => (
+              {paged.rows.map((r) => (
                 <ComparisonTableRow key={r.case_id} row={r} />
               ))}
             </TableBody>
@@ -139,13 +133,7 @@ export function AiAuditorComparison({ data }: { data: GovernanceSummary }) {
         </Layer>
       )}
 
-      {rows.length > SHOWN_AT_FIRST && (
-        <div>
-          <Button kind="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Show fewer" : `Show all ${rows.length} cases`}
-          </Button>
-        </div>
-      )}
+      <TablePagination paged={paged} />
       {data.compared_cases > data.comparisons.length && (
         <p className="rcs-helper">
           Showing the {data.comparisons.length} most recent of {data.compared_cases} compared cases.
@@ -185,46 +173,55 @@ function FilterDropdown({
 }
 
 function ComparisonTableRow({ row }: { row: ComparisonRow }) {
+  const navigate = useNavigate();
   return (
-    <TableRow>
-      <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+    <TableRow
+      onClick={() => navigate(`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`)}
+      style={{ cursor: "pointer" }}
+    >
+      {/* The case ID is the row's link to its audit trail; the whole row opens it too. */}
+      <TableCell style={{ whiteSpace: "nowrap" }}>
+        <RouterLink
+          className="cds--link"
+          style={{ ...mono, fontSize: 12 }}
+          to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
+          aria-label={`View audit trail for ${row.case_id}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {row.case_id}
+        </RouterLink>
+      </TableCell>
       <TableCell>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="rcs-tier-score">
           <SeverityTag tier={row.ai_tier} size="sm" />
           {row.ai_score !== null && <span className="rcs-helper rcs-mono">{row.ai_score}</span>}
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="rcs-tier-score">
           <SeverityTag tier={row.final_tier} size="sm" />
           {row.auditor_score !== null && <span className="rcs-helper rcs-mono">{row.auditor_score}</span>}
         </div>
       </TableCell>
       <TableCell>
-        {/* Text in both states, so the result never rests on colour. A difference isn't an error, so it isn't red. */}
-        <StatusTag tone={row.override ? "info" : "neutral"} size="sm">
+        {/* Text in both states, so the result never rests on colour. A difference is worth a look but isn't an error, so it is yellow, not red. */}
+        <StatusTag tone={row.override ? "warning" : "neutral"} size="sm">
           {row.override ? RESULT_LABEL.override : RESULT_LABEL.match}
         </StatusTag>
       </TableCell>
       <TableCell style={mono}>{delta(row.score_delta)}</TableCell>
-      <TableCell style={{ maxInlineSize: 280 }}>
+      <TableCell>
         {row.override_reason ? (
-          <span style={{ fontSize: 14, lineHeight: "20px" }}>{row.override_reason}</span>
+          // One line, cut with an ellipsis; the full reason is on hover and in the case's audit trail.
+          <span className="rcs-cell-clip" title={row.override_reason}>
+            {row.override_reason}
+          </span>
         ) : (
           <span style={{ color: "var(--cds-text-secondary)" }}>—</span>
         )}
       </TableCell>
       <TableCell style={{ whiteSpace: "nowrap", fontSize: 14 }}>{formatShortDateTime(row.decided_at)}</TableCell>
-      <TableCell>{row.provenance === "live" ? "Recorded live run" : "Legacy / demo — unverified"}</TableCell>
-      <TableCell>
-        <RouterLink
-          className="cds--link"
-          to={`/manager/audit-logs?case=${encodeURIComponent(row.case_id)}`}
-          aria-label={`View audit trail for ${row.case_id}`}
-        >
-          Audit trail
-        </RouterLink>
-      </TableCell>
+      <TableCell style={{ whiteSpace: "nowrap" }}>{row.provenance === "live" ? "Live" : "Demo, unverified"}</TableCell>
     </TableRow>
   );
 }

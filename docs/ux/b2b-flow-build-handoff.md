@@ -67,7 +67,7 @@ Changed during the build to stay consistent with the existing, Figma-reconciled 
 
 | Spec said | Built | Why |
 |---|---|---|
-| Status tags with icons; coloured tile top rules; grey-filled cards; uppercase eyebrows | Figma foundation tag fills for every status (Success green, Warning yellow, Error red, Info blue, neutral gray; one scheme in `design-tokens/statusTones.ts`), white panels with a 1px border, the SOS Inbox's 3px red accent, sentence-case labels | Matches the Figma Tag sheet, `SeverityTag`, `Panel`, `Figure` and the SOS Inbox. Success tags use dark text: white on the success green is 3.3:1 and fails WCAG AA. |
+| Status tags with icons; coloured tile top rules; grey-filled cards; uppercase eyebrows | Figma foundation tag fills for every status (Success green, Warning yellow, Error red, Info blue, neutral gray; one scheme in `design-tokens/statusTones.ts`), white panels with a 1px border, the SOS Inbox's 3px red accent, sentence-case labels | Matches the Figma Tag sheet, `SeverityTag`, `Panel`, `Figure` and the SOS Inbox. Success tags use white text on Carbon's Green 60 (about 5:1). The success token itself (Green 50) is only 3.3:1 with white and fails WCAG AA, so it is not used under text. |
 | Toggletip "How is this calculated?" icons on report figures | Plain one-sentence definition under each section | Same information, no floating icons, prints cleanly. |
 | Dark split-screen client sign-in | Same card as the staff login | One product, two separate sessions. |
 | Three-step stepper on the report form | Existing single form + context line + optional post-link field | Keeps the tested, reconciled form; the stepper added length without new information. |

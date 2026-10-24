@@ -8,22 +8,26 @@ import type {
 } from "../services/types";
 import { mapStatusToStaffLabel } from "./statusLabels";
 
-/** MR-OV-05 exposure states, as the Manager Figma dashboard labels them (78:69). */
+/**
+ * MR-OV-05 exposure states. The Figma dashboard (78:69) says Under, Approaching,
+ * At limit; the BA's standard (docs/ba/extra-features.md §11.1) names the state
+ * outright, so the word "limit" is never left to the column heading.
+ */
 export const EXPOSURE_STATE_LABEL: Record<ExposureState, string> = {
-  UNDER: "Under",
-  APPROACHING: "Approaching",
-  AT_LIMIT: "At limit",
+  UNDER: "Within limit",
+  APPROACHING: "Near limit",
+  AT_LIMIT: "Limit reached",
 };
 
-/** SOS Inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
+/** SOS inbox status column (Figma 103:151). Unacknowledged rows show an Acknowledge button instead. */
 export const SOS_STATUS_LABEL: Record<SosAlertStatus, string> = {
   UNACKNOWLEDGED: "Unacknowledged",
-  IN_PROGRESS: "Acknowledged — in progress",
+  IN_PROGRESS: "In progress",
   RESOLVED: "Resolved",
 };
 
 /**
- * What raised an SOS alert, on SOS Alert Detail. Figma 103:197 only designs the
+ * What raised an SOS alert, on SOS alert Detail. Figma 103:197 only designs the
  * Auditor's own SOS; AR-AI-11 failures use the same alert (Auditor Figma 25:212
  * annotation), so the Manager is told which one it was.
  */
@@ -34,20 +38,41 @@ export const SOS_TRIGGER_LABEL: Record<SosTrigger, string> = {
 
 /** Structured follow-up outcomes, in Figma order (103:228). None is pre-selected. */
 export const SOS_FOLLOW_UP_OPTIONS: readonly { value: SosFollowUpOutcome; label: string }[] = [
-  { value: "NO_FURTHER_ACTION", label: "Followed up — no further action" },
-  { value: "REASSIGNED_REMAINING_CASES", label: "Followed up — reassigned remaining cases" },
-  { value: "AUDITOR_STOPPED_SHIFT", label: "Followed up — Auditor stopped shift" },
+  { value: "NO_FURTHER_ACTION", label: "Auditor is fine to continue" },
+  { value: "REASSIGNED_REMAINING_CASES", label: "Remaining cases moved to other Auditors" },
+  { value: "AUDITOR_STOPPED_SHIFT", label: "Auditor stopped for the day" },
 ];
 
 /**
- * Staff-facing status in Manager lists. RT-02's staff labels, plus "Manager
- * Review" for a declined or SOS case awaiting a Manager decision: RT-02 has
- * no internal state for that yet (flagged for the BA), so it is derived from
- * the case's flag rather than invented as a new status value.
+ * Case status on the Manager screens, in the BA's UI wording standard
+ * (docs/ba/extra-features.md §11.1): Processing, Ready for Review, In Review,
+ * Complete, Needs reassignment, Blocked.
+ *
+ * Why this and not RT-02's staff column: RT-02 fixes the internal-to-PUBLIC
+ * mapping, which is unchanged, and says staff screens "may use human-readable
+ * versions of internal states". §11.1 is later (Sprint 3), written for exactly
+ * this audience, and names the two states a Manager acts on. So the Manager
+ * screens use §11.1; the Auditor screens and the public status keep RT-02.
+ *
+ * Needs reassignment and Blocked are derived from the case's flag, not new
+ * status values: a declined case or one stopped at the exposure cap needs a new
+ * Auditor; a case with an open SOS is blocked until the Manager has followed up.
  */
 export function managerStatusLabel(status: InternalCaseStatus, managerFlag: "DECLINED" | "SOS" | "CAP_REACHED" | null): string {
-  if (managerFlag && status !== "COMPLETE") return "Manager Review";
-  return mapStatusToStaffLabel(status);
+  if (status === "COMPLETE") return "Complete";
+  if (managerFlag === "SOS") return "Blocked";
+  if (managerFlag) return "Needs reassignment";
+  switch (status) {
+    case "SUBMITTED":
+    case "AI_PROCESSING":
+      return "Processing";
+    case "READY_FOR_REVIEW":
+      return "Ready for review";
+    case "AUDITOR_REVIEW":
+      return "In review";
+    default:
+      return mapStatusToStaffLabel(status);
+  }
 }
 
 /** Cooldown column text on the Oversight Dashboard (MR-OV-03). */

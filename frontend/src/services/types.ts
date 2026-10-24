@@ -73,6 +73,44 @@ export interface PublicStatusResponse {
 export interface StaffLoginResponse {
   token: string;
   role: StaffRole;
+  /** The fallback reviewer (Sprint 3). Still an Auditor; the server re-checks this on every call. */
+  is_super_admin?: boolean;
+  /** A readable name, where the data source has one. The header falls back to the login ID without it. */
+  display_name?: string;
+}
+
+/** Who may see a case in a queue, kept apart from who owns it. */
+export type CaseVisibility = "ASSIGNED_ONLY" | "SUPER_ADMIN_ONLY" | "AVAILABLE_TO_AUDITORS";
+
+/** One open case in the Super Auditor's fallback queue: queue metadata only. */
+export interface FallbackCaseRow {
+  case_id: string;
+  status: InternalCaseStatus;
+  severity_tier: SeverityTier | null;
+  final_severity_tier: SeverityTier | null;
+  assigned_auditor_id: string | null;
+  case_visibility: CaseVisibility;
+  manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** When the case arrived, so the queue can show how long it has waited. */
+  created_at?: string | null;
+  /** When the system will place this case by itself, so the Super Auditor need not act. Null if it never will. */
+  auto_release_at: string | null;
+}
+
+/** A case released to standard Auditors to claim. No thumbnail, reporter detail or notes. */
+export interface AvailableCase {
+  case_id: string;
+  severity_tier: SeverityTier | null;
+  status: InternalCaseStatus;
+  /** AI analysis has finished, so it can be opened once claimed. */
+  ready: boolean;
+}
+
+export interface AvailableCases {
+  /** False while the caller is in cooldown, at their limit or has an open SOS. */
+  can_claim: boolean;
+  reason: string | null;
+  cases: AvailableCase[];
 }
 
 /** One row from GET /api/auditor/cases — note `status` here IS the internal value. */
@@ -80,6 +118,7 @@ export interface AuditorCaseListItem {
   case_id: string;
   status: InternalCaseStatus;
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   // Optional — UI needs (Figma 10:6 "Assigned" column):
   assigned_at?: string | null; // ISO 8601
 }
@@ -118,6 +157,7 @@ export interface AuditorCaseDetail {
   watson_severity_score: number | null; // raw model score — audit trail only, never shown as "the" score
   effective_severity_score: number | null; // post-floor score — THIS is what the Auditor sees
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   narrative_summary: string | null;
   incident_timeline: IncidentTimelineEntry[] | null;
   // Optional — UI needs (Figma 18:26, 20:35):
@@ -165,6 +205,8 @@ export interface AuditorWellbeing {
   cases_reviewed_today?: number;
   /** Optional — the Auditor's own support requests today, newest first, so a request survives a reload and can be withdrawn. */
   requests?: WellbeingRequestRecord[];
+  /** When an approved break ends, while one is running (it lasts BREAK_MINUTES and ends by itself). Otherwise null. */
+  break_ends_at?: string | null;
 }
 
 export interface CooldownState {
@@ -214,7 +256,7 @@ export interface AuditorOverviewRow {
   /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
   open_sos?: boolean;
   /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
-  open_requests?: { break_requests: number; talk_requests: number };
+  open_requests?: { break_requests: number; talk_requests: number; on_break?: boolean; break_ends_at?: string | null };
 }
 
 /** Unresolved SOS alerts, for the persistent banner and header badge (MR-SOS-03). */
@@ -247,6 +289,7 @@ export interface AuditorDetail extends AuditorOverviewRow {
   recent_cases: {
     case_id: string;
     severity_tier: SeverityTier | null;
+    final_severity_tier?: SeverityTier | null;
     completed_at: string;
     final_outcome?: CaseOutcome | null;
   }[];
@@ -258,12 +301,25 @@ export interface AuditorDetail extends AuditorOverviewRow {
 }
 
 /** One row of Consolidated Case Oversight (Figma 86:198, MR-OV-06, MR-CR-06). */
+/** A client of RCS: a platform whose content RCS reviews and whose results RCS delivers. */
+export interface ClientOrganisation {
+  organisation_id: string;
+  name: string;
+  description: string;
+}
+
 export interface ManagerCaseRow {
   case_id: string;
+  /** Which client the case belongs to. */
+  organisation_id?: string;
+  organisation_name?: string;
   auditor_name: string | null;
   severity_tier: SeverityTier | null;
+  final_severity_tier?: SeverityTier | null;
   status: InternalCaseStatus;
   manager_flag: "DECLINED" | "SOS" | "CAP_REACHED" | null;
+  /** Who may see the case in a queue. A case with no Auditor can be released to Auditors from here. */
+  case_visibility?: CaseVisibility;
   /** The SOS alert behind a SOS-flagged row, so it can link to the alert. */
   sos_alert_id: string | null;
 }
@@ -306,6 +362,8 @@ export type SosFollowUpOutcome = "NO_FURTHER_ACTION" | "REASSIGNED_REMAINING_CAS
 /** One declined case awaiting a Manager decision (Figma 119:289, MR-CR-02/04). No per-Auditor counts, by design. */
 export interface DeclinedCaseRow {
   case_id: string;
+  organisation_id?: string;
+  organisation_name?: string;
   auditor_name: string;
   severity_tier: SeverityTier | null;
   reason: DeclineReason;
@@ -337,6 +395,8 @@ export interface ReassignmentContext {
     headroom_minutes: number;
     /** Under 30 minutes of headroom. */
     limited_headroom: boolean;
+    /** The Super Auditor: picked only when no one else can take the case. */
+    fallback_reviewer?: boolean;
     /** False when at their limit or in a cooldown; such Auditors can't be chosen. */
     available: boolean;
   }[];
@@ -458,6 +518,26 @@ export interface CaseResult {
   platform_action: PlatformAction | null;
 }
 
+/**
+ * The client's key figures, worked out by the data source so every screen shows the same numbers. Only results
+ * that have reached CommunityHub count. A rate is null when there is nothing to divide by.
+ */
+export interface CaseResultsSummary {
+  delivered: number;
+  needs_action: number;
+  needs_action_by_outcome: Record<DeliveredOutcome, number>;
+  violations: number;
+  /** Delivered results RCS reached a decision on (not "Not reviewed"). */
+  decided: number;
+  not_reviewed: number;
+  actioned: number;
+  removed: number;
+  kept: number;
+  violation_rate: number | null;
+  removal_rate: number | null;
+  actioned_rate: number | null;
+}
+
 /** What a CommunityHub account may see (least privilege). */
 export type ClientRole = "REPORTS" | "TRUST_SAFETY" | "ADMIN";
 
@@ -537,7 +617,13 @@ export type Provenance = "DEMO" | "LIVE";
 export type OpenBucket = "SUBMITTED" | "AI_PROCESSING" | "READY_FOR_REVIEW" | "AUDITOR_REVIEW" | "MANAGER_ACTION";
 
 /** Items that need the Manager to act. A support request is a break to approve or a request to talk. */
-export type AttentionKind = "SOS" | "SUPPORT_REQUEST" | "REASSIGNMENT" | "CAP_INTERRUPTED" | "FAILED_HANDOFF";
+export type AttentionKind =
+  | "SOS"
+  | "SUPPORT_REQUEST"
+  | "CHECK_IN"
+  | "REASSIGNMENT"
+  | "CAP_INTERRUPTED"
+  | "FAILED_HANDOFF";
 
 export type EvidenceKey =
   | "total_cases"
@@ -577,6 +663,8 @@ export interface FailedDeliveryRow {
   attempts: number;
   reason: string | null;
   last_attempt_at: string | null;
+  /** Set when the failure is with the integration owner but has gone unanswered for too long. */
+  escalation_overdue?: boolean;
 }
 
 export interface ManagerIntelligence {
@@ -654,10 +742,21 @@ export interface ReportAccessEntry {
   at: string;
 }
 
-/**
- * One logged watsonx.ai call in the simplified governance log (Naresh's
- * fallback: our own call log and evaluation instead of watsonx.governance).
- */
+/** Versioned local-check evidence contains hashes/counts, never copied instruction text. */
+export interface GovernanceLeakageEvidence {
+  rule: string;
+  matched_text_hash?: string;
+  matched_token_count?: number;
+  match_type?: "TOKEN_SPAN" | "COMPLETE_INSTRUCTION_LINE";
+  minimum_token_count?: number;
+  minimum_line_characters?: number;
+  prompt_token_count?: number;
+  output_token_count?: number;
+  output_text_hash?: string;
+  reason?: string;
+}
+
+/** One invocation in the local governance log; legacy demo rows retain their own schema. */
 export interface GovernanceLogRow {
   entry_id: string;
   case_id: string;
@@ -675,7 +774,7 @@ export interface GovernanceLogRow {
   received_at?: string | null;
   checked_at?: string | null;
   leakage_rule_version?: string | null;
-  prompt_leakage_evidence?: { rule: string; matched_text_hash: string } | null;
+  prompt_leakage_evidence?: GovernanceLeakageEvidence | null;
   error_type?: string | null;
   frame_num?: string | null;
   source_timestamp?: number | null;
@@ -703,6 +802,8 @@ export interface GovernanceSource {
 }
 export interface GovernanceQuery {
   case_id?: string;
+  /** Only this client's cases (the Manager's client selector). */
+  organisation_id?: string;
   context?: "live" | "test" | "demo";
   leakage?: string;
   from_at?: string;
@@ -825,6 +926,41 @@ export interface ClientMessageInput {
  * synthetic demo data) and `api` (the real backend, connected by Firas)
  * implement this interface, so pages never know which one they're using.
  */
+// ---- AI Buddy ----
+
+/** One earlier message, sent back so a follow-up question makes sense. */
+export interface BuddyTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+/** The compact case summary the Buddy may show. Manager-only fields are absent for an Auditor. */
+export interface BuddyCaseSummary {
+  case_id: string;
+  status: string;
+  ai_severity: string | null;
+  final_auditor_severity: string | null;
+  final_outcome: string | null;
+  assigned_auditor?: string | null;
+  delivery_status?: string | null;
+}
+
+/** A place to go next. Chosen by fixed rules on the server, never written by the model. */
+export interface BuddyLink {
+  label: string;
+  to: string;
+}
+
+export interface BuddyReply {
+  reply: string;
+  /** ISO time the live figures were read; null when the answer used none. */
+  live_as_of: string | null;
+  case: BuddyCaseSummary | null;
+  links: BuddyLink[];
+  /** True when the Buddy had no verified information and used the fixed fallback wording. */
+  fallback: boolean;
+}
+
 export interface DataService {
   /** `source` is optional context (B2B spec S2); it never blocks submission or handoff. */
   createReport(videoFile: File, source?: ReportSource): Promise<CreateReportResponse>;
@@ -833,10 +969,22 @@ export interface DataService {
   /** Screen 1c: report with a screenshot image (UR-NTH-02). */
   createScreenshotReport(image: File, source?: ReportSource): Promise<CreateReportResponse>;
   /** Figma 80:31: add context (and optionally a file) to an existing case (UR-NTH-05). */
-  addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }>;
+  addCaseInformation(caseId: string, details: string, attachments?: File[]): Promise<{ added: true }>;
   getStatus(caseId: string): Promise<PublicStatusResponse>;
   requestStatusUpdates(caseId: string, contact: StatusUpdateContact): Promise<{ enabled: true }>;
   staffLogin(staffId: string, password: string): Promise<StaffLoginResponse>;
+  /** Super Auditor: every open case, queue metadata only (extra-features 1.6). */
+  getAllOpenCases(token: string): Promise<FallbackCaseRow[]>;
+  /** Cases released to standard Auditors to claim, and whether the caller can claim now. */
+  getAvailableCases(token: string): Promise<AvailableCases>;
+  /** Super Auditor takes a case no one owns. A wellbeing block applies to them too. */
+  takeCase(caseId: string, token: string): Promise<{ taken: true }>;
+  /** A standard Auditor claims a released case, if eligible right now. */
+  claimCase(caseId: string, token: string): Promise<{ claimed: true }>;
+  /** Super Auditor or Manager releases an unowned case to eligible Auditors. */
+  makeCaseAvailable(caseId: string, token: string): Promise<{ available: true }>;
+  /** Read-only guidance for staff. Never changes anything. */
+  aiChat(message: string, token: string, history?: BuddyTurn[]): Promise<BuddyReply>;
   getAuditorCases(token: string): Promise<AuditorCaseListItem[]>;
   getAuditorCaseDetail(caseId: string, token: string): Promise<AuditorCaseDetail>;
   resolveCase(
@@ -900,6 +1048,11 @@ export interface DataService {
     notes: string,
     outcome: SosFollowUpOutcome,
   ): Promise<{ resolved: true }>;
+  /**
+   * AR-WB-12: the Manager's check-in after an Auditor finishes an S4 case. The Auditor stays in cooldown, even
+   * after the timer ends, until it is logged. An SOS is checked in through its follow-up instead.
+   */
+  logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }>;
   listDeclinedCases(token: string): Promise<DeclinedCaseRow[]>;
   getManagerCaseReview(caseId: string, token: string): Promise<ManagerCaseReview>;
   getReassignmentContext(caseId: string, token: string): Promise<ReassignmentContext>;
@@ -950,6 +1103,7 @@ export interface DataService {
 
   // Per-case results (Trust & Safety and Admin client roles only)
   clientListCaseResults(token: string): Promise<CaseResult[]>;
+  clientCaseResultsSummary(token: string): Promise<CaseResultsSummary>;
   /** CommunityHub's moderator acted on a delivered result. A second action replaces the first. */
   clientRecordPlatformAction(
     deliveryId: string,
@@ -959,6 +1113,8 @@ export interface DataService {
   ): Promise<CaseResult>;
   /** Who at the customer can see what (Manager view). */
   listClientAccounts(organisationId: string, token: string): Promise<ClientAccount[]>;
+  /** Every client RCS serves, for the Manager's client selector. */
+  listClients(token: string): Promise<ClientOrganisation[]>;
 
   // "Contact RCS": the client asks, a Manager answers (own organisation only).
   clientSendMessage(token: string, input: ClientMessageInput): Promise<ClientMessage>;

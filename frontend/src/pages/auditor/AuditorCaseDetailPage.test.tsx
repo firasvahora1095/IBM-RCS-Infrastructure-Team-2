@@ -64,7 +64,7 @@ async function openWorkspace() {
 
 async function goToSeverityStep() {
   await openWorkspace();
-  fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+  fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
   await screen.findByRole("heading", { name: "Severity & comment" });
 }
 
@@ -89,7 +89,7 @@ describe("AuditorCaseDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("Graphic violence")).toBeInTheDocument();
-    expect(screen.getByText("weapon_present")).toBeInTheDocument();
+    expect(screen.getByText("weapon present")).toBeInTheDocument();
     expect(screen.queryByText(/physical altercation between two individuals/)).not.toBeInTheDocument();
 
     const proceed = screen.getByRole("button", { name: "Proceed" });
@@ -112,6 +112,37 @@ describe("AuditorCaseDetailPage", () => {
     expect(screen.getAllByText("S3 · High").length).toBeGreaterThan(0);
     expect(screen.getByText("00:42–01:15")).toBeInTheDocument();
     expect(services.getAuditorCaseDetail).toHaveBeenCalledWith("AR-2026-00417", "abc123");
+  });
+
+  it("pins every flagged marker on the timeline in place, so none drifts past the video column", async () => {
+    // Carbon's popover rule sets position: relative. Left to the stylesheet, each marker joined the flow and every later
+    // marker sat another marker-width to the right, so on a long timeline the last ones ran off the end of the player.
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce({
+      ...MOCK_CASE,
+      video_duration_seconds: 135,
+      incident_timeline: [
+        { start: 10, end: 10, severity_tier: "S2", tag: "weapon_use" },
+        { start: 28, end: 40, severity_tier: "S3", tag: "physical_violence" },
+        { start: 52, end: 52, severity_tier: "S3", tag: "weapon_use" },
+        { start: 78, end: 96, severity_tier: "S3", tag: "group_confrontation" },
+        { start: 118, end: 135, severity_tier: "S4", tag: "physical_violence" },
+        { start: 134, end: 134, severity_tier: "S2", tag: "weapon_use" },
+      ],
+    });
+    renderPage();
+    await openWorkspace();
+
+    const row = screen.getByRole("group", { name: "Flagged moments" });
+    // The tooltip text names each marker button, so find them by their own class.
+    const markers = Array.from(row.querySelectorAll<HTMLElement>(".rcs-tick-button"));
+    expect(markers).toHaveLength(6);
+    for (const marker of markers) {
+      const tick = marker.closest(".rcs-tick") as HTMLElement;
+      expect(tick.style.position).toBe("absolute");
+    }
+    // Each sits at its own share of the row: the last (134 of 135 seconds) is at the far end, not pushed beyond it.
+    const lastTick = markers[5].closest(".rcs-tick") as HTMLElement;
+    expect(lastTick.style.left).toMatch(/^calc\(99\.\d+% - 8px/);
   });
 
   it("doesn't offer a review while AI analysis is still running", async () => {
@@ -160,14 +191,14 @@ describe("AuditorCaseDetailPage", () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(AI_FAILED_CASE);
     renderPage("AR-2026-00421");
 
-    expect(await screen.findByText("Severity unknown — AI analysis unavailable for this case")).toBeInTheDocument();
+    expect(await screen.findByText("Severity unknown.")).toBeInTheDocument();
     await passContentWarning();
 
     // Straight into the workspace: no summary, no way back to one.
     expect(await screen.findByRole("slider", { name: "Blur intensity" })).toHaveAttribute("aria-valuenow", "100");
-    expect(screen.queryByRole("button", { name: /Back to AI Analysis Summary/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Back to AI summary/ })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
     fireEvent.click(await screen.findByLabelText("No Violation Found"));
     expect(screen.getByText("Set your CVI rating to continue.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue to submit" })).toBeDisabled();
@@ -176,7 +207,7 @@ describe("AuditorCaseDetailPage", () => {
     expect(screen.getByRole("button", { name: "Continue to submit" })).toBeEnabled();
   });
 
-  it("hides the content immediately on SOS, then confirms the manager was notified (AR-WB-09, Figma 31:257)", async () => {
+  it("hides the content immediately on SOS, then confirms the Manager was notified (AR-WB-09, Figma 31:257)", async () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce(MOCK_CASE);
     let resolveSos: (value: Awaited<ReturnType<typeof services.triggerSos>>) => void = () => {};
     vi.spyOn(services, "triggerSos").mockReturnValueOnce(new Promise((resolve) => (resolveSos = resolve)));
@@ -192,7 +223,7 @@ describe("AuditorCaseDetailPage", () => {
     resolveSos({
       cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
     });
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
   });
@@ -220,7 +251,7 @@ describe("AuditorCaseDetailPage", () => {
     resolveReport({
       cooldown: { ends_at: new Date(Date.now() + 30 * 60_000).toISOString(), trigger: "SOS", requires_check_in: true },
     });
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     expect(screen.getByText(/a mandatory cooldown now applies/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Cooldown page")).toBeInTheDocument();
@@ -245,7 +276,7 @@ describe("AuditorCaseDetailPage", () => {
       window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
     });
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("We’ve paused this case and notified your manager.")).toBeInTheDocument();
+    expect(await screen.findByText("We’ve paused this case and notified your Manager.")).toBeInTheDocument();
     expect(report).toHaveBeenCalledTimes(2);
     expect(triggerSos).not.toHaveBeenCalled();
   });
@@ -405,7 +436,7 @@ describe("AuditorCaseDetailPage", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Your session has timed out" });
     fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: "test123" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Log in to continue" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sign in to continue" }));
 
     await waitFor(() => expect(login).toHaveBeenCalledWith("auditor-1", "test123"));
     await waitFor(() => expect(sessionStorage.getItem("rcs_staff_token")).toBe("fresh-token"));

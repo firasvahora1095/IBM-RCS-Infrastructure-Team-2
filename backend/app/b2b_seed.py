@@ -59,7 +59,42 @@ def month_period(today: date, offset: int) -> tuple[str, str]:
     return first.isoformat(), last.isoformat()
 
 
-def _historical_cases(now: datetime, rng: random.Random) -> list[CaseHistory]:
+# The CVI bands from the severity scale.
+CVI_BAND = {"S1": (5, 39), "S2": (40, 64), "S3": (65, 84), "S4": (85, 99)}
+RAISED_REASONS = (
+    "Weapon visible earlier than the AI marked.",
+    "Injury looks more serious than the summary suggests.",
+    "The audio makes the threat clearer.",
+)
+LOWERED_REASONS = (
+    "Staged sports footage, not a real fight.",
+    "Brief contact and no visible injury.",
+    "Context shows a training exercise.",
+)
+
+
+def historical_scores(case_id: str, ai_tier: str, final_tier: str) -> dict:
+    """Synthetic CVI scores for a seeded history record, derived from its ID (FNV-1a) so they never disturb the seeded
+    random sequence. The same function runs in the frontend's mock data, so the demo and the deployed app agree."""
+    h = 2166136261
+    for ch in case_id:
+        h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+
+    def within(salt: int, band: tuple[int, int]) -> int:
+        lo, hi = band
+        return lo + ((h >> salt) & 0xFFFF) % (hi - lo + 1)
+
+    ai = within(0, CVI_BAND[ai_tier])
+    final = ai if ai_tier == final_tier else within(7, CVI_BAND[final_tier])
+    reasons = RAISED_REASONS if TIERS.index(final_tier) > TIERS.index(ai_tier) else LOWERED_REASONS
+    return {
+        "ai_score": ai,
+        "final_score": final,
+        "override_reason": None if ai_tier == final_tier else reasons[h % len(reasons)],
+    }
+
+
+def _historical_cases(now: datetime, rng: random.Random, organisation_id: str = COMMUNITYHUB_ID) -> list[CaseHistory]:
     start_month, _ = month_period(now.date(), -2)
     day = datetime.fromisoformat(start_month).replace(tzinfo=timezone.utc)
     rows: list[CaseHistory] = []
@@ -81,15 +116,17 @@ def _historical_cases(now: datetime, rng: random.Random) -> list[CaseHistory]:
             violation_chance = {"S1": 0.1, "S2": 0.5, "S3": 0.9, "S4": 0.95}[final_tier]
             outcome = "POLICY_VIOLATION_FOUND" if rng.random() < violation_chance else "NO_VIOLATION_FOUND"
             chars = "".join(rng.choice(ID_ALPHABET) for _ in range(8))
+            case_id = f"RCS-{chars[:4]}-{chars[4:]}"
             rows.append(CaseHistory(
-                case_id=f"RCS-{chars[:4]}-{chars[4:]}",
-                organisation_id=COMMUNITYHUB_ID,
+                case_id=case_id,
+                organisation_id=organisation_id,
                 created_at=created,
                 completed_at=completed,
                 ai_tier=ai_tier,
                 final_tier=final_tier,
                 outcome=outcome,
                 declined_reassigned=1 if rng.random() < 0.05 else 0,
+                **historical_scores(case_id, ai_tier, final_tier),
             ))
         day += timedelta(days=1)
     return sorted(rows, key=lambda h: h.completed_at)
@@ -105,7 +142,9 @@ def _attempt(n: int, at: datetime, ok: bool, reason: str | None = None) -> dict:
     }
 
 
-def _delivered(case_id: str, outcome: str, tier: str, completed: datetime, retried: bool) -> Delivery:
+def _delivered(
+    case_id: str, outcome: str, tier: str | None, completed: datetime, retried: bool, organisation_id: str = COMMUNITYHUB_ID
+) -> Delivery:
     """A delivery that reached CommunityHub, sometimes after one automatic retry."""
     attempts = (
         [
@@ -118,7 +157,7 @@ def _delivered(case_id: str, outcome: str, tier: str, completed: datetime, retri
     return Delivery(
         delivery_id=f"DEL-{case_id}",
         case_id=case_id,
-        organisation_id=COMMUNITYHUB_ID,
+        organisation_id=organisation_id,
         outcome=outcome,
         final_severity=tier,
         completed_at=completed,
@@ -162,9 +201,9 @@ def _governance_log(now: datetime, case_ids: list[str], rng: random.Random) -> l
             tokens_in=1800 + round(rng.random() * 1400),
             tokens_out=220 + round(rng.random() * 260) if success else 0,
             reasoning=(
-                "Mock: frame-level analysis returned tags and a severity score with a short reasoning string."
+                "frame-level analysis returned tags and a severity score with a short reasoning string."
                 if success
-                else "Mock: the model call timed out; the case was flagged for the AI-failure path."
+                else "the model call timed out; the case was flagged for the AI-failure path."
             ),
         ))
     return entries
@@ -187,14 +226,103 @@ def wipe_b2b(db: Session) -> None:
     db.commit()
 
 
+# The other clients. CommunityHub is the original customer (b2b.COMMUNITYHUB_ID).
+OTHER_CLIENTS = (
+    {
+        "id": "STREAMNEST", "code": "SN", "name": "StreamNest", "description": "Video platform · Client organisation",
+        "destination": "https://hooks.streamnest.example/••••••/rcs-results", "seed": 3101,
+        "host": "streamnest.example/watch", "user": ("sn-user-01", "Riley Chen"), "failed": True,
+        "tag_slot": 2,
+    },
+    {
+        "id": "PIXELCIRCLE", "code": "PC", "name": "PixelCircle", "description": "Photo community · Client organisation",
+        "destination": "https://api.pixelcircle.example/••••••/rcs-results", "seed": 3102,
+        "host": "pixelcircle.example/photo", "user": ("pc-user-01", "Morgan Ellis"), "failed": False,
+        "tag_slot": 4,
+    },
+)
+_KEEP_WITH_COMMUNITYHUB = {"AR-2026-00404", "AR-2026-00409", "AR-2026-00399"}
+
+
+def _tag_live_cases(live_cases: list[Case]) -> None:
+    """Give a few live cases to the other clients (never the flagged or demo-scripted ones)."""
+    eligible = [c for c in live_cases if not c.manager_flag and c.case_id not in _KEEP_WITH_COMMUNITYHUB]
+    for client in OTHER_CLIENTS:
+        for i, case in enumerate(eligible):
+            if i % 6 == client["tag_slot"]:
+                case.organisation_id = client["id"]
+
+
+def _seed_other_clients(db: Session, now: datetime, live_cases: list[Case], client_password: str) -> None:
+    """Each other client gets its own older cases, deliveries, reports, account and a waiting message."""
+    client_hash = hash_password(client_password)
+    today = now.date()
+    released_start, released_end = month_period(today, -2)
+    draft_start, draft_end = month_period(today, -1)
+    first_of_previous = date.fromisoformat(draft_start)
+    released_at = datetime(first_of_previous.year, first_of_previous.month, 3, 11, 5, tzinfo=timezone.utc)
+    for client in OTHER_CLIENTS:
+        rng = random.Random(client["seed"])
+        org_id = client["id"]
+        db.add(Organisation(
+            organisation_id=org_id, name=client["name"], description=client["description"], status="READY",
+            destination_masked=client["destination"], last_tested_at=now - timedelta(hours=26),
+        ))
+        user_id, user_name = client["user"]
+        db.add(ClientUser(user_id=user_id, login_hash=client_hash, display_name=user_name,
+                          organisation_id=org_id, role="REPORTS"))
+        history = [h for i, h in enumerate(_historical_cases(now, rng, org_id)) if i % 4 == 0]
+        db.add_all(history)
+        deliveries = [
+            _delivered(h.case_id, h.outcome, h.final_tier, h.completed_at, rng.random() < 0.06, org_id) for h in history
+        ]
+        if client["failed"] and deliveries:
+            _needs_attention(deliveries[-1], UNAVAILABLE_REASON.replace("CommunityHub", client["name"]))
+        for i, d in enumerate(deliveries):
+            d.source_url = f"https://{client['host']}/{4200 + i}"
+        db.add_all(deliveries)
+        db.flush()
+        released_generated = released_at - timedelta(hours=1)
+        draft_generated = now - timedelta(hours=5)
+        db.add_all([
+            ServiceReport(
+                report_id=report_id_for(released_start, released_end, 1, client["code"]), organisation_id=org_id,
+                period_start=released_start, period_end=released_end, status="RELEASED", version=1,
+                generated_at=released_generated, released_at=released_at, released_by="manager-01",
+                metrics=compute_metrics(db, released_start, released_end, released_generated, org_id),
+            ),
+            ServiceReport(
+                report_id=report_id_for(draft_start, draft_end, 1, client["code"]), organisation_id=org_id,
+                period_start=draft_start, period_end=draft_end, status="DRAFT", version=1,
+                generated_at=draft_generated,
+                metrics=compute_metrics(db, draft_start, draft_end, draft_generated, org_id),
+            ),
+        ])
+        streamnest = org_id == "STREAMNEST"
+        db.add(ClientMessage(
+            message_id=f"MSG-{client['code']}-01", organisation_id=org_id, user_id=user_id,
+            topic="DELIVERY_ISSUE" if streamnest else "REPORT_QUESTION",
+            subject="A result is stuck on our side" if streamnest else "Can we get the report earlier in the month?",
+            body=(
+                "one result has not appeared in our moderation queue. Could you check the delivery?"
+                if streamnest
+                else "our team reviews at the start of the month. Is an earlier release possible?"
+            ),
+            status="SENT", created_at=now - timedelta(minutes=75 if streamnest else 190),
+        ))
+    db.flush()
+
+
 def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password: str) -> dict:
     """Insert the B2B demo story. Call after the live cases are committed."""
     rng = random.Random(2026)
+    # A few live cases belong to the other clients; the rest are CommunityHub's.
+    _tag_live_cases(live_cases)
 
     db.add(Organisation(
         organisation_id=COMMUNITYHUB_ID,
         name=COMMUNITYHUB_NAME,
-        description="Social platform · Customer organisation",
+        description="Social platform · Client organisation",
         status="READY",
         destination_masked="https://api.communityhub.example/••••••/rcs-results",
         last_tested_at=now - timedelta(hours=3),
@@ -239,18 +367,34 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             continue
         deliveries.append(_delivered(
             case.case_id, case.final_outcome, final_tier_of(case) or "S1", case.completed_at, False,
+            case.organisation_id or COMMUNITYHUB_ID,
         ))
+    # One result RCS could not review (a Manager closed the case without a decision), so the demo shows all three
+    # outcomes a client can be asked to act on.
+    if not any(d.outcome == "CLOSED_NO_REASSIGNMENT" for d in deliveries):
+        deliveries.append(_delivered("RCS-C10S-ED01", "CLOSED_NO_REASSIGNMENT", None, now - timedelta(hours=3), False))
     # Reports came from CommunityHub posts, so each result carries its post link.
     for i, d in enumerate(deliveries):
         d.source_url = d.source_url or f"https://communityhub.example/post/{3100 + i}"
-    # CommunityHub's moderators have dealt with everything except the newest few results.
-    delivered = sorted((d for d in deliveries if d.delivery_status == "SUCCESS"), key=lambda d: d.completed_at)
-    for i, d in enumerate(delivered[:-4]):
-        violation = d.outcome == "POLICY_VIOLATION_FOUND"
-        d.platform_action = "REMOVED" if violation else "KEPT"
-        d.platform_action_note = "Mock: removed and the account warned." if violation and i % 9 == 0 else None
-        d.platform_action_at = d.completed_at + timedelta(minutes=25)
-        d.platform_action_by = "ch-mod-04"
+    # Each client's moderators have dealt with everything except its newest few results, and the newest of each
+    # outcome, so Needs action shows a violation, a clear post and one that was not reviewed.
+    by_client: dict[str, list[Delivery]] = {}
+    for d in deliveries:
+        if d.delivery_status == "SUCCESS":
+            by_client.setdefault(d.organisation_id, []).append(d)
+    for delivered in by_client.values():
+        delivered.sort(key=lambda d: d.completed_at)
+        waiting = {id(d) for d in delivered[-2:]}
+        for outcome in ("POLICY_VIOLATION_FOUND", "NO_VIOLATION_FOUND", "CLOSED_NO_REASSIGNMENT"):
+            # Three of each, so the list has several of every kind to look at.
+            for d in [x for x in reversed(delivered) if x.outcome == outcome][:3]:
+                waiting.add(id(d))
+        for i, d in enumerate(d for d in delivered if id(d) not in waiting):
+            violation = d.outcome == "POLICY_VIOLATION_FOUND"
+            d.platform_action = "REMOVED" if violation else "KEPT"
+            d.platform_action_note = "removed and the account warned." if violation and i % 9 == 0 else None
+            d.platform_action_at = d.completed_at + timedelta(minutes=25)
+            d.platform_action_by = "ch-mod-04"
     db.add_all(deliveries)
     db.flush()
 
@@ -277,7 +421,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             "Volumes were steady across the month. A small number of results needed an "
             "automatic retry before CommunityHub received them; all were delivered."
         ),
-        metrics=compute_metrics(db, released_start, released_end, released_generated_at),
+        metrics=compute_metrics(db, released_start, released_end, released_generated_at, COMMUNITYHUB_ID),
     )
     draft = ServiceReport(
         report_id=report_id_for(draft_start, draft_end, 1),
@@ -287,7 +431,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         status="DRAFT",
         version=1,
         generated_at=draft_generated_at,
-        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at),
+        metrics=compute_metrics(db, draft_start, draft_end, draft_generated_at, COMMUNITYHUB_ID),
     )
     db.add_all([released, draft])
     db.add_all([
@@ -302,6 +446,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
         for action, minutes in (("VIEW", 0), ("DOWNLOAD", 4))
     ])
     db.add_all(_governance_log(now, [h.case_id for h in history], rng))
+    _seed_other_clients(db, now, live_cases, client_password)
     db.add_all([
         ClientMessage(
             message_id="MSG-1001",
@@ -310,13 +455,13 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             topic="REPORT_QUESTION",
             report_id=released.report_id,
             subject="What counts as an override?",
-            body="Mock: the report lists an override rate. Does that mean RCS changed a decision after review?",
+            body="The report lists an override rate. Does that mean RCS changed a decision after review?",
             status="ANSWERED",
             created_at=released_at + timedelta(hours=30),
             seen_at=released_at + timedelta(hours=31),
             reply_body=(
-                "Mock: no. An override is when the reviewer's final severity differs from the AI's first "
-                "estimate. The reviewer's decision is always final; it's never changed afterwards."
+                "No. An override is when the Auditor's final severity differs from the AI's first "
+                "estimate. The Auditor's decision is always final; it's never changed afterwards."
             ),
             reply_at=released_at + timedelta(hours=32),
             reply_by="manager-01",
@@ -327,7 +472,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             user_id=CLIENT_USER_ID,
             topic="DELIVERY_ISSUE",
             subject="One result hasn't reached us",
-            body="Mock: our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
+            body="Our moderation queue is missing a result for a post reported yesterday. Can you check whether it was sent?",
             status="SENT",
             created_at=now - timedelta(minutes=40),
         ),
@@ -338,7 +483,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             request_id="WB-demo0001",
             auditor_id="auditor-03",
             kind="TALK_TO_MANAGER",
-            reason="Mock: a few of today's cases have stayed with me. I'd like a quick chat.",
+            reason="a few of today's cases have stayed with me. I'd like a quick chat.",
             status="OPEN",
             created_at=now - timedelta(minutes=150),
         ),
@@ -353,7 +498,7 @@ def seed_b2b(db: Session, now: datetime, live_cases: list[Case], client_password
             request_id="WB-demo0003",
             auditor_id="auditor-02",
             kind="BREAK_REQUEST",
-            reason="Mock: back-to-back S3 cases this morning.",
+            reason="back-to-back S3 cases this morning.",
             status="APPROVED",
             created_at=now - timedelta(minutes=95),
             resolved_at=now - timedelta(minutes=88),

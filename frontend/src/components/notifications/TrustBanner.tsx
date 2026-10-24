@@ -1,5 +1,6 @@
-import { Link } from "@carbon/react";
+import { useRef, useState } from "react";
 import { InformationFilled } from "@carbon/icons-react";
+import { PolicyDialog, type PolicyKind } from "./PolicyDialog";
 
 /**
  * The "Trust Banner (UR-NFR-02)" at the top of the Upload screen (Figma
@@ -12,7 +13,16 @@ import { InformationFilled } from "@carbon/icons-react";
  * static page content). A labelled <section> keeps the same look while
  * being announced as what it is.
  */
-export function TrustBanner() {
+export function TrustBanner({
+  heading = "Your report is reviewed carefully and confidentially",
+  body = "We check every report against our content policy before taking action.",
+}: {
+  heading?: string;
+  body?: string;
+}) {
+  const [open, setOpen] = useState<PolicyKind | null>(null);
+  const policyRef = useRef<HTMLButtonElement>(null);
+  const privacyRef = useRef<HTMLButtonElement>(null);
   return (
     <section
       aria-labelledby="trust-banner-title"
@@ -29,18 +39,38 @@ export function TrustBanner() {
       />
       <div className="flex flex-col gap-1.5">
         <h2 id="trust-banner-title" style={{ fontSize: 16, fontWeight: 600, color: "var(--cds-text-primary)" }}>
-          Your report is reviewed carefully and confidentially
+          {heading}
         </h2>
-        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          We check every report against our content policy before taking action.
+        <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>{body}</p>
+        {/* Real controls, not dead anchors: each opens its document over the form, and focus returns here. They sit at the
+            body's size, unlined until hover, so they read as part of the reassurance rather than shouting over it. */}
+        <p className="rcs-trust-links">
+          <button
+            ref={policyRef}
+            type="button"
+            className="cds--link rcs-link-button rcs-link-button--plain"
+            onClick={() => setOpen("policy")}
+          >
+            Content policy
+          </button>
+          <span aria-hidden="true">·</span>
+          <button
+            ref={privacyRef}
+            type="button"
+            className="cds--link rcs-link-button rcs-link-button--plain"
+            onClick={() => setOpen("privacy")}
+          >
+            Privacy notice
+          </button>
         </p>
-        <div className="flex flex-wrap gap-4">
-          {/* Destinations aren't defined yet (no policy pages exist in this
-              build) — anchors keep the approved design without inventing URLs. */}
-          <Link href="#content-policy">View content policy</Link>
-          <Link href="#privacy-notice">View privacy notice</Link>
-        </div>
       </div>
+      {open && (
+        <PolicyDialog
+          kind={open}
+          onClose={() => setOpen(null)}
+          launcherRef={open === "policy" ? policyRef : privacyRef}
+        />
+      )}
     </section>
   );
 }

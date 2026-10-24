@@ -75,6 +75,7 @@ export function OrganisationOnboardingPage() {
     <>
       <MarketingHeader />
       <main
+        id="main-content"
         style={{ paddingTop: 48 + 48, paddingBottom: 64, backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
       >
         <Grid>
@@ -179,7 +180,7 @@ export function OrganisationOnboardingPage() {
                     <>
                       <h2 className="rcs-section-title">Where should results go?</h2>
                       <p className="rcs-body" style={{ color: "var(--cds-text-secondary)" }}>
-                        When a reviewer completes a case, RCS sends the result here automatically. You decide what
+                        When an Auditor completes a case, RCS sends the result here automatically. You decide what
                         action to take on your platform.
                       </p>
                       <TextInput
@@ -213,7 +214,7 @@ export function OrganisationOnboardingPage() {
 }`}
                       </CodeSnippet>
                       <p className="rcs-helper">
-                        Facts only: no footage, narrative or reviewer details. Failed deliveries are retried
+                        Facts only: no footage, narrative or Auditor details. Failed deliveries are retried
                         automatically with the same delivery ID.
                       </p>
                     </>

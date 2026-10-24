@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, SkeletonText } from "@carbon/react";
-import { ClientHeader } from "../../components/shell/ClientHeader";
-import { StaffPage } from "../../components/layout/StaffPage";
+import { ClientLayout } from "../../components/layout/ClientLayout";
 import { ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState } from "../../components/ui/Blocks";
@@ -42,62 +41,59 @@ export function ClientReportViewPage() {
   }
 
   return (
-    <>
-      <ClientHeader />
-      <StaffPage maxWidth={1056}>
-        <div className="rcs-no-print">
-          <ManagerBreadcrumb trail={[{ label: "Service reports", to: "/client/reports" }, { label: reportId }]} />
-        </div>
-        {denied && (
-          <EmptyState
-            title={CLIENT_DENIED}
-            body="It may not have been released yet, or it belongs to another organisation."
-            action={
-              <RouterLink className="cds--link" to="/client/reports">
-                Back to your reports
-              </RouterLink>
-            }
-          />
-        )}
-        {error && !denied && (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            role="alert"
-            title="Couldn't load this report."
-            subtitle={error.message}
-            style={{ maxWidth: "100%" }}
-          />
-        )}
-        {!data && !error && <SkeletonText paragraph lineCount={6} />}
-        {data && (
-          <>
-            <div className="rcs-no-print">
-              <PageHeader
-                title={formatPeriod(data.period_start, data.period_end)}
-                subtitle="Released by RCS. Figures are aggregate and come from completed case records."
-                actions={
-                  <>
-                    <Button
-                      kind="ghost"
-                      onClick={() => navigate(`/client/messages/new?report=${encodeURIComponent(data.report_id)}`)}
-                    >
-                      Ask RCS about this report
-                    </Button>
-                    <Button onClick={download}>Download PDF</Button>
-                  </>
-                }
-              />
-            </div>
-            <div aria-live="polite" className="rcs-no-print">
-              {downloadNote && <p className="rcs-helper">{downloadNote}</p>}
-            </div>
-            <ReportSheet report={data} />
-            <p className="rcs-helper rcs-no-print">{ACCESS_DISCLOSURE}</p>
-          </>
-        )}
-      </StaffPage>
-    </>
+    <ClientLayout maxWidth={1056}>
+      <div className="rcs-no-print">
+        <ManagerBreadcrumb trail={[{ label: "Service reports", to: "/client/reports" }, { label: reportId }]} />
+      </div>
+      {denied && (
+        <EmptyState
+          title={CLIENT_DENIED}
+          body="It may not have been released yet, or it belongs to another organisation."
+          action={
+            <RouterLink className="cds--link" to="/client/reports">
+              Back to your reports
+            </RouterLink>
+          }
+        />
+      )}
+      {error && !denied && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="Couldn't load this report."
+          subtitle={error.message}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
+      {!data && !error && <SkeletonText paragraph lineCount={6} />}
+      {data && (
+        <>
+          <div className="rcs-no-print">
+            <PageHeader
+              title={formatPeriod(data.period_start, data.period_end)}
+              subtitle="Released by RCS. Figures are aggregate and come from completed case records."
+              actions={
+                <>
+                  <Button
+                    kind="tertiary"
+                    onClick={() => navigate(`/client/messages/new?report=${encodeURIComponent(data.report_id)}`)}
+                  >
+                    Ask RCS about this report
+                  </Button>
+                  <Button onClick={download}>Download PDF</Button>
+                </>
+              }
+            />
+          </div>
+          <div aria-live="polite" className="rcs-no-print">
+            {downloadNote && <p className="rcs-helper">{downloadNote}</p>}
+          </div>
+          <ReportSheet report={data} />
+          <p className="rcs-helper rcs-no-print">{ACCESS_DISCLOSURE}</p>
+        </>
+      )}
+    </ClientLayout>
   );
 }

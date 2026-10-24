@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 interface PageHeaderProps {
   title: ReactNode;
-  /** Small label above the title, e.g. "Customer organisation". */
+  /** Small label above the title, e.g. "Client organisation". */
   eyebrow?: ReactNode;
   subtitle?: ReactNode;
   /** A Carbon Breadcrumb, shown above everything else. */
@@ -25,13 +25,14 @@ export function PageHeader({ title, eyebrow, subtitle, breadcrumb, actions, meta
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="flex min-w-0 flex-col gap-2">
           {eyebrow && <p className="rcs-eyebrow">{eyebrow}</p>}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="rcs-align-row">
             <h1 className="rcs-page-title">{title}</h1>
             {meta}
           </div>
           {subtitle && <p className="rcs-page-subtitle">{subtitle}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+        {/* items-end: a labelled control (a Dropdown) and buttons share one bottom edge. */}
+        {actions && <div className="flex flex-wrap items-end gap-3">{actions}</div>}
       </div>
     </header>
   );

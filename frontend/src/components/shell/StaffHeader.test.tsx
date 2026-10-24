@@ -19,7 +19,11 @@ describe("StaffHeader", () => {
     );
     // The role part of the label is visually hidden on phones, so check the link's accessible name.
     expect(screen.getByRole("link", { name: "RCS — Auditor" })).toBeInTheDocument();
-    expect(screen.getByText("Auditor: auditor-1")).toBeInTheDocument();
+    // Who is signed in lives in the account menu: an avatar button named for them, and their role inside.
+    fireEvent.click(screen.getByRole("button", { name: "Account: auditor-1" }));
+    const panel = document.querySelector(".rcs-user-panel") as HTMLElement;
+    expect(panel).toHaveTextContent("auditor-1");
+    expect(panel).toHaveTextContent("Auditor");
   });
 
   it("clears the session and returns to login on Sign out", () => {
@@ -31,6 +35,8 @@ describe("StaffHeader", () => {
         </Routes>
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Account: auditor-1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Account: auditor-1" }));
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(screen.getByText("Login page")).toBeInTheDocument();

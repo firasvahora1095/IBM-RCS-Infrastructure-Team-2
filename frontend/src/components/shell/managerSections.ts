@@ -1,22 +1,49 @@
 /**
- * The Manager sections: the five from the Figma TopNav (94:132) plus Deliveries
- * and Reports from the B2B flow (docs/ux/b2b-end-to-end-flow-spec.md §2), and
- * Client messages for "Contact RCS".
+ * The Manager sections. Six, not eight: the work queues (SOS inbox,
+ * Reassignment queue) are reached from the Overview's "Needs you" inbox. Analytics
+ * live under Insights; Validation (with the audit history) has its own tab.
+ * Routes are unchanged; each sub-page keeps its owning section highlighted
+ * (docs/ux/manager-ux-audit-and-redesign.md §4).
  */
 export interface NavTab {
   label: string;
   path: string;
-  /** False when sub-pages (e.g. /manager/sos/:alertId) keep this section highlighted. */
-  end: boolean;
+  /** Pages that belong to this section as well as `path` itself. */
+  owns: readonly RegExp[];
 }
 
 export const MANAGER_SECTIONS: readonly NavTab[] = [
-  { label: "Dashboard", path: "/manager", end: true },
-  { label: "Case Oversight", path: "/manager/cases", end: true },
-  { label: "SOS Inbox", path: "/manager/sos", end: false },
-  { label: "Reassignment Queue", path: "/manager/reassignment", end: false },
-  { label: "Deliveries", path: "/manager/deliveries", end: false },
-  { label: "Reports", path: "/manager/reports", end: false },
-  { label: "Client messages", path: "/manager/messages", end: false },
-  { label: "Validation", path: "/manager/validation", end: false },
+  {
+    label: "Overview",
+    path: "/manager",
+    owns: [
+      /^\/manager$/,
+      /^\/manager\/(sos|reassignment|auditors|messages)(\/|$)/,
+      /^\/manager\/cases\/[^/]+\/(reassign|raw)$/,
+    ],
+  },
+  { label: "Cases", path: "/manager/cases", owns: [/^\/manager\/cases(\/|$)/] },
+  {
+    label: "Deliveries",
+    path: "/manager/deliveries",
+    owns: [/^\/manager\/(deliveries|customers)(\/|$)/],
+  },
+  { label: "Reports", path: "/manager/reports", owns: [/^\/manager\/reports(\/|$)/] },
+  { label: "Insights", path: "/manager/insights", owns: [/^\/manager\/insights(\/|$)/] },
+  // Assurance, not analytics: "can we trust the AI, and can every result be traced?" is asked on its own
+  // and must be found without knowing it lives under another page. Six tabs stays inside what a tab bar holds.
+  { label: "Validation", path: "/manager/validation", owns: [/^\/manager\/(validation|audit-logs)(\/|$)/] },
+];
+
+/** The section a page belongs to. The first match wins, so a case's reassignment page counts as Overview. */
+export function activeSection(pathname: string): string | undefined {
+  return MANAGER_SECTIONS.find((tab) => tab.owns.some((pattern) => pattern.test(pathname)))?.path;
+}
+
+/** The work queues shown under Overview. The first is the Overview page itself (figures, inbox and Auditors). */
+export const WORK_QUEUES: readonly NavTab[] = [
+  { label: "Needs you", path: "/manager", owns: [/^\/manager$/] },
+  { label: "SOS inbox", path: "/manager/sos", owns: [/^\/manager\/sos(\/|$)/] },
+  { label: "Reassignment queue", path: "/manager/reassignment", owns: [/^\/manager\/reassignment(\/|$)/] },
+  { label: "Client messages", path: "/manager/messages", owns: [/^\/manager\/messages(\/|$)/] },
 ];

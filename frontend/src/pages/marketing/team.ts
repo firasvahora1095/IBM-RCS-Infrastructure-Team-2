@@ -1,0 +1,145 @@
+/**
+ * RMIT Team 6: one record per person, used by the landing page's team section and the full team page.
+ *
+ * `sprints` is the team's official contribution table, word for word. The resume highlights are written from the work
+ * each person committed to this repository, so they can name work the table leaves out (Hyuna's AI Buddy and
+ * deployment, for example); every highlight is traceable to that person's commits. `photo` is
+ * looked for in public/team; until a file exists the person's initials show on their own brand-gradient tile, and
+ * both gradient stops carry white text at 5:1 or better.
+ */
+export interface TeamMember {
+  slug: string;
+  name: string;
+  role: string;
+  /** One sentence for the landing page card. */
+  did: string;
+  photo: string;
+  tile: string;
+  /** The official contribution table, one row per sprint. */
+  sprints: [string, string, string];
+  /** Resume-ready bullets: action first, specific, true to the table. */
+  highlights: string[];
+  skills: string[];
+}
+
+export const REPO_URL = "https://github.com/firasvahora1095/IBM-RCS-Infrastructure-Team-2";
+
+export const TEAM: TeamMember[] = [
+  {
+    slug: "hyuna-bae",
+    name: "Hyuna Bae",
+    role: "Project Manager",
+    did: "Ran planning and Client sessions, built the AI Buddy and the exposure and cooldown logic, set up deployment and led end-to-end testing.",
+    photo: "/team/hyuna-bae.jpg",
+    tile: "linear-gradient(135deg, #5b45d6, #0f62fe)",
+    sprints: [
+      "Planning, Client sessions, merged flow diagrams, tech stack",
+      "Backend and API wiring, end-to-end testing, UAT checklist, live demo preparation",
+      "Exposure and cooldown logic, edge-case QA, end-to-end testing, final presentation",
+    ],
+    highlights: [
+      "Led planning, Client sessions and delivery for a five-person IBM × RMIT team across three sprints, from flow diagrams and tech-stack choice to the final presentation.",
+      "Built the first end-to-end slice (database, API and frontend), then wired the FastAPI backend to the AI pipeline, including Manager, wellbeing and SOS endpoints covered by contract tests.",
+      "Built the Auditor protection logic: severity-triggered cooldowns, a scheduled daily exposure reset, and case assignment that skips Auditors in cooldown or at their limit.",
+      "Built the AI Buddy assistant on watsonx.ai (Llama 3.3 70B), answering from live, role-scoped RCS data.",
+      "Set up deployment to IBM Cloud Code Engine: Docker images with a bundled PostgreSQL, a demo seed and GitHub Actions auto-deploy; added Watson Speech to Text with speaker diarization and the internal endpoints the watsonx Orchestrate agent calls.",
+      "Owned end-to-end testing and UAT: wrote the UAT checklist, ran edge-case QA and prepared the live Client demo.",
+    ],
+    skills: ["Agile delivery", "Stakeholder management", "Python", "FastAPI", "PostgreSQL", "watsonx.ai", "Docker", "GitHub Actions", "UAT"],
+  },
+  {
+    slug: "janataarah-begum",
+    name: "Janataarah Begum",
+    role: "Business Analyst / QA",
+    did: "Wrote the use cases, requirements and S1–S4 severity scale, then validated every flow through acceptance and edge-case testing.",
+    photo: "/team/janataarah-begum.jpg",
+    tile: "linear-gradient(135deg, #0b7a75, #005d5d)",
+    sprints: [
+      "Use cases, requirements for three personas, severity scale S1 to S4",
+      "Status taxonomy, end-to-end acceptance scenarios, AI and assignment validation",
+      "Audit-log requirements, extra feature research, edge-case testing, traceability",
+    ],
+    highlights: [
+      "Wrote the use cases and requirements for three user roles, the baseline every screen and API was built against.",
+      "Designed the S1–S4 severity scale, the tag-to-tier taxonomy and the status taxonomy that turns internal case states into plain public outcomes.",
+      "Wrote the language guidelines for the AI's narrative summaries and ran a plain-language audit of every status a person reads.",
+      "Wrote end-to-end acceptance scenarios and used them to validate the AI output schema and weighted case assignment.",
+      "Researched legally safe, synthetic footage sources for testing and demos, as the Client asked.",
+      "Specified the audit-log requirements and verified storage and database security, the mandatory features and audit-log accuracy through screenshot-evidenced UAT and traceability.",
+    ],
+    skills: ["Requirements engineering", "Use cases", "Acceptance criteria", "Taxonomy design", "UAT", "Traceability", "QA"],
+  },
+  {
+    slug: "aleeya-ahmad",
+    name: "Aleeya Ahmad",
+    role: "UX / Research",
+    did: "Researched personas through an expert interview, designed all three roles in Figma and built the production interface with accessibility QA.",
+    photo: "/team/aleeya-ahmad.jpg",
+    tile: "linear-gradient(135deg, #6929c4, #5b45d6)",
+    sprints: [
+      "Personas, expert interview, Figma prototypes for all three roles",
+      "Production JSX and Tailwind views, UI and accessibility QA",
+      "Validation and Audit page, B2B flow screens, extra feature UI, final accessibility pass",
+    ],
+    highlights: [
+      "Researched three user roles through personas and an expert interview on ethical design, which shaped the consent and decline flows.",
+      "Designed click-through Figma prototypes for the Auditor, Manager and public Reporter on the IBM Carbon Design System.",
+      "Built the production React and TypeScript interface for every role on IBM Carbon: the Auditor workspace, the Manager dashboard and the Client portal.",
+      "Designed and built the B2B flow end to end: the simulated CommunityHub platform, result delivery, service reports and the product site, with the FastAPI endpoints behind them.",
+      "Designed the Validation and Audit screen that compares the AI with the Auditor case by case, and rebuilt AI Buddy as a role-scoped Carbon side panel.",
+      "Ran UI and accessibility QA towards WCAG 2.1 AA, with automated axe checks, keyboard walkthroughs and a final accessibility pass.",
+    ],
+    skills: ["UX research", "Personas", "Figma", "IBM Carbon", "React", "TypeScript", "Accessibility (WCAG 2.1)"],
+  },
+  {
+    slug: "firas-vahora",
+    name: "Firas Vahora",
+    role: "Developer",
+    did: "Set up watsonx.ai, the repository and Code Engine, built weighted case assignment and the real-AI wiring, and delivered the live watsonx Orchestrate integration.",
+    photo: "/team/firas-vahora.jpg",
+    tile: "linear-gradient(135deg, #1d3f91, #0b7a75)",
+    sprints: [
+      "watsonx.ai project, GitHub repository and environment set-up, Code Engine backend skeleton, Orchestrate workflow",
+      "React frontend, weighted assignment, real-AI wiring, Code Engine deploy",
+      "Live Orchestrate integration, extra feature backend, bug fixes, final deploy",
+    ],
+    highlights: [
+      "Set up the watsonx.ai project, the GitHub repository and environments, and the backend skeleton on IBM Cloud Code Engine.",
+      "Migrated the backend from Node.js to FastAPI and aligned the frontend's API layer with the backend contract.",
+      "Designed the watsonx Orchestrate workflow and delivered the live Orchestrate integration.",
+      "Researched and built video frame extraction, and integrated it with backend storage.",
+      "Built weighted case assignment and wired the real AI pipeline into the product, validated with schema checks and cross-tests.",
+      "Built the backend for the extra features, fixed bugs across the stack and ran the deployments to Code Engine.",
+    ],
+    skills: ["watsonx.ai", "watsonx Orchestrate", "IBM Cloud Code Engine", "Python", "FastAPI", "React", "GitHub"],
+  },
+  {
+    slug: "aiden-brundell",
+    name: "Aiden Brundell",
+    role: "Developer",
+    did: "Built the Cloud Object Storage and Speech to Text connections, the core database and API, the watsonx vision call and the audit log.",
+    photo: "/team/aiden-brundell.jpg",
+    tile: "linear-gradient(135deg, #0d1633, #5b45d6)",
+    sprints: [
+      "Cloud Object Storage bucket and folders, watsonx.ai and Speech to Text connection code, JSON schema",
+      "Core database and API, real watsonx vision call, aggregation logic",
+      "Audit-log database and API, bug fixes, final audit-log and demo data check",
+    ],
+    highlights: [
+      "Set up IBM Cloud Object Storage and wrote the connection code for Watson Speech to Text and watsonx.ai, with a shared JSON schema.",
+      "Built the core PostgreSQL database (containerised, with SQLAlchemy models and case ID generation) and the first API, with authentication, validation and video upload.",
+      "Implemented the watsonx vision call that analyses video frames, tested against Llama 4 Maverick, with streamed frame analysis and fallback handling.",
+      "Aggregated the frame results into a case score and a narrative summary that follows the BA's language guidelines.",
+      "Connected watsonx.governance: scoring records, a secured fallback API and prompt-leakage detection.",
+      "Built the audit-log database and API, database backup and persistence, and ran the final audit-log and demo-data check.",
+    ],
+    skills: ["Python", "IBM Cloud Object Storage", "Watson Speech to Text", "watsonx.ai", "PostgreSQL", "REST APIs", "pytest"],
+  },
+];
+
+export function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("");
+}

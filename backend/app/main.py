@@ -4,6 +4,7 @@ import hmac
 from urllib.parse import urlparse
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,7 @@ from app.api_schemas import (
 )
 from app.b2b import create_delivery_for_case, public_delivery_confirmed
 from app.b2b import router as b2b_router
+from app.breaks import break_ends_at, breaks_in_progress
 from app.support import (
     active_case_counts,
     auditor_exists,
@@ -64,14 +66,26 @@ from app.assignment import NoEligibleAuditorError, select_auditor
 from app.case_ids import generate_case_id
 from app.case_status import public_status
 from app.case_workflow import record_case_assignment
+from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback, release_waiting_cases
 from app.db import get_db
-from app.models import AuditLog, Auditor, Case, CaseSource
+from app.models import AuditLog, Auditor, Case, CaseSource, Organisation
 from app.orchestrate import (
     AssignmentOrchestrationError,
     AssignmentOrchestrator,
     build_assignment_orchestrator,
 )
 from app.rate_limit import status_lookup_limiter
+from app.severity import get_severity_tier as _get_severity_tier
+
+
+def _final_severity_tier(case: "Case") -> str | None:  # type: ignore[name-defined]
+    """Return Auditor tier if overridden, otherwise AI tier."""
+    if case.auditor_severity_score is not None:
+        try:
+            return _get_severity_tier(int(case.auditor_severity_score))
+        except (ValueError, TypeError):
+            pass
+    return case.severity_tier
 from app.request_logging import install_access_log_redaction, redact_case_ids
 from app.storage import VideoRangeError, delete_stored_video, store_video, stream_video_from_storage, verify_storage_connection
 from app.uploads import InvalidVideoError, validate_video
@@ -97,7 +111,173 @@ class _VideoStreamingResponse(StreamingResponse):
             with CancelScope(shield=True):
                 await run_in_threadpool(self._video_body.close)
 
-app = FastAPI(title="IBM RCS Backend", version="0.1.0")
+def _run_db_migrations() -> None:
+    """Apply all incremental schema changes to the deployed database.
+
+    Every statement uses IF NOT EXISTS / safe casts so re-running is harmless.
+    """
+    from app.db import engine
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        # auditors — Sprint 2 columns
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS active_case_count INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_limit_minutes INTEGER NOT NULL DEFAULT 120"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_ends_at TIMESTAMPTZ"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_trigger VARCHAR(10)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS cooldown_check_in_done INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.execute(text(
+            "ALTER TABLE auditors ALTER COLUMN exposure_minutes TYPE FLOAT USING exposure_minutes::float"
+        ))
+        # cases — AI pipeline output columns (Sprint 2/3)
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS organisation_id VARCHAR(50) NOT NULL DEFAULT 'COMMUNITYHUB'"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS analysis_output_path TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ai_failure VARCHAR(30)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS flagged_entities JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS transcript JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS audio_intensity JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS manager_flag VARCHAR(10)"
+        ))
+        # Sprint 3 fallback reviewer and case visibility (extra-features 1.6)
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_visibility VARCHAR(25) NOT NULL DEFAULT 'ASSIGNED_ONLY'"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS fallback_queued_at TIMESTAMPTZ"
+        ))
+        # auditors — Sprint 3 daily reset column
+        conn.execute(text(
+            "ALTER TABLE auditors ADD COLUMN IF NOT EXISTS exposure_last_reset_at TIMESTAMPTZ"
+        ))
+        # cases — Sprint 3 CAP_REACHED manager_flag support
+        conn.execute(text(
+            "ALTER TABLE cases ALTER COLUMN manager_flag TYPE VARCHAR(15)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases DROP CONSTRAINT IF EXISTS ck_cases_manager_flag"
+        ))
+        conn.execute(text(
+            "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
+            "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
+        ))
+        # case_history — CVI scores and override reason for Validation & Audit (Sprint 3)
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS ai_score INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS final_score INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS override_reason TEXT"
+        ))
+
+
+try:
+    _run_db_migrations()
+except Exception as _migration_exc:
+    logging.getLogger("ibm_rcs.api").warning(
+        "DB migration skipped (non-PostgreSQL or already applied): %s", _migration_exc
+    )
+
+def _daily_exposure_reset_job() -> None:
+    """Reset exposure_minutes for all auditors at the daily workday boundary."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.models import Auditor
+    from app.assignment import maybe_reset_daily_exposure
+    db = SessionLocal()
+    try:
+        auditors = db.query(Auditor).all()
+        reset_count = sum(1 for a in auditors if maybe_reset_daily_exposure(db, a))
+        db.commit()
+        log.info("[SCHEDULER] daily exposure reset: %d/%d auditors reset", reset_count, len(auditors))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] daily exposure reset failed: %s", exc)
+    finally:
+        db.close()
+
+
+def _release_fallback_job() -> None:
+    """Place fallback cases whose hold has passed, once a standard Auditor is eligible."""
+    log = logging.getLogger("ibm_rcs.scheduler")
+    from app.db import SessionLocal
+    from app.fallback_queue import release_waiting_cases
+    db = SessionLocal()
+    try:
+        released = release_waiting_cases(db)
+        db.commit()
+        if released:
+            log.info("[SCHEDULER] fallback release: %s", ", ".join(f"{c}->{a}" for c, a in released))
+    except Exception as exc:
+        db.rollback()
+        log.error("[SCHEDULER] fallback release failed: %s", exc)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: "FastAPI"):  # type: ignore[name-defined]
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from zoneinfo import ZoneInfo
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            _daily_exposure_reset_job,
+            CronTrigger(hour=9, minute=0, timezone=ZoneInfo("Australia/Sydney")),
+            id="daily_exposure_reset",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            _release_fallback_job,
+            "interval",
+            seconds=30,
+            id="fallback_release",
+            replace_existing=True,
+        )
+        scheduler.start()
+        logging.getLogger("ibm_rcs.scheduler").info("[SCHEDULER] daily exposure reset scheduled at 09:00 AEST")
+    except ImportError:
+        logging.getLogger("ibm_rcs.scheduler").warning("[SCHEDULER] apscheduler not installed — daily reset disabled")
+        scheduler = None
+    yield
+    if scheduler:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="IBM RCS Backend", version="0.1.0", lifespan=lifespan)
 
 allowed_origins = [
     origin.strip()
@@ -328,16 +508,26 @@ async def create_report(
 
         # Auditors never claim cases. The configured Orchestrate adapter owns
         # the assignment decision; this endpoint only validates and persists it.
-        decision = await orchestrator.assign_case(case_id)
-        selected_auditor = db.get(Auditor, decision.auditor_id)
-        if selected_auditor is None or selected_auditor.role != "auditor":
-            raise AssignmentOrchestrationError(
-                "Orchestrate selected an invalid Auditor account"
-            )
-        print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
-        logger.info("case %s assigned to %s", case_id, decision.auditor_id)
-        record_case_assignment(db, case, decision)
-        db.commit()
+        try:
+            decision = await orchestrator.assign_case(case_id)
+        except NoEligibleAuditorError:
+            # No standard Auditor can take it right now. The report is kept, not
+            # rejected: it waits, unowned, in the Super Auditor's fallback queue.
+            decision = None
+        if decision is None:
+            logger.info("case %s has no eligible Auditor; queued for the Super Auditor", case_id)
+            mark_fallback(db, case)
+            db.commit()
+        else:
+            selected_auditor = db.get(Auditor, decision.auditor_id)
+            if selected_auditor is None or selected_auditor.role != "auditor":
+                raise AssignmentOrchestrationError(
+                    "Orchestrate selected an invalid Auditor account"
+                )
+            print(f"[ASSIGN] case_id={case_id} assigned_to={decision.auditor_id}", flush=True)
+            logger.info("case %s assigned to %s", case_id, decision.auditor_id)
+            record_case_assignment(db, case, decision)
+            db.commit()
         background_tasks.add_task(_run_analysis_in_background, case_id)
     except (
         AssignmentOrchestrationError,
@@ -470,6 +660,8 @@ async def staff_login(payload: LoginRequest, db: Session = Depends(get_db)):
     return {
         "token": token,
         "role": session.role,
+        # Lets the Auditor screens show the fallback queue. Every endpoint re-checks it server-side.
+        "is_super_admin": bool(staff.is_super_admin) and staff.role == "auditor",
         "expires_at": datetime.fromtimestamp(
             session.expires_at,
             tz=timezone.utc,
@@ -528,6 +720,10 @@ async def list_auditor_cases(
     auditor: StaffSession = Depends(get_current_auditor),
     db: Session = Depends(get_db),
 ):
+    # A fallback case may be waiting for exactly this Auditor to become eligible; place it now
+    # rather than at the next scheduler tick.
+    release_waiting_cases(db)
+    db.commit()
     assigned_cases = db.scalars(
         select(Case)
         .where(
@@ -541,6 +737,7 @@ async def list_auditor_cases(
             "case_id": case.case_id,
             "status": case.status,
             "severity_tier": case.severity_tier,
+            "final_severity_tier": _final_severity_tier(case),
         }
         for case in assigned_cases
     ]
@@ -579,6 +776,7 @@ async def get_auditor_case_detail(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities,
@@ -874,6 +1072,8 @@ async def get_my_wellbeing(
         "cooldown": cooldown,
         "cases_reviewed_today": len(completed_today(db, auditor.staff_id)),
         "requests": requests_for(db, auditor.staff_id, since=start_of_today()),
+        # An approved break that is still running; it ends by itself (app/breaks.py)
+        "break_ends_at": (lambda ends: ends.isoformat() if ends else None)(break_ends_at(db, auditor.staff_id)),
     }
 
 
@@ -1171,10 +1371,12 @@ def _auditor_cooldown_payload(row: Auditor) -> dict | None:
     ends_at = row.cooldown_ends_at
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
-    if ends_at <= datetime.now(timezone.utc):
-        return None
     requires_check_in = row.cooldown_trigger in ("S4", "SOS")
     check_in_done = bool(row.cooldown_check_in_done)
+    # An S4/SOS cooldown stays in force after its timer ends until the Manager's check-in is recorded, so the
+    # Manager still sees who is waiting (the Auditor's own view already works this way).
+    if ends_at <= datetime.now(timezone.utc) and not (requires_check_in and not check_in_done):
+        return None
     return {
         "ends_at": ends_at.isoformat(),
         "trigger": row.cooldown_trigger,
@@ -1325,12 +1527,14 @@ async def get_auditor_detail(
             {
                 "case_id": c.case_id,
                 "severity_tier": c.severity_tier,
+                "final_severity_tier": _final_severity_tier(c),
                 "completed_at": c.completed_at.isoformat() if c.completed_at else None,
                 "final_outcome": c.final_outcome,
             }
             for c in recent
         ],
         "wellbeing_requests": requests_for(db, auditor_id),
+        "open_requests": open_request_counts(db, auditor_id),
         "sos_history": sos_history(db, auditor_id),
         "last_active_at": max(
             (t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in last_active), default=None
@@ -1374,13 +1578,18 @@ async def get_case_oversight(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     return [
         {
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id) if c.assigned_auditor_id else None,
             "severity_tier": c.severity_tier,
+            "final_severity_tier": _final_severity_tier(c),
             "status": c.status,
             "manager_flag": c.manager_flag,
+            "case_visibility": c.case_visibility,
             "sos_alert_id": None,
         }
         for c in cases
@@ -1527,6 +1736,7 @@ async def list_declined_cases(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     result = []
     for c in cases:
         log = db.scalars(
@@ -1538,6 +1748,8 @@ async def list_declined_cases(
         reason = log.after_value.get("reason", "OTHER") if log and log.after_value else "OTHER"
         result.append({
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id, "Unknown"),
             "severity_tier": c.severity_tier,
             "reason": reason,
@@ -1569,6 +1781,7 @@ async def get_manager_case_review(
         "status": case.status,
         "manager_flag": case.manager_flag,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "effective_severity_score": case.effective_severity_score,
         "narrative_summary": case.narrative_summary,
         "auditor_severity_score": case.auditor_severity_score,
@@ -1595,7 +1808,35 @@ async def get_reassignment_context(
     candidates = db.scalars(
         select(Auditor).where(Auditor.role == "auditor")
     ).all()
+    now = datetime.now(timezone.utc)
     declining_auditor = db.get(Auditor, case.assigned_auditor_id) if case.assigned_auditor_id else None
+
+    sos_auditor_ids = set(
+        db.scalars(
+            select(Case.assigned_auditor_id).where(
+                Case.assigned_auditor_id.is_not(None),
+                Case.manager_flag == "SOS",
+            )
+        ).all()
+    )
+
+    on_break_now = breaks_in_progress(db, now)
+
+    def _is_available(a: "Auditor") -> bool:
+        if a.auditor_id in on_break_now:
+            return False
+        if float(a.exposure_minutes or 0) >= int(a.exposure_limit_minutes or 120):
+            return False
+        ends_at = a.cooldown_ends_at
+        if ends_at is not None:
+            if ends_at.tzinfo is None:
+                ends_at = ends_at.replace(tzinfo=timezone.utc)
+            if ends_at > now:
+                return False
+        if a.auditor_id in sos_auditor_ids:
+            return False
+        return True
+
     return {
         "case_id": case.case_id,
         "declining_auditor": {
@@ -1609,7 +1850,7 @@ async def get_reassignment_context(
                 "name": a.auditor_id,
                 "headroom_minutes": int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0),
                 "limited_headroom": (int(a.exposure_limit_minutes or 120) - int(a.exposure_minutes or 0)) < 30,
-                "available": float(a.exposure_minutes or 0) < int(a.exposure_limit_minutes or 120),
+                "available": _is_available(a),
             }
             for a in candidates
             if a.auditor_id != case.assigned_auditor_id
@@ -1630,8 +1871,28 @@ async def reassign_case(
     target = db.get(Auditor, auditor_id)
     if target is None or target.role != "auditor":
         raise HTTPException(status_code=404, detail="Auditor not found")
+    now = datetime.now(timezone.utc)
+    if float(target.exposure_minutes or 0) >= int(target.exposure_limit_minutes or 120):
+        raise HTTPException(status_code=409, detail="Auditor has reached their daily exposure limit")
+    if break_ends_at(db, auditor_id, now) is not None:
+        raise HTTPException(status_code=409, detail="Auditor is on a break")
+    cooldown_ends = target.cooldown_ends_at
+    if cooldown_ends is not None:
+        if cooldown_ends.tzinfo is None:
+            cooldown_ends = cooldown_ends.replace(tzinfo=timezone.utc)
+        if cooldown_ends > now:
+            raise HTTPException(status_code=409, detail="Auditor is in mandatory cooldown")
+    active_sos = db.scalars(
+        select(Case).where(
+            Case.assigned_auditor_id == auditor_id,
+            Case.manager_flag == "SOS",
+        )
+    ).first()
+    if active_sos is not None:
+        raise HTTPException(status_code=409, detail="Auditor has an active SOS alert")
     before = {"assigned_auditor_id": case.assigned_auditor_id, "status": case.status}
     case.assigned_auditor_id = auditor_id
+    case.case_visibility = "ASSIGNED_ONLY"
     case.status = "READY_FOR_REVIEW"
     case.manager_flag = None
     db.add(AuditLog(
@@ -1687,6 +1948,7 @@ async def get_case_exceptional_access(
         "watson_severity_score": case.watson_severity_score,
         "effective_severity_score": case.effective_severity_score,
         "severity_tier": case.severity_tier,
+        "final_severity_tier": _final_severity_tier(case),
         "narrative_summary": case.narrative_summary,
         "incident_timeline": case.incident_timeline,
         "flagged_entities": case.flagged_entities or [],
@@ -1762,17 +2024,44 @@ async def record_exceptional_access(
 @app.get("/api/manager/validation")
 async def get_validation_summary(
     _: StaffSession = Depends(get_current_manager),
+    db: Session = Depends(get_db),
 ):
+    from app.severity import get_severity_tier as _get_tier
+    val_cases = db.scalars(
+        select(Case).where(Case.is_validation_case == True, Case.severity_tier.is_not(None))
+    ).all()
+
+    total = len(val_cases)
+    if total == 0:
+        return {"is_placeholder": True, "tiers": [], "match_rate_pct": 0.0, "validation_set_size": 0}
+
+    tier_order = ["S1", "S2", "S3", "S4"]
+    ai_counts = {t: 0 for t in tier_order}
+    gt_counts = {t: 0 for t in tier_order}
+    matches = 0
+
+    for c in val_cases:
+        ai_tier = c.severity_tier
+        gt_tier = c.ground_truth_tier
+        if ai_tier in ai_counts:
+            ai_counts[ai_tier] += 1
+        if gt_tier in gt_counts:
+            gt_counts[gt_tier] += 1
+        if ai_tier == gt_tier:
+            matches += 1
+
     return {
-        "is_placeholder": True,
+        "is_placeholder": False,
         "tiers": [
-            {"tier": "S1", "ai_predicted_pct": 62.0, "ground_truth_pct": 58.0},
-            {"tier": "S2", "ai_predicted_pct": 21.0, "ground_truth_pct": 24.0},
-            {"tier": "S3", "ai_predicted_pct": 11.0, "ground_truth_pct": 13.0},
-            {"tier": "S4", "ai_predicted_pct": 6.0, "ground_truth_pct": 5.0},
+            {
+                "tier": t,
+                "ai_predicted_pct": round(ai_counts[t] / total * 100, 1),
+                "ground_truth_pct": round(gt_counts[t] / total * 100, 1),
+            }
+            for t in tier_order
         ],
-        "match_rate_pct": 84.0,
-        "validation_set_size": 0,
+        "match_rate_pct": round(matches / total * 100, 1),
+        "validation_set_size": total,
     }
 
 
@@ -1783,6 +2072,7 @@ def _safe_audit_value(value):
 
 from app.governance_api import install_routes as install_governance_routes
 install_governance_routes(app, get_current_manager, require_internal_api_key)
+install_fallback_routes(app, get_current_session)
 # ---------------------------------------------------------------------------
 # AI Chatbot ("AI buddy") — watsonx.ai backed
 # ---------------------------------------------------------------------------
@@ -1794,54 +2084,202 @@ async def ai_chat(
     db: Session = Depends(get_db),
 ):
     from app.chat import chat
+    from app.chat_context import build_context, model_context, no_verified_info, safety_addendum
 
-    context: dict = {}
+    ctx = build_context(db, session.role, session.staff_id, body.message)
 
-    if session.role == "manager":
-        now = datetime.now(timezone.utc)
-        auditors = db.scalars(select(Auditor).where(Auditor.role == "auditor")).all()
-        open_cases = db.scalar(select(func.count()).select_from(Case).where(Case.status != "COMPLETE")) or 0
-        completed_today_count = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.status == "COMPLETE",
-                Case.completed_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-        ) or 0
-        pending_declined = db.scalar(
-            select(func.count()).select_from(Case).where(
-                Case.manager_flag.in_(["DECLINED", "CAP_REACHED"]),
-                Case.status != "COMPLETE",
-            )
-        ) or 0
-        context = {
-            "open cases": open_cases,
-            "completed today": completed_today_count,
-            "cases awaiting reassignment": pending_declined,
-            "auditor count": len(auditors),
-            "auditors at exposure limit": sum(
-                1 for a in auditors
-                if (a.exposure_minutes or 0) >= (a.exposure_limit_minutes or 120)
-            ),
+    def payload(reply: str, fallback: bool = False) -> dict:
+        return {
+            "reply": reply,
+            "live_as_of": ctx.live_as_of if ctx.live else None,
+            "case": ctx.case,
+            "links": ctx.links,
+            "fallback": fallback,
         }
 
-    elif session.role == "auditor":
-        auditor = db.get(Auditor, session.staff_id)
-        if auditor:
-            active_cases = db.scalars(
-                select(Case).where(
-                    Case.assigned_auditor_id == session.staff_id,
-                    Case.status.in_(["READY_FOR_REVIEW", "AUDITOR_REVIEW"]),
-                )
-            ).all()
-            context = {
-                "your exposure today": f"{round(auditor.exposure_minutes or 0)} / {auditor.exposure_limit_minutes or 120} min",
-                "your active cases": len(active_cases),
-                "active case IDs": ", ".join(c.case_id for c in active_cases) or "none",
-            }
+    # A case ID that isn't visible to this person gets fixed wording, with no model call,
+    # so the Buddy can't guess at a case it hasn't been given.
+    if ctx.case_unavailable:
+        return payload(no_verified_info(session.role), fallback=True)
 
     try:
-        reply = await run_in_threadpool(chat, body.message, session.role, context)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        reply = await run_in_threadpool(
+            chat,
+            body.message,
+            session.role,
+            model_context(ctx),
+            [turn.model_dump() for turn in body.history],
+            ctx.live_as_of,
+        )
+    except RuntimeError:
+        logger.exception("AI Buddy request failed")
+        raise HTTPException(status_code=503, detail="AI Buddy is unavailable right now.")
 
-    return {"reply": reply}
+    addendum = safety_addendum(session.role, ctx)
+    return payload(f"{reply}\n\n{addendum}" if addendum else reply)
+
+
+# ── Internal: demo reseed ─────────────────────────────────────────────────────
+
+@app.post(
+    "/api/internal/reseed",
+    summary="Wipe and reseed demo data",
+    description=(
+        "Drops all auditors, cases, audit logs, and B2B data then re-populates "
+        "with the standard demo dataset. Requires the X-Internal-API-Key header. "
+        "**Destructive — only use on the demo database.**"
+    ),
+    tags=["internal"],
+)
+async def reseed_demo(
+    _: None = Depends(require_internal_api_key),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime, timezone, timedelta
+    from app.models import Auditor, Case, AuditLog, AnalysisRun, GovernanceLogEntry
+    from app.auth import hash_password
+    from app.case_ids import generate_case_id
+    from app.b2b_seed import seed_b2b, wipe_b2b
+
+    # Wipe
+    wipe_b2b(db)
+    db.query(AuditLog).delete()
+    db.query(Case).update({Case.analysis_run_id: None})
+    db.query(AnalysisRun).delete()
+    db.query(Case).delete()
+    db.query(Auditor).delete()
+    db.commit()
+
+    now = datetime.now(timezone.utc)
+
+    def timeline(entries):
+        return [{"start": s, "end": e, "severity_tier": tier, "tag": tag} for s, e, tier, tag in entries]
+
+    def entities(items):
+        return [{"label": l, "start": s, "end": e} for l, s, e in items]
+
+    transcript_sample = [
+        {"time": 0.0, "text": "Stop, you need to calm down."},
+        {"time": 4.1, "text": "I said stop! Back away now."},
+        {"time": 8.0, "text": "Get on the ground! Now!"},
+        {"time": 15.0, "text": "Do not resist. Stay on the ground."},
+        {"time": 22.0, "text": "Backup is on the way. Stay calm."},
+    ]
+    audio_sample = [0.2, 0.3, 0.5, 0.7, 0.9, 0.85, 0.6, 0.4, 0.3, 0.2]
+
+    # Auditors
+    a1 = Auditor(auditor_id="auditor-01", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=45.0, exposure_last_reset_at=now, active_case_count=2)
+    a2 = Auditor(auditor_id="auditor-02", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=30.0, exposure_last_reset_at=now, active_case_count=1)
+    a3 = Auditor(auditor_id="auditor-03", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=110.0, exposure_last_reset_at=now, active_case_count=1)
+    a4 = Auditor(auditor_id="auditor-04", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=119.0, exposure_last_reset_at=now, active_case_count=0)
+    m1 = Auditor(auditor_id="manager-01", login_hash=hash_password("test123"), role="manager")
+    sa1 = Auditor(auditor_id="superauditor-01", login_hash=hash_password("test123"), role="auditor",
+                  is_super_admin=True, exposure_minutes=0.0, exposure_last_reset_at=now)
+    db.add_all([a1, a2, a3, a4, m1, sa1])
+    db.commit()
+
+    # Cases
+    c1 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=10, effective_severity_score=10, severity_tier="S1",
+              narrative_summary="The footage shows a routine traffic stop with no significant use of force. The officer maintained professional conduct throughout. No policy violations identified.",
+              incident_timeline=timeline([(0, 0, "S1", "Officer approaches vehicle"), (30, 30, "S1", "Driver complies"), (90, 90, "S1", "Traffic stop concluded")]),
+              flagged_entities=entities([("Vehicle", 0.0, 90.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=95.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s1.mp4")
+    c2 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=35, effective_severity_score=35, severity_tier="S2",
+              narrative_summary="Minor use of force observed. Officer used a firm grip to restrain the subject who was resisting. The force level appears proportionate but warrants documentation.",
+              incident_timeline=timeline([(0, 0, "S2", "Verbal confrontation begins"), (45, 45, "S2", "Subject resists"), (60, 75, "S2", "Physical restraint applied"), (120, 120, "S1", "Situation de-escalates")]),
+              flagged_entities=entities([("Physical restraint", 60.0, 90.0), ("Verbal resistance", 45.0, 60.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=130.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s2.mp4")
+    c3 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=65, effective_severity_score=65, severity_tier="S3",
+              narrative_summary="Significant use of force observed. Officer deployed pepper spray following prolonged struggle. Subject sustained minor injuries. Review required.",
+              incident_timeline=timeline([(0, 0, "S2", "Officer responds to disturbance"), (20, 20, "S3", "Subject becomes aggressive"), (55, 58, "S3", "Pepper spray deployed"), (75, 75, "S2", "Backup arrives"), (110, 110, "S2", "Subject detained")]),
+              flagged_entities=entities([("Pepper spray deployment", 55.0, 60.0), ("Aggressive subject", 20.0, 55.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=120.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s3-decline.mp4")
+    c4 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-02",
+              watson_severity_score=85, effective_severity_score=85, severity_tier="S4",
+              narrative_summary="Severe use of force. Multiple officers involved in subduing an unarmed subject. Baton strikes observed. Subject required medical attention. Immediate review warranted.",
+              incident_timeline=timeline([(0, 0, "S2", "Officers respond to call"), (15, 15, "S2", "Subject flees on foot"), (30, 30, "S3", "Takedown initiated"), (45, 65, "S4", "Baton strikes observed"), (70, 70, "S3", "Subject restrained, medical called")]),
+              flagged_entities=entities([("Baton strikes", 45.0, 65.0), ("Takedown", 30.0, 45.0), ("Unarmed subject", 0.0, 70.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=80.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s4-sos.mp4")
+    c5 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-03",
+              watson_severity_score=60, effective_severity_score=60, severity_tier="S3",
+              narrative_summary="Use of force incident during arrest. Officer used a chokehold briefly before transitioning to approved restraint technique. Borderline compliance with policy.",
+              incident_timeline=timeline([(0, 0, "S2", "Arrest attempt begins"), (25, 25, "S3", "Subject resists"), (40, 50, "S4", "Chokehold applied briefly"), (50, 60, "S2", "Transition to approved restraint"), (90, 90, "S1", "Subject detained")]),
+              flagged_entities=entities([("Chokehold", 40.0, 50.0), ("Resistance", 25.0, 40.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=95.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s3-approaching.mp4")
+    c6 = Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+              watson_severity_score=30, effective_severity_score=30, severity_tier="S2",
+              auditor_severity_score=25, auditor_comment="Officer acted within policy. Minor force proportionate to situation.",
+              final_outcome="NO_VIOLATION_FOUND", narrative_summary="Completed case — minor restraint, no violation found.",
+              incident_timeline=timeline([(0, 0, "S2", "Incident begins"), (60, 60, "S1", "Resolved")]),
+              flagged_entities=[], transcript=transcript_sample, audio_intensity=audio_sample,
+              video_duration_seconds=70.0, video_storage_path="/tmp/ibm-rcs-uploads/demo-completed.mp4",
+              completed_at=now - timedelta(hours=2))
+    c7 = Case(case_id=generate_case_id(), status="DECLINED", assigned_auditor_id="auditor-01",
+              watson_severity_score=70, effective_severity_score=70, severity_tier="S3", manager_flag="DECLINED",
+              narrative_summary="Case was declined by original auditor due to personal trigger. Awaiting reassignment by manager.",
+              incident_timeline=timeline([(0, 0, "S3", "Incident begins"), (30, 45, "S3", "Force applied"), (60, 60, "S2", "Scene secured")]),
+              flagged_entities=entities([("Use of force", 30.0, 60.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=75.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-declined.mp4")
+    fb1 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id=None,
+               case_visibility="SUPER_ADMIN_ONLY", watson_severity_score=48, effective_severity_score=48,
+               severity_tier="S2", narrative_summary="Demo case waiting in the fallback queue.",
+               incident_timeline=timeline([(10, 25, "S2", "Verbal confrontation")]),
+               flagged_entities=entities([("Verbal resistance", 10.0, 25.0)]),
+               transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+               video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-1.mp4")
+    fb2 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id=None,
+               case_visibility="AVAILABLE_TO_AUDITORS", watson_severity_score=22, effective_severity_score=22,
+               severity_tier="S1", narrative_summary="Demo case released to eligible Auditors to claim.",
+               incident_timeline=timeline([(5, 5, "S1", "Routine interaction")]),
+               flagged_entities=entities([("Vehicle", 0.0, 40.0)]),
+               transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=45.0,
+               video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-2.mp4")
+    db.add_all([c1, c2, c3, c4, c5, c6, c7, fb1, fb2])
+    db.commit()
+
+    # Validation set (10 clips, 8/10 AI correct)
+    val_cases = [
+        Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+             watson_severity_score=s, effective_severity_score=s, severity_tier=t,
+             auditor_severity_score=s, final_outcome=o, narrative_summary=desc,
+             incident_timeline=[], flagged_entities=[], transcript=transcript_sample,
+             audio_intensity=audio_sample, video_duration_seconds=60.0,
+             video_storage_path=f"/tmp/ibm-rcs-uploads/val-{i:02d}.mp4",
+             completed_at=now - timedelta(days=1), is_validation_case=True, ground_truth_tier=gt)
+        for i, (s, t, o, desc, gt) in enumerate([
+            (85, "S4", "POLICY_VIOLATION_FOUND", "Validation clip 1 — severe force.", "S4"),
+            (10, "S1", "NO_VIOLATION_FOUND", "Validation clip 2 — no violation.", "S1"),
+            (15, "S1", "NO_VIOLATION_FOUND", "Validation clip 3 — no violation.", "S1"),
+            (20, "S1", "NO_VIOLATION_FOUND", "Validation clip 4 — no violation.", "S1"),
+            (70, "S3", "POLICY_VIOLATION_FOUND", "Validation clip 5 — significant force.", "S3"),
+            (75, "S3", "POLICY_VIOLATION_FOUND", "Validation clip 6 — significant force.", "S3"),
+            (90, "S4", "POLICY_VIOLATION_FOUND", "Validation clip 7 — severe force.", "S4"),
+            (25, "S1", "NO_VIOLATION_FOUND", "Validation clip 8 — no violation.", "S1"),
+            (50, "S2", "NO_VIOLATION_FOUND", "Validation clip 9 — AI over-predicted (S2 vs S1 ground truth).", "S1"),
+            (70, "S3", "NO_VIOLATION_FOUND", "Validation clip 10 — AI over-predicted (S3 vs S1 ground truth).", "S1"),
+        ], start=1)
+    ]
+    db.add_all(val_cases)
+    db.commit()
+
+    b2b = seed_b2b(db, now, [c1, c2, c3, c4, c5, c6, c7], client_password="test123")
+
+    return {
+        "seeded": True,
+        "accounts": ["auditor-01", "auditor-02", "auditor-03", "auditor-04", "manager-01", "superauditor-01"],
+        "cases": b2b["history"] + 9,
+        "deliveries": b2b["deliveries"],
+    }

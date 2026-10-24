@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, InlineNotification, RadioButton, RadioButtonGroup, TextArea } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { pageTitle } from "../../components/manager/managerStyles";
 import { getSosAlert, logSosFollowUp } from "../../services";
 import { ApiError, type SosFollowUpOutcome } from "../../services/types";
 import { SOS_FOLLOW_UP_OPTIONS } from "../../design-tokens/managerLabels";
@@ -59,8 +59,15 @@ export function ManagerSosFollowUpPage() {
   return (
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
-      <ManagerBreadcrumb trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: `${name} — Follow-up` }]} />
-      <h1 style={pageTitle}>Log follow-up — {name}</h1>
+      <ManagerBreadcrumb
+        trail={[
+          { label: "Overview", to: "/manager" },
+          { label: "SOS inbox", to: "/manager/sos" },
+          { label: name, to: `/manager/sos/${encodeURIComponent(alertId)}` },
+          { label: "Follow-up" },
+        ]}
+      />
+      <PageHeader title={`Log follow-up — ${name}`} />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && logged && (
         <Panel maxWidth={560}>
@@ -72,13 +79,28 @@ export function ManagerSosFollowUpPage() {
             subtitle={`${SOS_FOLLOW_UP_OPTIONS.find((o) => o.value === outcome)?.label}. This SOS alert is now resolved.`}
             style={{ maxWidth: "100%" }}
           />
-          <div>
-            <Button onClick={() => navigate("/manager/sos")}>Return to SOS Inbox</Button>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => navigate("/manager/sos")}>Return to SOS inbox</Button>
+            {data.auditor_id && (
+              <Button kind="tertiary" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
+                View {name}&apos;s record
+              </Button>
+            )}
           </div>
         </Panel>
       )}
       {data && !logged && (
         <Panel maxWidth={560}>
+          {(data.severity_tier === "S4" || data.trigger !== "AUDITOR_SOS") && (
+            <InlineNotification
+              kind="warning"
+              lowContrast
+              hideCloseButton
+              title={data.severity_tier === "S4" ? "Critical case: this is the mandatory check-in." : "This is the check-in."}
+              subtitle="Say how they are and what support you offered, not only that you spoke."
+              style={{ maxWidth: "100%" }}
+            />
+          )}
           <TextArea
             id="follow-up-notes"
             labelText="Follow-up notes"
@@ -103,6 +125,15 @@ export function ManagerSosFollowUpPage() {
               />
             ))}
           </RadioButtonGroup>
+          <p className="rcs-helper" aria-live="polite">
+            {outcome === "NO_FURTHER_ACTION" &&
+              "You spoke with the Auditor and they are well enough to keep working. This resolves the alert."}
+            {outcome === "REASSIGNED_REMAINING_CASES" &&
+              "The Auditor keeps working, but you are handing their remaining cases to other Auditors. Choose who takes them in the Reassignment queue."}
+            {outcome === "AUDITOR_STOPPED_SHIFT" &&
+              "The Auditor has stopped for the day. Their open cases will need new Auditors."}
+            {!outcome && "Choose what happened after you spoke with the Auditor. Your notes and this choice are kept in the audit trail."}
+          </p>
           {submitError && (
             <InlineNotification
               kind="error"
@@ -124,7 +155,7 @@ export function ManagerSosFollowUpPage() {
               </p>
             )}
             <Button kind="tertiary" onClick={() => navigate(`/manager/sos/${encodeURIComponent(alertId)}`)}>
-              ← Back to SOS Alert Detail
+              ← Back to SOS alert detail
             </Button>
           </div>
         </Panel>

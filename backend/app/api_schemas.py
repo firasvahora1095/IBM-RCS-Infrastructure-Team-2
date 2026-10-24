@@ -1,6 +1,7 @@
 """Request payloads and controlled values for the Week 1 API."""
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -39,7 +40,7 @@ class MockAiResultRequest(BaseModel):
     effective_severity_score: int = Field(default=72, ge=0, le=100)
     severity_tier: SeverityTier = SeverityTier.S3
     narrative_summary: str = Field(
-        default="Mock: physical altercation detected between two people.",
+        default="Physical altercation detected between two people.",
         min_length=1,
         max_length=5000,
     )
@@ -80,6 +81,12 @@ class SosFollowUpRequest(BaseModel):
     outcome: SosFollowUpOutcome
 
 
+class CheckInRequest(BaseModel):
+    """The Manager's record of speaking to an Auditor after an S4 case."""
+
+    notes: str = Field(min_length=1, max_length=5000)
+
+
 class ExposureSampleRequest(BaseModel):
     active_seconds: float = Field(default=0, ge=0)
     replay_seconds: float = Field(default=0, ge=0)
@@ -97,5 +104,12 @@ class SetExposureLimitRequest(BaseModel):
     minutes: int = Field(ge=0, le=1440)
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(min_length=1, max_length=1500)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    # Earlier turns of this conversation, oldest first, so follow-up questions make sense.
+    history: list[ChatTurn] = Field(default_factory=list, max_length=12)

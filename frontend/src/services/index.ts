@@ -39,8 +39,18 @@ export const requestStatusUpdates = delegate("requestStatusUpdates");
 // Staff sign-in
 export const staffLogin = delegate("staffLogin");
 
+// AI Buddy
+export const aiChat = delegate("aiChat");
+
 // Auditor review
 export const getAuditorCases = delegate("getAuditorCases");
+
+// Fallback queue (Super Auditor, extra-features 1.6)
+export const getAllOpenCases = delegate("getAllOpenCases");
+export const getAvailableCases = delegate("getAvailableCases");
+export const takeCase = delegate("takeCase");
+export const claimCase = delegate("claimCase");
+export const makeCaseAvailable = delegate("makeCaseAvailable");
 export const getAuditorCaseDetail = delegate("getAuditorCaseDetail");
 export const resolveCase = delegate("resolveCase");
 
@@ -70,13 +80,16 @@ export const listClientMessages = delegate("listClientMessages");
 export const getClientMessage = delegate("getClientMessage");
 export const replyClientMessage = delegate("replyClientMessage");
 export const clientListCaseResults = delegate("clientListCaseResults");
+export const clientCaseResultsSummary = delegate("clientCaseResultsSummary");
 export const clientRecordPlatformAction = delegate("clientRecordPlatformAction");
 export const listClientAccounts = delegate("listClientAccounts");
+export const listClients = delegate("listClients");
 export const getCaseOversight = delegate("getCaseOversight");
 export const listSosAlerts = delegate("listSosAlerts");
 export const getSosAlert = delegate("getSosAlert");
 export const acknowledgeSosAlert = delegate("acknowledgeSosAlert");
 export const logSosFollowUp = delegate("logSosFollowUp");
+export const logCheckIn = delegate("logCheckIn");
 export const listDeclinedCases = delegate("listDeclinedCases");
 export const getManagerCaseReview = delegate("getManagerCaseReview");
 export const getReassignmentContext = delegate("getReassignmentContext");

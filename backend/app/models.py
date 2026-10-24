@@ -1,5 +1,6 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -15,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.sql import func
+from sqlalchemy.sql import expression, func
 
 
 Base = declarative_base()
@@ -46,6 +47,10 @@ class Auditor(Base):
     cooldown_trigger = Column(String(10), nullable=True)
     cooldown_check_in_done = Column(Integer, nullable=False, server_default="0")
     exposure_last_reset_at = Column(DateTime(timezone=True), nullable=True)
+    # The fallback reviewer (Sprint 3, extra-features 1.6): sees every open case's queue
+    # metadata and can take a case no standard Auditor could be given. Still an Auditor
+    # for wellbeing: exposure limit and cooldown apply, and the session role stays "auditor".
+    is_super_admin = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -104,6 +109,8 @@ class Case(Base):
     )
 
     case_id = Column(String(20), primary_key=True)
+    # The client whose content this is. Existing cases belong to CommunityHub, the original customer.
+    organisation_id = Column(String(50), nullable=False, default="COMMUNITYHUB", server_default="COMMUNITYHUB")
     status = Column(String(30), nullable=False, server_default="SUBMITTED")
     assigned_auditor_id = Column(
         String(50),
@@ -134,6 +141,13 @@ class Case(Base):
     auditor_comment = Column(Text, nullable=True)
     final_outcome = Column(String(50), nullable=True)
     manager_flag = Column(String(15), nullable=True)
+    # Who may see the case in a queue, kept apart from who owns it (assigned_auditor_id):
+    # ASSIGNED_ONLY (default), SUPER_ADMIN_ONLY (no standard Auditor could take it) or
+    # AVAILABLE_TO_AUDITORS (released to eligible Auditors to claim, metadata only).
+    case_visibility = Column(String(25), nullable=False, server_default="ASSIGNED_ONLY")
+    # When the system parked this case in the fallback queue. Only a case with this set is released
+    # automatically once a standard Auditor is eligible; hand-seeded demo cases leave it empty.
+    fallback_queued_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),
@@ -143,6 +157,8 @@ class Case(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
     analysis_run_id = Column(String(36), nullable=True)
     ai_auditor_comparison = Column(JSON_DOCUMENT, nullable=True)
+    is_validation_case = Column(Boolean, nullable=False, server_default="false")
+    ground_truth_tier = Column(String(2), nullable=True)
 
 
 class AuditLog(Base):
@@ -227,6 +243,10 @@ class CaseHistory(Base):
     final_tier = Column(String(2), nullable=True)
     outcome = Column(String(50), nullable=False)
     declined_reassigned = Column(Integer, nullable=False, server_default="0")
+    # CVI scores and, when the Auditor changed the tier, their reason. Null for records that only kept tiers.
+    ai_score = Column(Integer, nullable=True)
+    final_score = Column(Integer, nullable=True)
+    override_reason = Column(Text, nullable=True)
 
 
 class Delivery(Base):

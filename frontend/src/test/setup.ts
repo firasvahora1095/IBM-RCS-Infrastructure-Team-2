@@ -44,3 +44,11 @@ if (typeof window !== "undefined" && !window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList;
 }
+
+// The Manager Overview loads its inbox through several mock calls in a row. Under a full parallel run
+// the default 1s wait for it is too tight, so async queries wait up to 4s (they still return at once).
+import { configure } from "@testing-library/react";
+configure({ asyncUtilTimeout: 4000 });
+
+// jsdom doesn't implement scrolling; pages that reset scroll on navigation just need it to exist.
+window.scrollTo = () => {};

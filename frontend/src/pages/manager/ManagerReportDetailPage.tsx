@@ -17,6 +17,7 @@ import {
   TableRow,
   TextArea,
 } from "@carbon/react";
+import { Download } from "@carbon/icons-react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -29,7 +30,7 @@ import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { NOT_IN_CLIENT_REPORT, RELEASE_CONFIRM_BODY } from "../../design-tokens/reportLabels";
+import { NOT_IN_CLIENT_REPORT, releaseConfirmBody } from "../../design-tokens/reportLabels";
 import { formatPeriod, formatShortDateTime } from "../../utils/formatPeriod";
 
 const NOTE_LIMIT = 600;
@@ -97,7 +98,7 @@ export function ManagerReportDetailPage() {
       setNotice({
         kind: "success",
         title: "Report released.",
-        subtitle: "CommunityHub's authorised users can now view it.",
+        subtitle: `${data?.organisation_name ?? "The Client"}'s authorised users can now view it.`,
       });
       reload();
     } catch (err) {
@@ -122,9 +123,10 @@ export function ManagerReportDetailPage() {
     <ManagerLayout>
       <PageHeader
         breadcrumb={
-          <ManagerBreadcrumb trail={[{ label: "Client reports", to: "/manager/reports" }, { label: reportId }]} />
+          <ManagerBreadcrumb trail={[{ label: "Reports", to: "/manager/reports" }, { label: `Client report ${reportId}` }]} />
         }
-        title={data ? formatPeriod(data.period_start, data.period_end) : "Report"}
+        eyebrow={data ? `Client report · ${data.organisation_name}` : undefined}
+        title={data ? formatPeriod(data.period_start, data.period_end) : "Client report"}
         meta={data && <StatusTag kind="report" value={data.status} />}
         subtitle={
           data &&
@@ -153,7 +155,7 @@ export function ManagerReportDetailPage() {
         <Grid className="rcs-grid">
           <Column sm={4} md={8} lg={11} className="flex flex-col gap-4">
             <p className="rcs-helper rcs-no-print">
-              This is exactly what CommunityHub will see. Only you can open the evidence behind each section.
+              This is exactly what {data?.organisation_name ?? "the Client"} will see. Only you can open the evidence behind each section.
             </p>
             <ReportSheet
               report={{ ...data, manager_note: draft ? note.trim() || null : data.manager_note }}
@@ -170,7 +172,7 @@ export function ManagerReportDetailPage() {
                   </h2>
                   <TextArea
                     id="manager-note"
-                    labelText="Service notes for CommunityHub (optional)"
+                    labelText={`Service notes for ${data?.organisation_name ?? "the Client"} (optional)`}
                     helperText="Factual service or quality notes. Shown in the report."
                     value={note}
                     maxCount={NOTE_LIMIT}
@@ -195,8 +197,8 @@ export function ManagerReportDetailPage() {
                     included.
                   </p>
                   <Button onClick={() => setConfirmOpen(true)}>Approve and release</Button>
-                  <Button kind="ghost" onClick={() => window.print()}>
-                    Download draft as PDF
+                  <Button kind="tertiary" renderIcon={Download} onClick={() => window.print()}>
+                    Download PDF
                   </Button>
                 </section>
               ) : (
@@ -205,20 +207,20 @@ export function ManagerReportDetailPage() {
                     Released
                   </h2>
                   <p className="rcs-body">
-                    CommunityHub's authorised users can view and download this version. Released reports can't be
+                    {data?.organisation_name ?? "The Client"}'s authorised users can view and download this version. Released reports can't be
                     edited.
                   </p>
                   <Button kind="tertiary" onClick={newVersion}>
                     Create a new version
                   </Button>
-                  <Button kind="ghost" onClick={() => window.print()}>
-                    Download as PDF
+                  <Button kind="tertiary" renderIcon={Download} onClick={() => window.print()}>
+                    Download PDF
                   </Button>
                 </section>
               )}
 
               <Accordion>
-                <AccordionItem open title="Never included in a client report">
+                <AccordionItem open title="Never included in a Client report">
                   <ul className="flex flex-col gap-2" style={{ listStyle: "disc", paddingInlineStart: "1.25rem" }}>
                     {NOT_IN_CLIENT_REPORT.map((item) => (
                       <li key={item} className="rcs-body">
@@ -266,7 +268,7 @@ export function ManagerReportDetailPage() {
       <Modal
         open={confirmOpen}
         danger={false}
-        modalHeading="Release this report to CommunityHub?"
+        modalHeading={`Release this report to ${data?.organisation_name ?? "the Client"}?`}
         modalLabel={data ? formatPeriod(data.period_start, data.period_end) : undefined}
         primaryButtonText={releasing ? "Releasing…" : "Release report"}
         primaryButtonDisabled={releasing}
@@ -274,7 +276,7 @@ export function ManagerReportDetailPage() {
         onRequestClose={() => !releasing && setConfirmOpen(false)}
         onRequestSubmit={release}
       >
-        <p className="rcs-body">{RELEASE_CONFIRM_BODY}</p>
+        <p className="rcs-body">{releaseConfirmBody(data?.organisation_name ?? "The Client")}</p>
       </Modal>
       {data && evidenceKey && data.metrics.evidence && (
         <EvidenceDialog

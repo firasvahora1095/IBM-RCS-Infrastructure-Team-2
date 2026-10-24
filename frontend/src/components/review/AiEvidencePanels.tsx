@@ -130,23 +130,33 @@ export function AudioIntensityGraph({
       <div
         role="img"
         aria-label={`Audio intensity across ${values.length} time segments${peakDescription}.`}
-        className="flex items-end gap-1"
-        style={{ height: 48, maxWidth: 600 }}
+        className="flex items-end gap-0.5"
+        style={{ height: 48, width: "100%" }}
       >
         {values.map((value, i) => (
           <div
             key={i}
             style={{
               flex: "1 1 0",
-              maxWidth: 32,
               height: `${Math.max(4, (value / maxVal) * 100)}%`,
               backgroundColor: "var(--cds-interactive)",
             }}
           />
         ))}
       </div>
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-        Timestamped audio-intensity graph, not an emotion graph.
+      {durationSeconds ? (
+        <div
+          aria-hidden="true"
+          className="flex justify-between"
+          style={{ fontFamily: mono, fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}
+        >
+          <span>{formatTimestamp(0)}</span>
+          <span>{formatTimestamp(durationSeconds / 2)}</span>
+          <span>{formatTimestamp(durationSeconds)}</span>
+        </div>
+      ) : null}
+      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+        Audio intensity, not an emotion graph.
       </p>
     </div>
   );

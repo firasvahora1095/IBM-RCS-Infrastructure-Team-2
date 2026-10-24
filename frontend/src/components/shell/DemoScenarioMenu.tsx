@@ -9,6 +9,7 @@ import {
   demoScenarios,
 } from "../../services/mock/demo";
 import { useAuth, type StaffRole } from "../../hooks/useAuth";
+import { SMALL_SCREEN, useMediaQuery } from "../../hooks/useMediaQuery";
 import { notifyWellbeingChanged } from "../../hooks/useMyWellbeing";
 import { notifySosChanged } from "../../hooks/useSosSummary";
 
@@ -46,7 +47,7 @@ const SCENARIOS: Scenario[] = [
   { label: "Put me at my exposure limit", run: (token) => demoScenarios.reachExposureLimit(token) },
   { label: "Start a 15-minute S3 cooldown", run: (token) => demoScenarios.startCooldown(token, "S3", 15) },
   { label: "Start a 30-minute S4 cooldown", run: (token) => demoScenarios.startCooldown(token, "S4", 30) },
-  { label: "End my cooldown (manager checked in)", run: (token) => demoScenarios.finishCooldown(token) },
+  { label: "End my cooldown (Manager checked in)", run: (token) => demoScenarios.finishCooldown(token) },
 ];
 
 /**
@@ -59,8 +60,11 @@ export function DemoScenarioMenu({ role }: { role: StaffRole }) {
   const { token, logout } = useAuth();
   const navigate = useNavigate();
   const [announcement, setAnnouncement] = useState("");
+  // On a phone the header has no room for demo chrome next to the exposure bar, the AI Buddy and Sign out.
+  // This menu is a presenter tool; the "Demo data" badge stays, so the data is never mistaken for live.
+  const compact = useMediaQuery(SMALL_SCREEN);
 
-  if (!isMockData || !token) return null;
+  if (!isMockData || !token || compact) return null;
 
   const scenarios = SCENARIOS.filter((s) => (role === "auditor" ? !s.managerOnly : s.forManager));
 

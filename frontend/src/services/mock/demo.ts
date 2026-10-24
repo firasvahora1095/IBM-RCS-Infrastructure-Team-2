@@ -63,7 +63,7 @@ export const demoScenarios = {
   },
 
   /** Figma 31:99 / 36:189: starts a cooldown for the signed-in Auditor. */
-  startCooldown(token: string, trigger: SeverityTier, minutes: number): void {
+  startCooldown(token: string, trigger: SeverityTier | "SOS", minutes: number): void {
     updateDb((db) => {
       const me = staffForToken(db, token);
       if (!me) return;

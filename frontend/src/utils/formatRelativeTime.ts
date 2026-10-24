@@ -36,6 +36,17 @@ export function formatClockTime(iso: string): string {
     .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
 }
 
+/** "24 Oct, 9:14 AM": day, month and clock time, for message threads and queues within the year. */
+export function formatDayMonthTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}, ${formatClockTime(iso)}`;
+}
+
+/** "Fri 9:14 AM": weekday and clock time, for the last seven days. */
+export function formatWeekdayTime(iso: string): string {
+  return `${new Date(iso).toLocaleDateString("en-AU", { weekday: "short" })} ${formatClockTime(iso)}`;
+}
+
 /**
  * "9:40 AM" today, "Yesterday, 2:15 PM", then "2 days ago" — the day-relative
  * times in the Manager Declined Queue and SOS Inbox (Figma 119:289, 103:151).

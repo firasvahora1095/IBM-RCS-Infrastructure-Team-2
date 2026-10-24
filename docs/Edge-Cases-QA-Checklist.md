@@ -43,10 +43,10 @@
 
 | # | Scenario | Expected behaviour | Result | Notes |
 |---|---|---|---|---|
-| 4.1 | Auditor reaches exposure limit mid-review | Raw playback stops, entered progress is kept, and the case returns to the Manager with reason `EXPOSURE_CAP_REACHED`; it is never reassigned automatically. No new normal case that working day | Fail | New case assigned to auditor-04 despite exposure=120/120; auto-assignment eligibility check not blocking correctly |
-| 4.2 | Auditor in mandatory cooldown receives assignment attempt | Assignment blocked; cooldown not cancelled | Fail | `reassign_case` endpoint (main.py:1620) has no cooldown check — Manager can manually assign to a cooldown Auditor |
-| 4.3 | Auditor under SOS protection receives assignment attempt | Assignment blocked | Fail | Same root cause as 4.2 — no eligibility check in manual reassign path |
-| 4.5 | S4 case completed → Auditor immediately assigned another S4 | Blocked by 30-min cooldown rule | Fail | Same root cause as 4.2 |
+| 4.1 | Auditor reaches exposure limit mid-review | Raw playback stops, entered progress is kept, and the case returns to the Manager with reason `EXPOSURE_CAP_REACHED`; it is never reassigned automatically. No new normal case that working day | Pass | AT_LIMIT auditors excluded from auto-assignment and shown as Unavailable in manual reassign dropdown; near-limit auditors show Limited headroom per spec |
+| 4.2 | Auditor in mandatory cooldown receives assignment attempt | Assignment blocked; cooldown not cancelled | Pass | `reassign_case` now returns 409 if target auditor is in cooldown; cooldown auditors shown as Unavailable in reassign dropdown |
+| 4.3 | Auditor under SOS protection receives assignment attempt | Assignment blocked | Pass | `reassign_case` now returns 409 if target auditor has active SOS; SOS auditors shown as Unavailable in reassign dropdown |
+| 4.5 | S4 case completed → Auditor immediately assigned another S4 | Blocked by 30-min cooldown rule | Pass | Same fix as 4.2 — cooldown check added to manual reassign path |
 | 4.6 | Exposure resets after logout/login | Exposure must NOT reset; persists across sessions | Pass | Exposure persists across logout/login |
 
 ---
@@ -70,7 +70,7 @@
 | # | Scenario | Expected behaviour | Result | Notes |
 |---|---|---|---|---|
 | 6.1 | Navigate to detail page for an Auditor ID that does not exist | Clear 404 message; no 500 error | Pass | "Case not found" 404 shown |
-| 6.2 | Approve a break request | Auditor navigated back after approval | Pass | **Open question:** should a cooldown-like protection apply to the Auditor after break is approved or requested? Not currently specified — needs alignment with BA/Aleeya |
+| 6.2 | Approve a break request | Auditor navigated back after approval | Pass | **Answered (24 Oct 2026):** a break is 15 minutes from approval, blocks new cases while it runs, and ends by itself. Rule and reasoning: `docs/ux/wellbeing-break-rule.md`. (Original open question: should a cooldown-like protection apply to the Auditor after break is approved or requested? Not specified — needs alignment with BA/Aleeya.) |
 
 ---
 

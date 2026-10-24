@@ -1246,6 +1246,33 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.json()["auditor_id"], "auditor-2")
 
+    def test_select_auditor_holds_an_s4_reviewer_until_the_manager_checks_in(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        with self.Session.begin() as db:
+            auditor = db.get(Auditor, "auditor-1")
+            auditor.cooldown_ends_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+            auditor.cooldown_trigger = "S4"
+            auditor.cooldown_check_in_done = 0
+
+        def pick() -> str:
+            r = self.client.post(
+                "/api/internal/assignments/select-auditor",
+                headers={"X-Internal-API-Key": INTERNAL_API_KEY},
+            )
+            self.assertEqual(r.status_code, 200, r.text)
+            return r.json()["auditor_id"]
+
+        # The timer is over, but nobody has checked in, so the case goes to someone else.
+        self.assertEqual(pick(), "auditor-2")
+
+        manager = self.auth_headers("manager-1")
+        self.assertEqual(
+            self.client.post("/api/manager/auditors/auditor-1/check-in", headers=manager, json={"notes": "Okay."}).status_code,
+            200,
+        )
+        # Checked in: they are back in the pool (auditor-1 sorts first with the same load).
+        self.assertEqual(pick(), "auditor-1")
+
     def test_select_auditor_excludes_auditor_at_exposure_limit(self) -> None:
         from datetime import datetime, timezone
         with self.Session.begin() as db:
@@ -1323,6 +1350,87 @@ class ApiContractTests(unittest.TestCase):
             ends_at = auditor.cooldown_ends_at.replace(tzinfo=timezone.utc) if auditor.cooldown_ends_at.tzinfo is None else auditor.cooldown_ends_at
             delta_minutes = (ends_at - before).total_seconds() / 60
             self.assertAlmostEqual(delta_minutes, 30, delta=0.1)
+
+    def _finish_s4_case(self, case_id: str, *, timer_ended: bool) -> None:
+        """Auditor-1 completes an S4 case; optionally the 30-minute timer has already run out."""
+        from datetime import datetime, timedelta, timezone
+        self.add_case(case_id, auditor_id="auditor-1", status="AUDITOR_REVIEW")
+        with self.Session.begin() as db:
+            case = db.get(Case, case_id)
+            case.severity_tier = "S4"
+            case.effective_severity_score = 90
+        self.assertEqual(self._resolve_case(case_id).status_code, 200)
+        if timer_ended:
+            with self.Session.begin() as db:
+                db.get(Auditor, "auditor-1").cooldown_ends_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+
+    def test_s4_check_in_keeps_the_reviewer_in_cooldown_until_the_manager_logs_it(self) -> None:
+        self._finish_s4_case("CHECKINTEST000001", timer_ended=True)
+        auditor = self.auth_headers("auditor-1")
+        manager = self.auth_headers("manager-1")
+
+        # The timer is over, but the Auditor is still held, and the Manager can see who is waiting.
+        held = self.client.get("/api/auditor/wellbeing", headers=auditor).json()["cooldown"]
+        self.assertTrue(held["requires_check_in"])
+        self.assertIsNone(held["check_in_completed_at"])
+        rows = {r["auditor_id"]: r for r in self.client.get("/api/manager/auditors", headers=manager).json()}
+        waiting = rows["auditor-1"]["cooldown"]
+        self.assertEqual((waiting["trigger"], waiting["requires_check_in"]), ("S4", True))
+        self.assertIsNone(waiting["check_in_completed_at"])
+        detail = self.client.get("/api/manager/auditors/auditor-1", headers=manager).json()
+        self.assertEqual(detail["cooldown"]["trigger"], "S4")
+
+        logged = self.client.post(
+            "/api/manager/auditors/auditor-1/check-in", headers=manager, json={"notes": "Spoke on a call. Doing okay."}
+        )
+        self.assertEqual(logged.status_code, 200, logged.text)
+
+        # Now both sides are clear, and the check-in is in the case's audit trail.
+        self.assertIsNone(self.client.get("/api/auditor/wellbeing", headers=auditor).json()["cooldown"])
+        rows = {r["auditor_id"]: r for r in self.client.get("/api/manager/auditors", headers=manager).json()}
+        self.assertIsNone(rows["auditor-1"]["cooldown"])
+        with self.Session() as db:
+            entry = db.scalars(select(AuditLog).where(AuditLog.action == "CHECK_IN_LOGGED")).one()
+            self.assertEqual(entry.case_id, "CHECKINTEST000001")
+            self.assertEqual(entry.actor, "manager-1")
+            self.assertEqual(entry.after_value["notes"], "Spoke on a call. Doing okay.")
+
+    def test_s4_check_in_can_be_logged_while_the_timer_is_still_running(self) -> None:
+        self._finish_s4_case("CHECKINTEST000002", timer_ended=False)
+        manager = self.auth_headers("manager-1")
+        self.assertEqual(
+            self.client.post("/api/manager/auditors/auditor-1/check-in", headers=manager, json={"notes": "Checked in."}).status_code,
+            200,
+        )
+        # The timer still has time on it, so the Auditor waits for that, not for the Manager.
+        cooldown = self.client.get("/api/auditor/wellbeing", headers=self.auth_headers("auditor-1")).json()["cooldown"]
+        self.assertIsNotNone(cooldown["check_in_completed_at"])
+
+    def test_check_in_needs_a_note_and_something_to_check_in_on(self) -> None:
+        manager = self.auth_headers("manager-1")
+        url = "/api/manager/auditors/auditor-1/check-in"
+        # Nothing is waiting for a Auditor with no cooldown.
+        self.assertEqual(self.client.post(url, headers=manager, json={"notes": "Hi"}).status_code, 409)
+
+        self._finish_s4_case("CHECKINTEST000003", timer_ended=True)
+        self.assertEqual(self.client.post(url, headers=manager, json={"notes": ""}).status_code, 422)
+        self.assertEqual(self.client.post(url, headers=manager, json={"notes": "Done"}).status_code, 200)
+        # Already logged: a second one is refused rather than overwriting the first.
+        self.assertEqual(self.client.post(url, headers=manager, json={"notes": "Again"}).status_code, 409)
+        self.assertEqual(self.client.post("/api/manager/auditors/nobody/check-in", headers=manager, json={"notes": "x"}).status_code, 404)
+
+    def test_check_in_is_for_managers_and_not_for_an_sos(self) -> None:
+        self._finish_s4_case("CHECKINTEST000004", timer_ended=True)
+        url = "/api/manager/auditors/auditor-1/check-in"
+        self.assertEqual(self.client.post(url, headers=self.auth_headers("auditor-1"), json={"notes": "x"}).status_code, 403)
+        self.assertEqual(self.client.post(url, json={"notes": "x"}).status_code, 401)
+
+        # An SOS is closed by logging its follow-up, which is where its check-in is recorded.
+        with self.Session.begin() as db:
+            db.get(Auditor, "auditor-1").cooldown_trigger = "SOS"
+        refused = self.client.post(url, headers=self.auth_headers("manager-1"), json={"notes": "x"})
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("SOS follow-up", refused.json()["detail"])
 
     def test_complete_s1_case_does_not_set_cooldown(self) -> None:
         case_id = "COOLDOWNTEST00003"

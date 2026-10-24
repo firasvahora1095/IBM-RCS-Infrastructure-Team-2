@@ -1,8 +1,11 @@
 import { ApiError } from "../types";
 import type {
   CaseResult,
+  CaseResultsSummary,
+  DeliveredOutcome,
   ComparisonRow,
   ClientAccount,
+  ClientOrganisation,
   ClientRole,
   ClientLoginResponse,
   PlatformAction,
@@ -21,6 +24,7 @@ import type {
   ServiceReport,
   SeverityTier,
 } from "../types";
+import { ALL_CLIENTS, allOrganisations, findOrganisation, inClient } from "./clients";
 import {
   COMMUNITYHUB_ID,
   DELIVERY_MAX_AUTO_ATTEMPTS,
@@ -130,7 +134,7 @@ export function advanceDeliveries(db: MockDb, now = Date.now()): void {
       Date.parse(d.next_attempt_at) <= now
     ) {
       const at = d.next_attempt_at;
-      const fails = d.simulate_failure || db.organisation.status === "ERROR";
+      const fails = d.simulate_failure || findOrganisation(db, d.organisation_id)?.status === "ERROR";
       const reason = d.simulate_failure ? DELIVERY_TIMEOUT_REASON : DELIVERY_UNAVAILABLE_REASON;
       d.attempts.push({
         attempt: d.attempts.length + 1,
@@ -182,6 +186,37 @@ function toDelivery(db: MockDb, d: MockDelivery): Delivery {
 }
 
 /** The client-safe view of a delivery: agreed facts only, never delivery errors. */
+/** Mirrors backend/app/b2b.py case_results_summary, so both data sources give the same numbers. */
+export function summariseCaseResults(rows: MockDelivery[]): CaseResultsSummary {
+  const delivered = rows.filter((d) => d.delivery_status === "SUCCESS");
+  const waiting = delivered.filter((d) => !d.platform_action);
+  const violations = delivered.filter((d) => d.outcome === "POLICY_VIOLATION_FOUND");
+  const notReviewed = delivered.filter((d) => d.outcome === "CLOSED_NO_REASSIGNMENT");
+  const removed = delivered.filter((d) => d.platform_action?.action === "REMOVED");
+  const kept = delivered.filter((d) => d.platform_action?.action === "KEPT");
+  const decided = delivered.length - notReviewed.length;
+  const rate = (part: number, whole: number) => (whole ? Math.round((part / whole) * 10000) / 10000 : null);
+  const waitingOf = (outcome: DeliveredOutcome) => waiting.filter((d) => d.outcome === outcome).length;
+  return {
+    delivered: delivered.length,
+    needs_action: waiting.length,
+    needs_action_by_outcome: {
+      POLICY_VIOLATION_FOUND: waitingOf("POLICY_VIOLATION_FOUND"),
+      NO_VIOLATION_FOUND: waitingOf("NO_VIOLATION_FOUND"),
+      CLOSED_NO_REASSIGNMENT: waitingOf("CLOSED_NO_REASSIGNMENT"),
+    },
+    violations: violations.length,
+    decided,
+    not_reviewed: notReviewed.length,
+    actioned: removed.length + kept.length,
+    removed: removed.length,
+    kept: kept.length,
+    violation_rate: rate(violations.length, decided),
+    removal_rate: rate(removed.length, violations.length),
+    actioned_rate: rate(removed.length + kept.length, delivered.length),
+  };
+}
+
 function toCaseResult(d: MockDelivery): CaseResult {
   const delivered = d.attempts.find((a) => a.result === "SUCCESS");
   return {
@@ -336,10 +371,10 @@ function comparisonRows(db: MockDb): ComparisonRow[] {
     ai_tier: h.ai_tier,
     final_tier: h.final_tier,
     override: h.ai_tier !== h.final_tier,
-    ai_score: null,
-    auditor_score: null,
-    score_delta: null,
-    override_reason: null,
+    ai_score: h.ai_score ?? null,
+    auditor_score: h.final_score ?? null,
+    score_delta: h.ai_score != null && h.final_score != null ? h.final_score - h.ai_score : null,
+    override_reason: h.override_reason ?? null,
     decided_at: h.completed_at,
   }));
   const fromLive: ComparisonRow[] = [];
@@ -365,12 +400,15 @@ function comparisonRows(db: MockDb): ComparisonRow[] {
   return [...fromHistory, ...fromLive].sort((a, b) => Date.parse(b.decided_at) - Date.parse(a.decided_at));
 }
 
-function overridePatterns(db: MockDb): {
+function overridePatterns(db: MockDb, clientId: string = ALL_CLIENTS): {
   patterns: GovernanceSummary["override_patterns"];
   compared: number;
   comparisons: ComparisonRow[];
 } {
-  const rows = comparisonRows(db);
+  const owned = new Set(
+    [...inClient(db.caseHistory, clientId), ...inClient(db.cases, clientId)].map((c) => c.case_id),
+  );
+  const rows = comparisonRows(db).filter((r) => clientId === ALL_CLIENTS || owned.has(r.case_id));
   const counts = new Map<string, number>();
   for (const r of rows) {
     if (r.override) counts.set(`${r.ai_tier}>${r.final_tier}`, (counts.get(`${r.ai_tier}>${r.final_tier}`) ?? 0) + 1);
@@ -416,17 +454,20 @@ export const b2bMockOps: Pick<
   | "getClientMessage"
   | "replyClientMessage"
   | "clientListCaseResults"
+  | "clientCaseResultsSummary"
   | "clientRecordPlatformAction"
   | "listClientAccounts"
+  | "listClients"
 > = {
   async getCustomerIntegration(organisationId: string, token: string): Promise<CustomerIntegration> {
     await delay();
     return updateDb((db) => {
       requireManager(db, token);
       advanceDeliveries(db);
-      const org = db.organisation;
-      if (organisationId.toUpperCase() !== org.organisation_id) throw new ApiError("Customer not found", 404);
-      const lastSuccess = db.deliveries
+      const org = findOrganisation(db, organisationId);
+      if (!org) throw new ApiError("Client not found", 404);
+      const ownDeliveries = inClient(db.deliveries, org.organisation_id);
+      const lastSuccess = ownDeliveries
         .flatMap((d) => d.attempts.filter((a) => a.result === "SUCCESS").map((a) => Date.parse(a.at)))
         .reduce((max, t) => Math.max(max, t), 0);
       return {
@@ -441,7 +482,7 @@ export const b2bMockOps: Pick<
         idempotency: "One stable delivery ID per case, reused on every retry",
         last_tested_at: org.last_tested_at,
         last_delivery_at: lastSuccess ? new Date(lastSuccess).toISOString() : null,
-        health: deliveryHealth(db.deliveries),
+        health: deliveryHealth(ownDeliveries),
       };
     });
   },
@@ -450,18 +491,17 @@ export const b2bMockOps: Pick<
     await delay(import.meta.env.MODE === "test" ? 0 : 700);
     return updateDb((db) => {
       const session = requireManager(db, token);
-      if (organisationId.toUpperCase() !== db.organisation.organisation_id) {
-        throw new ApiError("Customer not found", 404);
-      }
+      const org = findOrganisation(db, organisationId);
+      if (!org) throw new ApiError("Client not found", 404);
       const testedAt = new Date().toISOString();
-      db.organisation.last_tested_at = testedAt;
-      const ok = db.organisation.status === "READY";
+      org.last_tested_at = testedAt;
+      const ok = org.status === "READY";
       audit(db, session.staffId, "INTEGRATION_TESTED", null, ok ? "ok" : "failed");
       return {
         ok,
         latency_ms: ok ? 120 + Math.round(Math.random() * 60) : 0,
         tested_at: testedAt,
-        message: ok ? "Test delivery accepted" : "CommunityHub's endpoint didn't accept the test delivery",
+        message: ok ? "Test delivery accepted" : `${org.name}'s endpoint didn't accept the test delivery`,
       };
     });
   },
@@ -498,7 +538,7 @@ export const b2bMockOps: Pick<
       const d = findDelivery(db, deliveryId);
       // Idempotent: a delivery that already succeeded is never sent twice.
       if (d.delivery_status === "SUCCESS") return toDelivery(db, d);
-      const ok = db.organisation.status === "READY";
+      const ok = findOrganisation(db, d.organisation_id)?.status === "READY";
       d.attempts.push({
         attempt: d.attempts.length + 1,
         at: new Date().toISOString(),
@@ -555,19 +595,24 @@ export const b2bMockOps: Pick<
     }
     return updateDb((db) => {
       const session = requireManager(db, token);
-      if (organisationId.toUpperCase() !== db.organisation.organisation_id) {
-        throw new ApiError("Customer not found", 404);
-      }
+      const org = findOrganisation(db, organisationId);
+      if (!org) throw new ApiError("Choose a Client to report on.", 404);
       advanceDeliveries(db);
       // One moment for the whole snapshot: its evidence was calculated when it was generated.
       const generatedAt = Date.now();
       const metrics = computeMetrics(
-        { history: db.caseHistory, cases: db.cases, deliveries: db.deliveries },
+        {
+          history: inClient(db.caseHistory, org.organisation_id),
+          cases: inClient(db.cases, org.organisation_id),
+          deliveries: inClient(db.deliveries, org.organisation_id),
+        },
         periodStart,
         periodEnd,
         generatedAt,
       );
-      const samePeriod = db.reports.filter((r) => r.period_start === periodStart && r.period_end === periodEnd);
+      const samePeriod = db.reports.filter(
+        (r) => r.organisation_id === org.organisation_id && r.period_start === periodStart && r.period_end === periodEnd,
+      );
       const existingDraft = samePeriod.find((r) => r.status === "DRAFT");
       const now = new Date(generatedAt).toISOString();
       if (existingDraft) {
@@ -578,9 +623,9 @@ export const b2bMockOps: Pick<
       }
       const version = samePeriod.reduce((max, r) => Math.max(max, r.version), 0) + 1;
       const report: ServiceReport = {
-        report_id: reportIdFor(periodStart, periodEnd, version),
-        organisation_id: db.organisation.organisation_id,
-        organisation_name: db.organisation.name,
+        report_id: reportIdFor(periodStart, periodEnd, version, reportCode(org.organisation_id)),
+        organisation_id: org.organisation_id,
+        organisation_name: org.name,
         period_start: periodStart,
         period_end: periodEnd,
         status: "DRAFT",
@@ -655,11 +700,16 @@ export const b2bMockOps: Pick<
     await delay();
     return updateDb((db) => {
       requireManager(db, token);
+      const clientId = query.organisation_id ?? ALL_CLIENTS;
+      const owned = new Set(
+        [...inClient(db.caseHistory, clientId), ...inClient(db.cases, clientId)].map((c) => c.case_id),
+      );
       const rows = [...db.governanceLog]
+        .filter((r) => clientId === ALL_CLIENTS || owned.has(r.case_id))
         .filter((r) => !query.case_id || r.case_id === query.case_id)
         .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       const ok = rows.filter((r) => r.success);
-      const { patterns, compared, comparisons } = overridePatterns(db);
+      const { patterns, compared, comparisons } = overridePatterns(db, clientId);
       return {
         is_placeholder: true,
         rows,
@@ -687,18 +737,22 @@ export const b2bMockOps: Pick<
     }
     return updateDb((db) => {
       requireManager(db, token);
-      if (organisationId.toUpperCase() !== db.organisation.organisation_id) {
-        throw new ApiError("Customer not found", 404);
-      }
+      const all = organisationId.toUpperCase() === ALL_CLIENTS;
+      const org = findOrganisation(db, organisationId);
+      if (!all && !org) throw new ApiError("Client not found", 404);
       advanceDeliveries(db);
       const now = Date.now();
       return computeIntelligence(
         {
-          history: db.caseHistory,
-          cases: db.cases,
-          deliveries: db.deliveries,
+          history: inClient(db.caseHistory, organisationId),
+          cases: inClient(db.cases, organisationId),
+          deliveries: inClient(db.deliveries, organisationId),
           // Counted, never named: the dashboard shows how many need the Manager, not who.
           openSosAuditors: new Set(db.sosEvents.filter((e) => !e.resolved_at).map((e) => e.auditor_id)).size,
+          // S4 cooldowns still waiting for the Manager. An SOS is checked in through its follow-up, so it isn't here.
+          pendingCheckIns: db.staff.filter(
+            (s) => s.role === "auditor" && s.cooldown?.trigger === "S4" && !s.cooldown.check_in_completed_at,
+          ).length,
           openSupportRequests: {
             break_requests: db.wellbeingRequests.filter((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN")
               .length,
@@ -706,7 +760,7 @@ export const b2bMockOps: Pick<
               .length,
           },
           auditorCount: db.staff.filter((s) => s.role === "auditor").length,
-          organisation: db.organisation,
+          organisation: all ? { organisation_id: ALL_CLIENTS, name: "All Clients" } : org!,
           // The mock data source is always synthetic (MR-OV-08).
           provenance: "DEMO",
         },
@@ -745,7 +799,7 @@ export const b2bMockOps: Pick<
         user_id: user.user_id,
         display_name: user.display_name,
         organisation_id: user.organisation_id,
-        organisation_name: db.organisation.name,
+        organisation_name: findOrganisation(db, user.organisation_id)?.name ?? db.organisation.name,
         role: user.role,
       };
     });
@@ -788,7 +842,7 @@ export const b2bMockOps: Pick<
       const message: ClientMessage = {
         message_id: `MSG-${1000 + db.clientMessages.length + 1}`,
         organisation_id: session.organisationId,
-        organisation_name: db.organisation.name,
+        organisation_name: findOrganisation(db, session.organisationId)?.name ?? db.organisation.name,
         user_id: user.user_id,
         display_name: user.display_name,
         topic: input.topic,
@@ -876,6 +930,15 @@ export const b2bMockOps: Pick<
     });
   },
 
+  async clientCaseResultsSummary(token: string): Promise<CaseResultsSummary> {
+    await delay();
+    return updateDb((db) => {
+      const session = requireClient(db, token, CASE_ROLES);
+      advanceDeliveries(db);
+      return summariseCaseResults(db.deliveries.filter((d) => d.organisation_id === session.organisationId));
+    });
+  },
+
   async clientRecordPlatformAction(
     deliveryId: string,
     token: string,
@@ -892,6 +955,18 @@ export const b2bMockOps: Pick<
       if (d.delivery_status !== "SUCCESS") throw new ApiError("This result hasn't reached CommunityHub yet.", 409);
       d.platform_action = { action, note: note?.trim() || null, at: new Date().toISOString(), by: session.userId };
       return toCaseResult(d);
+    });
+  },
+
+  async listClients(token: string): Promise<ClientOrganisation[]> {
+    await delay();
+    return updateDb((db) => {
+      requireManager(db, token);
+      return allOrganisations(db).map((o) => ({
+        organisation_id: o.organisation_id,
+        name: o.name,
+        description: o.description,
+      }));
     });
   },
 
@@ -917,4 +992,9 @@ export const b2bMockOps: Pick<
 /** For tests: the current delivery list without a session. */
 export function peekDeliveries(): MockDelivery[] {
   return readDb().deliveries;
+}
+
+/** The short code in a client's report IDs (RPT-CH-…, RPT-SN-…). */
+function reportCode(clientId: string): string {
+  return { COMMUNITYHUB: "CH", STREAMNEST: "SN", PIXELCIRCLE: "PC" }[clientId] ?? clientId.slice(0, 2);
 }

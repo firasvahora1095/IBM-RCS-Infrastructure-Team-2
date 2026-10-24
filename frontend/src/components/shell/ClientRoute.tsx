@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { canSee, CLIENT_SECTIONS, useClientAuth } from "../../hooks/useClientAuth";
-import { ClientHeader } from "./ClientHeader";
-import { StaffPage } from "../layout/StaffPage";
+import { ClientLayout } from "../layout/ClientLayout";
 import { PageHeader } from "../ui/PageHeader";
 import { EmptyState } from "../ui/Blocks";
 
@@ -13,13 +12,7 @@ import { EmptyState } from "../ui/Blocks";
  * and a Trust & Safety user can't open reports. The API refuses too; this
  * just says so plainly.
  */
-export function ClientRoute({
-  children,
-  section,
-}: {
-  children: ReactNode;
-  section?: keyof typeof CLIENT_SECTIONS;
-}) {
+export function ClientRoute({ children, section }: { children: ReactNode; section?: keyof typeof CLIENT_SECTIONS }) {
   const { isLoggedIn, session } = useClientAuth();
   const location = useLocation();
   if (!isLoggedIn) {
@@ -27,16 +20,13 @@ export function ClientRoute({
   }
   if (section && !canSee(session?.role, section)) {
     return (
-      <>
-        <ClientHeader />
-        <StaffPage maxWidth={880}>
-          <PageHeader title={section === "cases" ? "Case results" : "Service reports"} />
-          <EmptyState
-            title={`Your account doesn't include ${section === "cases" ? "case results" : "service reports"}.`}
-            body="Each CommunityHub account only sees what its role needs. Ask your CommunityHub admin if you need access."
-          />
-        </StaffPage>
-      </>
+      <ClientLayout maxWidth={880}>
+        <PageHeader title={section === "cases" ? "Case results" : "Service reports"} />
+        <EmptyState
+          title={`Your account doesn't include ${section === "cases" ? "case results" : "service reports"}.`}
+          body="Each CommunityHub account only sees what its role needs. Ask your CommunityHub admin if you need access."
+        />
+      </ClientLayout>
     );
   }
   return <>{children}</>;
