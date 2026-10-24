@@ -543,6 +543,11 @@ export function ReviewWorkspace({
                         label={`${range} · ${entry.tag ?? "Flagged"} · ${entry.severity_tier} ${info.label}`}
                         className="rcs-tick"
                         style={{
+                          // Pinned inline: Carbon's own popover rule sets position: relative and beat the stylesheet's
+                          // .rcs-tick, which left every marker in the flow, so each drifted a marker-width further right
+                          // and the last ones ran past the video column.
+                          position: "absolute",
+                          insetBlockStart: 0,
                           left: `calc(${(Math.min(entry.start, duration) / duration) * 100}% - 8px + ${groupOffset}px)`,
                         }}
                       >
