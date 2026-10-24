@@ -827,6 +827,14 @@ export async function makeCaseAvailable(caseId: string, token: string): Promise<
   return parseJsonOrThrow<{ available: true }>(r);
 }
 
+export async function withdrawCaseRelease(caseId: string, token: string): Promise<{ withdrawn: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/cases/${encodeURIComponent(caseId)}/withdraw-release`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return parseJsonOrThrow<{ withdrawn: true }>(r);
+}
+
 /** The clients RCS serves, for the Manager's client selector. */
 export async function listClients(token: string): Promise<ClientOrganisation[]> {
   const r = await fetch(`${API_BASE_URL}/api/manager/clients`, { headers: bearer(token) });

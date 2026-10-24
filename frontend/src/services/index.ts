@@ -51,6 +51,7 @@ export const getAvailableCases = delegate("getAvailableCases");
 export const takeCase = delegate("takeCase");
 export const claimCase = delegate("claimCase");
 export const makeCaseAvailable = delegate("makeCaseAvailable");
+export const withdrawCaseRelease = delegate("withdrawCaseRelease");
 export const getAuditorCaseDetail = delegate("getAuditorCaseDetail");
 export const resolveCase = delegate("resolveCase");
 

@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.assignment import list_assignment_candidates
+from app.fallback_queue import release_waiting_cases
 from app.auth import hash_password, session_store
 from app.db import get_db
 from app.main import app
@@ -232,6 +233,58 @@ class FallbackQueueTests(unittest.TestCase):
         self.add_case("OWNED1", owner="auditor-1")
         r = self.client.post("/api/cases/OWNED1/make-available", headers=self.headers("manager-1"))
         self.assertEqual(r.status_code, 409)
+
+    # --- take a released case back --------------------------------------------
+
+    def test_a_released_case_is_left_alone_until_someone_takes_it_back(self) -> None:
+        """Released cases wait for a claim and are never placed by the system, so there has to be a way back."""
+        self.add_case("POOL1", visibility="AVAILABLE_TO_AUDITORS")
+        with self.Session.begin() as db:
+            self.assertEqual(release_waiting_cases(db), [])
+        r = self.client.post("/api/cases/POOL1/withdraw-release", headers=self.headers("manager-1"))
+        self.assertEqual(r.status_code, 200, r.text)
+        case = self.case("POOL1")
+        # An Auditor was free, so it was placed straight away by the usual weighted rule, and both steps are logged.
+        self.assertEqual(case.case_visibility, "ASSIGNED_ONLY")
+        self.assertIn(case.assigned_auditor_id, {"auditor-1", "auditor-2"})
+        with self.Session() as db:
+            actions = [a.action for a in db.scalars(select(AuditLog).where(AuditLog.case_id == "POOL1").order_by(AuditLog.audit_log_id))]
+        self.assertIn("CASE_RELEASE_WITHDRAWN", actions)
+        self.assertIn("CASE_ASSIGNED", actions)
+
+    def test_with_nobody_free_a_case_taken_back_waits_to_be_placed_not_to_be_claimed(self) -> None:
+        self.put_in_cooldown("auditor-1")
+        self.put_in_cooldown("auditor-2")
+        self.add_case("POOL1", visibility="AVAILABLE_TO_AUDITORS")
+        r = self.client.post("/api/cases/POOL1/withdraw-release", headers=self.headers("superauditor-1"))
+        self.assertEqual(r.status_code, 200, r.text)
+        case = self.case("POOL1")
+        self.assertEqual(case.case_visibility, "SUPER_ADMIN_ONLY")
+        self.assertIsNone(case.assigned_auditor_id)
+        self.assertIsNotNone(case.fallback_queued_at)
+        rows = {row["case_id"]: row for row in self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()}
+        self.assertIsNotNone(rows["POOL1"]["auto_release_at"])
+        # It is no longer offered to Auditors to claim.
+        available = self.client.get("/api/auditor/available-cases", headers=self.headers("auditor-1")).json()
+        self.assertNotIn("POOL1", [c["case_id"] for c in available["cases"]])
+
+    def test_only_a_manager_or_the_super_auditor_can_take_a_case_back(self) -> None:
+        self.add_case("POOL1", visibility="AVAILABLE_TO_AUDITORS")
+        self.assertEqual(self.client.post("/api/cases/POOL1/withdraw-release", headers=self.headers("auditor-1")).status_code, 403)
+        self.assertEqual(self.case("POOL1").case_visibility, "AVAILABLE_TO_AUDITORS")
+
+    def test_a_case_that_was_claimed_or_is_with_the_manager_cannot_be_taken_back(self) -> None:
+        self.add_case("OWNED1", owner="auditor-1")
+        self.add_case("DECL1", visibility="AVAILABLE_TO_AUDITORS", flag="DECLINED")
+        manager = self.headers("manager-1")
+        self.assertEqual(self.client.post("/api/cases/OWNED1/withdraw-release", headers=manager).status_code, 409)
+        self.assertEqual(self.client.post("/api/cases/DECL1/withdraw-release", headers=manager).status_code, 409)
+
+    def test_taking_back_a_case_that_was_never_released_changes_nothing(self) -> None:
+        self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
+        r = self.client.post("/api/cases/FREE1/withdraw-release", headers=self.headers("manager-1"))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.case("FREE1").case_visibility, "SUPER_ADMIN_ONLY")
 
     def test_available_cases_are_metadata_only(self) -> None:
         self.add_case("FREE1", visibility="AVAILABLE_TO_AUDITORS", tier="S3")
