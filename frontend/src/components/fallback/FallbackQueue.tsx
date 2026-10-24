@@ -4,7 +4,6 @@ import {
   DefinitionTooltip,
   InlineNotification,
   Layer,
-  Modal,
   Table,
   TableBody,
   TableCell,
@@ -18,7 +17,8 @@ import {
   Tabs,
 } from "@carbon/react";
 import { SeverityTag } from "../severity/SeverityTag";
-import { ReleaseCaseButton } from "./ReleaseCaseButton";
+import { ClaimToggle } from "./ClaimToggle";
+import { CaseConfirmDialog } from "./CaseConfirmDialog";
 import { StatusTag } from "../ui/StatusTag";
 import { claimCase, getAllOpenCases, getAvailableCases, takeCase } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
@@ -62,10 +62,10 @@ function visibleToLabel(row: FallbackCaseRow): string {
 function visibleToReason(row: FallbackCaseRow): string {
   if (row.manager_flag) return "A Manager has to decide what happens to this case.";
   if (row.case_visibility === "SUPER_ADMIN_ONLY") {
-    return "No Auditor was free when it arrived, so only you can see it. The system places it automatically when one is.";
+    return "No Auditor was free when it arrived, so only you can see it. The system assigns it automatically when one is.";
   }
   if (row.case_visibility === "AVAILABLE_TO_AUDITORS")
-    return "It was released, so any eligible Auditor can claim it. The system won't place it until it is taken back.";
+    return "Auditors can claim it, so the system won't assign it. Set Auditors can claim to No to hand it back.";
   return "It belongs to one Auditor, who is the only person who can open it.";
 }
 
@@ -91,13 +91,13 @@ function ageLabel(createdAt: string | null | undefined, now: number): string {
   return `${Math.floor(hours / 24)} d`;
 }
 
-/** "Placed automatically at 2:32 pm" while a parked case waits; nothing once it can never be placed by the system. */
+/** "Assigned automatically from 2:32 PM" while a parked case waits; nothing once the system will never assign it. */
 function placementNote(row: FallbackCaseRow, now: number): string | null {
   if (!row.auto_release_at || row.assigned_auditor_id !== null) return null;
   const due = Date.parse(row.auto_release_at);
   if (Number.isNaN(due)) return null;
   const time = formatClockTime(row.auto_release_at);
-  return due > now ? `Placed automatically from ${time}` : "Being placed automatically when an Auditor is free";
+  return due > now ? `Assigned automatically from ${time}` : "Being assigned automatically when an Auditor is free";
 }
 
 function errorText(err: unknown): string {
@@ -126,10 +126,10 @@ interface SectionProps {
  * owner and who may see it. Queue metadata only. A case opens in full only for the
  * Auditor who owns it, so seeing a case here never exposes its footage.
  *
- * A case only lands here when no standard Auditor was eligible, and the system places
+ * A case only lands here when no standard Auditor was eligible, and the system assigns
  * it by itself as soon as one is. For a case nobody owns the Super Auditor can take it,
- * for when it can't wait, or let Auditors choose it ("Let Auditors choose": it is then
- * claimed, not placed, until it is taken back with "Place automatically"). The wellbeing
+ * for when it can't wait, or switch "Auditors can claim" on (it is then claimed, not
+ * assigned, until the switch is turned off again). The wellbeing
  * blocks that apply to every Auditor apply here too, and say why in plain words.
  */
 export function FallbackQueueSection({
@@ -152,23 +152,26 @@ export function FallbackQueueSection({
   const [clock, setClock] = useState(() => Date.now());
   const [sort, setSort] = useState<{ key: SortKey; dir: "ASC" | "DESC" } | null>(null);
 
-  const load = useCallback((keepError?: boolean) => {
-    getAllOpenCases(token)
-      .then((result) => {
-        setRows(result);
-        onNeedsReviewerCount?.(result.filter(needsReviewer).length);
-        setClock(Date.now());
-        // After a refused action the list refreshes too (the case may have moved), but the reason stays on screen.
-        if (keepError !== true) setError(null);
-      })
-      .catch((err: unknown) => {
-        if (!onSessionExpired(err)) setError(errorText(err));
-      });
-  }, [token, onSessionExpired, onNeedsReviewerCount]);
+  const load = useCallback(
+    (keepError?: boolean) => {
+      getAllOpenCases(token)
+        .then((result) => {
+          setRows(result);
+          onNeedsReviewerCount?.(result.filter(needsReviewer).length);
+          setClock(Date.now());
+          // After a refused action the list refreshes too (the case may have moved), but the reason stays on screen.
+          if (keepError !== true) setError(null);
+        })
+        .catch((err: unknown) => {
+          if (!onSessionExpired(err)) setError(errorText(err));
+        });
+    },
+    [token, onSessionExpired, onNeedsReviewerCount],
+  );
 
   useEffect(() => load(), [load, refreshKey]);
 
-  // The queue changes by itself now (cases are placed automatically), so it refreshes quietly.
+  // The queue changes by itself now (cases are assigned automatically), so it refreshes quietly.
   useEffect(() => {
     const id = window.setInterval(() => load(), 30_000);
     return () => window.clearInterval(id);
@@ -231,9 +234,9 @@ export function FallbackQueueSection({
           Fallback queue
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          Cases wait here when no Auditor is free, and are placed automatically the moment one is. You can see every open
-          case. For one nobody owns, you can take it yourself if it can&apos;t wait, or let Auditors choose it instead.
-          Moving a case an Auditor is working on is the Manager&apos;s job.
+          Cases wait here when no Auditor is free, and the system assigns each one the moment someone is. You can see
+          every open case. If one can&apos;t wait, take it yourself, or set &ldquo;Auditors can claim&rdquo; to Yes so
+          any Auditor can pick it up. Moving a case an Auditor is working on is the Manager&apos;s job.
         </p>
       </div>
 
@@ -304,7 +307,7 @@ export function FallbackQueueSection({
                             <TableHeader {...sortProps("age")}>Waiting</TableHeader>
                             <TableHeader>Reason</TableHeader>
                             <TableHeader>Owner</TableHeader>
-                            <TableHeader>Visible to</TableHeader>
+                            <TableHeader>Auditors can claim</TableHeader>
                             <TableHeader>Actions</TableHeader>
                           </TableRow>
                         </TableHead>
@@ -329,14 +332,15 @@ export function FallbackQueueSection({
                                 <TableCell>{reasonLabel(row)}</TableCell>
                                 <TableCell>{ownerLabel(row)}</TableCell>
                                 <TableCell>
-                                  <DefinitionTooltip definition={visibleToReason(row)} openOnHover align="bottom-start">
-                                    <StatusTag
-                                      tone={row.case_visibility === "AVAILABLE_TO_AUDITORS" ? "info" : "neutral"}
-                                      size="sm"
-                                    >
-                                      {visibleToLabel(row)}
-                                    </StatusTag>
-                                  </DefinitionTooltip>
+                                  <ClaimToggle
+                                    caseId={row.case_id}
+                                    severity={tier ?? null}
+                                    allowed={row.case_visibility === "AVAILABLE_TO_AUDITORS"}
+                                    token={token}
+                                    disabled={busy !== null}
+                                    onDone={releaseDone}
+                                    onError={releaseFailed}
+                                  />
                                   {placementNote(row, clock) && (
                                     <span
                                       style={{ display: "block", fontSize: 12, color: "var(--cds-text-secondary)" }}
@@ -347,25 +351,15 @@ export function FallbackQueueSection({
                                 </TableCell>
                                 <TableCell>
                                   {unowned && (
-                                    <div className="flex flex-wrap items-center justify-end gap-1">
-                                      <Button
-                                        kind="tertiary"
-                                        size="sm"
-                                        disabled={!canTake || busy !== null}
-                                        aria-label={`Take case ${row.case_id}`}
-                                        onClick={() => setConfirming(row)}
-                                      >
-                                        Take case
-                                      </Button>
-                                      <ReleaseCaseButton
-                                        caseId={row.case_id}
-                                        released={row.case_visibility === "AVAILABLE_TO_AUDITORS"}
-                                        token={token}
-                                        disabled={busy !== null}
-                                        onDone={releaseDone}
-                                        onError={releaseFailed}
-                                      />
-                                    </div>
+                                    <Button
+                                      kind="tertiary"
+                                      size="sm"
+                                      disabled={!canTake || busy !== null}
+                                      aria-label={`Take case ${row.case_id}`}
+                                      onClick={() => setConfirming(row)}
+                                    >
+                                      Take case
+                                    </Button>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -444,25 +438,15 @@ export function FallbackQueueSection({
                                 </TableCell>
                                 <TableCell>
                                   {unowned && (
-                                    <div className="flex flex-wrap items-center justify-end gap-1">
-                                      <Button
-                                        kind="tertiary"
-                                        size="sm"
-                                        disabled={!canTake || busy !== null}
-                                        aria-label={`Take case ${row.case_id}`}
-                                        onClick={() => setConfirming(row)}
-                                      >
-                                        Take case
-                                      </Button>
-                                      <ReleaseCaseButton
-                                        caseId={row.case_id}
-                                        released={row.case_visibility === "AVAILABLE_TO_AUDITORS"}
-                                        token={token}
-                                        disabled={busy !== null}
-                                        onDone={releaseDone}
-                                        onError={releaseFailed}
-                                      />
-                                    </div>
+                                    <Button
+                                      kind="tertiary"
+                                      size="sm"
+                                      disabled={!canTake || busy !== null}
+                                      aria-label={`Take case ${row.case_id}`}
+                                      onClick={() => setConfirming(row)}
+                                    >
+                                      Take case
+                                    </Button>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -479,35 +463,36 @@ export function FallbackQueueSection({
         </Tabs>
       )}
 
-      <Modal
+      <CaseConfirmDialog
         open={confirming !== null}
-        size="sm"
-        modalHeading={confirming ? `Take case ${confirming.case_id}?` : "Take case?"}
-        primaryButtonText={busy ? "Taking…" : "Take case"}
-        secondaryButtonText="Cancel"
-        primaryButtonDisabled={busy !== null}
-        onRequestClose={() => setConfirming(null)}
-        onRequestSubmit={() => confirming && void take(confirming)}
-      >
-        {confirming && (
-          <div className="flex flex-col gap-3" style={{ fontSize: 14, lineHeight: "20px" }}>
-            <p>
-              Severity: {confirming.final_severity_tier ?? confirming.severity_tier ?? "not yet assessed"}. Status:{" "}
-              {statusLabel(confirming)}.
-            </p>
-            <p>
-              The case moves to your queue and nobody else will be given it. It opens on a content warning, and the time
-              you spend reviewing it counts toward your daily exposure.
-            </p>
-          </div>
-        )}
-      </Modal>
+        label="Fallback queue"
+        title={confirming ? `Take case ${confirming.case_id}?` : "Take case?"}
+        severity={confirming ? (confirming.final_severity_tier ?? confirming.severity_tier ?? null) : null}
+        facts={
+          confirming
+            ? [
+                { term: "Status", value: statusLabel(confirming) },
+                { term: "Waiting", value: ageLabel(confirming.created_at, clock) },
+              ]
+            : []
+        }
+        question="Take this case yourself?"
+        points={[
+          "It moves to your queue, and nobody else is given it.",
+          "The time you spend reviewing it counts toward your daily exposure limit.",
+        ]}
+        note="It still opens on a content warning, and you can decline it there."
+        confirmLabel={busy ? "Taking…" : "Take case"}
+        busy={busy !== null}
+        onConfirm={() => confirming && void take(confirming)}
+        onClose={() => setConfirming(null)}
+      />
     </section>
   );
 }
 
 /**
- * Cases a Manager or the Super Auditor chose to release to Auditors ("Let Auditors choose"). Shown only when there is
+ * Cases a Manager or the Super Auditor chose to release to Auditors ("Auditors can claim" set to Yes). Shown only when there is
  * one. Queue metadata only; claiming adds the case to the Auditor's queue and doesn't
  * open it. Claiming follows the same wellbeing blocks as assignment.
  */

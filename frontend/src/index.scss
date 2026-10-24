@@ -608,16 +608,12 @@ body {
   border-block-start: 1px solid var(--cds-border-subtle-01);
 }
 
-// Tables with a row action: the Actions column sits at the far right, with room before it.
+// Tables with a row action: the Actions column keeps its buttons on one line, left-aligned under its heading.
 .rcs-actions-end {
   th:last-child,
   td:last-child {
-    text-align: end;
-    padding-inline: 1rem 1.5rem;
+    text-align: start;
     white-space: nowrap;
-  }
-  td:last-child > * {
-    margin-inline-start: auto;
   }
 }
 
