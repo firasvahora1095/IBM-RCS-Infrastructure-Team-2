@@ -4,6 +4,7 @@ import {
   Button,
   DismissibleTag,
   Dropdown,
+  InlineNotification,
   Layer,
   Search,
   Table,
@@ -19,8 +20,12 @@ import { Section } from "../../components/ui/Blocks";
 import { LoadState } from "../../components/manager/ManagerBits";
 import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
+import { ReleaseCaseButton } from "../../components/fallback/ReleaseCaseButton";
 import { getCaseOversight } from "../../services";
+import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
 import type { ManagerCaseRow } from "../../services/types";
+import { useAuth } from "../../hooks/useAuth";
+import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { inScope, useClients } from "../../hooks/useClientScope";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
@@ -35,6 +40,19 @@ type SortKey = "severity" | "status" | "auditor" | "case";
 /** The order a case moves through, so a status sort reads as a pipeline rather than alphabetically. */
 const STATUS_ORDER = ["Processing", "Ready for review", "In review", "Complete"];
 
+/**
+ * A case nobody owns yet: no Auditor was free when it arrived. The system places it the moment one is, so this is a
+ * status, not a task. The Manager's one choice is whether to let Auditors pick it themselves instead.
+ */
+function isWaiting(row: ManagerCaseRow): boolean {
+  return (
+    row.auditor_name === null &&
+    row.manager_flag === null &&
+    row.status !== "COMPLETE" &&
+    (row.case_visibility === "SUPER_ADMIN_ONLY" || row.case_visibility === "AVAILABLE_TO_AUDITORS")
+  );
+}
+
 /** What a case needs from the Manager, in the order to work through them. `null` means nothing. */
 type Attention = { kind: "blocked" | "reassign"; label: string; action: string } | null;
 
@@ -42,8 +60,8 @@ function attentionOf(row: ManagerCaseRow): Attention {
   if (row.status === "COMPLETE") return null;
   if (row.manager_flag === "SOS") return { kind: "blocked", label: "Blocked", action: "Review alert" };
   if (row.manager_flag) return { kind: "reassign", label: "Needs reassignment", action: "Review" };
-  // A case with no Auditor yet is never the Manager's to push along: it is released to Auditors automatically
-  // (the Super Auditor's queue, then weighted placement), so it is listed as a status, not as a task.
+  // A case with no Auditor yet is never the Manager's to push along: the system places it automatically (the Super
+  // Auditor's queue, then weighted placement), so it sits in "Waiting for an Auditor" as a status, with one optional choice.
   return null;
 }
 const ATTENTION_RANK = { blocked: 0, reassign: 1 } as const;
@@ -68,7 +86,11 @@ function detailHref(row: ManagerCaseRow): string {
  */
 export function ManagerCaseOversightPage() {
   const navigate = useNavigate();
-  const { data: allCases, error } = useStaffQuery(getCaseOversight);
+  const { data: allCases, error, reload } = useStaffQuery(getCaseOversight);
+  const { token } = useAuth();
+  const handleSessionExpiry = useSessionExpiryHandler();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { scope, selected } = useClients();
   const data = allCases ? allCases.filter((c) => inScope(scope, c)) : allCases;
   // The dashboard opens this list on a stage (?stage=) or a case (?search=).
@@ -100,8 +122,11 @@ export function ManagerCaseOversightPage() {
     );
   const [sortKey, setSortKey] = useState<SortKey>("severity");
   const [sortDir, setSortDir] = useState<"ASC" | "DESC">("ASC");
+  const waiting = matching
+    .filter(isWaiting)
+    .sort((a, b) => (SEVERITY_RANK[tierOf(a) ?? ""] ?? 9) - (SEVERITY_RANK[tierOf(b) ?? ""] ?? 9));
   const others = matching
-    .filter((c) => attentionOf(c) === null)
+    .filter((c) => attentionOf(c) === null && !isWaiting(c))
     .sort((a, b) => (sortDir === "ASC" ? 1 : -1) * compare(a, b));
 
   function compare(a: ManagerCaseRow, b: ManagerCaseRow): number {
@@ -163,6 +188,20 @@ export function ManagerCaseOversightPage() {
           />
         </div>
       )}
+      {notice && (
+        <InlineNotification kind="success" lowContrast hideCloseButton role="status" title="Done." subtitle={notice} style={{ maxWidth: "100%" }} />
+      )}
+      {actionError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="That didn't work."
+          subtitle={actionError}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       <LoadState error={error} loading={!data && !error} what="cases" />
       {data && needing.length > 0 && (
         <Section
@@ -207,6 +246,64 @@ export function ManagerCaseOversightPage() {
                         <Button kind="tertiary" size="sm" onClick={() => navigate(href!)}>
                           {need.action}
                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Layer>
+        </Section>
+      )}
+      {data && waiting.length > 0 && token && (
+        <Section
+          id="cases-waiting"
+          title={`Waiting for an Auditor · ${waiting.length}`}
+          description="No Auditor was free when these arrived. The system places each one the moment an Auditor is. If you would rather Auditors chose for themselves, you can let them."
+        >
+          <Layer>
+            <Table aria-label="Cases waiting for an Auditor">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Case ID</TableHeader>
+                  {!selected && <TableHeader>Client</TableHeader>}
+                  <TableHeader>Severity</TableHeader>
+                  <TableHeader>State</TableHeader>
+                  <TableHeader>
+                    <span className="cds--visually-hidden">Action</span>
+                  </TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {waiting.map((row) => {
+                  const released = row.case_visibility === "AVAILABLE_TO_AUDITORS";
+                  return (
+                    <TableRow key={row.case_id}>
+                      <TableCell style={{ ...mono, fontSize: 12 }}>{row.case_id}</TableCell>
+                      {!selected && <TableCell>{row.organisation_name ?? "—"}</TableCell>}
+                      <TableCell>{tierOf(row) ? <SeverityTag tier={tierOf(row)!} size="sm" /> : "—"}</TableCell>
+                      <TableCell>
+                        <StatusTag tone={released ? "info" : "neutral"} size="sm">
+                          {released ? "Open for Auditors to claim" : "Placed automatically"}
+                        </StatusTag>
+                      </TableCell>
+                      <TableCell style={{ textAlign: "end" }}>
+                        <ReleaseCaseButton
+                          caseId={row.case_id}
+                          released={released}
+                          token={token}
+                          onDone={(message) => {
+                            setNotice(message);
+                            setActionError(null);
+                            reload();
+                          }}
+                          onError={(err) => {
+                            if (handleSessionExpiry(err)) return;
+                            setNotice(null);
+                            setActionError(err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE);
+                            reload();
+                          }}
+                        />
                       </TableCell>
                     </TableRow>
                   );

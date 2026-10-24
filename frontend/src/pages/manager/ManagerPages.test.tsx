@@ -388,10 +388,36 @@ describe("Manager screens", () => {
       expect(within(all).queryByText("Needs reassignment")).not.toBeInTheDocument();
     });
 
-    it("has no manual release button: cases are released to Auditors automatically", async () => {
+    it("lists cases nobody owns as waiting, apart from the long list, with the one choice the Manager has", async () => {
       renderAt("/manager/cases");
-      await screen.findByRole("table", { name: "All cases" });
-      expect(screen.queryByRole("button", { name: /Release to Auditors|Make available/ })).not.toBeInTheDocument();
+      const waiting = await screen.findByRole("table", { name: "Cases waiting for an Auditor" });
+      const all = screen.getByRole("table", { name: "All cases" });
+      // The seed has one case parked for the system to place and one already open for claiming.
+      expect(within(waiting).getByText("AR-2026-00433")).toBeInTheDocument();
+      expect(within(waiting).getByText("AR-2026-00434")).toBeInTheDocument();
+      expect(within(waiting).getByText("Placed automatically")).toBeInTheDocument();
+      expect(within(waiting).getByText("Open for Auditors to claim")).toBeInTheDocument();
+      expect(within(all).queryByText("AR-2026-00433")).not.toBeInTheDocument();
+      expect(within(all).queryByText("AR-2026-00434")).not.toBeInTheDocument();
+      // Only a waiting case can be released: a case an Auditor holds has no such button.
+      expect(screen.getByRole("button", { name: "Let Auditors choose case AR-2026-00433" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Place case AR-2026-00434 automatically" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Let Auditors choose case AR-2026-00417/ })).not.toBeInTheDocument();
+    });
+
+    it("lets Auditors choose a waiting case once confirmed, and takes it back with one click", async () => {
+      renderAt("/manager/cases");
+      fireEvent.click(await screen.findByRole("button", { name: "Let Auditors choose case AR-2026-00433" }));
+      const dialog = await screen.findByRole("dialog", { name: "Let Auditors choose case AR-2026-00433?" });
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).toBe("SUPER_ADMIN_ONLY");
+      expect(within(dialog).getByText(/stop placing it automatically/)).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Let Auditors choose" }));
+      expect(await screen.findByText(/AR-2026-00433 is open for Auditors to claim/)).toBeInTheDocument();
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).toBe("AVAILABLE_TO_AUDITORS");
+      // The way back is right there.
+      fireEvent.click(await screen.findByRole("button", { name: "Place case AR-2026-00433 automatically" }));
+      expect(await screen.findByText(/AR-2026-00433 is back with the system/)).toBeInTheDocument();
+      expect(readDb().cases.find((c) => c.case_id === "AR-2026-00433")!.case_visibility).not.toBe("AVAILABLE_TO_AUDITORS");
     });
   });
 

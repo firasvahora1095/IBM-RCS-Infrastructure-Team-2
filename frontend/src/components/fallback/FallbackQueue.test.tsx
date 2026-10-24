@@ -57,10 +57,10 @@ describe("FallbackQueueSection (Super Auditor)", () => {
 
   it("says what a Super Auditor can and can't do, and offers no way to reassign a case someone already holds", async () => {
     renderFallback();
-    expect(await screen.findByText(/take one nobody owns if it can.t wait/)).toBeInTheDocument();
+    expect(await screen.findByText(/take it yourself if it can.t wait, or let Auditors choose it/)).toBeInTheDocument();
     expect(screen.getByText(/Moving a case an Auditor is working on is the Manager.s job/)).toBeInTheDocument();
-    // Placing a parked case is automatic, and reassigning an owned one is the Manager's: neither is a button here.
-    expect(screen.queryByRole("button", { name: /reassign|make available|assign to/i })).not.toBeInTheDocument();
+    // Reassigning a case an Auditor holds is the Manager's: there is no such button here.
+    expect(screen.queryByRole("button", { name: /reassign|assign to/i })).not.toBeInTheDocument();
   });
 
   it("lists every open case with its owner and who can see it under All open cases", async () => {
@@ -89,7 +89,7 @@ describe("FallbackQueueSection (Super Auditor)", () => {
     expect(await screen.findByText(/Placed automatically from/)).toBeInTheDocument();
     // A case the system will never place (hand-seeded, or already released for claiming) carries no such note.
     const row = screen.getByText("FREE-0002").closest("tr") as HTMLElement;
-    expect(within(row).queryByText(/automatically/)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/Placed automatically/)).not.toBeInTheDocument();
   });
 
   it("offers Take case only on a case nobody owns", async () => {
@@ -116,10 +116,52 @@ describe("FallbackQueueSection (Super Auditor)", () => {
     expect(onChanged).toHaveBeenCalled();
   });
 
-  it("offers no Make available: automatic placement already does that", async () => {
+  it("lets the Super Auditor release a waiting case, but only after confirming what that does", async () => {
+    const release = vi.spyOn(services, "makeCaseAvailable").mockResolvedValue({ available: true });
+    const { onChanged } = renderFallback();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Let Auditors choose case FREE-0001" }));
+    expect(release).not.toHaveBeenCalled();
+    // The closed Take case dialog stays in the page, so pick this one by its name.
+    const dialog = await screen.findByRole("dialog", { name: "Let Auditors choose case FREE-0001?" });
+    expect(within(dialog).getByText("Let Auditors choose case FREE-0001?")).toBeInTheDocument();
+    // It says what Auditors will see and, importantly, that the system stops placing it.
+    expect(within(dialog).getByText(/never the footage/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/stop placing it automatically/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Let Auditors choose" }));
+    expect(release).toHaveBeenCalledWith("FREE-0001", "t");
+    expect(await screen.findByText(/FREE-0001 is open for Auditors to claim/)).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("takes a released case back in one click, so a case nobody claims is never stranded", async () => {
+    const takeBack = vi.spyOn(services, "withdrawCaseRelease").mockResolvedValue({ withdrawn: true });
+    const { onChanged } = renderFallback();
+    const user = userEvent.setup();
+    // FREE-0002 is already open for Auditors to claim, so the action is the way back.
+    await user.click(await screen.findByRole("button", { name: "Place case FREE-0002 automatically" }));
+    expect(takeBack).toHaveBeenCalledWith("FREE-0002", "t");
+    expect(await screen.findByText(/FREE-0002 is back with the system/)).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("offers the choice only on a case nobody owns, never on one an Auditor holds or the Manager has", async () => {
     renderFallback();
-    await screen.findByText("FREE-0001");
-    expect(screen.queryByRole("button", { name: /Make available/ })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("tab", { name: /All open cases/ }));
+    expect(screen.getByRole("button", { name: "Let Auditors choose case FREE-0001" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /case OWNED-001/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /case DECL-0001/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's reason when a release is refused", async () => {
+    vi.spyOn(services, "makeCaseAvailable").mockRejectedValue(new ApiError("This case is waiting for a Manager decision.", 409));
+    renderFallback();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Let Auditors choose case FREE-0001" }));
+    const dialog = await screen.findByRole("dialog", { name: "Let Auditors choose case FREE-0001?" });
+    await user.click(within(dialog).getByRole("button", { name: "Let Auditors choose" }));
+    expect(await screen.findByText(/waiting for a Manager decision/)).toBeInTheDocument();
   });
 
   it("disables Take case during a wellbeing block and says why, without blaming", async () => {
