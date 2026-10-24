@@ -55,6 +55,14 @@ describe("FallbackQueueSection (Super Auditor)", () => {
     expect(screen.getByRole("tab", { name: "All open cases (4)" })).toBeInTheDocument();
   });
 
+  it("says what a Super Auditor can and can't do, and offers no way to reassign a case someone already holds", async () => {
+    renderFallback();
+    expect(await screen.findByText(/take one nobody owns if it can.t wait/)).toBeInTheDocument();
+    expect(screen.getByText(/Moving a case an Auditor is working on is the Manager.s job/)).toBeInTheDocument();
+    // Placing a parked case is automatic, and reassigning an owned one is the Manager's: neither is a button here.
+    expect(screen.queryByRole("button", { name: /reassign|make available|assign to/i })).not.toBeInTheDocument();
+  });
+
   it("lists every open case with its owner and who can see it under All open cases", async () => {
     renderFallback();
     const user = userEvent.setup();

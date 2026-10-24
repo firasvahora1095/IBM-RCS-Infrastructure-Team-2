@@ -6,6 +6,16 @@
 **Team decisions (confirmed):** no hold (0 minutes); the Super Auditor may claim a released case; a Manager may reassign to the Super Auditor, listed last; Super Auditor is a flag on an Auditor account, with every extra permission enforced server-side and no Manager powers.
 **Rules from:** [`docs/ba/extra-features.md`](../ba/extra-features.md), section 1.6 (Case Assignment Fallback)
 
+## What a Super Auditor can and can't do, in plain words
+
+**Can:** see every open case (queue details only, never footage); take a case nobody owns, when it can't wait; review the cases they own, like any Auditor; be chosen by a Manager as the last-listed option when reassigning.
+
+**Can't:** reassign a case an Auditor is already working on, set an Auditor's exposure limit, or open Manager screens. Moving an owned case is the Manager's job (AR-DF-02), so one person can never both review and supervise the same work. The server answers a Super Auditor who tries to take an owned case with "This case already has an Auditor. A Manager can reassign it."
+
+**Doesn't need to:** place parked cases. The system does that itself, using the normal weighted rule, the moment an Auditor is free (section 3). The fallback queue says so on screen, and the demo guide now says so too. "Places them" in the older demo guide wording described the system, not a button.
+
+**Why there is no Reassign button for a Super Auditor.** It is a deliberate, tested decision (the access matrix below, rows 14 and 15), not a missing feature. If a client ever wants the Super Auditor to choose who takes a parked case, that is a new right for `fallback_queue` plus a button; it would reverse decision 4 below, so it needs the client's agreement first.
+
 ## 1. The idea in four lines
 
 1. **Normal assignment stays the default.** Weighted by exposure and case count, as Naresh specified. The Super Auditor is never part of that pool.
@@ -23,7 +33,7 @@
 | Take a case nobody owns | **Yes** | No (403) | No (403) | BA 1.6: "can take over / be assigned a case as a fallback" | `fallback_queue.take_case` | row 2; `test_super_admin_takes_an_unowned_case` |
 | Take a case a standard Auditor already owns | **No** (409) | n/a | n/a | Avoids two owners and yanking a case mid-review. Moving an owned case is the Manager's reassignment (AR-DF-02) | `take_case` | `test_take_does_not_steal_a_case_a_standard_auditor_owns` |
 | Take, claim or release a case that is with the Manager (declined, SOS, cap reached) | **No** (409/404) | No | Manager only | Declined cases go "directly to the manager" (Naresh Q17, AR-DF-02); a hand-off must not be bypassed | `take_case`, `claim_case`, `make_available` | `test_a_case_with_the_manager_cannot_be_taken...` |
-| Make an unowned case available for claiming | **Yes** | No (403) | **Yes** | BA 1.6: "Super Auditor or authorised Manager selects Make Available" | `fallback_queue.make_available` | row 3; `test_super_admin_and_manager_can_make_a_case_available` |
+| Make an unowned case available for claiming | **Yes**, through the API only: the Super Auditor's screen has no button for it, because automatic placement does the same | No (403) | **Yes** (Case Oversight) | BA 1.6: "Super Auditor or authorised Manager selects Make Available" | `fallback_queue.make_available` | row 3; `test_super_admin_and_manager_can_make_a_case_available` |
 | Open the full review of a case | Only if they own it | Only if they own it | Exceptional access only, logged (MR-CR-08) | AR-AS-01: Auditors see only assigned cases. BA 1.6: "Only the assigned Auditor can open the full review" | `_get_owned_case` | rows 5–6; `test_seeing_a_case_does_not_let_the_super_admin_open_it` |
 | Own queue | Yes | Yes | No (403) | They are an Auditor | `list_auditor_cases` | row 4 |
 | Claim a case released for claiming | Yes | Yes, if eligible | No (403) | Same rule for every Auditor: wellbeing first | `claim_case` | row 8; `test_an_eligible_auditor_claims_and_the_second_claim_fails` |
