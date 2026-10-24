@@ -101,6 +101,10 @@ def _final_tier(case: Case) -> str | None:
             return get_severity_tier(int(case.auditor_severity_score))
         except (ValueError, TypeError):
             return None
+    # An Auditor who confirms the AI's rating stores no score of their own; the final tier is then the AI's, as on
+    # every other screen. Before completion there is no final tier yet.
+    if case.status == "COMPLETE":
+        return case.severity_tier
     return None
 
 

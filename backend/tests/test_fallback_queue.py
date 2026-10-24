@@ -74,7 +74,7 @@ class FallbackQueueTests(unittest.TestCase):
         with self.Session.begin() as db:
             db.add_all(
                 [
-                    Auditor(auditor_id="superadmin-1", login_hash=self.password_hash, role="auditor", is_super_admin=True),
+                    Auditor(auditor_id="superauditor-1", login_hash=self.password_hash, role="auditor", is_super_admin=True),
                     Auditor(auditor_id="auditor-1", login_hash=self.password_hash, role="auditor"),
                     Auditor(auditor_id="auditor-2", login_hash=self.password_hash, role="auditor"),
                     Auditor(auditor_id="manager-1", login_hash=self.password_hash, role="manager"),
@@ -115,7 +115,7 @@ class FallbackQueueTests(unittest.TestCase):
     # --- login flag and the weighted pool -----------------------------------
 
     def test_login_says_who_is_the_super_admin(self) -> None:
-        sa = self.client.post("/api/staff/login", json={"staff_id": "superadmin-1", "password": PASSWORD}).json()
+        sa = self.client.post("/api/staff/login", json={"staff_id": "superauditor-1", "password": PASSWORD}).json()
         std = self.client.post("/api/staff/login", json={"staff_id": "auditor-1", "password": PASSWORD}).json()
         mgr = self.client.post("/api/staff/login", json={"staff_id": "manager-1", "password": PASSWORD}).json()
         self.assertEqual((sa["role"], sa["is_super_admin"]), ("auditor", True))
@@ -154,7 +154,7 @@ class FallbackQueueTests(unittest.TestCase):
         self.put_in_cooldown("auditor-1")
         self.put_at_limit("auditor-2")
         case_id = self.upload().json()["case_id"]
-        seen = self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()
+        seen = self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()
         self.assertIn(case_id, [c["case_id"] for c in seen])
         available = self.client.get("/api/auditor/available-cases", headers=self.headers("auditor-1")).json()
         self.assertEqual(available["cases"], [])
@@ -165,7 +165,7 @@ class FallbackQueueTests(unittest.TestCase):
         self.add_case("OWNED1", owner="auditor-1")
         self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
         self.add_case("DONE1", owner="auditor-2", status="COMPLETE")
-        rows = {c["case_id"]: c for c in self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()}
+        rows = {c["case_id"]: c for c in self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()}
         self.assertEqual(set(rows), {"OWNED1", "FREE1"})
         self.assertEqual(rows["OWNED1"]["assigned_auditor_id"], "auditor-1")
         self.assertEqual(rows["FREE1"]["case_visibility"], "SUPER_ADMIN_ONLY")
@@ -177,30 +177,30 @@ class FallbackQueueTests(unittest.TestCase):
 
     def test_seeing_a_case_does_not_let_the_super_admin_open_it(self) -> None:
         self.add_case("OWNED1", owner="auditor-1")
-        r = self.client.get("/api/auditor/cases/OWNED1", headers=self.headers("superadmin-1"))
+        r = self.client.get("/api/auditor/cases/OWNED1", headers=self.headers("superauditor-1"))
         self.assertEqual(r.status_code, 404)
 
     # --- take ------------------------------------------------------------------
 
     def test_super_admin_takes_an_unowned_case(self) -> None:
         self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
-        r = self.client.post("/api/auditor/cases/FREE1/take", headers=self.headers("superadmin-1"))
+        r = self.client.post("/api/auditor/cases/FREE1/take", headers=self.headers("superauditor-1"))
         self.assertEqual(r.status_code, 200, r.text)
         case = self.case("FREE1")
-        self.assertEqual((case.assigned_auditor_id, case.case_visibility), ("superadmin-1", "ASSIGNED_ONLY"))
-        mine = self.client.get("/api/auditor/cases", headers=self.headers("superadmin-1")).json()
+        self.assertEqual((case.assigned_auditor_id, case.case_visibility), ("superauditor-1", "ASSIGNED_ONLY"))
+        mine = self.client.get("/api/auditor/cases", headers=self.headers("superauditor-1")).json()
         self.assertEqual([c["case_id"] for c in mine], ["FREE1"])
 
     def test_take_does_not_steal_a_case_a_standard_auditor_owns(self) -> None:
         self.add_case("OWNED1", owner="auditor-1")
-        r = self.client.post("/api/auditor/cases/OWNED1/take", headers=self.headers("superadmin-1"))
+        r = self.client.post("/api/auditor/cases/OWNED1/take", headers=self.headers("superauditor-1"))
         self.assertEqual(r.status_code, 409)
         self.assertEqual(self.case("OWNED1").assigned_auditor_id, "auditor-1")
 
     def test_super_admin_is_protected_too(self) -> None:
         self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
-        self.put_in_cooldown("superadmin-1")
-        r = self.client.post("/api/auditor/cases/FREE1/take", headers=self.headers("superadmin-1"))
+        self.put_in_cooldown("superauditor-1")
+        r = self.client.post("/api/auditor/cases/FREE1/take", headers=self.headers("superauditor-1"))
         self.assertEqual(r.status_code, 409)
         self.assertIn("cooldown", r.json()["detail"])
         self.assertIsNone(self.case("FREE1").assigned_auditor_id)
@@ -215,13 +215,13 @@ class FallbackQueueTests(unittest.TestCase):
     def test_super_admin_and_manager_can_make_a_case_available(self) -> None:
         self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
         self.add_case("FREE2", visibility="SUPER_ADMIN_ONLY")
-        self.assertEqual(self.client.post("/api/cases/FREE1/make-available", headers=self.headers("superadmin-1")).status_code, 200)
+        self.assertEqual(self.client.post("/api/cases/FREE1/make-available", headers=self.headers("superauditor-1")).status_code, 200)
         self.assertEqual(self.client.post("/api/cases/FREE2/make-available", headers=self.headers("manager-1")).status_code, 200)
         self.assertEqual(self.case("FREE1").case_visibility, "AVAILABLE_TO_AUDITORS")
         self.assertEqual(self.case("FREE2").case_visibility, "AVAILABLE_TO_AUDITORS")
         with self.Session() as db:
             actors = {a.actor for a in db.scalars(select(AuditLog).where(AuditLog.action == "CASE_MADE_AVAILABLE"))}
-        self.assertEqual(actors, {"superadmin-1", "manager-1"})
+        self.assertEqual(actors, {"superauditor-1", "manager-1"})
 
     def test_a_standard_auditor_cannot_make_a_case_available(self) -> None:
         self.add_case("FREE1", visibility="SUPER_ADMIN_ONLY")
@@ -277,13 +277,13 @@ class FallbackQueueTests(unittest.TestCase):
         self.assertIn("SOS", r.json()["detail"])
 
     def test_a_case_with_the_manager_cannot_be_taken_claimed_or_released_and_never_names_who_declined(self) -> None:
-        # A declined case keeps its owner in the database, but the Super Admin never sees it (MR-CR-04).
+        # A declined case keeps its owner in the database, but the Super Auditor never sees it (MR-CR-04).
         self.add_case("DECL1", owner="auditor-1", flag="DECLINED", visibility="AVAILABLE_TO_AUDITORS")
         self.add_case("DECL2", owner=None, flag="DECLINED", visibility="SUPER_ADMIN_ONLY")
-        rows = {c["case_id"]: c for c in self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()}
+        rows = {c["case_id"]: c for c in self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()}
         self.assertIsNone(rows["DECL1"]["assigned_auditor_id"])
         self.assertEqual(rows["DECL1"]["manager_flag"], "DECLINED")
-        sa = self.headers("superadmin-1")
+        sa = self.headers("superauditor-1")
         self.assertEqual(self.client.post("/api/auditor/cases/DECL2/take", headers=sa).status_code, 409)
         self.assertEqual(self.client.post("/api/cases/DECL2/make-available", headers=self.headers("manager-1")).status_code, 409)
         self.assertEqual(self.client.post("/api/auditor/cases/DECL1/claim", headers=self.headers("auditor-2")).status_code, 404)

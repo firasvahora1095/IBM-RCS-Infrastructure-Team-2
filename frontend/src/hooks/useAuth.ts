@@ -7,6 +7,7 @@ const TOKEN_KEY = "rcs_staff_token";
 const ROLE_KEY = "rcs_staff_role";
 const STAFF_ID_KEY = "rcs_staff_id";
 const SUPER_ADMIN_KEY = "rcs_staff_super_admin";
+const NAME_KEY = "rcs_staff_name";
 
 /**
  * Fired whenever the stored session changes, so every component using
@@ -33,6 +34,8 @@ export interface StaffSession {
   staffId: string;
   /** Shows the fallback queue. Only a convenience: the server decides what a call may do. */
   isSuperAdmin: boolean;
+  /** A readable name when the data source provides one; empty otherwise. */
+  displayName: string;
 }
 
 /** Reads the current session straight from sessionStorage. */
@@ -42,14 +45,14 @@ export function readStaffSession(): StaffSession | null {
   if (!token || (role !== "auditor" && role !== "manager")) {
     return null;
   }
-  // The API returns no display name, only the ID used to log in, so that's
-  // what the staff headers show (rather than inventing a name like the
-  // Figma mockups' "J. Doe").
+  // A readable name is shown when the data source returns one; otherwise the ID used to log in (never an
+  // invented name like the Figma mockups' "J. Doe").
   return {
     token,
     role,
     staffId: sessionStorage.getItem(STAFF_ID_KEY) ?? "",
     isSuperAdmin: role === "auditor" && sessionStorage.getItem(SUPER_ADMIN_KEY) === "1",
+    displayName: sessionStorage.getItem(NAME_KEY) ?? "",
   };
 }
 
@@ -60,17 +63,20 @@ function clearStaffSession(): void {
   sessionStorage.removeItem(ROLE_KEY);
   sessionStorage.removeItem(STAFF_ID_KEY);
   sessionStorage.removeItem(SUPER_ADMIN_KEY);
+  sessionStorage.removeItem(NAME_KEY);
   // In-progress Auditor reviews belong to this session too.
   clearAllDraftResolutions();
   notifySessionChanged();
 }
 
-function storeStaffSession(token: string, role: StaffRole, staffId: string, isSuperAdmin = false): void {
+function storeStaffSession(token: string, role: StaffRole, staffId: string, isSuperAdmin = false, displayName = ""): void {
   sessionStorage.setItem(TOKEN_KEY, token);
   sessionStorage.setItem(ROLE_KEY, role);
   sessionStorage.setItem(STAFF_ID_KEY, staffId);
   if (isSuperAdmin && role === "auditor") sessionStorage.setItem(SUPER_ADMIN_KEY, "1");
   else sessionStorage.removeItem(SUPER_ADMIN_KEY);
+  if (displayName) sessionStorage.setItem(NAME_KEY, displayName);
+  else sessionStorage.removeItem(NAME_KEY);
   notifySessionChanged();
 }
 
@@ -100,8 +106,8 @@ export function useAuth() {
   const login = useCallback(async (staffId: string, password: string): Promise<StaffRole> => {
     const result = await staffLogin(staffId, password);
     const isSuperAdmin = result.is_super_admin === true && result.role === "auditor";
-    storeStaffSession(result.token, result.role, staffId, isSuperAdmin);
-    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin });
+    storeStaffSession(result.token, result.role, staffId, isSuperAdmin, result.display_name);
+    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin, displayName: result.display_name ?? "" });
     return result.role;
   }, []);
 
@@ -118,8 +124,8 @@ export function useAuth() {
       throw new Error("This account can't continue this session.");
     }
     const isSuperAdmin = result.is_super_admin === true && result.role === "auditor";
-    storeStaffSession(result.token, result.role, staffId, isSuperAdmin);
-    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin });
+    storeStaffSession(result.token, result.role, staffId, isSuperAdmin, result.display_name);
+    setSession({ token: result.token, role: result.role, staffId, isSuperAdmin, displayName: result.display_name ?? "" });
   }, []);
 
   const logout = useCallback(() => {
@@ -132,6 +138,7 @@ export function useAuth() {
     role: session?.role ?? null,
     staffId: session?.staffId ?? "",
     isSuperAdmin: session?.isSuperAdmin ?? false,
+    displayName: session?.displayName ?? "",
     isLoggedIn: session !== null,
     login,
     reauthenticate,

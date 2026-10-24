@@ -17,7 +17,7 @@ describe("Contact RCS (mock)", () => {
     const sent = await mock.clientSendMessage(c, {
       topic: "ACCOUNT_ACCESS",
       subject: "A colleague needs access",
-      body: "Mock: how do we add a second user?",
+      body: "how do we add a second user?",
     });
     expect(sent.status).toBe("SENT");
 
@@ -26,7 +26,7 @@ describe("Contact RCS (mock)", () => {
     expect((await mock.getClientMessage(sent.message_id, m)).status).toBe("SEEN");
     expect((await mock.clientGetMessage(sent.message_id, c)).status).toBe("SEEN");
 
-    const answered = await mock.replyClientMessage(sent.message_id, m, "Mock: we'll set one up today.");
+    const answered = await mock.replyClientMessage(sent.message_id, m, "we'll set one up today.");
     expect(answered.reply!.by).not.toBe("RCS");
     const seenByClient = await mock.clientGetMessage(sent.message_id, c);
     expect(seenByClient.status).toBe("ANSWERED");
@@ -58,9 +58,9 @@ describe("Request support (mock)", () => {
 
   it("keeps the reason, lets the Auditor withdraw, and stops the Manager approving a withdrawn break", async () => {
     const a = await staff("auditor-1");
-    const request_id = (await mock.requestWellbeingSupport(a, "BREAK_REQUEST", undefined, "Mock: long morning.")).request_id!;
+    const request_id = (await mock.requestWellbeingSupport(a, "BREAK_REQUEST", undefined, "long morning.")).request_id!;
     const mine = (await mock.getMyWellbeing(a)).requests!;
-    expect(mine[0]).toMatchObject({ id: request_id, status: "OPEN", reason: "Mock: long morning." });
+    expect(mine[0]).toMatchObject({ id: request_id, status: "OPEN", reason: "long morning." });
 
     await mock.withdrawWellbeingRequest(a, request_id);
     expect((await mock.getMyWellbeing(a)).requests![0].status).toBe("WITHDRAWN");

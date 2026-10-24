@@ -19,7 +19,7 @@ export function PublicPage({ cardWidth, children }: PublicPageProps) {
   return (
     <main
       className="flex items-start justify-center px-4 pb-10"
-      style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh", paddingTop: 88 }}
+      style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh", paddingTop: 40 }}
     >
       <div
         className="flex w-full flex-col gap-6 p-6 sm:p-10"

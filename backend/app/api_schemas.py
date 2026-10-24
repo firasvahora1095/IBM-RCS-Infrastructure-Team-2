@@ -40,7 +40,7 @@ class MockAiResultRequest(BaseModel):
     effective_severity_score: int = Field(default=72, ge=0, le=100)
     severity_tier: SeverityTier = SeverityTier.S3
     narrative_summary: str = Field(
-        default="Mock: physical altercation detected between two people.",
+        default="Physical altercation detected between two people.",
         min_length=1,
         max_length=5000,
     )
@@ -79,6 +79,12 @@ class SosFollowUpOutcome(str, Enum):
 class SosFollowUpRequest(BaseModel):
     notes: str = Field(max_length=5000)
     outcome: SosFollowUpOutcome
+
+
+class CheckInRequest(BaseModel):
+    """The Manager's record of speaking to an Auditor after an S4 case."""
+
+    notes: str = Field(min_length=1, max_length=5000)
 
 
 class ExposureSampleRequest(BaseModel):

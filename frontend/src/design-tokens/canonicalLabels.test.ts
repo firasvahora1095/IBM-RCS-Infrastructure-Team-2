@@ -91,20 +91,26 @@ describe("AR-DF-03 decline reasons (docs/ba/ba-requirements-sprint2-final.md, AR
 });
 
 describe("Manager labels (Manager Figma prototype 0qMhTLDlozGkcdqcgbwyse)", () => {
-  it("uses the Oversight Dashboard exposure states (78:69)", () => {
-    expect(EXPOSURE_STATE_LABEL).toEqual({ UNDER: "Under", APPROACHING: "Approaching", AT_LIMIT: "At limit" });
+  // Figma 78:69 says Under / Approaching / At limit. The BA's UI wording standard
+  // (docs/ba/extra-features.md §11.1) names the state in full; it is the later, signed-off source.
+  it("uses the BA standard exposure states (extra-features §11.1, from Oversight Dashboard 78:69)", () => {
+    expect(EXPOSURE_STATE_LABEL).toEqual({
+      UNDER: "Within limit",
+      APPROACHING: "Near limit",
+      AT_LIMIT: "Limit reached",
+    });
   });
 
-  it("uses the SOS Inbox status column wording (103:151)", () => {
-    expect(SOS_STATUS_LABEL.IN_PROGRESS).toBe("Acknowledged — in progress");
+  it("uses the SOS inbox status column wording (103:151)", () => {
+    expect(SOS_STATUS_LABEL.IN_PROGRESS).toBe("In progress");
     expect(SOS_STATUS_LABEL.RESOLVED).toBe("Resolved");
   });
 
   it("lists the follow-up outcomes in Figma order (103:228)", () => {
     expect(SOS_FOLLOW_UP_OPTIONS.map((o) => o.label)).toEqual([
-      "Followed up — no further action",
-      "Followed up — reassigned remaining cases",
-      "Followed up — Auditor stopped shift",
+      "Auditor is fine to continue",
+      "Remaining cases moved to other Auditors",
+      "Auditor stopped for the day",
     ]);
   });
 });

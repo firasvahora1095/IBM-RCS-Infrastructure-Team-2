@@ -30,25 +30,24 @@ function SheetSection({
 }) {
   return (
     <section className="rcs-sheet-section" aria-labelledby={`${defId}-title`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <h3 id={`${defId}-title`} className="rcs-section-title">
-            {title}
-          </h3>
-          <p className="rcs-helper">{definition}</p>
-        </div>
+      {/* Title and its control share one row, the control at the far end, as on every Manager section. */}
+      <div className="rcs-section-head">
+        <h3 id={`${defId}-title`} className="rcs-section-title">
+          {title}
+        </h3>
         {evidence && (
           <Button
             kind="ghost"
             size="sm"
             className="rcs-no-print rcs-evidence-button"
             onClick={evidence}
-            aria-label={`View evidence: ${title}`}
+            aria-label={`Evidence: ${title}`}
           >
-            View evidence
+            Evidence
           </Button>
         )}
       </div>
+      <p className="rcs-helper">{definition}</p>
       {children}
     </section>
   );
@@ -58,7 +57,7 @@ function BigFigure({ label, value, helper }: { label: string; value: ReactNode; 
   return (
     <div className="flex flex-col gap-1">
       <span className="rcs-stat-label">{label}</span>
-      <span className="rcs-stat-value" style={{ marginBlockStart: 0 }}>
+      <span className="rcs-stat-value" style={{ marginBlockStart: 0, whiteSpace: "nowrap" }}>
         {value}
       </span>
       {helper && <span className="rcs-helper">{helper}</span>}
@@ -90,6 +89,8 @@ export function ReportSheet({
   const decided = m.violation_count + m.no_violation_count;
   const violationRate = decided ? Math.round((m.violation_count / decided) * 100) : 0;
   const month = wholeMonthName(report.period_start, report.period_end);
+  const finished = m.delivery.success + m.delivery.needs_attention;
+  const deliveredRate = finished ? Math.round((m.delivery.success / finished) * 100) : null;
 
   return (
     <article className="rcs-sheet" aria-label="Service report">
@@ -106,6 +107,29 @@ export function ReportSheet({
           {report.released_at ? ` · Released ${formatShortDate(report.released_at)}` : " · Draft, not released"}
         </p>
       </header>
+
+      <section className="rcs-sheet-section" aria-labelledby="summary-title">
+        <h3 id="summary-title" className="rcs-section-title">
+          Summary
+        </h3>
+        <p className="rcs-body">
+          {m.cases_completed === 0
+            ? `RCS completed no cases in this period.`
+            : `RCS completed ${m.cases_completed} ${m.cases_completed === 1 ? "case" : "cases"} from ${m.cases_received} ${m.cases_received === 1 ? "report" : "reports"} received. ${
+                decided ? `${violationRate}% of decided cases were found to violate policy. ` : ""
+              }${deliveredRate === null ? "" : `${deliveredRate}% of results reached ${report.organisation_name}.`}`}
+        </p>
+        {/* Fits the sheet's own width, so a figure such as "1 h 34 min" never breaks across lines. */}
+        <div className="rcs-figure-grid">
+          <BigFigure label="Cases completed" value={m.cases_completed} />
+          <BigFigure label="Policy violations found" value={`${violationRate}%`} helper={decided ? `${m.violation_count} of ${decided} decided` : undefined} />
+          <BigFigure
+            label="Median time to decision"
+            value={m.median_report_to_decision_minutes === null ? "Not stated" : formatMinutes(m.median_report_to_decision_minutes)}
+          />
+          <BigFigure label="Results delivered" value={deliveredRate === null ? "None yet" : `${deliveredRate}%`} />
+        </div>
+      </section>
 
       <SheetSection
         title="Cases"
@@ -162,7 +186,7 @@ export function ReportSheet({
               label: `${t} · ${info.label}`,
               value: m.severity_breakdown[t],
               // S1's tag fill is too light to read as a bar on the track.
-              color: t === "S1" ? "var(--cds-icon-secondary)" : info.background,
+              color: info.bar,
             };
           })}
         />
@@ -195,21 +219,9 @@ export function ReportSheet({
           <p className="rcs-helper">{OVERRIDE_AGGREGATE_NOTE}</p>
         </SheetSection>
 
+        <div className="md:col-span-2">
         <SheetSection
-          title="Workflow"
-          definition={METRIC_DEFINITIONS.workflow}
-          defId="def-workflow"
-          evidence={evidence("workflow")}
-        >
-          <BigFigure
-            label="Declined and reassigned"
-            value={m.declined_reassigned}
-            helper="Decided by a second reviewer"
-          />
-        </SheetSection>
-
-        <SheetSection
-          title="Delivery to CommunityHub"
+          title={`Delivery to ${report.organisation_name}`}
           definition={METRIC_DEFINITIONS.delivery}
           defId="def-delivery"
           evidence={evidence("delivery")}
@@ -217,7 +229,7 @@ export function ReportSheet({
           <SegmentedBar
             label="Delivery health"
             segments={[
-              { key: "ok", label: "Successful", value: m.delivery.success, color: "var(--cds-support-success)" },
+              { key: "ok", label: "Delivered", value: m.delivery.success, color: "var(--cds-support-success)" },
               {
                 key: "retry",
                 label: "Pending or retrying",
@@ -226,13 +238,14 @@ export function ReportSheet({
               },
               {
                 key: "na",
-                label: "Needs attention",
+                label: "Failed",
                 value: m.delivery.needs_attention,
                 color: "var(--cds-support-error)",
               },
             ]}
           />
         </SheetSection>
+        </div>
       </div>
 
       {report.manager_note && (
@@ -248,8 +261,8 @@ export function ReportSheet({
 
       <footer className="rcs-sheet-section">
         <p className="rcs-helper">
-          Prepared by RCS from completed case records. Final outcomes and severities are decided by trained human
-          reviewers; AI analysis assists them and never makes the final decision. This report contains aggregate figures
+          Generated from completed case records. Final outcomes and severities are decided by trained
+          Auditors; AI analysis assists them and never makes the final decision. This report contains aggregate figures
           only. Figures were calculated on {formatShortDateTime(calculatedAt)} and are fixed for version{" "}
           {report.version}: a released version never changes.
         </p>

@@ -90,7 +90,7 @@ m1 = Auditor(
 
 # The fallback reviewer (extra-features 1.6). Not part of the weighted pool.
 sa1 = Auditor(
-    auditor_id="superadmin-01",
+    auditor_id="superauditor-01",
     login_hash=hash_password("test123"),
     role="auditor",
     is_super_admin=True,
@@ -307,7 +307,7 @@ c7 = Case(
     video_storage_path="/tmp/ibm-rcs-uploads/demo-declined.mp4",
 )
 
-# FALLBACK DEMO: two cases no standard Auditor owns. The first waits in the Super Admin's
+# FALLBACK DEMO: two cases no standard Auditor owns. The first waits in the Super Auditor's
 # queue; the second has been made available for eligible Auditors to claim.
 fb1 = Case(
     case_id=generate_case_id(),

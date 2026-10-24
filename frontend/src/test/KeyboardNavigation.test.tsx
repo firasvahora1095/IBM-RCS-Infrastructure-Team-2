@@ -61,12 +61,12 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Upload: switches evidence type with arrow keys, shows the consent error, then submits a link", async () => {
     const user = userEvent.setup();
-    renderAt("/");
+    renderAt("/report");
 
-    const videoTab = await screen.findByRole("tab", { name: "Upload video" });
+    const videoTab = await screen.findByRole("tab", { name: "Video" });
     await tabTo(user, videoTab);
     await user.keyboard("{ArrowRight}");
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Paste a link instead" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Link" })).toHaveFocus());
     await user.keyboard("{Enter}");
 
     const link = await screen.findByLabelText("Link to the content");
@@ -92,8 +92,8 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Case ID confirmation: copy button, update fields and the status link are all reachable", async () => {
     const user = userEvent.setup();
-    renderAt("/");
-    await tabTo(user, await screen.findByRole("tab", { name: "Upload video" }));
+    renderAt("/report");
+    await tabTo(user, await screen.findByRole("tab", { name: "Video" }));
     await user.keyboard("{ArrowRight}{Enter}");
     await tabTo(user, await screen.findByLabelText("Link to the content"));
     await user.keyboard("https://example.com/video/456");
@@ -107,7 +107,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByLabelText("Email (optional)"));
     await user.keyboard("reporter@example.com");
     await tabTo(user, screen.getByLabelText("Phone (optional)"));
-    const statusLink = screen.getByRole("link", { name: "Check case status" });
+    const statusLink = screen.getAllByRole("link", { name: "Check case status" }).find((l) => l.className.includes("cds--btn"))!;
     await tabTo(user, statusLink);
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("heading", { name: "Check your case status" })).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
   it("Status lookup: Enter looks up, focus moves to the result, and the add-information dialog opens and closes", async () => {
     const user = userEvent.setup();
-    renderAt("/status");
+    renderAt("/report/status");
 
     const input = await screen.findByLabelText("Case ID");
     await tabTo(user, input);
@@ -186,7 +186,7 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     await tabTo(user, screen.getByRole("button", { name: /^(Mute|Unmute)$/ }));
     await tabTo(user, screen.getByRole("button", { name: /^SOS/ }));
 
-    await tabTo(user, screen.getByRole("button", { name: "Continue to severity & comment" }));
+    await tabTo(user, screen.getByRole("button", { name: "Rate severity" }));
     await user.keyboard("{Enter}");
     await screen.findByRole("heading", { name: "Severity & comment" });
 
@@ -256,10 +256,10 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     await tabTo(user, screen.getByRole("button", { name: "Submit decline" }));
     await user.keyboard("{Enter}");
-    expect(await screen.findByText(/Your manager will review it directly\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Your Manager will review it directly\./)).toBeInTheDocument();
   });
 
-  it("Cooldown: the support options, Send request and Stop my shift are reachable", async () => {
+  it("Cooldown: the support options, Request support and Stop my shift are reachable", async () => {
     const user = userEvent.setup();
     const token = await signIn("auditor-2");
     const { demoScenarios } = await import("../services/mock/demo");
@@ -268,8 +268,8 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     await screen.findByRole("heading", { name: "Cooldown in progress" });
     // A radio group is one tab stop; arrow keys move between its options.
-    await tabTo(user, await screen.findByRole("radio", { name: /Talk to my manager/ }));
-    await tabTo(user, screen.getByRole("button", { name: "Send request" }));
+    await tabTo(user, await screen.findByRole("radio", { name: /Talk to my Manager/ }));
+    await tabTo(user, screen.getByRole("button", { name: "Request support" }));
     await tabTo(user, screen.getByRole("button", { name: "Stop my shift" }));
   });
 
@@ -281,21 +281,13 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
     const nav = await screen.findByRole("navigation", { name: "Manager sections" });
     const names = within(nav)
       .getAllByRole("link")
-      .map((l) => l.textContent);
-    expect(names).toEqual([
-      "Dashboard",
-      "Case Oversight",
-      "SOS Inbox",
-      "Reassignment Queue",
-      "Deliveries",
-      "Reports",
-      "Client messages",
-      "Validation",
-    ]);
+      .map((l) => (l.textContent ?? "").replace(/\d+$/, ""));
+    expect(names).toEqual(["Overview", "Cases", "Deliveries", "Reports", "Insights", "Validation"]);
     const order: string[] = [];
-    await tabTo(user, within(nav).getByRole("link", { name: "Dashboard" }));
+    await tabTo(user, within(nav).getByRole("link", { name: "Overview" }));
     for (let i = 0; i < names.length; i++) {
-      order.push(document.activeElement?.textContent ?? "");
+      // A count badge on a tab is read with its name, so compare names without it.
+      order.push((document.activeElement?.textContent ?? "").replace(/\d+$/, ""));
       await user.tab();
     }
     expect(order).toEqual(names);
@@ -303,34 +295,45 @@ describe("Keyboard-only walkthrough (Task 99)", () => {
 
     // SOS: acknowledge from the inbox, then log the follow-up.
     renderAt("/manager/sos");
-    await tabTo(user, await screen.findByRole("button", { name: /Acknowledge Marcus Webb.s SOS alert/ }));
+    await tabTo(user, (await screen.findAllByRole("button", { name: /^View alert from Marcus Webb/ }))[0]);
     await user.keyboard("{Enter}");
     await tabTo(user, await screen.findByRole("button", { name: "Acknowledge" }));
     await user.keyboard("{Enter}");
     await screen.findByRole("heading", { name: "Log follow-up — Marcus Webb" });
     await tabTo(user, screen.getByLabelText("Follow-up notes"));
     await user.keyboard("Called Marcus; okay to continue.");
-    await tabTo(user, screen.getByRole("radio", { name: "Followed up — no further action" }));
+    await tabTo(user, screen.getByRole("radio", { name: "Auditor is fine to continue" }));
     await user.keyboard(" ");
     await tabTo(user, screen.getByRole("button", { name: "Log outcome" }));
     await user.keyboard("{Enter}");
     expect(await screen.findByText(/This SOS alert is now resolved\./)).toBeInTheDocument();
   });
 
-  it("Manager reassignment: the Auditor dropdown opens and selects with the keyboard", async () => {
+  it("Manager Overview: an inbox row opens its details with the keyboard", async () => {
+    const user = userEvent.setup();
+    await signIn("manager-1");
+    renderAt("/manager");
+
+    await tabTo(user, (await screen.findAllByRole("button", { name: "View request" }))[0]);
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { level: 1, name: "Reese Patel" })).toBeInTheDocument();
+  });
+
+  it("Manager reassignment: the Auditor list selects with the keyboard and confirms back on the Overview", async () => {
     const user = userEvent.setup();
     await signIn("manager-1");
     renderAt("/manager/cases/AR-2026-00398/reassign");
 
-    const combo = await screen.findByRole("combobox", { name: /Reassign to another Auditor/ });
-    await tabTo(user, combo);
+    // The suggested Auditor is already selected; arrow keys move within the radio group.
+    await screen.findByText("Reassign to");
+    const radios = await screen.findAllByRole("radio");
+    const first = radios.find((r) => (r as HTMLInputElement).checked)!;
+    await tabTo(user, first);
+    await user.keyboard("{ArrowDown}");
+    const confirm = screen.getByRole("button", { name: "Reassign" });
+    await tabTo(user, confirm);
     await user.keyboard("{Enter}");
-    await screen.findByRole("option", { name: /Jordan Lee — \d+ min headroom/ });
-    await user.keyboard("{ArrowDown}{Enter}");
-    await waitFor(() => expect(combo).toHaveTextContent(/Jordan Lee/));
-
-    await tabTo(user, screen.getByRole("button", { name: "Confirm reassignment" }));
-    await user.keyboard("{Enter}");
-    expect(await screen.findByRole("heading", { name: "Reassignment confirmed — AR-2026-00398" })).toBeInTheDocument();
+    expect(await screen.findByText(/Reassigned AR-2026-00398 to /)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
   });
 });

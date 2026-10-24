@@ -18,11 +18,49 @@
 // values, but our inline token styles would resolve to nothing on white
 // pages. The Theme component still overrides them per zone.
 @use "@carbon/react/scss/theme";
+@use "@carbon/colors";
 @use "./styles/b2b-kit";
 @use "./styles/site";
+@use "./styles/landing";
 
 :root {
   @include theme.theme();
+  // Solid green for tags that carry white text. Carbon's Green 50 (the success token) is only 3.3:1 with white,
+  // which fails WCAG AA at tag size; Green 60 is about 5:1. Taken from Carbon's palette, not typed in.
+  --rcs-success-strong: #{colors.$green-60};
+
+  // The RCS tag palette (docs/ux/tag-colour-system.md). Every pair is a Carbon palette value and passes WCAG AA for
+  // tag text (checked in design-tokens/tagPalette.test.ts). Status uses six families, each one meaning:
+  // red = critical, yellow = caution, blue = in progress, green = done, magenta = a request waiting for you, gray = routine.
+  --rcs-tag-error-bg: #{colors.$red-60};
+  --rcs-tag-error-fg: #{colors.$white};
+  --rcs-tag-warning-bg: #{colors.$yellow-20};
+  --rcs-tag-warning-fg: #{colors.$gray-100};
+  --rcs-tag-info-bg: #{colors.$blue-20};
+  --rcs-tag-info-fg: #{colors.$blue-80};
+  --rcs-tag-success-bg: #{colors.$green-60};
+  --rcs-tag-success-fg: #{colors.$white};
+  --rcs-tag-request-bg: #{colors.$magenta-20};
+  --rcs-tag-request-fg: #{colors.$magenta-70};
+  // Waiting on the person looking at the screen: Carbon's interactive blue, solid, the same blue as the primary button.
+  --rcs-tag-action-bg: #{colors.$blue-60};
+  --rcs-tag-action-fg: #{colors.$white};
+  --rcs-tag-neutral-bg: #{colors.$gray-20};
+  --rcs-tag-neutral-fg: #{colors.$gray-100};
+  // Severity is an ordered scale, so it is one hue (purple) that darkens as it gets worse. No status uses purple,
+  // so a severity tag can never be mistaken for a status. Bars use the same ramp.
+  --rcs-sev-1-bg: #{colors.$gray-20};
+  --rcs-sev-1-fg: #{colors.$gray-100};
+  --rcs-sev-1-bar: #{colors.$gray-50};
+  --rcs-sev-2-bg: #{colors.$purple-30};
+  --rcs-sev-2-fg: #{colors.$purple-90};
+  --rcs-sev-2-bar: #{colors.$purple-40};
+  --rcs-sev-3-bg: #{colors.$purple-60};
+  --rcs-sev-3-fg: #{colors.$white};
+  --rcs-sev-3-bar: #{colors.$purple-60};
+  --rcs-sev-4-bg: #{colors.$purple-90};
+  --rcs-sev-4-fg: #{colors.$white};
+  --rcs-sev-4-bar: #{colors.$purple-90};
 }
 
 // The Review Workspace scrubber spans its whole column (Figma 20:54). Carbon's
@@ -141,7 +179,11 @@
   min-block-size: 10rem;
 }
 .rcs-player-volume {
-  flex: 0 0 4rem;
+  // Room at both ends for the thumb and its "100%" tooltip, which hang past the track by half their width. Without
+  // it the tooltip was cut off at full volume and the thumb pushed the page sideways.
+  flex: 0 0 6.5rem;
+  min-inline-size: 0;
+  padding-inline: 0.5rem 2rem;
   // On narrow screens mute alone controls sound, so the bar still fits.
   @media (max-width: 671px) {
     display: none;
@@ -263,36 +305,138 @@ $rcs-buddy-width: 25rem;
   display: flex;
   flex-direction: column;
   inline-size: min(#{$rcs-buddy-width}, 100vw);
-  background-color: var(--cds-layer-01);
+  background-color: var(--cds-background);
   border-inline-start: 1px solid var(--cds-border-subtle-01);
+  box-shadow: -8px 0 24px rgba(13, 22, 51, 0.12);
   color: var(--cds-text-primary);
 }
 
+// Head: the RCS mark, the name and what it runs on, over the logo-gradient rule the product site uses.
 .rcs-buddy__head {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  gap: 0.75rem;
+  padding: 1rem 0.5rem 1rem 1rem;
   border-block-end: 1px solid var(--cds-border-subtle-01);
-  background-color: var(--cds-layer-02);
+  &::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    block-size: 3px;
+    background: linear-gradient(100deg, #c4a3ff 0%, #8f7cff 35%, #7fd3ff 70%, #6fd8c9 100%);
+  }
+  .cds--tag {
+    margin: 0;
+  }
 }
-
+.rcs-buddy__heading {
+  display: flex;
+  flex-direction: column;
+  margin-inline-end: auto;
+}
 .rcs-buddy__title {
   margin: 0;
-  font-size: var(--cds-heading-compact-01-font-size, 0.875rem);
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 1.28;
-  margin-inline-end: auto;
+  line-height: 1.375;
+}
+.rcs-buddy__sub {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.33;
+  color: var(--cds-text-secondary);
+}
+
+.rcs-buddy__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1.33;
+  color: var(--cds-text-secondary);
+  background-color: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  > svg {
+    flex-shrink: 0;
+    margin-block-start: 0.5rem;
+    fill: var(--cds-icon-secondary);
+  }
+  p {
+    flex: 1;
+    margin: 0;
+    padding-block: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  strong {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+  }
 }
 
 .rcs-buddy__log {
   flex: 1;
   min-block-size: 0;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  background-color: var(--cds-layer-01);
+}
+
+// Empty state: a welcome, then the starter questions as cards, as on the product site.
+.rcs-buddy__welcome-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.rcs-buddy__welcome-text {
+  margin: 0.5rem 0 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  color: var(--cds-text-secondary);
+}
+.rcs-buddy__label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b45d6; // brand deep purple, 6.4:1 on white, 5.9:1 on Gray 10
+}
+.rcs-buddy__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.rcs-buddy__chip.cds--btn {
+  inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: 3rem;
+  block-size: auto;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  white-space: normal; // full questions wrap instead of being cut off
+  text-align: start;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  .cds--btn__icon {
+    position: static;
+    flex-shrink: 0;
+    margin: 0;
+    fill: var(--cds-link-primary);
+  }
+  &:hover {
+    background-color: var(--cds-background-hover);
+    border-color: var(--cds-border-strong-01);
+  }
 }
 
 .rcs-buddy__msg {
@@ -305,12 +449,24 @@ $rcs-buddy-width: 25rem;
 }
 .rcs-buddy__msg--user {
   align-self: flex-end;
-  background-color: var(--cds-layer-accent-01);
+  color: #ffffff;
+  background-color: #5b45d6; // brand deep purple, white text 6.4:1
 }
 .rcs-buddy__msg--buddy {
   align-self: flex-start;
-  background-color: var(--cds-layer-02);
+  background-color: var(--cds-background);
   border: 1px solid var(--cds-border-subtle-01);
+  border-inline-start: 3px solid #8f7cff;
+}
+.rcs-buddy__who {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-block-end: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  white-space: normal;
 }
 
 .rcs-buddy__caption {
@@ -345,9 +501,9 @@ $rcs-buddy-width: 25rem;
 }
 
 .rcs-buddy__foot {
-  padding: 0.75rem 1rem 1rem;
+  padding: 1rem;
   border-block-start: 1px solid var(--cds-border-subtle-01);
-  background-color: var(--cds-layer-02);
+  background-color: var(--cds-background);
 }
 
 .rcs-buddy__input-row {
@@ -370,18 +526,6 @@ $rcs-buddy-width: 25rem;
   color: var(--cds-text-secondary);
 }
 
-.rcs-buddy__suggestions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  .cds--btn {
-    max-inline-size: none;
-    inline-size: 100%;
-    justify-content: flex-start;
-    text-align: start;
-  }
-}
-
 @media (min-width: 66rem) {
   html[data-ai-buddy="open"] #root {
     padding-inline-end: $rcs-buddy-width;
@@ -398,4 +542,175 @@ $rcs-buddy-width: 25rem;
       opacity: 0;
     }
   }
+}
+
+// A last guard: nothing on a page may make it scroll sideways. `clip` (not `hidden`) does not create a scroll
+// container, so sticky headers keep working.
+html,
+body {
+  overflow-x: clip;
+}
+
+// Modals sit on a darker overlay, so the page behind them recedes and the dialog stands out.
+:root {
+  --cds-overlay: rgba(22, 22, 22, 0.72);
+}
+
+// Wellbeing check-in: the modal is sized to its content, so it never shows a scrollbar it doesn't need.
+.rcs-checkin-modal .cds--modal-content {
+  margin-block-end: 0;
+  padding-block-end: 1.5rem;
+}
+.rcs-checkin-modal .cds--modal-container {
+  block-size: auto;
+  max-block-size: 90vh;
+}
+// Each option is a card with a border in both states, and a gap between them.
+.rcs-radio-tiles .cds--tile--selectable,
+.rcs-radio-tiles .cds--tile-input + .cds--tile {
+  border: 1px solid var(--cds-border-strong-01);
+  margin-block-end: 0.75rem;
+}
+.rcs-radio-tiles .cds--tile-input:checked + .cds--tile {
+  border: 2px solid var(--cds-focus);
+}
+
+// Everything in the Buddy's log keeps its natural height; the log scrolls instead of squashing its contents.
+.rcs-buddy__log > * {
+  flex-shrink: 0;
+}
+
+// A strip of summary tiles: every tile the same width, however many there are.
+.rcs-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 1px;
+  .rcs-stat-tile,
+  .rcs-day-alert {
+    block-size: 100%;
+  }
+}
+
+// The review's next step: pinned to the bottom of the window while the case scrolls, so it is never out of reach.
+.rcs-action-bar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+  background-color: var(--cds-background);
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+
+// Tables with a row action: the Actions column sits at the far right, with room before it.
+.rcs-actions-end {
+  th:last-child,
+  td:last-child {
+    text-align: end;
+    padding-inline: 1rem 1.5rem;
+    white-space: nowrap;
+  }
+  td:last-child > * {
+    margin-inline-start: auto;
+  }
+}
+
+// A strip of tiles read at a glance: the figure is smaller so it doesn't outweigh the tables below.
+.rcs-stat-tile--compact .rcs-stat-value {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+// AI Buddy input: no resize handle; the box grows with the text up to about four lines.
+.rcs-buddy__input-row textarea {
+  resize: none;
+  field-sizing: content;
+  max-block-size: 6.5rem;
+  min-block-size: 3rem;
+}
+.rcs-buddy__input-row .cds--btn {
+  align-self: flex-end;
+}
+// A disabled Send still reads as a button: icon and fill keep 3:1 against the panel.
+.rcs-buddy__input-row .cds--btn:disabled,
+.rcs-buddy__input-row .cds--btn.cds--btn--disabled {
+  background-color: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+  svg {
+    fill: var(--cds-text-secondary);
+  }
+}
+.rcs-buddy__meta .cds--btn--ghost:disabled {
+  color: var(--cds-text-secondary);
+}
+.rcs-buddy__confirm {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+@media (max-width: 41.98rem) {
+  .rcs-buddy .cds--btn,
+  .rcs-buddy .cds--btn--sm {
+    min-block-size: 2.75rem;
+  }
+}
+
+// A tab panel that holds a table: the table is the content, so the panel adds no padding or fill of its own.
+.rcs-tab-panel-flush {
+  padding: 0;
+  background: transparent;
+}
+
+// The small icon in a status tag sits centred in its own square, the same size for every icon, with an even gap to
+// the text. Carbon's default leaves a filled triangle looking pushed to one side of the pill.
+.rcs-status-tag {
+  .cds--tag__custom-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline: 0 0.25rem;
+    svg {
+      inline-size: 0.875rem;
+      block-size: 0.875rem;
+      // A triangle's weight is at its base, so lift it a hair to look centred beside the text.
+      transform: translateY(-0.5px);
+    }
+  }
+}
+
+// Placeholder text meets 4.5:1 on the field fill. Carbon's default placeholder grey is lighter than WCAG AA allows.
+.cds--text-input::placeholder,
+.cds--text-area::placeholder,
+.cds--search-input::placeholder {
+  color: var(--cds-text-secondary);
+  opacity: 1;
+}
+
+// A control that opens a dialog but is written like a link: same look, with a real button's keyboard behaviour.
+.rcs-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+// Every text field keeps Carbon's bottom stroke, so the click target is always visible on its grey fill.
+.cds--text-input,
+.cds--text-area,
+.cds--select-input,
+.cds--dropdown {
+  border-block-end: 1px solid var(--cds-border-strong-01);
+}
+
+// Report reasons sit on Carbon's 16px step, so each option is its own easy target.
+.rcs-radio-spaced .cds--radio-button-wrapper {
+  margin-block-end: 0.5rem;
 }

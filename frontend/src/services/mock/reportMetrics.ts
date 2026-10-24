@@ -112,7 +112,7 @@ export function evidenceEntry(
 const REPORT_EVIDENCE: Record<ReportEvidenceKey, [title: string, definition: string, fields: string[]]> = {
   cases_received: [
     "Reports received",
-    "Reports submitted to RCS for this customer during the period.",
+    "Reports submitted to RCS for this Client during the period.",
     ["cases.created_at", "case_history.created_at", "organisation_id"],
   ],
   cases_completed: [
@@ -142,7 +142,7 @@ const REPORT_EVIDENCE: Record<ReportEvidenceKey, [title: string, definition: str
   ],
   workflow: [
     "Declined and reassigned",
-    "Completed cases that were declined by one reviewer and decided by another.",
+    "Completed cases that were declined by one Auditor and decided by another.",
     ["cases.manager_flag", "case_history.declined_reassigned", "cases.completed_at"],
   ],
   delivery: [

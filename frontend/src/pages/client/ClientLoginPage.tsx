@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { Button, InlineNotification, PasswordInput, TextInput } from "@carbon/react";
+import { Link as RouterLink, Navigate, useLocation } from "react-router-dom";
+import { Button, InlineNotification, Link, PasswordInput, TextInput } from "@carbon/react";
+import { ArrowLeft, ArrowRight } from "@carbon/icons-react";
 import { clientHome, useClientAuth } from "../../hooks/useClientAuth";
+import { SignInLayout } from "../../components/auth/SignInLayout";
 import { ApiError } from "../../services/types";
 import { isMockData } from "../../services";
 import { DEMO_PASSWORD } from "../../services/mock/seed";
@@ -48,26 +50,24 @@ export function ClientLoginPage() {
   }
 
   return (
-    <main
-      className="flex items-center justify-center px-4 py-10"
-      style={{ backgroundColor: "var(--cds-layer-01)", minHeight: "100vh" }}
+    <SignInLayout
+      audience="For organisations using RCS"
+      statement="Every result RCS delivers to your platform, in one place."
+      points={[
+        "Case results and the action your team took",
+        "Service reports to view or download",
+        "Messages with the RCS team",
+      ]}
     >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full flex-col gap-6 p-8"
-        style={{
-          maxWidth: 480,
-          backgroundColor: "var(--cds-background)",
-          borderTop: "4px solid var(--cds-border-interactive)",
-          boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
-        }}
-      >
-        <div className="flex flex-col gap-2">
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--cds-text-secondary)" }}>RCS — Client reports</p>
-          <h1 style={{ fontSize: 28, lineHeight: "36px", fontWeight: 600 }}>Sign in</h1>
-          <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-            Enter your user ID and password to continue.
-          </p>
+      <form onSubmit={handleSubmit} className="si-form">
+        <RouterLink to="/rcs" className="si-back">
+          <ArrowLeft aria-hidden="true" />
+          Back to RCS
+        </RouterLink>
+        <div className="si-form-head">
+          <p className="si-eyebrow">RCS — Client portal</p>
+          <h1 className="si-title">Sign in</h1>
+          <p className="si-sub">Enter your user ID and password to continue.</p>
         </div>
 
         {isMockData && (
@@ -76,8 +76,7 @@ export function ClientLoginPage() {
             lowContrast
             hideCloseButton
             title="Demo sign-in:"
-            subtitle={`ch-user-17 (reports), ch-mod-04 (Trust & Safety), ch-admin-01 (admin) — password ${DEMO_PASSWORD}`}
-            style={{ maxWidth: "100%" }}
+            subtitle={`ch-user-17 (reports), ch-mod-04 (Trust & Safety) or ch-admin-01 (admin), password ${DEMO_PASSWORD}`}
           />
         )}
 
@@ -88,20 +87,11 @@ export function ClientLoginPage() {
             hideCloseButton
             title="Your session has ended."
             subtitle="Sign in again to continue."
-            style={{ maxWidth: "100%" }}
           />
         )}
 
         {error && (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            role="alert"
-            title="Error:"
-            subtitle={error}
-            style={{ maxWidth: "100%" }}
-          />
+          <InlineNotification kind="error" lowContrast hideCloseButton role="alert" title="Error:" subtitle={error} />
         )}
 
         <TextInput
@@ -121,16 +111,22 @@ export function ClientLoginPage() {
         />
         <Button
           type="submit"
+          renderIcon={ArrowRight}
           disabled={isSubmitting || !userId.trim() || !password}
-          className="w-full"
-          style={{ maxWidth: "100%" }}
+          className="si-submit"
         >
           {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
-        <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-          Accounts are set up by RCS for your organisation. There&apos;s no self-sign-up.
-        </p>
+        <p className="si-note">Accounts are set up by RCS for your organisation. There&apos;s no self-sign-up.</p>
+        <div className="si-links">
+          <p>
+            RCS staff?{" "}
+            <Link as={RouterLink} to="/staff/login">
+              Staff sign in
+            </Link>
+          </p>
+        </div>
       </form>
-    </main>
+    </SignInLayout>
   );
 }

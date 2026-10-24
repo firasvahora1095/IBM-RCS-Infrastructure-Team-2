@@ -1,8 +1,9 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Layer, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
-import { LoadState } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { SeverityTag } from "../../components/severity/SeverityTag";
 import { listDeclinedCases } from "../../services";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -10,7 +11,7 @@ import { declineReasonLabel } from "../../design-tokens/declineReasons";
 import { formatDayTime } from "../../utils/formatRelativeTime";
 
 /**
- * Declined / Reassignment Queue (Manager Figma 119:289): declined cases
+ * Declined / Reassignment queue (Manager Figma 119:289): declined cases
  * awaiting a Manager decision, with the structured decline reason (MR-CR-02,
  * MR-CR-04). There is deliberately no per-Auditor decline-count column:
  * declining is a supported wellbeing action, not something to scrutinise
@@ -22,7 +23,8 @@ export function ManagerDeclinedQueuePage() {
 
   return (
     <ManagerLayout>
-      <h1 style={pageTitle}>Reassignment Queue</h1>
+      <ManagerBreadcrumb trail={[{ label: "Overview", to: "/manager" }, { label: "Reassignment queue" }]} />
+      <PageHeader title="Reassignment queue" subtitle="Cases an Auditor declined, most severe first. Pick who takes each one." />
       <LoadState error={error} loading={!data && !error} what="cases awaiting reassignment" />
       {data && data.length === 0 && <p style={secondaryText}>No cases are waiting for a reassignment decision.</p>}
       {data && data.length > 0 && (
@@ -32,7 +34,7 @@ export function ManagerDeclinedQueuePage() {
               <TableRow>
                 <TableHeader>Case ID</TableHeader>
                 <TableHeader>Auditor</TableHeader>
-                <TableHeader>S-tier</TableHeader>
+                <TableHeader>Severity</TableHeader>
                 <TableHeader>Decline reason</TableHeader>
                 <TableHeader>Time declined</TableHeader>
                 <TableHeader>
@@ -41,12 +43,24 @@ export function ManagerDeclinedQueuePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((row) => (
-                <TableRow key={row.case_id}>
+              {/* Most severe first, then oldest: the order to decide in. */}
+              {[...data]
+                .sort(
+                  (a, b) =>
+                    (b.severity_tier ?? "").localeCompare(a.severity_tier ?? "") ||
+                    Date.parse(a.declined_at) - Date.parse(b.declined_at),
+                )
+                .map((row) => (
+                <TableRow
+                  key={row.case_id}
+                  onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                  style={{ cursor: "pointer" }}
+                >
                   <TableCell>
                     <RouterLink
                       to={`/manager/cases/${encodeURIComponent(row.case_id)}/review`}
                       className="cds--link"
+                      onClick={(e) => e.stopPropagation()}
                       style={{ ...mono, fontSize: 12 }}
                     >
                       {row.case_id}
@@ -61,7 +75,10 @@ export function ManagerDeclinedQueuePage() {
                       kind="tertiary"
                       size="sm"
                       aria-label={`Reassign case ${row.case_id}`}
-                      onClick={() => navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/manager/cases/${encodeURIComponent(row.case_id)}/review`);
+                      }}
                     >
                       Reassign
                     </Button>

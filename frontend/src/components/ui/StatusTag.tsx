@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
+import { CheckmarkFilled, ErrorFilled, InProgress, WarningAltFilled } from "@carbon/icons-react";
 import { Tag } from "@carbon/react";
 import type { DeliveryStatus, ReportStatus } from "../../services/types";
 import { DELIVERY_STATUS_LABEL, MODERATION_COMPLETE_LABEL } from "../../design-tokens/deliveryLabels";
@@ -9,17 +10,26 @@ import { DELIVERY_TONE, REPORT_TONE, type StatusTone } from "../../design-tokens
 const BASE: CSSProperties = { margin: 0, alignSelf: "flex-start", whiteSpace: "nowrap", fontWeight: 600 };
 
 /**
- * Figma foundation Tag fills (Info, Success, Warning, Error, and the S1 gray),
- * on Carbon's Tag with the Carbon status tokens, as SeverityTag does. One
- * deliberate deviation: Success uses dark text, because white on the success
- * green is 3.3:1 and fails WCAG AA for tag-size text (dark text is 5.4:1).
+ * Tag fills come from the RCS tag palette (index.scss, docs/ux/tag-colour-system.md), every value a Carbon palette
+ * colour. Only the two outcomes that must stand out are solid (critical red, done green); the rest are light tints,
+ * so a screen of tags stays calm and the solid ones are found at once.
  */
 const TONE: Record<StatusTone, CSSProperties> = {
-  success: { backgroundColor: "var(--cds-support-success)", color: "var(--cds-text-primary)" },
-  info: { backgroundColor: "var(--cds-support-info)", color: "var(--cds-text-on-color)" },
-  warning: { backgroundColor: "var(--cds-support-warning)", color: "var(--cds-text-primary)" },
-  error: { backgroundColor: "var(--cds-support-error)", color: "var(--cds-text-on-color)" },
-  neutral: { backgroundColor: "var(--cds-tag-background-gray)", color: "var(--cds-text-primary)" },
+  error: { backgroundColor: "var(--rcs-tag-error-bg)", color: "var(--rcs-tag-error-fg)" },
+  warning: { backgroundColor: "var(--rcs-tag-warning-bg)", color: "var(--rcs-tag-warning-fg)" },
+  info: { backgroundColor: "var(--rcs-tag-info-bg)", color: "var(--rcs-tag-info-fg)" },
+  success: { backgroundColor: "var(--rcs-tag-success-bg)", color: "var(--rcs-tag-success-fg)" },
+  request: { backgroundColor: "var(--rcs-tag-request-bg)", color: "var(--rcs-tag-request-fg)" },
+  neutral: { backgroundColor: "var(--rcs-tag-neutral-bg)", color: "var(--rcs-tag-neutral-fg)" },
+  action: { backgroundColor: "var(--rcs-tag-action-bg)", color: "var(--rcs-tag-action-fg)" },
+};
+
+/** A small icon per state, so the meaning does not rest on colour (UR-NFR-01). Neutral and request have none. */
+const TONE_ICON: Partial<Record<StatusTone, ComponentType<{ size?: number }>>> = {
+  error: ErrorFilled,
+  warning: WarningAltFilled,
+  info: InProgress,
+  success: CheckmarkFilled,
 };
 
 type StatusTagProps = { size?: "sm" | "md" } & (
@@ -50,7 +60,13 @@ export function StatusTag(props: StatusTagProps) {
     label = MODERATION_COMPLETE_LABEL;
   }
   return (
-    <Tag type="gray" size={props.size ?? "md"} style={{ ...BASE, ...TONE[tone] }}>
+    <Tag
+      type="gray"
+      size={props.size ?? "md"}
+      className="rcs-status-tag"
+      renderIcon={TONE_ICON[tone]}
+      style={{ ...BASE, ...TONE[tone] }}
+    >
       {label}
     </Tag>
   );

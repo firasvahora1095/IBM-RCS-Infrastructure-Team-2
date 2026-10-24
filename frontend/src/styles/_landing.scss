@@ -1,0 +1,2059 @@
+// ---------------------------------------------------------------------------
+// RCS product site (/rcs). Carbon tokens, type styles and motion own the UI;
+// the logo palette below is decoration only (never buttons, links, focus,
+// tags, status or body text). Every brand colour that sits under text is
+// listed with its contrast ratio.
+// ---------------------------------------------------------------------------
+@use "@carbon/react/scss/type";
+@use "@carbon/react/scss/motion";
+@use "@carbon/react/scss/breakpoint";
+
+:root {
+  --rcs-brand-navy: #0d1633; // 17.6:1 on white
+  --rcs-brand-purple: #8f7cff; // graphics only (3.2:1 on white)
+  --rcs-brand-purple-deep: #5b45d6; // 6.4:1 with white
+  --rcs-brand-teal: #6fd8c9; // graphics only
+  --rcs-brand-teal-deep: #0b7a75; // 5.2:1 with white
+  --rcs-brand-gradient: linear-gradient(100deg, #c4a3ff 0%, #8f7cff 35%, #7fd3ff 70%, #6fd8c9 100%);
+}
+
+// Logo lockup: mark + live wordmark (+ tagline).
+.rcs-logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.rcs-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.rcs-logo-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+.rcs-logo--inline .rcs-logo-line {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+.rcs-logo-word {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.rcs-logo-name {
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.rcs-logo--stacked .rcs-logo-name {
+  margin-block-start: 0.15em;
+}
+// Beside the wordmark in the header, after a hairline; dropped on narrow screens, where the side nav carries it.
+.rcs-logo--inline .rcs-logo-name {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(md) {
+    display: none;
+  }
+}
+// The tagline is spaced capitals in grey: visibly a slogan, not the expansion of RCS.
+.rcs-logo-tagline {
+  margin-block-start: 0.6em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// ---- Header (white UI Shell on the product site) ----
+.rcs-site-header {
+  .cds--header__name {
+    padding-inline: 1rem 1.5rem;
+  }
+  // Carbon's header focus style is built for its dark header and draws nothing on this white one (measured: outline
+  // none, no border or background change), so a keyboard user could not see where they were. Same 2px ring as the app.
+  .cds--header__name:focus-visible,
+  .cds--header__menu-item:focus-visible,
+  .cds--header__menu-title:focus-visible,
+  .cds--header__menu-toggle:focus-visible,
+  .cds--header__action:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  // The "Sign in" menu sits in the global bar; it needs no divider of its own.
+  .rcs-site-signin {
+    padding-inline-start: 0;
+    &::before {
+      display: none;
+    }
+  }
+  .rcs-site-header-cta {
+    margin-inline: 0.5rem 1rem;
+    @include breakpoint.breakpoint-down(md) {
+      display: none;
+    }
+  }
+}
+
+// ---- Page frame ----
+.lp {
+  background-color: var(--cds-background);
+}
+.lp-main {
+  padding-block-start: 3rem; // under the fixed 48px header
+}
+.lp-section {
+  padding-block: 6rem;
+  @include breakpoint.breakpoint-down(lg) {
+    padding-block: 4rem;
+  }
+}
+.lp-section--tint {
+  background-color: var(--cds-layer-01);
+}
+.lp-eyebrow {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rcs-brand-purple-deep); // 6.4:1 on white, 5.9:1 on Gray 10
+}
+.lp-h2 {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--cds-text-primary);
+  max-inline-size: 22ch;
+}
+.lp-lede {
+  @include type.type-style("body-02");
+  max-inline-size: 40rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 1. Hero ----
+.lp-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: 3.5rem 4rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint-down(lg) {
+    padding-block: 2.5rem 3rem;
+  }
+}
+// The logo colours as a faint wash behind the hero. Text never sits on a saturated part of it.
+.lp-hero-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 26rem at 88% 18%, rgba(143, 124, 255, 0.16), transparent 70%),
+    radial-gradient(34rem 22rem at 72% 92%, rgba(111, 216, 201, 0.16), transparent 70%);
+}
+// Top-aligned: the demo card grows when its controls appear, and the headline must not move when it does.
+.lp-hero-grid {
+  position: relative;
+  align-items: start;
+}
+.lp-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.lp-hero-title {
+  @include type.type-style("fluid-heading-05", true);
+  letter-spacing: -0.015em;
+  color: var(--cds-text-primary);
+  max-inline-size: 18ch;
+}
+.lp-hero-title-a {
+  font-weight: 300;
+}
+.lp-hero-title-b {
+  display: block;
+  font-weight: 600;
+}
+// Why it matters: one line, in the primary text colour so it reads as part of the statement.
+.lp-hero-why {
+  @include type.type-style("fluid-heading-03", true);
+  font-weight: 400;
+  max-inline-size: 30ch;
+  color: var(--cds-text-primary);
+}
+.lp-hero-sub {
+  @include type.type-style("body-02");
+  max-inline-size: 36rem;
+  color: var(--cds-text-secondary);
+}
+.lp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+// Who built it, in the first viewport: the five team tiles in small, and a link to the team.
+.lp-hero-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  p {
+    @include type.type-style("body-compact-01");
+    max-inline-size: 34rem;
+    color: var(--cds-text-secondary);
+  }
+  strong {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+  }
+}
+.lp-hero-faces {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    margin-inline-start: -0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #ffffff; // 5:1 or better on every tile gradient
+    border: 2px solid var(--cds-background);
+    border-radius: 50%;
+    &:first-child {
+      margin-inline-start: 0;
+    }
+  }
+}
+.lp-hero-demo {
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 2.5rem;
+  }
+}
+
+// ---- Blur-to-reveal card ----
+// Carbon's Theme wrapper paints the theme background; only the card itself should be dark.
+.rcs-reveal-theme {
+  background-color: transparent;
+}
+.rcs-reveal {
+  display: flex;
+  flex-direction: column;
+  max-inline-size: 36rem;
+  margin-inline-start: auto;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-background);
+  box-shadow: 0 12px 40px rgba(13, 22, 51, 0.28);
+  @include breakpoint.breakpoint-down(lg) {
+    margin-inline: 0;
+    max-inline-size: none;
+  }
+}
+.rcs-reveal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-reveal-title {
+  @include type.type-style("heading-compact-01");
+}
+.rcs-reveal-case {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.rcs-reveal-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background-color: #262626;
+  @include breakpoint.breakpoint-down(md) {
+    aspect-ratio: unset;
+    // Without the ratio the frame is as tall as its overlay, and the footage stage has no overlay, so it keeps the
+    // height a 16:10 frame has at phone width.
+    min-block-size: 14rem;
+  }
+}
+.rcs-reveal-art {
+  position: absolute;
+  inset: -8%; // larger than the frame so the blur never shows a soft edge
+  inline-size: 116%;
+  block-size: 116%;
+  transition: filter motion.$duration-moderate-01 motion.motion(standard, productive);
+}
+.rcs-reveal-time,
+.rcs-reveal-sample {
+  position: absolute;
+  inset-block-end: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+  background-color: rgba(22, 22, 22, 0.8); // white text on this: 15:1
+}
+.rcs-reveal-time {
+  inset-inline-end: 0.75rem;
+  font-family: "IBM Plex Mono", monospace;
+}
+.rcs-reveal-sample {
+  inset-inline-start: 0.75rem;
+}
+.rcs-reveal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 1.5rem 2rem;
+  // Light enough that the blurred colour behind still reads as a picture; worst case (the palest sky) white text is
+  // 10:1 and the Gray 20 copy 7.9:1 on the blend.
+  background-color: rgba(22, 22, 22, 0.72);
+  // On small screens, let the frame grow to fit all content instead of scrolling.
+  @include breakpoint.breakpoint-down(md) {
+    position: relative;
+    inset: unset;
+  }
+}
+// Carbon Red 60 with white: 5.0:1 (the theme error red was 3.35:1 and failed at this size).
+.rcs-reveal-tag {
+  @include type.type-style("label-01");
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  color: var(--rcs-tag-error-fg);
+  background-color: var(--rcs-tag-error-bg);
+}
+.rcs-reveal-lead {
+  @include type.type-style("heading-03");
+  max-inline-size: 40ch;
+  color: #ffffff;
+}
+.rcs-reveal-copy {
+  @include type.type-style("body-01");
+  max-inline-size: 34ch;
+  color: #e0e0e0;
+}
+.rcs-reveal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+.rcs-reveal-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  .cds--slider-container,
+  .cds--slider {
+    inline-size: 100%;
+    max-inline-size: none;
+  }
+}
+// The grayscale switch (inline label) and Cover again share one centred line, flush with the slider's edges.
+.rcs-reveal-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  .cds--toggle {
+    display: flex;
+    align-items: center;
+  }
+  .cds--btn--ghost {
+    margin-inline-end: -1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rcs-reveal-art {
+    transition: none;
+  }
+}
+
+// ---- 2. How a report is handled ----
+.lp-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    // The decision is the point of the product, so its step is wider.
+    grid-template-columns: 1fr 1fr 1.45fr 1fr;
+  }
+}
+.lp-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem 2.5rem;
+  background-color: var(--cds-background);
+  &::before {
+    // brand hairline, decorative
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 3px;
+    background: var(--rcs-brand-gradient);
+  }
+}
+.lp-step--decision {
+  background-color: var(--cds-background);
+  color: var(--cds-text-primary);
+}
+.lp-step-num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+.lp-step-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-step-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.lp-step--decision .lp-step-title {
+  @include type.type-style("heading-04");
+}
+
+// Example case strip
+.lp-example-track {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+  // On desktop the four times sit under the four step tiles above: the same column widths, and each dot over the
+  // start of its step's text (the tiles' 1px border plus their 1.5rem padding).
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 1fr 1fr 1.45fr 1fr;
+    column-gap: 1px;
+    padding-inline: 1px;
+  }
+  li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-inline-start: 1.25rem;
+    @include breakpoint.breakpoint(md) {
+      padding-block-start: 1.25rem;
+      padding-inline: 0 1rem;
+      border-block-start: 1px solid var(--cds-border-strong-01);
+    }
+    @include breakpoint.breakpoint(lg) {
+      padding-inline: 1.5rem 1rem;
+    }
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-start: 0.4rem;
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      border-radius: 50%;
+      background-color: var(--cds-interactive);
+      @include breakpoint.breakpoint(md) {
+        inset-block-start: -0.3125rem;
+        inline-size: 0.625rem;
+        block-size: 0.625rem;
+      }
+      @include breakpoint.breakpoint(lg) {
+        inset-inline-start: 1.5rem;
+      }
+    }
+  }
+}
+.lp-example-time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-primary);
+}
+.lp-example-label {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+}
+.lp-example-caption {
+  @include type.type-style("helper-text-01");
+  margin-block-start: 1.25rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 4. Team ----
+.lp-team {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 2rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @media (min-width: 30rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.lp-member {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.lp-member-photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: 4 / 3;
+  margin-block-end: 1rem;
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+  span {
+    @include type.type-style("fluid-heading-05", true);
+    font-weight: 600;
+    color: #ffffff; // both gradient stops carry white at 5:1 or better
+  }
+  img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+.lp-member-name {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-member-role {
+  @include type.type-style("body-compact-01");
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+}
+.lp-member-did {
+  @include type.type-style("body-01");
+  margin-block-start: 0.5rem;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 5. For your platform ----
+// ---- 6. What is real + FAQ ----
+.lp-real {
+  padding: 2rem;
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 0 3px 0 0 var(--rcs-brand-purple);
+}
+.lp-real-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-real-list {
+  display: grid;
+  gap: 1.5rem;
+  margin: 1.5rem 0 0;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+  }
+  dt {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    @include type.type-style("body-01");
+    margin: 0.5rem 0 0;
+    color: var(--cds-text-secondary);
+  }
+}
+.lp-faq {
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 1.5rem;
+  }
+  .cds--accordion__item {
+    border-block-start: 1px solid var(--cds-border-subtle-01);
+    &:last-child {
+      border-block-end: 1px solid var(--cds-border-subtle-01);
+    }
+  }
+  .cds--accordion__title {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  .cds--accordion__content {
+    padding-inline-end: 1rem;
+  }
+}
+.lp-faq-answer {
+  @include type.type-style("body-01");
+  max-inline-size: 60ch;
+  color: var(--cds-text-secondary);
+}
+
+// ---- 7. Dark close ----
+.lp-close {
+  background-color: var(--cds-background);
+}
+.lp-close-rule {
+  block-size: 4px;
+  background: var(--rcs-brand-gradient);
+}
+.lp-cta {
+  padding-block: 5rem 4rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin-block-start: 1.5rem;
+  @include breakpoint.breakpoint(lg) {
+    justify-content: flex-end;
+    margin-block-start: 0;
+  }
+}
+.lp-footer {
+  padding-block: 4rem 2.5rem;
+}
+.lp-footer-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-block-end: 3rem;
+  p {
+    @include type.type-style("body-01");
+    max-inline-size: 18rem;
+    color: var(--cds-text-secondary);
+  }
+}
+.lp-footer-col {
+  margin-block-end: 2.5rem;
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .cds--link {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+    text-decoration: none;
+    &:hover {
+      color: var(--cds-text-primary);
+      text-decoration: underline;
+    }
+  }
+}
+.lp-footer-heading {
+  @include type.type-style("heading-compact-01");
+  margin-block-end: 1rem;
+  color: var(--cds-text-primary);
+}
+.lp-footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  p {
+    @include type.type-style("helper-text-01");
+    max-inline-size: 48rem;
+    color: var(--cds-text-secondary);
+  }
+}
+
+// ---- Shared bits: checklists, tags, mono ----
+.lp-mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+.lp-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.75rem;
+    color: var(--cds-text-primary);
+    &::before {
+      // A Carbon-blue tick, drawn in CSS.
+      content: "";
+      position: absolute;
+      inset-inline-start: 0.25rem;
+      inset-block-start: 0.3rem;
+      inline-size: 0.75rem;
+      block-size: 0.4rem;
+      border-inline-start: 2px solid var(--cds-interactive);
+      border-block-end: 2px solid var(--cds-interactive);
+      transform: rotate(-45deg);
+    }
+  }
+}
+// Status colours from the RCS tag palette (index.scss): every pair passes AA.
+.lp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 1rem;
+}
+.lp-tag--error {
+  color: var(--rcs-tag-error-fg);
+  background-color: var(--rcs-tag-error-bg);
+}
+.lp-tag--request {
+  color: var(--rcs-tag-request-fg);
+  background-color: var(--rcs-tag-request-bg);
+}
+.lp-tag--warning {
+  color: var(--rcs-tag-warning-fg);
+  background-color: var(--rcs-tag-warning-bg);
+}
+.lp-tag--neutral {
+  color: var(--rcs-tag-neutral-fg);
+  background-color: var(--rcs-tag-neutral-bg);
+}
+
+// ---- 2. The cost of doing nothing ----
+.lp-compare {
+  border-block-start: 1px solid var(--cds-border-strong-01);
+}
+.lp-compare-head,
+.lp-compare-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 2rem;
+  padding-block: 1.25rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-compare-head span {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+  &:last-child {
+    color: var(--rcs-brand-purple-deep);
+  }
+}
+.lp-compare-today {
+  @include type.type-style("body-02");
+  color: var(--cds-text-secondary);
+}
+.lp-compare-rcs {
+  @include type.type-style("body-02");
+  color: var(--cds-text-primary);
+}
+
+// ---- 4. Product tour ----
+.lp-tour-panel {
+  padding: 0;
+}
+.lp-tour {
+  display: grid;
+  gap: 2rem;
+  padding-block-start: 2rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 9fr);
+    align-items: start;
+    gap: 3rem;
+  }
+}
+.lp-tour-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.lp-tour-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+// A browser-window frame around each preview, so it reads as a screen of the product.
+.lp-screen {
+  // A width of its own, so the frame never collapses while the lazy image is still loading.
+  inline-size: 100%;
+  max-inline-size: 46rem;
+  margin: 0 0 0 auto;
+  overflow: hidden;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: 0 16px 48px rgba(13, 22, 51, 0.16);
+}
+.lp-screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  background-color: var(--cds-layer-01);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.lp-screen-dots {
+  display: inline-flex;
+  gap: 0.375rem;
+  i {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--cds-border-strong-01);
+  }
+}
+.lp-screen-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.lp-screen-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.lp-screen-row--between {
+  justify-content: space-between;
+}
+.lp-screen-strong {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.lp-screen-label {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+.lp-screen-link {
+  font-size: 0.875rem;
+  color: var(--cds-link-primary);
+}
+.lp-screen-note {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+.lp-review {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+}
+.lp-review-player {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--cds-background);
+}
+.lp-review-video {
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(60% 70% at 30% 40%, rgba(196, 163, 255, 0.55), transparent 70%),
+    radial-gradient(50% 60% at 70% 70%, rgba(111, 216, 201, 0.4), transparent 70%),
+    #393939;
+  filter: blur(6px);
+}
+.lp-review-toolbar {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--cds-text-primary);
+}
+.lp-review-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  p {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-primary);
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+    color: var(--cds-text-primary);
+  }
+}
+.lp-needs,
+.lp-auditors {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  li {
+    display: grid;
+    align-items: center;
+    gap: 1rem;
+    padding-block: 0.625rem;
+    font-size: 0.875rem;
+    color: var(--cds-text-primary);
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+}
+.lp-needs li {
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
+}
+.lp-auditors li {
+  grid-template-columns: 6rem minmax(0, 1fr) 6rem;
+}
+.lp-results {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  th {
+    padding: 0.625rem 0.5rem;
+    text-align: start;
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    background-color: var(--cds-layer-accent-01);
+  }
+  td {
+    padding: 0.625rem 0.5rem;
+    color: var(--cds-text-primary);
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+}
+
+// ---- 6. Outcomes ----
+.lp-outcome-head {
+  display: grid;
+  gap: 0.5rem 2rem;
+  margin-block-end: 1.5rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 11fr);
+    align-items: baseline;
+  }
+}
+.lp-outcome-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-outcome-lead {
+  @include type.type-style("body-02");
+  max-inline-size: 44rem;
+  color: var(--cds-text-secondary);
+}
+.lp-features {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.lp-features--4 {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.lp-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.75rem 1.5rem 2rem;
+  background-color: var(--cds-background);
+  svg {
+    fill: var(--rcs-brand-purple-deep);
+  }
+}
+.lp-feature-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-feature-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+
+// ---- 8. Security, IBM stack, prototype ----
+.lp-stack-ibm-label {
+  @include type.type-style("label-02");
+  color: var(--cds-text-secondary);
+}
+.lp-real-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+
+// IBM credit strip
+.lp-stack-ibm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 2.5rem;
+  padding-block: 1.5rem;
+  border-block: 1px solid var(--cds-border-subtle-01);
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+}
+
+// ===========================================================================
+// Section template. Every content section is: header block (eyebrow, H2,
+// optional lede) on lg 10 of 16 columns, then the content on all 16 columns,
+// on the same left edge, after spacing-09 (3rem). Blocks inside the content
+// are separated by spacing-09; items inside a block by spacing-07 (2rem) or
+// less. Headings: H2 fluid-heading-05/600, H3 heading-04, tile titles
+// heading-03. Body copy max 40rem.
+// ===========================================================================
+.lp-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.lp-section-head .lp-lede {
+  margin-block-start: 0.5rem;
+}
+.lp-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem; // spacing-09 between blocks
+  margin-block-start: 3rem; // spacing-09 between header and content
+}
+.lp-inline-link {
+  font-size: inherit;
+}
+
+// Outcome groups inside the features section: one heading row per group, its tiles directly under it.
+.lp-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+.lp-features--2 {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+// ---- Integration ----
+.lp-int-steps {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.lp-int-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--cds-background);
+}
+.lp-int-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-on-color);
+  background-color: var(--cds-interactive);
+}
+.lp-int-title {
+  @include type.type-style("heading-03");
+  color: var(--cds-text-primary);
+}
+.lp-int-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+// Code (lg 10) beside what a result contains (lg 6), top edges aligned.
+.lp-int-detail {
+  display: grid;
+  gap: 2rem;
+  align-items: stretch;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 10fr) minmax(0, 6fr);
+  }
+}
+.lp-int-code {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  .cds--tab-content,
+  .cds--tab-content > div {
+    flex: 1 1 auto;
+  }
+  .cds--tab-content:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+  }
+  .cds--snippet--multi {
+    flex: 1 1 auto;
+    padding-block: 1.5rem;
+  }
+  .cds--snippet--multi pre {
+    @include type.type-style("code-02");
+  }
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  .cds--tabs {
+    padding-inline: 1rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  .cds--snippet {
+    background-color: var(--cds-background);
+  }
+  .cds--snippet--multi {
+    max-inline-size: none;
+  }
+  .cds--tab-content {
+    padding: 0;
+  }
+}
+.lp-int-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.lp-int-facts-title {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.lp-int-facts-note {
+  @include type.type-style("body-compact-01");
+  padding-block-start: 1rem;
+  color: var(--cds-text-secondary);
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+.lp-cross-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.75rem;
+    color: var(--cds-text-primary);
+    &::before,
+    &::after {
+      // a Carbon red cross, drawn in CSS
+      content: "";
+      position: absolute;
+      inset-inline-start: 0.3rem;
+      inset-block-start: 0.6rem;
+      inline-size: 0.75rem;
+      block-size: 2px;
+      background-color: var(--cds-support-error);
+      transform: rotate(45deg);
+    }
+    &::after {
+      transform: rotate(-45deg);
+    }
+  }
+}
+
+// ---- Product tour ----
+.lp-tour-note {
+  @include type.type-style("helper-text-01");
+  margin-block-start: 1rem;
+  color: var(--cds-text-secondary);
+}
+.lp-screen img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 16 / 10;
+  background-color: var(--cds-layer-01);
+}
+
+// ---- Hero demo: the real content warning, compact ----
+.rcs-reveal-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.rcs-reveal-cvi {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  color: #e0e0e0;
+}
+.rcs-reveal-flag {
+  padding: 0.0625rem 0.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  color: #161616;
+  background-color: #e0e0e0; // 14.6:1
+  border-radius: 1rem;
+}
+.rcs-reveal-question {
+  @include type.type-style("heading-compact-02");
+  color: #ffffff;
+}
+.rcs-reveal-overlay .cds--checkbox-label-text {
+  @include type.type-style("body-compact-01");
+  color: #e0e0e0;
+}
+.rcs-reveal-note {
+  @include type.type-style("helper-text-01");
+  color: #c6c6c6;
+}
+.rcs-reveal-sos {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+}
+
+// ---------------------------------------------------------------------------
+// Team page (/rcs/team): the brief, each person's contributions and the stack.
+// ---------------------------------------------------------------------------
+.tp-title {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  max-inline-size: 20ch;
+  color: var(--cds-text-primary);
+}
+.tp-facts {
+  display: grid;
+  gap: 1px;
+  margin: 3rem 0 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem 1.25rem;
+    background-color: var(--cds-background);
+  }
+  dt {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+  }
+  dd {
+    @include type.type-style("heading-compact-02");
+    margin: 0;
+    color: var(--cds-text-primary);
+  }
+}
+// The five people as an index into their profiles below: a card in the hero's right column.
+.tp-hero-side {
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 2.5rem;
+  }
+}
+.tp-index {
+  padding: 1.5rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 0 3px 0 0 var(--rcs-brand-purple);
+  ul {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li + li {
+    border-block-start: 1px solid var(--cds-border-subtle-01);
+  }
+  a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+    color: var(--cds-text-primary);
+    text-decoration: none;
+    &:hover .tp-index-name {
+      text-decoration: underline;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cds-focus);
+      outline-offset: 2px;
+    }
+  }
+}
+.tp-index-title {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.tp-index-face {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff; // 5:1 or better on every tile gradient
+  border-radius: 50%;
+}
+.tp-index-text {
+  display: flex;
+  flex-direction: column;
+}
+.tp-index-name {
+  @include type.type-style("heading-compact-01");
+}
+.tp-index-role {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+
+// The brief: what IBM asked for beside what we delivered, top-aligned.
+.tp-brief {
+  display: grid;
+  gap: 2.5rem;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+  }
+  > div {
+    padding: 2rem;
+    background-color: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle-01);
+  }
+}
+.tp-brief-title {
+  @include type.type-style("heading-03");
+  margin-block-end: 1.25rem;
+  color: var(--cds-text-primary);
+}
+.tp-brief-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-block-start: 1.5rem;
+}
+
+// One profile per person: identity on 4 of 16 columns, the work on the other 12.
+.tp-people {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.tp-person {
+  display: grid;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--cds-background);
+  scroll-margin-block-start: 4rem; // clear of the fixed header when jumped to
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 4fr 12fr;
+    gap: 2.5rem;
+    padding: 2.5rem 2rem;
+  }
+}
+.tp-person-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.tp-person-photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  inline-size: 6rem;
+  block-size: 6rem;
+  margin-block-end: 1rem;
+  padding: 0.75rem;
+  overflow: hidden;
+  span {
+    @include type.type-style("heading-04");
+    font-weight: 600;
+    color: #ffffff; // 5:1 or better on every tile gradient
+  }
+  img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+.tp-person-name {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.tp-person-role {
+  @include type.type-style("body-compact-01");
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+}
+.tp-person-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.tp-person-label {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.tp-person-sprints {
+  display: flex;
+  flex-direction: column;
+  margin: 0.75rem 0 2rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  > div {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-block: 0.75rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  dt {
+    @include type.type-style("heading-compact-01");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    @include type.type-style("body-01");
+    margin: 0;
+    color: var(--cds-text-secondary);
+  }
+}
+.tp-person-highlights-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  .cds--btn--ghost {
+    margin-inline-end: -1rem; // text flush with the column edge
+  }
+}
+.tp-person-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-02");
+    position: relative;
+    padding-inline-start: 1.25rem;
+    color: var(--cds-text-primary);
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0.7rem;
+      inset-inline-start: 0;
+      inline-size: 0.5rem;
+      block-size: 2px;
+      background-color: var(--rcs-brand-purple-deep);
+    }
+  }
+}
+
+// Stack: one row per group, label beside its tags.
+.tp-stack {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  > div {
+    display: grid;
+    gap: 0.75rem;
+    padding-block: 1.25rem;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+    @include breakpoint.breakpoint(md) {
+      grid-template-columns: 12rem minmax(0, 1fr);
+      align-items: center;
+    }
+  }
+  dt {
+    @include type.type-style("heading-compact-02");
+    color: var(--cds-text-primary);
+  }
+  dd {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    .cds--tag {
+      margin: 0;
+    }
+  }
+}
+.tp-sprints {
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.lp-team-more {
+  @include type.type-style("body-02");
+  margin-block-start: 2rem;
+}
+
+// AI Buddy: one feature card under the tour, with the brand gradient as a top rule only.
+.lp-buddy {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 3rem;
+  padding: 2rem;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-shadow: inset 0 3px 0 0 var(--rcs-brand-purple);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 6fr 10fr;
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+}
+.lp-buddy-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--rcs-brand-purple-deep);
+  @include breakpoint.breakpoint(lg) {
+    grid-row: span 2;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.lp-buddy-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.lp-buddy-tag {
+  @include type.type-style("label-01");
+  padding: 0.125rem 0.5rem;
+  color: var(--cds-text-secondary);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.lp-buddy-body {
+  @include type.type-style("body-02");
+  max-inline-size: 44rem;
+  color: var(--cds-text-primary);
+}
+.lp-buddy-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+    &::before {
+      content: "•";
+      margin-inline-end: 0.5rem;
+      color: var(--rcs-brand-purple-deep);
+    }
+  }
+}
+
+// Every feature, by role: four equal columns on desktop, two on tablet, one on a phone.
+.lp-catalogue {
+  margin-block-start: 3rem;
+}
+.lp-catalogue-title {
+  @include type.type-style("heading-04");
+  margin-block-end: 1.5rem;
+  color: var(--cds-text-primary);
+}
+.lp-catalogue-grid {
+  display: grid;
+  gap: 1px;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.lp-catalogue-col {
+  padding: 1.5rem;
+  background-color: var(--cds-background);
+}
+.lp-catalogue-who {
+  @include type.type-style("heading-compact-02");
+  margin-block-end: 1rem;
+  color: var(--cds-text-primary);
+}
+.lp-catalogue-col .lp-check-list li {
+  @include type.type-style("body-compact-01");
+}
+
+// ---------------------------------------------------------------------------
+// Demo guide (/flow): the journey in four phases of stage cards.
+// ---------------------------------------------------------------------------
+.fl-title {
+  max-inline-size: 24ch;
+}
+.fl-hero-side {
+  align-self: end;
+  @include breakpoint.breakpoint-down(lg) {
+    margin-block-start: 2rem;
+  }
+}
+.fl-phase-index {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  li {
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  a {
+    @include type.type-style("body-compact-02");
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+    color: var(--cds-text-primary);
+    text-decoration: none;
+    &:hover {
+      color: var(--cds-link-primary);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cds-focus);
+      outline-offset: 2px;
+    }
+  }
+}
+.fl-phase-num {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: #ffffff; // 6.4:1 on the deep purple
+  background-color: var(--rcs-brand-purple-deep);
+}
+.fl-phase {
+  scroll-margin-block-start: 4rem;
+  & + & {
+    margin-block-start: 4rem;
+  }
+}
+.fl-phase-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-block-end: 1.5rem;
+}
+.fl-phase-title {
+  @include type.type-style("heading-04");
+  color: var(--cds-text-primary);
+}
+.fl-phase-body {
+  @include type.type-style("body-01");
+  margin-block-start: 0.25rem;
+  color: var(--cds-text-secondary);
+}
+.fl-cards {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  // Each phase's row fits its own cards (two, three or four), so no card is left alone on a second line.
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+  li {
+    display: flex;
+  }
+}
+.fl-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--cds-text-primary);
+  text-decoration: none;
+  background-color: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  transition: background-color 110ms ease-out, border-color 110ms ease-out;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+    border-color: var(--cds-border-strong-01);
+  }
+  &:hover .fl-card-cta {
+    text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  .cds--tag {
+    margin: 0;
+  }
+}
+.fl-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.fl-card-num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+.fl-card-title {
+  @include type.type-style("heading-03");
+}
+.fl-card-body {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.fl-card-cta {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: auto;
+  padding-block-start: 0.5rem;
+  color: var(--cds-link-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fl-card {
+    transition: none;
+  }
+}
+.fl-mono {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+}
+// Demo accounts: a plain Carbon-styled table on the tinted section.
+// A four-column table cannot shrink below its content, so on a phone it scrolls inside its own labelled region.
+.fl-accounts-scroll {
+  // Positioned, so the table's visually-hidden header text stays inside the scroll area instead of sticking out of it.
+  position: relative;
+  overflow-x: auto;
+  max-inline-size: 100%;
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 2px;
+  }
+}
+.fl-accounts {
+  inline-size: 100%;
+  min-inline-size: 30rem;
+  border-collapse: collapse;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  th,
+  td {
+    @include type.type-style("body-compact-01");
+    padding: 1rem;
+    text-align: start;
+    vertical-align: top;
+    border-block-end: 1px solid var(--cds-border-subtle-01);
+  }
+  thead th {
+    @include type.type-style("heading-compact-01");
+    background-color: var(--cds-layer-accent-01);
+  }
+  tbody th {
+    font-weight: 600;
+  }
+  td:last-child {
+    text-align: end;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sign-in (staff and Client): brand panel left, form right.
+// ---------------------------------------------------------------------------
+.si-page {
+  display: grid;
+  min-block-size: 100vh;
+  background-color: var(--cds-background);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+.si-brand {
+  position: relative;
+  display: none;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 3rem;
+  padding: 3rem;
+  background-color: var(--rcs-brand-navy);
+  @include breakpoint.breakpoint(lg) {
+    display: flex;
+  }
+}
+// The logo colours as light behind the panel; the copy never sits on a saturated part.
+.si-brand-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(32rem 24rem at 100% 0%, rgba(143, 124, 255, 0.28), transparent 70%),
+    radial-gradient(28rem 20rem at 0% 100%, rgba(111, 216, 201, 0.18), transparent 70%);
+}
+.si-brand-logo,
+.si-brand-copy,
+.si-brand-foot {
+  position: relative;
+}
+.si-brand-logo {
+  align-self: flex-start;
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 4px;
+  }
+}
+.si-brand-audience {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c6c6c6; // 11:1 on the navy
+}
+.si-brand-statement {
+  @include type.type-style("fluid-heading-04", true);
+  margin-block: 1rem 2rem;
+  max-inline-size: 18ch;
+  color: #ffffff;
+}
+.si-brand-points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    @include type.type-style("body-01");
+    position: relative;
+    padding-inline-start: 1.25rem;
+    color: #e0e0e0; // 14:1 on the navy
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0.6rem;
+      inset-inline-start: 0;
+      inline-size: 0.5rem;
+      block-size: 2px;
+      background-color: var(--rcs-brand-teal);
+    }
+  }
+}
+.si-brand-foot {
+  @include type.type-style("helper-text-01");
+  color: #a8a8a8; // 7.4:1 on the navy
+}
+.si-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 2.5rem 1rem;
+  @include breakpoint.breakpoint(md) {
+    padding: 3rem 2rem;
+  }
+}
+.si-mobile-logo {
+  align-self: center;
+  @include breakpoint.breakpoint(lg) {
+    display: none;
+  }
+}
+.si-form-wrap {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+}
+// "Back to RCS" above the sign-in form. A real link: the same blue as the other links on the page ("Staff sign in",
+// "Client sign in"), 14px, and tall enough to hit on a phone (the old 12px grey caption was about 16px tall).
+.si-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 2rem;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-link-primary);
+  text-decoration: none;
+  &:hover {
+    color: var(--cds-link-primary-hover);
+    text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: 2px;
+  }
+}
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  .cds--inline-notification {
+    max-inline-size: 100%;
+    margin: 0;
+  }
+}
+.si-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.si-eyebrow {
+  @include type.type-style("label-02");
+  font-weight: 600;
+  color: var(--rcs-brand-purple-deep);
+}
+.si-title {
+  @include type.type-style("fluid-heading-05", true);
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+.si-sub {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+.si-submit {
+  inline-size: 100%;
+  max-inline-size: none;
+}
+.si-note {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+.si-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+  p {
+    @include type.type-style("body-compact-01");
+    color: var(--cds-text-secondary);
+  }
+}
+
+// For the public: one band after How it works, so a reporter finds the way in without the footer.
+.lp-public {
+  // Pulled up into the tinted How it works section above, so the band reads as its last word.
+  margin-block-start: -3rem;
+  padding-block: 0 4rem;
+  background-color: var(--cds-layer-01);
+}
+.lp-public-band {
+  display: grid;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background-color: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-inline-start: 4px solid var(--cds-support-warning);
+  color: var(--cds-text-primary);
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
+.lp-public-title {
+  @include type.type-style("heading-03");
+}
+.lp-public-text p {
+  @include type.type-style("body-01");
+  margin-block-start: 0.25rem;
+  color: var(--cds-text-secondary);
+}
+.lp-public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

@@ -67,7 +67,7 @@ from app.case_status import public_status
 from app.case_workflow import record_case_assignment
 from app.fallback_queue import install_routes as install_fallback_routes, mark_fallback, release_waiting_cases
 from app.db import get_db
-from app.models import AuditLog, Auditor, Case, CaseSource
+from app.models import AuditLog, Auditor, Case, CaseSource, Organisation
 from app.orchestrate import (
     AssignmentOrchestrationError,
     AssignmentOrchestrator,
@@ -142,6 +142,9 @@ def _run_db_migrations() -> None:
         ))
         # cases — AI pipeline output columns (Sprint 2/3)
         conn.execute(text(
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS organisation_id VARCHAR(50) NOT NULL DEFAULT 'COMMUNITYHUB'"
+        ))
+        conn.execute(text(
             "ALTER TABLE cases ADD COLUMN IF NOT EXISTS video_duration_seconds DOUBLE PRECISION"
         ))
         conn.execute(text(
@@ -186,6 +189,16 @@ def _run_db_migrations() -> None:
         conn.execute(text(
             "ALTER TABLE cases ADD CONSTRAINT ck_cases_manager_flag "
             "CHECK (manager_flag IS NULL OR manager_flag IN ('DECLINED', 'SOS', 'CAP_REACHED'))"
+        ))
+        # case_history — CVI scores and override reason for Validation & Audit (Sprint 3)
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS ai_score INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS final_score INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE case_history ADD COLUMN IF NOT EXISTS override_reason TEXT"
         ))
 
 
@@ -498,10 +511,10 @@ async def create_report(
             decision = await orchestrator.assign_case(case_id)
         except NoEligibleAuditorError:
             # No standard Auditor can take it right now. The report is kept, not
-            # rejected: it waits, unowned, in the Super Admin's fallback queue.
+            # rejected: it waits, unowned, in the Super Auditor's fallback queue.
             decision = None
         if decision is None:
-            logger.info("case %s has no eligible Auditor; queued for the Super Admin", case_id)
+            logger.info("case %s has no eligible Auditor; queued for the Super Auditor", case_id)
             mark_fallback(db, case)
             db.commit()
         else:
@@ -990,7 +1003,7 @@ async def manager_dashboard(
         if ends_at and ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         in_cooldown = bool(ends_at and ends_at > now)
-        requires_check_in = a.cooldown_trigger == "SOS"
+        requires_check_in = a.cooldown_trigger in ("S4", "SOS")
         check_in_pending = requires_check_in and not bool(a.cooldown_check_in_done)
         cooldown = None
         if in_cooldown and ends_at:
@@ -1042,7 +1055,7 @@ async def get_my_wellbeing(
         ends_at = row.cooldown_ends_at
         if ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
-        requires_check_in = row.cooldown_trigger == "SOS"
+        requires_check_in = row.cooldown_trigger in ("S4", "SOS")
         check_in_done = bool(row.cooldown_check_in_done)
         if ends_at > now or (requires_check_in and not check_in_done):
             cooldown = {
@@ -1355,10 +1368,12 @@ def _auditor_cooldown_payload(row: Auditor) -> dict | None:
     ends_at = row.cooldown_ends_at
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
-    if ends_at <= datetime.now(timezone.utc):
-        return None
-    requires_check_in = row.cooldown_trigger == "SOS"
+    requires_check_in = row.cooldown_trigger in ("S4", "SOS")
     check_in_done = bool(row.cooldown_check_in_done)
+    # An S4/SOS cooldown stays in force after its timer ends until the Manager's check-in is recorded, so the
+    # Manager still sees who is waiting (the Auditor's own view already works this way).
+    if ends_at <= datetime.now(timezone.utc) and not (requires_check_in and not check_in_done):
+        return None
     return {
         "ends_at": ends_at.isoformat(),
         "trigger": row.cooldown_trigger,
@@ -1559,9 +1574,12 @@ async def get_case_oversight(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     return [
         {
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id) if c.assigned_auditor_id else None,
             "severity_tier": c.severity_tier,
             "final_severity_tier": _final_severity_tier(c),
@@ -1714,6 +1732,7 @@ async def list_declined_cases(
         a.auditor_id: a.auditor_id
         for a in db.scalars(select(Auditor)).all()
     }
+    client_names = {o.organisation_id: o.name for o in db.scalars(select(Organisation)).all()}
     result = []
     for c in cases:
         log = db.scalars(
@@ -1725,6 +1744,8 @@ async def list_declined_cases(
         reason = log.after_value.get("reason", "OTHER") if log and log.after_value else "OTHER"
         result.append({
             "case_id": c.case_id,
+            "organisation_id": c.organisation_id,
+            "organisation_name": client_names.get(c.organisation_id, c.organisation_id),
             "auditor_name": auditor_names.get(c.assigned_auditor_id, "Unknown"),
             "severity_tier": c.severity_tier,
             "reason": reason,
@@ -2086,3 +2107,169 @@ async def ai_chat(
 
     addendum = safety_addendum(session.role, ctx)
     return payload(f"{reply}\n\n{addendum}" if addendum else reply)
+
+
+# ── Internal: demo reseed ─────────────────────────────────────────────────────
+
+@app.post(
+    "/api/internal/reseed",
+    summary="Wipe and reseed demo data",
+    description=(
+        "Drops all auditors, cases, audit logs, and B2B data then re-populates "
+        "with the standard demo dataset. Requires the X-Internal-API-Key header. "
+        "**Destructive — only use on the demo database.**"
+    ),
+    tags=["internal"],
+)
+async def reseed_demo(
+    _: None = Depends(require_internal_api_key),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime, timezone, timedelta
+    from app.models import Auditor, Case, AuditLog, AnalysisRun, GovernanceLogEntry
+    from app.auth import hash_password
+    from app.case_ids import generate_case_id
+    from app.b2b_seed import seed_b2b, wipe_b2b
+
+    # Wipe
+    wipe_b2b(db)
+    db.query(AuditLog).delete()
+    db.query(Case).update({Case.analysis_run_id: None})
+    db.query(AnalysisRun).delete()
+    db.query(Case).delete()
+    db.query(Auditor).delete()
+    db.commit()
+
+    now = datetime.now(timezone.utc)
+
+    def timeline(entries):
+        return [{"start": s, "end": e, "severity_tier": tier, "tag": tag} for s, e, tier, tag in entries]
+
+    def entities(items):
+        return [{"label": l, "start": s, "end": e} for l, s, e in items]
+
+    transcript_sample = [
+        {"time": 0.0, "text": "Stop, you need to calm down."},
+        {"time": 4.1, "text": "I said stop! Back away now."},
+        {"time": 8.0, "text": "Get on the ground! Now!"},
+        {"time": 15.0, "text": "Do not resist. Stay on the ground."},
+        {"time": 22.0, "text": "Backup is on the way. Stay calm."},
+    ]
+    audio_sample = [0.2, 0.3, 0.5, 0.7, 0.9, 0.85, 0.6, 0.4, 0.3, 0.2]
+
+    # Auditors
+    a1 = Auditor(auditor_id="auditor-01", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=45.0, exposure_last_reset_at=now, active_case_count=2)
+    a2 = Auditor(auditor_id="auditor-02", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=30.0, exposure_last_reset_at=now, active_case_count=1)
+    a3 = Auditor(auditor_id="auditor-03", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=110.0, exposure_last_reset_at=now, active_case_count=1)
+    a4 = Auditor(auditor_id="auditor-04", login_hash=hash_password("test123"), role="auditor",
+                 exposure_minutes=119.0, exposure_last_reset_at=now, active_case_count=0)
+    m1 = Auditor(auditor_id="manager-01", login_hash=hash_password("test123"), role="manager")
+    sa1 = Auditor(auditor_id="superauditor-01", login_hash=hash_password("test123"), role="auditor",
+                  is_super_admin=True, exposure_minutes=0.0, exposure_last_reset_at=now)
+    db.add_all([a1, a2, a3, a4, m1, sa1])
+    db.commit()
+
+    # Cases
+    c1 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=10, effective_severity_score=10, severity_tier="S1",
+              narrative_summary="The footage shows a routine traffic stop with no significant use of force. The officer maintained professional conduct throughout. No policy violations identified.",
+              incident_timeline=timeline([(0, 0, "S1", "Officer approaches vehicle"), (30, 30, "S1", "Driver complies"), (90, 90, "S1", "Traffic stop concluded")]),
+              flagged_entities=entities([("Vehicle", 0.0, 90.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=95.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s1.mp4")
+    c2 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=35, effective_severity_score=35, severity_tier="S2",
+              narrative_summary="Minor use of force observed. Officer used a firm grip to restrain the subject who was resisting. The force level appears proportionate but warrants documentation.",
+              incident_timeline=timeline([(0, 0, "S2", "Verbal confrontation begins"), (45, 45, "S2", "Subject resists"), (60, 75, "S2", "Physical restraint applied"), (120, 120, "S1", "Situation de-escalates")]),
+              flagged_entities=entities([("Physical restraint", 60.0, 90.0), ("Verbal resistance", 45.0, 60.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=130.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s2.mp4")
+    c3 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-01",
+              watson_severity_score=65, effective_severity_score=65, severity_tier="S3",
+              narrative_summary="Significant use of force observed. Officer deployed pepper spray following prolonged struggle. Subject sustained minor injuries. Review required.",
+              incident_timeline=timeline([(0, 0, "S2", "Officer responds to disturbance"), (20, 20, "S3", "Subject becomes aggressive"), (55, 58, "S3", "Pepper spray deployed"), (75, 75, "S2", "Backup arrives"), (110, 110, "S2", "Subject detained")]),
+              flagged_entities=entities([("Pepper spray deployment", 55.0, 60.0), ("Aggressive subject", 20.0, 55.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=120.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s3-decline.mp4")
+    c4 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-02",
+              watson_severity_score=85, effective_severity_score=85, severity_tier="S4",
+              narrative_summary="Severe use of force. Multiple officers involved in subduing an unarmed subject. Baton strikes observed. Subject required medical attention. Immediate review warranted.",
+              incident_timeline=timeline([(0, 0, "S2", "Officers respond to call"), (15, 15, "S2", "Subject flees on foot"), (30, 30, "S3", "Takedown initiated"), (45, 65, "S4", "Baton strikes observed"), (70, 70, "S3", "Subject restrained, medical called")]),
+              flagged_entities=entities([("Baton strikes", 45.0, 65.0), ("Takedown", 30.0, 45.0), ("Unarmed subject", 0.0, 70.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=80.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s4-sos.mp4")
+    c5 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id="auditor-03",
+              watson_severity_score=60, effective_severity_score=60, severity_tier="S3",
+              narrative_summary="Use of force incident during arrest. Officer used a chokehold briefly before transitioning to approved restraint technique. Borderline compliance with policy.",
+              incident_timeline=timeline([(0, 0, "S2", "Arrest attempt begins"), (25, 25, "S3", "Subject resists"), (40, 50, "S4", "Chokehold applied briefly"), (50, 60, "S2", "Transition to approved restraint"), (90, 90, "S1", "Subject detained")]),
+              flagged_entities=entities([("Chokehold", 40.0, 50.0), ("Resistance", 25.0, 40.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=95.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-s3-approaching.mp4")
+    c6 = Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+              watson_severity_score=30, effective_severity_score=30, severity_tier="S2",
+              auditor_severity_score=25, auditor_comment="Officer acted within policy. Minor force proportionate to situation.",
+              final_outcome="NO_VIOLATION_FOUND", narrative_summary="Completed case — minor restraint, no violation found.",
+              incident_timeline=timeline([(0, 0, "S2", "Incident begins"), (60, 60, "S1", "Resolved")]),
+              flagged_entities=[], transcript=transcript_sample, audio_intensity=audio_sample,
+              video_duration_seconds=70.0, video_storage_path="/tmp/ibm-rcs-uploads/demo-completed.mp4",
+              completed_at=now - timedelta(hours=2))
+    c7 = Case(case_id=generate_case_id(), status="DECLINED", assigned_auditor_id="auditor-01",
+              watson_severity_score=70, effective_severity_score=70, severity_tier="S3", manager_flag="DECLINED",
+              narrative_summary="Case was declined by original auditor due to personal trigger. Awaiting reassignment by manager.",
+              incident_timeline=timeline([(0, 0, "S3", "Incident begins"), (30, 45, "S3", "Force applied"), (60, 60, "S2", "Scene secured")]),
+              flagged_entities=entities([("Use of force", 30.0, 60.0)]),
+              transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=75.0,
+              video_storage_path="/tmp/ibm-rcs-uploads/demo-declined.mp4")
+    fb1 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id=None,
+               case_visibility="SUPER_ADMIN_ONLY", watson_severity_score=48, effective_severity_score=48,
+               severity_tier="S2", narrative_summary="Demo case waiting in the fallback queue.",
+               incident_timeline=timeline([(10, 25, "S2", "Verbal confrontation")]),
+               flagged_entities=entities([("Verbal resistance", 10.0, 25.0)]),
+               transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=60.0,
+               video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-1.mp4")
+    fb2 = Case(case_id=generate_case_id(), status="READY_FOR_REVIEW", assigned_auditor_id=None,
+               case_visibility="AVAILABLE_TO_AUDITORS", watson_severity_score=22, effective_severity_score=22,
+               severity_tier="S1", narrative_summary="Demo case released to eligible Auditors to claim.",
+               incident_timeline=timeline([(5, 5, "S1", "Routine interaction")]),
+               flagged_entities=entities([("Vehicle", 0.0, 40.0)]),
+               transcript=transcript_sample, audio_intensity=audio_sample, video_duration_seconds=45.0,
+               video_storage_path="/tmp/ibm-rcs-uploads/demo-fallback-2.mp4")
+    db.add_all([c1, c2, c3, c4, c5, c6, c7, fb1, fb2])
+    db.commit()
+
+    # Validation set (10 clips, 8/10 AI correct)
+    val_cases = [
+        Case(case_id=generate_case_id(), status="COMPLETE", assigned_auditor_id="auditor-01",
+             watson_severity_score=s, effective_severity_score=s, severity_tier=t,
+             auditor_severity_score=s, final_outcome=o, narrative_summary=desc,
+             incident_timeline=[], flagged_entities=[], transcript=transcript_sample,
+             audio_intensity=audio_sample, video_duration_seconds=60.0,
+             video_storage_path=f"/tmp/ibm-rcs-uploads/val-{i:02d}.mp4",
+             completed_at=now - timedelta(days=1), is_validation_case=True, ground_truth_tier=gt)
+        for i, (s, t, o, desc, gt) in enumerate([
+            (85, "S4", "POLICY_VIOLATION_FOUND", "Validation clip 1 — severe force.", "S4"),
+            (10, "S1", "NO_VIOLATION_FOUND", "Validation clip 2 — no violation.", "S1"),
+            (15, "S1", "NO_VIOLATION_FOUND", "Validation clip 3 — no violation.", "S1"),
+            (20, "S1", "NO_VIOLATION_FOUND", "Validation clip 4 — no violation.", "S1"),
+            (70, "S3", "POLICY_VIOLATION_FOUND", "Validation clip 5 — significant force.", "S3"),
+            (75, "S3", "POLICY_VIOLATION_FOUND", "Validation clip 6 — significant force.", "S3"),
+            (90, "S4", "POLICY_VIOLATION_FOUND", "Validation clip 7 — severe force.", "S4"),
+            (25, "S1", "NO_VIOLATION_FOUND", "Validation clip 8 — no violation.", "S1"),
+            (50, "S2", "NO_VIOLATION_FOUND", "Validation clip 9 — AI over-predicted (S2 vs S1 ground truth).", "S1"),
+            (70, "S3", "NO_VIOLATION_FOUND", "Validation clip 10 — AI over-predicted (S3 vs S1 ground truth).", "S1"),
+        ], start=1)
+    ]
+    db.add_all(val_cases)
+    db.commit()
+
+    b2b = seed_b2b(db, now, [c1, c2, c3, c4, c5, c6, c7], client_password="test123")
+
+    return {
+        "seeded": True,
+        "accounts": ["auditor-01", "auditor-02", "auditor-03", "auditor-04", "manager-01", "superauditor-01"],
+        "cases": b2b["history"] + 9,
+        "deliveries": b2b["deliveries"],
+    }

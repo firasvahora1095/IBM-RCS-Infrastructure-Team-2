@@ -7,10 +7,10 @@ import { ApiError } from "../../services/types";
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={["/"]}>
+    <MemoryRouter initialEntries={["/report"]}>
       <Routes>
-        <Route path="/" element={<UploadPage />} />
-        <Route path="/case-confirmation" element={<div>Confirmation page</div>} />
+        <Route path="/report" element={<UploadPage />} />
+        <Route path="/report/confirmation" element={<div>Confirmation page</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -87,7 +87,7 @@ describe("UploadPage", () => {
     chooseVideo("clip.mp4");
     giveConsent();
 
-    fireEvent.click(screen.getByLabelText("Include my name & email"));
+    fireEvent.click(screen.getByLabelText("Yes, include my name and email"));
     fireEvent.click(submitButton());
     expect(screen.getByText("Enter your name, or choose to report anonymously.")).toBeInTheDocument();
     expect(screen.getByText("Enter your email, or choose to report anonymously.")).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe("UploadPage", () => {
 
     renderPage();
     chooseVideo("clip.mp4");
-    fireEvent.change(screen.getByLabelText("Add more detail (optional)"), { target: { value: "Seen on a bus." } });
+    fireEvent.change(screen.getByLabelText("Describe what happened"), { target: { value: "Seen on a bus." } });
     giveConsent();
     fireEvent.click(submitButton());
 
@@ -148,7 +148,7 @@ describe("UploadPage", () => {
       await screen.findByText("Your case was not created — no case ID has been issued for this attempt."),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(screen.getByLabelText("Add more detail (optional)")).toHaveValue("Seen on a bus.");
+    expect(screen.getByLabelText("Describe what happened")).toHaveValue("Seen on a bus.");
   });
 
   it("reports a public link instead of a video (Figma 72:28)", async () => {
@@ -158,7 +158,7 @@ describe("UploadPage", () => {
       assigned_auditor: "auditor-2",
     });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Paste a link instead" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Link" }));
 
     fireEvent.change(screen.getByLabelText("Link to the content"), { target: { value: "not a link" } });
     giveConsent();
@@ -184,7 +184,7 @@ describe("UploadPage", () => {
       assigned_auditor: "auditor-2",
     });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Add a screenshot" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Screenshot" }));
 
     chooseFile("Choose a screenshot image", "capture.gif", "image/gif");
     expect(screen.getByText("That image format isn't supported. Try PNG or JPG instead.")).toBeInTheDocument();

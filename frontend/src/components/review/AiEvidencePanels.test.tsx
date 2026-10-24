@@ -26,7 +26,7 @@ describe("TranscriptAndAudio", () => {
     expect(screen.getByText("01:16")).toBeInTheDocument();
     expect(screen.getByText("Put it down! Put it down now!")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /loudest around 00:30/ })).toBeInTheDocument();
-    expect(screen.getByText("Timestamped audio-intensity graph, not an emotion graph.")).toBeInTheDocument();
+    expect(screen.getByText("Audio intensity, not an emotion graph.")).toBeInTheDocument();
   });
 
   it("renders nothing when the data source provides neither", () => {

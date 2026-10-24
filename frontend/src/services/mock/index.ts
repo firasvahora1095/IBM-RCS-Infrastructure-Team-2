@@ -56,6 +56,7 @@ import {
 import { advanceDeliveries, b2bMockOps, createDeliveryForCase, publicDeliveryConfirmed } from "./b2b";
 import { findCaseId, mockBuddyReply, type BuddyLiveFigures } from "./buddy";
 import { managerStatusLabel } from "../../design-tokens/managerLabels";
+import { clientOf, findOrganisation } from "./clients";
 
 /**
  * The `mock` data source: a self-contained stand-in for the backend that
@@ -125,7 +126,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 48,
         severity_tier: "S2",
         flag_reason: "Physical conflict",
-        narrative_summary: "Mock: two people in a heated confrontation; brief pushing detected.",
+        narrative_summary: "Two people in a heated confrontation; brief pushing detected.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S2", tag: "physical_violence" }],
         flagged_entities: [
           { label: "Person A", start: 5, end: 40 },
@@ -139,7 +140,7 @@ function simulatedAnalysis(caseId: string): Partial<MockCase> {
         effective_severity_score: 72,
         severity_tier: "S3",
         flag_reason: "Graphic violence",
-        narrative_summary: "Mock: physical altercation detected between two people.",
+        narrative_summary: "Physical altercation detected between two people.",
         incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
         flagged_entities: [{ label: "Person A", start: 10, end: 30 }],
         transcript: null,
@@ -174,9 +175,9 @@ function selectAuditor(db: MockDb): string | null {
 }
 
 /**
- * How long a parked case waits for the Super Admin before the system places it. The team decided on
+ * How long a parked case waits for the Super Auditor before the system places it. The team decided on
  * none, as in the backend (FALLBACK_HOLD_MINUTES defaults to 0): a case is placed as soon as a
- * standard Auditor is eligible, unless the Super Admin has already taken it.
+ * standard Auditor is eligible, unless the Super Auditor has already taken it.
  */
 export const FALLBACK_HOLD_MS = 0;
 
@@ -221,7 +222,7 @@ function requireSession(db: MockDb, token: string, role: "auditor" | "manager") 
   return session;
 }
 
-/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Admin too. */
+/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Auditor too. */
 function unavailableReason(db: MockDb, member: MockStaff): string | null {
   if (exposureMinutes(member) >= member.exposure_limit_minutes) return "You have reached your daily exposure limit.";
   if (inCooldown(member)) return "You are in a mandatory cooldown.";
@@ -234,7 +235,7 @@ function unavailableReason(db: MockDb, member: MockStaff): string | null {
 function requireSuperAdmin(db: MockDb, token: string): MockStaff {
   const session = requireSession(db, token, "auditor");
   const member = staffById(db, session.staffId);
-  if (!member.is_super_admin) throw new ApiError("Super Admin access required", 403);
+  if (!member.is_super_admin) throw new ApiError("Super Auditor access required", 403);
   return member;
 }
 
@@ -318,7 +319,7 @@ function cooldownForResolvedCase(
     );
     if (!sustained && !repeated) return null;
   }
-  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], false);
+  return startCooldown(staff, tier, COOLDOWN_MINUTES[tier], tier === "S4");
 }
 
 /** Screen 1c placeholder limit: "Max size: 10MB (placeholder) — to be confirmed with Dev." */
@@ -427,7 +428,9 @@ function buddyCaseSummary(db: MockDb, role: "auditor" | "manager", staffId: stri
     case_id: c.case_id,
     status: managerStatusLabel(c.status, c.manager_flag),
     ai_severity: c.severity_tier,
-    final_auditor_severity: c.auditor_severity_score === null ? null : scoreToTier(c.auditor_severity_score),
+    // Confirming the AI's rating stores no score, so a completed case's final tier is then the AI's (as on every screen).
+    final_auditor_severity:
+      c.auditor_severity_score !== null ? scoreToTier(c.auditor_severity_score) : c.status === "COMPLETE" ? c.severity_tier : null,
     final_outcome: c.final_outcome ? (BUDDY_OUTCOME[c.final_outcome] ?? null) : null,
   };
   if (role === "manager") {
@@ -499,6 +502,15 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
       talk_requests: db.wellbeingRequests.filter(
         (r) => r.auditor_id === staff.staff_id && r.kind === "TALK_TO_MANAGER" && r.status === "OPEN",
       ).length,
+      // A break the Manager approved today.
+      on_break: db.wellbeingRequests.some(
+        (r) =>
+          r.auditor_id === staff.staff_id &&
+          r.kind === "BREAK_REQUEST" &&
+          r.status === "APPROVED" &&
+          r.resolved_at !== null &&
+          new Date(r.resolved_at).toDateString() === new Date().toDateString(),
+      ),
     },
   };
 }
@@ -539,7 +551,7 @@ function findSos(db: MockDb, alertId: string): MockSosEvent {
 /**
  * AR-WB-06/07 and AR-AI-11: one path for every unexpected-exposure event. The
  * alert is logged with what raised it, the case goes to the Manager, and the
- * SOS cooldown applies (AR-WB-12) — 30 minutes plus a mandatory Manager check-in.
+ * S4 protocol applies (AR-WB-12) — 30 minutes plus a mandatory check-in.
  */
 function raiseSos(db: MockDb, token: string, caseId: string, trigger: SosTrigger): { cooldown: CooldownState } {
   const session = requireSession(db, token, "auditor");
@@ -667,9 +679,9 @@ export const mockDataService: DataService = {
     });
   },
 
-  async addCaseInformation(caseId: string, details: string, attachment?: File): Promise<{ added: true }> {
+  async addCaseInformation(caseId: string, details: string, attachments?: File[]): Promise<{ added: true }> {
     await delay();
-    if (!details.trim() && !attachment) {
+    if (!details.trim() && !(attachments && attachments.length > 0)) {
       throw new ApiError("Add some details or attach a file before submitting.", 400);
     }
     return updateDb((db) => {
@@ -679,7 +691,7 @@ export const mockDataService: DataService = {
       db.caseAdditions.push({
         case_id: caseId,
         details: details.trim(),
-        attachment_name: attachment?.name ?? null,
+        attachment_names: (attachments ?? []).map((f) => f.name),
         added_at: new Date().toISOString(),
       });
       found.updated_at = new Date().toISOString();
@@ -757,11 +769,16 @@ export const mockDataService: DataService = {
       delete db.loginAttempts[key];
       const token = newToken();
       db.sessions[token] = { staffId: member.staff_id, role: member.role };
-      return { token, role: member.role, is_super_admin: member.role === "auditor" && member.is_super_admin === true };
+      return {
+        token,
+        role: member.role,
+        is_super_admin: member.role === "auditor" && member.is_super_admin === true,
+        display_name: member.display_name,
+      };
     });
   },
 
-  // ---- Fallback queue (Super Admin, extra-features 1.6) ----
+  // ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
   async getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
     await delay();
@@ -780,6 +797,7 @@ export const mockDataService: DataService = {
           assigned_auditor_id: c.manager_flag ? null : c.assigned_auditor,
           case_visibility: c.case_visibility ?? "ASSIGNED_ONLY",
           manager_flag: c.manager_flag,
+          created_at: c.created_at,
           auto_release_at: autoReleaseAt(c) === null ? null : new Date(autoReleaseAt(c)!).toISOString(),
         }));
     });
@@ -826,7 +844,7 @@ export const mockDataService: DataService = {
       if (c.status === "COMPLETE") throw new ApiError("This case is already complete.", 409);
       const reason = unavailableReason(db, admin);
       if (reason) throw new ApiError(reason, 409);
-      assignUnownedCase(db, c, admin, "taken by the Super Admin");
+      assignUnownedCase(db, c, admin, "taken by the Super Auditor");
       return { taken: true };
     });
   },
@@ -1010,7 +1028,7 @@ export const mockDataService: DataService = {
       const session = requireSession(db, token, "auditor");
       const request = db.wellbeingRequests.find((r) => r.id === requestId && r.auditor_id === session.staffId);
       if (!request) throw new ApiError("Request not found", 404);
-      if (request.status !== "OPEN") throw new ApiError("Your manager has already responded to this request.", 409);
+      if (request.status !== "OPEN") throw new ApiError("Your Manager has already responded to this request.", 409);
       request.status = "WITHDRAWN";
       request.resolved_at = new Date().toISOString();
       audit(db, session.staffId, "WELLBEING_REQUEST_WITHDRAWN", request.case_id, request.kind);
@@ -1244,6 +1262,8 @@ export const mockDataService: DataService = {
         .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: displayName(db, c.assigned_auditor ?? routingAuditor(db, c)),
           severity_tier: c.severity_tier,
           final_severity_tier: c.auditor_severity_score != null ? scoreToTier(c.auditor_severity_score) : c.severity_tier,
@@ -1325,6 +1345,31 @@ export const mockDataService: DataService = {
     });
   },
 
+  async logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+    await delay();
+    if (consumeDemoFailure()) throw new TypeError("Failed to fetch");
+    if (!notes.trim()) throw new ApiError("Add a short note about how they are.", 422);
+    return updateDb((db) => {
+      const session = requireSession(db, token, "manager");
+      const auditor = staffById(db, auditorId);
+      const cooldown = auditor.cooldown;
+      if (cooldown?.trigger === "SOS" && !cooldown.check_in_completed_at) {
+        throw new ApiError("This is an SOS. Log the check-in in the SOS follow-up.", 409);
+      }
+      if (cooldown?.trigger !== "S4" || cooldown.check_in_completed_at) {
+        throw new ApiError("No check-in is waiting for this Auditor.", 409);
+      }
+      cooldown.check_in_completed_at = new Date().toISOString();
+      // The audit trail hangs off the case that earned the cooldown. It starts when a case is completed, so that is
+      // the Auditor's latest completed one.
+      const latest = db.cases
+        .filter((c) => c.assigned_auditor === auditorId && c.completed_at)
+        .sort((a, b) => Date.parse(b.completed_at!) - Date.parse(a.completed_at!))[0];
+      if (latest) audit(db, session.staffId, "CHECK_IN_LOGGED", latest.case_id, notes.trim());
+      return { checked_in: true as const };
+    });
+  },
+
   async listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
     await delay();
     return updateDb((db) => {
@@ -1342,6 +1387,8 @@ export const mockDataService: DataService = {
         })
         .map((c) => ({
           case_id: c.case_id,
+          organisation_id: clientOf(c),
+          organisation_name: findOrganisation(db, clientOf(c))?.name,
           auditor_name: c.decline
             ? (displayName(db, c.decline.declined_by) ?? c.decline.declined_by)
             : (c.assigned_auditor ? (displayName(db, c.assigned_auditor) ?? c.assigned_auditor) : "Unknown"),
@@ -1398,6 +1445,7 @@ export const mockDataService: DataService = {
               name: st.display_name,
               headroom_minutes: headroom,
               limited_headroom: headroom < LIMITED_HEADROOM_MINUTES,
+              fallback_reviewer: st.is_super_admin === true,
               available: headroom > 0 && !inCooldown(st),
             };
           })

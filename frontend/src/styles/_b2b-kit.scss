@@ -20,8 +20,17 @@
 // Type matches the existing Manager screens (components/manager/managerStyles.ts):
 // 28/36 semibold page titles, 16/22 semibold panel titles, 14/20 secondary text.
 .rcs-eyebrow {
-  @include type.type-style("label-01");
-  color: var(--cds-text-secondary);
+  // heading-compact-01 rather than label-01: the 12px grey label read as decoration and failed to carry its section.
+  @include type.type-style("heading-compact-01");
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--cds-text-primary);
+  letter-spacing: 0.02em;
+}
+// The one eyebrow that carries the brand mark, in the hero.
+.rcs-eyebrow--brand {
+  color: var(--cds-text-primary);
 }
 .rcs-page-title {
   font-size: 1.75rem;
@@ -34,6 +43,19 @@
   line-height: 1.25rem;
   color: var(--cds-text-secondary);
   max-inline-size: 72ch;
+}
+.rcs-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-block-size: 2rem;
+}
+.rcs-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
 }
 .rcs-section-title {
   font-size: 1rem;
@@ -95,6 +117,14 @@ a.rcs-stat-tile:focus-visible {
 }
 .rcs-stat-tile.rcs-tone-error {
   box-shadow: inset 3px 0 0 var(--cds-support-error);
+}
+.rcs-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  // The ghost button is 2rem tall; pull the row up so a tile with a control is no taller than one without.
+  margin-block: -0.375rem;
 }
 .rcs-stat-label {
   font-size: 0.75rem;
@@ -262,78 +292,20 @@ a.rcs-stat-tile .rcs-stat-helper {
 // Manager Intelligence Dashboard (docs/ux/manager-intelligence-dashboard-plan.md)
 // ---------------------------------------------------------------------------
 
-// Needs Attention rows: the SOS Inbox row pattern. Urgent rows get the 3px
-// accent in their tone, an icon and a written status, never colour alone.
-.rcs-attention {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  border-block-start: 1px solid var(--cds-border-subtle-01);
-}
-.rcs-attention-row {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr) auto 3rem 1rem;
-  align-items: center;
-  gap: 0.75rem;
-  min-block-size: 3rem;
-  padding: 0.5rem 1rem;
-  border-block-end: 1px solid var(--cds-border-subtle-01);
-  color: var(--cds-text-primary);
-  text-decoration: none;
-  transition: background-color motion.$duration-fast-02 motion.motion(standard, productive);
-  &:hover {
-    background-color: var(--cds-layer-hover-01);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--cds-focus);
-    outline-offset: -2px;
-  }
-  &[data-urgent="error"] {
-    box-shadow: inset 3px 0 0 var(--cds-support-error);
-  }
-  &[data-urgent="warning"] {
-    box-shadow: inset 3px 0 0 var(--cds-support-warning);
-  }
-  &:not([data-urgent]) {
-    color: var(--cds-text-secondary);
-  }
-  @include breakpoint.breakpoint-down(md) {
-    grid-template-columns: 1rem minmax(0, 1fr) 2.5rem 1rem;
-    .rcs-attention-status {
-      display: none;
-    }
-  }
-}
-.rcs-attention-icon {
-  fill: var(--cds-icon-secondary);
-}
-.rcs-attention-row[data-urgent="error"] .rcs-attention-icon {
-  fill: var(--cds-support-error);
-}
-.rcs-attention-row[data-urgent="warning"] .rcs-attention-icon {
-  fill: var(--cds-support-caution-major, var(--cds-support-warning));
-}
-.rcs-attention-label {
-  @include type.type-style("body-compact-01");
-}
-.rcs-attention-count {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  text-align: end;
-}
-.rcs-attention-chevron {
-  fill: var(--cds-icon-secondary);
-}
 
 // Inline figures inside a widget (median time, oldest unresolved, override rate).
+// A row of figures, each in its own small box: the label on top, the value under it, every box the same width.
 .rcs-figure-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1px;
   margin: 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  > div {
+    padding: 1rem 1.25rem;
+    background-color: var(--cds-background);
+  }
 }
 
 // AI-to-final severity matrix. Agreement is neutral; change is a blue tint
@@ -342,7 +314,6 @@ a.rcs-stat-tile .rcs-stat-helper {
   border-collapse: separate;
   border-spacing: 2px;
   inline-size: 100%;
-  max-inline-size: 26rem;
   caption {
     caption-side: bottom;
     text-align: start;
@@ -351,8 +322,9 @@ a.rcs-stat-tile .rcs-stat-helper {
   th {
     @include type.type-style("label-01");
     color: var(--cds-text-secondary);
-    font-weight: 400;
+    font-weight: 600;
     padding: 0.25rem 0.5rem;
+    background-color: var(--cds-layer-01);
   }
   thead th {
     text-align: center;
@@ -377,8 +349,10 @@ a.rcs-stat-tile .rcs-stat-helper {
 }
 
 // A ghost "View evidence" button sits flush with the text above it.
+// A ghost button pads its text 1rem inside the edge; pull it out on the right so the word
+// itself ends on the section's content edge, the same on every section.
 .rcs-evidence-button.cds--btn--ghost {
-  margin-inline-start: calc(-1 * var(--cds-spacing-05, 1rem));
+  margin-inline-end: calc(-1 * var(--cds-spacing-05, 1rem));
 }
 // Matches the ghost "View evidence" button's height, so all four KPI tiles line up.
 .rcs-kpi-jump {
@@ -410,20 +384,35 @@ a.rcs-stat-tile .rcs-stat-helper {
   list-style: none;
   padding: 0;
   margin: 0;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
   li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 10rem 6rem 6.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    // Tags are self-start by default; on this row they share the centre line with the text beside them.
+    > * {
+      align-self: center !important;
+    }
     gap: 0.25rem 1rem;
-    padding-block: 0.625rem;
+    padding: 0.625rem 1rem 0.625rem 0.75rem;
     border-block-end: 1px solid var(--cds-border-subtle-01);
+    box-shadow: inset 3px 0 0 var(--cds-support-error);
     @include type.type-style("body-compact-01");
+    @include breakpoint.breakpoint-down(md) {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
   }
 }
-.rcs-failed-list li {
-  box-shadow: inset 3px 0 0 var(--cds-support-error);
-  padding-inline-start: 0.75rem;
+
+// Delivery health figures: one grid, so every value starts on a shared column.
+.rcs-delivery-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 1rem;
+  margin: 0;
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .rcs-matrix-corner {
@@ -432,15 +421,6 @@ a.rcs-stat-tile .rcs-stat-helper {
   white-space: nowrap;
   padding-inline-end: 0.5rem;
 }
-// Delivery health: figures beside the exception list on wide screens.
-.rcs-delivery-layout {
-  display: grid;
-  gap: 1.5rem 3rem;
-  @include breakpoint.breakpoint(lg) {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .rcs-evidence-fields {
   list-style: none;
   padding: 0;
@@ -540,6 +520,16 @@ a.rcs-stat-tile .rcs-stat-helper {
     border: none;
     padding: 0;
   }
+  // The charts are drawn with background fills, which a browser leaves out of a printed page or a saved PDF unless
+  // told otherwise (the "Background graphics" option). Without this the bars and segments come out empty.
+  .rcs-sheet,
+  .rcs-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .rcs-sheet {
+    break-inside: auto;
+  }
 }
 
 // Optional cooldown block puzzle (components/wellbeing/BlockPuzzle.tsx):
@@ -593,4 +583,875 @@ html {
 }
 .rcs-site [id] {
   scroll-margin-top: var(--rcs-site-offset);
+}
+
+// "Needs you" inbox on the Manager Overview: one row per item, the action in the row.
+// Colour is for exceptions, so only an open SOS carries the red accent; the kind is always written.
+.rcs-inbox {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-inbox-row {
+  // kind | who | state and detail | action: every row on the same four columns, so the eye
+  // runs straight down each one instead of zigzagging.
+  display: grid;
+  grid-template-columns: 8.5rem 13rem minmax(0, 1fr) 17rem;
+  align-items: center;
+  gap: 1rem;
+  min-block-size: 3.5rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  // The one urgent kind is the one thing that is tinted: urgency is read before the words.
+  &[data-urgent="error"] {
+    box-shadow: inset 3px 0 0 var(--cds-support-error);
+    background-color: var(--cds-notification-background-error);
+    // Set apart from the routine rows below it, like a banner above a list.
+    margin-block-end: 0.75rem;
+    border-block-end: 0;
+  }
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: 8.5rem minmax(0, 1fr) 17rem;
+    .rcs-inbox-detail {
+      grid-column: 2 / -1;
+      grid-row: 2;
+    }
+  }
+  @include breakpoint.breakpoint-down(md) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    .rcs-inbox-detail {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+}
+.rcs-inbox-kind-icon {
+  fill: var(--cds-support-error);
+  margin-inline-end: 0.375rem;
+  vertical-align: text-bottom;
+}
+// Every row's action sits in the same column and the same width, so the edges line up.
+.rcs-inbox-actions .cds--btn {
+  inline-size: 11rem;
+  max-inline-size: 11rem;
+  justify-content: center;
+  padding-inline: 0.75rem;
+}
+.rcs-inbox-details {
+  inline-size: 4rem;
+  text-align: center;
+  @include type.type-style("body-compact-01");
+}
+.rcs-inbox-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  padding-block-start: 0.25rem;
+}
+.rcs-inbox-more {
+  inline-size: 2rem;
+  display: inline-flex;
+  justify-content: center;
+}
+.rcs-inbox-kind {
+  @include type.type-style("label-01");
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+.rcs-inbox-subject {
+  @include type.type-style("body-compact-01");
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.rcs-inbox-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
+.rcs-inbox-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+.rcs-inbox-error {
+  flex-basis: 100%;
+  color: var(--cds-text-error);
+  @include type.type-style("helper-text-01");
+}
+.rcs-inbox-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-inbox-empty-title {
+  @include type.type-style("productive-heading-02");
+}
+
+// AI and Auditor decisions: headline tiles and the matrix in two even halves.
+.rcs-comparison {
+  display: grid;
+  gap: 1.5rem 2rem;
+  align-items: start;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+// A row of tags, text and buttons: everything on one centre line. Tags are self-start inside a flex
+// column elsewhere, so inside a row they are centred explicitly.
+.rcs-align-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  > * {
+    align-self: center !important;
+  }
+}
+
+.rcs-inbox-row--open {
+  cursor: pointer;
+  transition: background-color motion.$duration-fast-02 motion.motion(standard, productive);
+  &:hover:not([data-urgent]) {
+    background-color: var(--cds-layer-hover-01);
+  }
+}
+
+// Second row of the Manager nav: the work queues, quieter than the main bar.
+.rcs-subnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem 0.375rem;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  &:hover {
+    color: var(--cds-text-primary);
+  }
+  &[data-active] {
+    color: var(--cds-text-primary);
+    font-weight: 600;
+    border-block-end-color: var(--cds-border-interactive);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+}
+.rcs-subnav-count.rcs-subnav-count--neutral {
+  background-color: var(--cds-background-inverse);
+  color: var(--cds-text-inverse);
+}
+.rcs-subnav-count {
+  min-inline-size: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: 0.625rem;
+  background-color: var(--cds-support-error);
+  color: var(--cds-text-on-color);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+// Filters: groups with a legend, every field the same height on one grid.
+.rcs-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.rcs-filter-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  legend {
+    @include type.type-style("label-01");
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    padding: 0;
+    margin-block-end: 0.5rem;
+  }
+}
+.rcs-filter-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint-down(md) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+// Purpose lines at the top of a view: what it shows, and what it is for.
+.rcs-purpose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-inline-size: 72ch;
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+  strong {
+    color: var(--cds-text-primary);
+    font-weight: 600;
+  }
+}
+
+// An expanded AI call: two readable groups side by side, sources and the action underneath.
+.rcs-call-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+  padding-block: 0.5rem;
+  @include breakpoint.breakpoint-down(lg) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.rcs-call-details-wide {
+  grid-column: 1 / -1;
+}
+// The case history panel: time, event, who, on one aligned line.
+.rcs-timeline-event {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  padding-block: 0.5rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include type.type-style("body-compact-01");
+}
+
+// Four facts in an even row, wrapping on narrow screens.
+.rcs-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1.5rem;
+  margin: 0;
+}
+// Running text at a width that is comfortable to read.
+.rcs-readable {
+  max-inline-size: 72ch;
+  @include type.type-style("body-02");
+  white-space: pre-line;
+}
+
+// A link that is a button, for a row's name when the row opens in place.
+.rcs-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+// Row actions in a table: one right-aligned group with a fixed gap, the column sized to its buttons.
+.rcs-actions-col {
+  inline-size: 1%;
+  white-space: nowrap;
+  text-align: end;
+}
+.rcs-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+// ---------------------------------------------------------------------------
+// App shells (Auditor, Manager, Client): the RCS brand in the dark header, a
+// gradient hairline under it, and one tab style for every section bar.
+// ---------------------------------------------------------------------------
+.rcs-app-header {
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -2px;
+    block-size: 2px;
+    background: linear-gradient(100deg, #c4a3ff 0%, #8f7cff 35%, #7fd3ff 70%, #6fd8c9 100%);
+    pointer-events: none;
+  }
+}
+// Measured with axe: Carbon draws Blue 60 text on the row-hover grey (#e8e8e8) at 4.08:1, under the 4.5:1 AA bar. While a
+// row is hovered, its buttons and links use the darker link blue (Blue 80, about 9:1) until the control itself is hovered.
+.cds--data-table tbody tr:hover,
+.rcs-inbox-row:hover {
+  .cds--btn--tertiary:not(:hover):not(:disabled) {
+    color: var(--cds-link-primary-hover);
+    border-color: var(--cds-link-primary-hover);
+  }
+  .cds--btn--ghost:not(:hover):not(:disabled),
+  .cds--link:not(:hover),
+  .rcs-link-button:not(:hover) {
+    color: var(--cds-link-primary-hover);
+  }
+}
+// The logo link in the app header had no visible focus: nothing changed when a keyboard user reached it.
+.rcs-app-brand.cds--header__name:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
+.rcs-app-brand.cds--header__name {
+  padding-inline: 1rem;
+  font-weight: 400;
+  // Carbon wraps the name's children in a span; that span is what lines the logo and the area up.
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+.rcs-app-area {
+  @include type.type-style("body-compact-01");
+  padding-inline-start: 0.75rem;
+  line-height: 1.5rem;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+  border-inline-start: 1px solid var(--cds-border-strong-01);
+  @include breakpoint.breakpoint-down(sm) {
+    display: none;
+  }
+}
+.rcs-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.rcs-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff; // 6.4:1 on the deep purple
+  background: linear-gradient(135deg, #6929c4, #5b45d6);
+  border-radius: 50%;
+}
+.rcs-user-label {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-primary);
+}
+.rcs-header-action {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  &:hover {
+    background-color: var(--cds-background-hover);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+}
+.rcs-app-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 1rem;
+  padding-inline: 1rem;
+  background-color: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    padding-inline: 2rem;
+  }
+}
+.rcs-app-tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+.rcs-app-tab {
+  @include type.type-style("body-compact-01");
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  transition: background-color 110ms ease-out, color 110ms ease-out;
+  &:hover {
+    color: var(--cds-text-primary);
+    background-color: var(--cds-layer-hover-01);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  &[aria-current="page"] {
+    font-weight: 600;
+    color: var(--cds-text-primary);
+    border-block-end-color: var(--cds-border-interactive);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rcs-app-tab {
+    transition: none;
+  }
+}
+
+// A button that may sit in a narrow tile: it fits the tile and wraps its label rather than overflowing.
+.rcs-btn-wrap.cds--btn {
+  max-inline-size: 100%;
+  block-size: auto;
+  min-block-size: 2rem;
+  white-space: normal;
+  text-align: start;
+}
+
+// Unread message, inbox style: a Carbon-blue dot before a bold subject. Every subject cell in the waiting list (and
+// its header) keeps the dot's space, so read and unread rows line up.
+.rcs-msg-subject {
+  position: relative;
+  padding-inline-start: 2rem !important;
+}
+.rcs-msg-unread > a {
+  font-weight: 600;
+}
+.rcs-unread-dot {
+  position: absolute;
+  inset-inline-start: 0.875rem;
+  inset-block-start: 1.125rem;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--cds-interactive);
+}
+
+// A link-styled button inside a table reads like the table's other links: no underline until hover.
+.rcs-link-button.rcs-link-button--plain {
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Report figures: as many columns as fit, each at least wide enough for its value on one line.
+.rcs-figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.5rem;
+}
+
+// ---- App header, right side: status, a hairline, then same-size actions, ending in the account menu ----
+.rcs-app-actions.cds--header__global {
+  align-items: center;
+  gap: 0;
+  min-inline-size: 0;
+}
+.rcs-header-divider {
+  align-self: center;
+  inline-size: 1px;
+  block-size: 1.5rem;
+  margin-inline: 1rem 0.25rem;
+  background-color: var(--cds-border-strong-01);
+}
+.rcs-header-action {
+  gap: 0.5rem;
+  svg {
+    fill: currentColor;
+  }
+}
+.rcs-header-org {
+  @include type.type-style("body-compact-01");
+  padding-inline: 0.75rem 0.25rem;
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+  @include breakpoint.breakpoint-down(lg) {
+    display: none;
+  }
+}
+// Demo scenarios: a presenter tool, styled as a quiet header action rather than a blue link.
+// Carbon puts the class on the menu button's container, so the trigger inside it is styled.
+.rcs-demo-menu .cds--btn--ghost {
+  block-size: 3rem;
+  min-block-size: 3rem;
+  padding-inline: 1rem;
+  color: var(--cds-text-secondary);
+  &:hover {
+    color: var(--cds-text-primary);
+    background-color: var(--cds-background-hover);
+  }
+  svg {
+    fill: currentColor;
+  }
+}
+// Account menu
+.rcs-user-menu {
+  display: flex;
+}
+.rcs-user-trigger {
+  inline-size: 3rem;
+  justify-content: center;
+  padding: 0;
+  &[aria-expanded="true"] {
+    background-color: var(--cds-layer-01);
+  }
+}
+.rcs-user-avatar--lg {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: 0.875rem;
+}
+.rcs-user-panel {
+  min-inline-size: 16rem;
+}
+.rcs-user-panel-id {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-user-panel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-inline-size: 0;
+}
+.rcs-user-panel-name {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+.rcs-user-panel-role {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-user-panel-detail {
+  @include type.type-style("label-01");
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--cds-text-secondary);
+}
+.rcs-user-panel-signout {
+  @include type.type-style("body-compact-01");
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 100%;
+  padding: 0.875rem 1rem;
+  color: var(--cds-text-primary);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+  svg {
+    fill: currentColor;
+  }
+}
+
+// Content warning: what was flagged, the facts, then the decision, separated by space and one rule.
+.rcs-cw {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.rcs-cw-what {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.rcs-cw-severity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.rcs-cw-cvi {
+  @include type.type-style("label-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-cw-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  .cds--tag {
+    margin: 0;
+  }
+}
+.rcs-cw-flags-label {
+  @include type.type-style("label-01");
+  margin-inline-end: 0.25rem;
+  color: var(--cds-text-secondary);
+}
+.rcs-cw-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2.5rem;
+  margin: 0;
+  dt {
+    @include type.type-style("label-01");
+    color: var(--cds-text-secondary);
+  }
+  dd {
+    @include type.type-style("body-compact-01");
+    margin: 0.125rem 0 0;
+    color: var(--cds-text-primary);
+  }
+}
+.rcs-cw-decide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+// One step per level: the title (20) is the only large text; the question (16) sits below it; facts and consent
+// read at 14; labels and the decline note at 12.
+.rcs-cw-question {
+  @include type.type-style("heading-compact-02");
+  color: var(--cds-text-primary);
+}
+// The decline reassurance: one size wherever it appears (content warning, decline dialog).
+.rcs-cw-note {
+  @include type.type-style("helper-text-01");
+  color: var(--cds-text-secondary);
+}
+
+// Trust banner links: the body's size, side by side with a dot between them.
+.rcs-trust-links {
+  @include type.type-style("body-compact-01");
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--cds-text-secondary);
+  .rcs-link-button {
+    @include type.type-style("body-compact-01");
+  }
+}
+
+// Support requests on an Auditor's record: one divided row each, the action on the right.
+.rcs-req-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-req {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem 1rem;
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+}
+.rcs-req-icon {
+  margin-block-start: 0.125rem;
+  fill: var(--cds-icon-secondary);
+}
+.rcs-req-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-inline-size: 0;
+}
+.rcs-req-title {
+  @include type.type-style("heading-compact-01");
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  color: var(--cds-text-primary);
+}
+.rcs-req-meta {
+  @include type.type-style("label-01");
+  font-weight: 400;
+  color: var(--cds-text-secondary);
+}
+.rcs-req-quote {
+  @include type.type-style("body-compact-01");
+  color: var(--cds-text-secondary);
+}
+.rcs-req-action {
+  align-self: center;
+  .cds--tag {
+    margin: 0;
+  }
+}
+
+// Validation & Audit: three answers in plain words above the tabs.
+.rcs-val-summary {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background-color: var(--cds-border-subtle-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--cds-background);
+  }
+  dt {
+    @include type.type-style("heading-compact-01");
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--cds-text-primary);
+    .cds--tag {
+      margin: 0;
+    }
+  }
+  dd {
+    @include type.type-style("fluid-heading-04", true);
+    margin: 0.25rem 0 0;
+    color: var(--cds-text-primary);
+  }
+  // The line under a figure is a second <dd>, so the list stays valid HTML.
+  dd.rcs-val-note {
+    @include type.type-style("body-compact-01");
+    margin: 0;
+    color: var(--cds-text-secondary);
+  }
+}
+.rcs-val-summary--four {
+  @include breakpoint.breakpoint(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+// "of 123" after a figure: the same line, quieter.
+.rcs-val-of {
+  @include type.type-style("body-01");
+  color: var(--cds-text-secondary);
+}
+// A figure that is words (a report period), not a number.
+.rcs-val-summary dd.rcs-val-text {
+  @include type.type-style("heading-04");
+}
+
+// One Client, as a Manager sees them: what needs attention, the figures, then people and the connection side by side.
+.rcs-client-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-inline-size: 72rem;
+}
+.rcs-client-columns {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+  @include breakpoint.breakpoint(lg) {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.rcs-people {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rcs-person {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  &:first-child {
+    padding-block-start: 0;
+  }
+}
+.rcs-person-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  @include type.type-style("label-01");
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  background-color: var(--cds-layer-accent-01);
+  border-radius: 50%;
+}
+.rcs-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.rcs-person-name {
+  @include type.type-style("heading-compact-01");
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  .cds--tag {
+    margin: 0;
+  }
+}
+// One plain sentence at the top of each Validation view.
+.rcs-purpose-line {
+  @include type.type-style("body-01");
+  max-inline-size: 72ch;
+  color: var(--cds-text-secondary);
+}
+
+// A severity tag and its score on one line in a table cell.
+.rcs-tier-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  .cds--tag {
+    margin: 0;
+  }
+}
+// Long free text in a table cell: one line, cut with an ellipsis, the full text in its title.
+.rcs-cell-clip {
+  display: block;
+  max-inline-size: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// A list row that opens something: pointer and the layer hover, like a clickable table row.
+.rcs-row-link {
+  cursor: pointer;
+  &:hover {
+    background-color: var(--cds-layer-hover-01);
+  }
 }

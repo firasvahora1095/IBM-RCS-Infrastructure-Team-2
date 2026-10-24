@@ -36,13 +36,15 @@ export function Figure({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export function ManagerBreadcrumb({ trail }: { trail: { label: string; to?: string }[] }) {
+export function ManagerBreadcrumb({ trail }: { trail: { label: string; to?: string; onClick?: () => void }[] }) {
   return (
     <Breadcrumb noTrailingSlash>
       {trail.map((item) =>
         item.to ? (
           <BreadcrumbItem key={item.label}>
-            <RouterLink to={item.to}>{item.label}</RouterLink>
+            <RouterLink to={item.to} onClick={item.onClick}>
+              {item.label}
+            </RouterLink>
           </BreadcrumbItem>
         ) : (
           <BreadcrumbItem key={item.label} isCurrentPage>

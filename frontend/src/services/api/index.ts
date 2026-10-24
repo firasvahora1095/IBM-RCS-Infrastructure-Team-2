@@ -58,6 +58,7 @@ export const apiDataService: DataService = {
   getSosAlert: http.getSosAlert,
   acknowledgeSosAlert: http.acknowledgeSosAlert,
   logSosFollowUp: http.logSosFollowUp,
+  logCheckIn: http.logCheckIn,
   listDeclinedCases: http.listDeclinedCases,
   getManagerCaseReview: http.getManagerCaseReview,
   getReassignmentContext: http.getReassignmentContext,
@@ -96,6 +97,8 @@ export const apiDataService: DataService = {
   getClientMessage: http.getClientMessage,
   replyClientMessage: http.replyClientMessage,
   clientListCaseResults: http.clientListCaseResults,
+  clientCaseResultsSummary: http.clientCaseResultsSummary,
   clientRecordPlatformAction: http.clientRecordPlatformAction,
   listClientAccounts: http.listClientAccounts,
+  listClients: http.listClients,
 };

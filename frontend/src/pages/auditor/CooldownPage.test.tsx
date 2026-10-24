@@ -25,8 +25,7 @@ describe("CooldownPage (Figma 31:99)", () => {
     vi.restoreAllMocks();
   });
 
-  // Since b6a710c an S3 or S4 cooldown ends by time alone; only an SOS needs the Manager's check-in.
-  it("locks the queue during an S4 cooldown, which ends by time alone with no manager check-in", async () => {
+  it("locks the queue during an S4 cooldown and explains the mandatory check-in", async () => {
     const now = Date.now();
     vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
       exposure_minutes_today: 222,
@@ -36,7 +35,7 @@ describe("CooldownPage (Figma 31:99)", () => {
         started_at: new Date(now - 10 * 60_000).toISOString(),
         ends_at: new Date(now + 20 * 60_000).toISOString(),
         trigger: "S4",
-        requires_check_in: false,
+        requires_check_in: true,
       },
     });
     renderPage();
@@ -44,32 +43,15 @@ describe("CooldownPage (Figma 31:99)", () => {
     expect(await screen.findByRole("heading", { name: "Cooldown in progress" })).toBeInTheDocument();
     expect(screen.getByText(/This cooldown is a built-in protection, not a penalty./)).toBeInTheDocument();
     expect(screen.getByText("3h 42m reviewed today across 6 cases")).toBeInTheDocument();
-    expect(screen.queryByText(/manager check-in is required/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Your Manager will check in before this ends")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Return to queue \(available in/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop my shift" })).toBeEnabled();
     // The optional check-in is offered inline, with what each option gives.
-    expect(await screen.findByRole("radio", { name: /Talk to my manager/ })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: /Talk to my Manager/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Take a break/ })).toBeInTheDocument();
   });
 
-  it("explains an SOS cooldown needs the manager's check-in before the Auditor returns", async () => {
-    const now = Date.now();
-    vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
-      exposure_minutes_today: 90,
-      exposure_limit_minutes: 120,
-      cooldown: {
-        started_at: new Date(now - 5 * 60_000).toISOString(),
-        ends_at: new Date(now + 25 * 60_000).toISOString(),
-        trigger: "SOS",
-        requires_check_in: true,
-      },
-    });
-    renderPage();
-
-    expect(await screen.findByText("A manager check-in is required before you return")).toBeInTheDocument();
-  });
-
-  it("keeps the queue locked after the timer until the manager has checked in", async () => {
+  it("keeps the queue locked after the timer until the Manager has checked in", async () => {
     vi.spyOn(services, "getMyWellbeing").mockResolvedValue({
       exposure_minutes_today: 90,
       exposure_limit_minutes: 120,
@@ -82,7 +64,7 @@ describe("CooldownPage (Figma 31:99)", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("button", { name: "Return to queue (awaiting manager check-in)" }),
+      await screen.findByRole("button", { name: "Return to queue (after your Manager's check-in)" }),
     ).toBeDisabled();
   });
 

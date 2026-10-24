@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, InlineNotification } from "@carbon/react";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
-import { mono, pageTitle, secondaryText } from "../../components/manager/managerStyles";
+import { mono, secondaryText } from "../../components/manager/managerStyles";
 import { ContentWarningModal } from "../../components/review/ContentWarningModal";
 import { ReviewWorkspace } from "../../components/review/ReviewWorkspace";
 import { PROTECTED_VIEWER_SETTINGS, type ViewerSettings } from "../../components/review/viewerSettings";
@@ -77,6 +78,7 @@ export function ManagerExceptionalAccessPage() {
   }
 
   const trail = [
+    ...(returnTo === "/manager" ? [] : [{ label: "Overview", to: "/manager" }]),
     { label: returnLabel.replace("Return to ", "").replace(/^./, (c) => c.toUpperCase()), to: returnTo },
     { label: `Case ${caseId} (exceptional access)` },
   ];
@@ -109,14 +111,14 @@ export function ManagerExceptionalAccessPage() {
             onDecline={() => navigate(returnTo)}
             onClose={() => navigate(returnTo)}
             closeLabel={returnLabel}
-            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide — logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
+            footnote={`This exceptional access is for the genuinely ambiguous case where structured signals aren't enough to decide, and it is logged for the audit trail. Declining returns you to the ${returnLabel.replace("Return to ", "")} without viewing raw content.`}
           />
         </>
       )}
 
       {data && step === "summary" && (
         <>
-          <h1 style={pageTitle}>AI Analysis Summary</h1>
+          <PageHeader title="AI summary" />
           <div className="flex flex-wrap items-center gap-3">
             {data.severity_tier && <SeverityTag tier={data.severity_tier} />}
             {data.effective_severity_score !== null && (

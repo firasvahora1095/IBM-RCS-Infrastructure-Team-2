@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 import {
-  AILabel,
-  AILabelContent,
   Button,
+  DefinitionTooltip,
   HeaderGlobalAction,
   IconButton,
   InlineLoading,
@@ -14,11 +13,15 @@ import {
   Tag,
   TextArea,
 } from "@carbon/react";
-import { Chat, Close, Send } from "@carbon/icons-react";
+import { ArrowRight, Chat, Close, Information, Send } from "@carbon/icons-react";
+import { RcsMark } from "../brand/RcsMark";
 import { useAuth } from "../../hooks/useAuth";
 import type { BuddyCaseSummary } from "../../services/types";
-import { CASE_LOOKUP_PROMPT, SUGGESTED_QUESTIONS } from "./buddyQuestions";
+import { CASE_LOOKUP_PROMPT, suggestedQuestions } from "./buddyQuestions";
 import { useBuddyConversation, type BuddyMessage } from "./useBuddyConversation";
+import { formatClockTime } from "../../utils/formatRelativeTime";
+import { DELIVERY_STATUS_LABEL } from "../../design-tokens/deliveryLabels";
+import type { DeliveryStatus } from "../../services/types";
 
 const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }[] = [
   { key: "status", label: "Status", empty: "Not available" },
@@ -31,7 +34,7 @@ const CASE_FIELDS: { key: keyof BuddyCaseSummary; label: string; empty: string }
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "" : formatClockTime(iso);
 }
 
 /** Only the fields this person's role was sent are shown; a missing field is never listed as empty. */
@@ -40,7 +43,9 @@ function CaseSummary({ summary }: { summary: BuddyCaseSummary }) {
   return (
     <dl className="rcs-buddy__case" aria-label={`Summary of ${summary.case_id}`}>
       {rows.map((f) => {
-        const value = summary[f.key];
+        const raw = summary[f.key];
+        // Delivery arrives as its code (SUCCESS, NEEDS_ATTENTION); show the same words as the Deliveries page.
+        const value = f.key === "delivery_status" && raw ? (DELIVERY_STATUS_LABEL[raw as DeliveryStatus] ?? raw) : raw;
         return (
           <div key={f.key} style={{ display: "contents" }}>
             <dt>{f.label}</dt>
@@ -77,6 +82,10 @@ function BuddyBubble({ message, onNavigate }: { message: BuddyMessage; onNavigat
   }
   return (
     <div className="rcs-buddy__msg rcs-buddy__msg--buddy">
+      <span className="rcs-buddy__who" aria-hidden="true">
+        <RcsMark size={14} />
+        AI Buddy
+      </span>
       <span className="cds--visually-hidden">AI Buddy said: </span>
       {message.text}
       {reply?.case && <CaseSummary summary={reply.case} />}
@@ -105,7 +114,9 @@ function BuddyBubble({ message, onNavigate }: { message: BuddyMessage; onNavigat
  * makes room for it (see index.scss) so it can't cover SOS.
  */
 export function AiBuddy() {
-  const { token, role } = useAuth();
+  const { token, role, isSuperAdmin } = useAuth();
+  const { pathname } = useLocation();
+  const onCasePage = /^\/auditor\/cases\//.test(pathname);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const { messages, loading, send, retry, clear } = useBuddyConversation(token);
@@ -115,6 +126,8 @@ export function AiBuddy() {
   const logEndRef = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
   const [announcement, setAnnouncement] = useState("");
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   // Make room for the panel on wide screens; always undo it on close or unmount.
   useEffect(() => {
@@ -147,7 +160,8 @@ export function AiBuddy() {
   }, [lastId]);
 
   useEffect(() => {
-    if (open && typeof logEndRef.current?.scrollIntoView === "function") {
+    // Follow the conversation, but never on an empty panel: there the notice and questions must stay in view from the top.
+    if (open && lastId !== undefined && typeof logEndRef.current?.scrollIntoView === "function") {
       logEndRef.current.scrollIntoView({ block: "end" });
     }
   }, [open, lastId, loading]);
@@ -182,7 +196,7 @@ export function AiBuddy() {
     <>
       <HeaderGlobalAction
         ref={triggerRef}
-        aria-label="AI Buddy"
+        aria-label={open ? "Close AI Buddy" : "Open AI Buddy"}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         isActive={open}
@@ -196,37 +210,57 @@ export function AiBuddy() {
         createPortal(
           <aside id={panelId} className="rcs-buddy" aria-label="AI Buddy" onKeyDown={onKeyDown}>
             <div className="rcs-buddy__head">
-              <h2 className="rcs-buddy__title">AI Buddy</h2>
-              <Tag type="gray" size="sm">
-                Preliminary
-              </Tag>
-              <AILabel size="mini" aria-label="About AI Buddy" kind="default">
-                <AILabelContent>
-                  <p style={{ fontSize: 14, lineHeight: 1.43 }}>
-                    AI Buddy is an early version. It explains RCS rules and reads a few live figures. It can make
-                    mistakes, so check anything important on the screen it points to. It can't change anything:
-                    people decide.
-                  </p>
-                </AILabelContent>
-              </AILabel>
+              <RcsMark size={24} />
+              <div className="rcs-buddy__heading">
+                <h2 className="rcs-buddy__title">AI Buddy</h2>
+                <p className="rcs-buddy__sub">Built on watsonx.ai</p>
+              </div>
+              <DefinitionTooltip definition="AI-generated. Check before acting." openOnHover align="bottom-end">
+                <Tag type="gray" size="sm">
+                  Beta
+                </Tag>
+              </DefinitionTooltip>
               <IconButton label="Close AI Buddy" kind="ghost" size="md" align="bottom-end" onClick={() => setOpen(false)}>
                 <Close />
               </IconButton>
             </div>
 
+            {/* The early-version caveat as one quiet line under the head, not a box competing with the answers. */}
+            {!noticeDismissed && (
+              <div className="rcs-buddy__note">
+                <Information size={16} aria-hidden />
+                <p>
+                  <strong>Early version.</strong> I can make mistakes, so check anything important on the screen I
+                  point to.
+                </p>
+                <IconButton
+                  label="Dismiss"
+                  kind="ghost"
+                  size="sm"
+                  align="bottom-end"
+                  onClick={() => setNoticeDismissed(true)}
+                >
+                  <Close />
+                </IconButton>
+              </div>
+            )}
+
             <div className="rcs-buddy__log">
               {empty && (
-                <div>
-                  <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>How can I help?</p>
-                  <p style={{ fontSize: 14, color: "var(--cds-text-secondary)", margin: "0.5rem 0 1rem" }}>
-                    Ask about RCS rules, your limits or a case. I can explain, but I can't change anything.
+                <div className="rcs-buddy__welcome">
+                  <p className="rcs-buddy__welcome-title">How can I help?</p>
+                  <p className="rcs-buddy__welcome-text">
+                    I can explain RCS rules, your limits and your cases. You make the final call.
                   </p>
+                  <p className="rcs-buddy__label">Try asking</p>
                   <div className="rcs-buddy__suggestions">
-                    {SUGGESTED_QUESTIONS[role].map((question) => (
+                    {suggestedQuestions(role, isSuperAdmin, onCasePage).map((question) => (
                       <Button
                         key={question}
-                        kind="tertiary"
+                        kind="ghost"
                         size="md"
+                        renderIcon={ArrowRight}
+                        className="rcs-buddy__chip"
                         disabled={loading}
                         onClick={() => {
                           if (question === CASE_LOOKUP_PROMPT) {
@@ -283,7 +317,9 @@ export function AiBuddy() {
                 <TextArea
                   ref={inputRef}
                   id={`${panelId}-input`}
-                  labelText="Ask a question"
+                  labelText="Ask AI Buddy"
+                  hideLabel
+                  placeholder="Ask about a case or a rule"
                   rows={2}
                   maxLength={2000}
                   value={draft}
@@ -293,7 +329,7 @@ export function AiBuddy() {
                 />
                 <IconButton
                   label="Send"
-                  kind="secondary"
+                  kind="primary"
                   size="lg"
                   align="top-end"
                   disabled={loading || !draft.trim()}
@@ -303,10 +339,28 @@ export function AiBuddy() {
                 </IconButton>
               </div>
               <div className="rcs-buddy__meta">
-                <span>AI Buddy guides. People decide.</span>
-                <Button kind="ghost" size="sm" disabled={empty && !loading} onClick={clear}>
-                  Clear conversation
-                </Button>
+                <span>I can explain and look things up. I can&apos;t take actions.</span>
+                {confirmingClear ? (
+                  <span className="rcs-buddy__confirm">
+                    <Button
+                      kind="danger--ghost"
+                      size="sm"
+                      onClick={() => {
+                        clear();
+                        setConfirmingClear(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button kind="ghost" size="sm" onClick={() => setConfirmingClear(false)}>
+                      Keep
+                    </Button>
+                  </span>
+                ) : (
+                  <Button kind="ghost" size="sm" disabled={empty && !loading} onClick={() => setConfirmingClear(true)}>
+                    Clear conversation
+                  </Button>
+                )}
               </div>
             </div>
           </aside>,

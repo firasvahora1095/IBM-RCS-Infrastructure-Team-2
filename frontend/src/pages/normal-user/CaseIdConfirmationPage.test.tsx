@@ -8,10 +8,10 @@ import { NotImplementedError } from "../../services/types";
 
 function renderPage(state?: { caseId: string }) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: "/case-confirmation", state }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/report/confirmation", state }]}>
       <Routes>
-        <Route path="/" element={<div>Upload page</div>} />
-        <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
+        <Route path="/report" element={<div>Upload page</div>} />
+        <Route path="/report/confirmation" element={<CaseIdConfirmationPage />} />
       </Routes>
     </MemoryRouter>,
   );

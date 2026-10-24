@@ -35,7 +35,7 @@ interface ReviewWorkspaceProps {
   /** Receives measured playback exposure every few seconds and when the workspace closes. */
   onExposure?: (sample: ExposureSample) => void;
   onContinue: () => void;
-  /** "Continue to severity & comment" for Auditors; the Manager's exceptional access returns to its decision. */
+  /** "Rate severity" for Auditors; the Manager's exceptional access returns to its decision. */
   continueLabel?: string;
   /** Absent for an AI-failure case, which has no summary to go back to. */
   onBack?: () => void;
@@ -74,7 +74,7 @@ export function ReviewWorkspace({
   pausedReason,
   onExposure,
   onContinue,
-  continueLabel = "Continue to severity & comment",
+  continueLabel = "Rate severity",
   onBack,
   onTalkToManager,
   onSos,
@@ -87,6 +87,7 @@ export function ReviewWorkspace({
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [totals, setTotals] = useState<ExposureSample>({ active_seconds: 0, replay_seconds: 0 });
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
@@ -191,7 +192,17 @@ export function ReviewWorkspace({
     };
     const observer = new ResizeObserver(measure);
     observer.observe(wrapper);
-    return () => observer.disconnect();
+    // The track itself can change size without the wrapper changing (the time label and volume beside it settle after
+    // the first paint), so watch it too, and measure again once the first frame is laid out and on window resize.
+    const track = wrapper.querySelector<HTMLElement>(".cds--slider__track");
+    if (track) observer.observe(track);
+    const frame = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", measure);
+      observer.disconnect();
+    };
   }, []);
 
   // Keep streamed footage and local previews in step with the controls.
@@ -201,8 +212,24 @@ export function ReviewWorkspace({
     // oxlint-disable-next-line react/set-state-in-effect
     if (!canPlay) setPlaying(false);
     if (!video) return;
-    if (isPlaying) void video.play().catch(() => setPlaying(false));
-    else video.pause();
+    let cancelled = false;
+    if (isPlaying) {
+      void video.play().catch((error: unknown) => {
+        // An old play request can reject after pausing or replacing its source.
+        if (cancelled) return;
+        setPlaying(false);
+        setBuffering(false);
+        const name = error instanceof Error ? error.name : "";
+        setPlaybackError(
+          name === "NotAllowedError"
+            ? "Your browser blocked playback. Check this site's playback permissions and try Play again."
+            : "The video could not start. Reload the page and sign in again if prompted. If it still fails, contact your Manager.",
+        );
+      });
+    } else video.pause();
+    return () => {
+      cancelled = true;
+    };
   }, [isPlaying, canPlay, activeVideoUrl]);
 
   useEffect(() => {
@@ -227,6 +254,7 @@ export function ReviewWorkspace({
 
   function togglePlayback() {
     if (!isPlaying) {
+      setPlaybackError(null);
       if (videoRef.current?.ended || positionRef.current >= duration) seek(0);
       setBuffering(Boolean(videoRef.current && videoRef.current.readyState < 3));
     }
@@ -253,9 +281,11 @@ export function ReviewWorkspace({
       ? "Playback paused — session timed out"
       : offline
         ? "Playback paused — reconnecting"
-        : settings.blur >= 80
-          ? "Blurred — lower the blur above to view"
-          : null;
+        : buffering && isPlaying
+          ? "Loading"
+          : settings.blur >= 80
+            ? "Blurred preview. Lower the blur above to view."
+            : null;
 
   // Marks are drawn against the footage's real length. A flagged moment past
   // the end of this video can't be shown on its timeline, so it isn't drawn
@@ -276,20 +306,28 @@ export function ReviewWorkspace({
           style={{ maxWidth: "100%" }}
         />
       )}
+      {playbackError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          role="alert"
+          title="Video unavailable"
+          subtitle={playbackError}
+          style={{ maxWidth: "100%" }}
+        />
+      )}
       {onExposure && (
         <p style={{ fontSize: 14, lineHeight: "18px", color: "var(--cds-text-secondary)" }}>
-          This case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (
-          {formatDuration(totals.active_seconds)} active, {formatDuration(totals.replay_seconds)} replay) ·{" "}
-          {isPlaying ? (buffering ? "○ Buffering" : "● Counting") : "○ Paused"}
+          Exposure this case: {formatDuration(totals.active_seconds + totals.replay_seconds)} (replays count) ·{" "}
+          {isPlaying ? (buffering ? "○ Buffering" : "● Counting") : "○ Playback paused"}
         </p>
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
-        {/* Video column: stays in view while the rail scrolls, so SOS is always reachable.
-            Capped at the viewport height and scrollable inside: on a short laptop screen the
-            pinned column was taller than the window, so its blur controls and Continue button
-            could never be scrolled into view and the page looked frozen. */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+        {/* Video column: one page scroll for the whole screen, no scrolling inside the column. The next step lives in a
+            sticky bar at the bottom, so it is always in view and never has to be scrolled to. */}
+        <div className="flex flex-col gap-4">
           {/* Viewing safety: always above the footage, so it never needs a scroll (AR-PV-03 to 05). */}
           <div className="rcs-player-toolbar" role="group" aria-label="Viewing safety">
             <div className="rcs-inline-control rcs-player-blur">
@@ -326,11 +364,27 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
-          <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)", marginTop: -8 }}>
-            {aiFailed || !caseDetail.severity_tier
-              ? "No AI blur suggestion: severity is unknown for this case."
-              : `AI-suggested blur: ${SUGGESTED_BLUR[caseDetail.severity_tier]}%. You decide what's comfortable.`}
-          </p>
+          <div className="flex flex-wrap items-center gap-2" style={{ marginTop: -8 }}>
+            {aiFailed || !caseDetail.severity_tier ? (
+              <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+                No AI blur suggestion: severity is unknown for this case.
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
+                  AI suggests {SUGGESTED_BLUR[caseDetail.severity_tier]}% blur. You decide what&apos;s comfortable.
+                </p>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  disabled={settings.blur === SUGGESTED_BLUR[caseDetail.severity_tier]}
+                  onClick={() => onSettingsChange({ ...settings, blur: SUGGESTED_BLUR[caseDetail.severity_tier!] })}
+                >
+                  Use {SUGGESTED_BLUR[caseDetail.severity_tier]}%
+                </Button>
+              </>
+            )}
+          </div>
 
           <div
             className="rcs-player-frame relative w-full shrink-0 overflow-hidden"
@@ -351,6 +405,16 @@ export function ReviewWorkspace({
                   className="h-full w-full object-contain"
                   playsInline
                   preload="auto"
+                  onLoadStart={() => setPlaybackError(null)}
+                  onError={(e) => {
+                    setPlaying(false);
+                    setBuffering(false);
+                    setPlaybackError(
+                      e.currentTarget.error?.code === 3
+                        ? "Your browser could not decode this video. Try another browser or ask your Manager to check the file."
+                        : "The video could not be loaded. Reload the page and sign in again if prompted. If it still fails, contact your Manager.",
+                    );
+                  }}
                   onLoadedMetadata={(e) => {
                     const video = e.currentTarget;
                     if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -370,7 +434,10 @@ export function ReviewWorkspace({
                     setBuffering(e.currentTarget.readyState < 3);
                   }}
                   onWaiting={() => setBuffering(true)}
-                  onPlaying={() => setBuffering(false)}
+                  onPlaying={() => {
+                    setBuffering(false);
+                    setPlaybackError(null);
+                  }}
                   onCanPlay={() => setBuffering(false)}
                   onEnded={(e) => {
                     syncMediaPosition(e.currentTarget);
@@ -400,12 +467,7 @@ export function ReviewWorkspace({
 
             {onSos && (
               <div className="absolute right-4 top-4">
-                <Button
-                  kind="danger"
-                  size="md"
-                  onClick={onSos}
-                  aria-label="SOS: pause this case and notify my manager"
-                >
+                <Button kind="danger" size="md" onClick={onSos} aria-label="SOS: pause this case and notify my Manager">
                   SOS
                 </Button>
               </div>
@@ -447,6 +509,24 @@ export function ReviewWorkspace({
                   role="group"
                   aria-label="Flagged moments"
                 >
+                  {timeline
+                    .filter((entry) => entry.end > entry.start)
+                    .map((entry, i) => (
+                      <span
+                        key={`range-${i}`}
+                        aria-hidden="true"
+                        title={`Flagged section ${formatTimestamp(entry.start)} to ${formatTimestamp(Math.min(entry.end, duration))}`}
+                        style={{
+                          position: "absolute",
+                          insetBlockStart: 4,
+                          insetInlineStart: `${(Math.min(entry.start, duration) / duration) * 100}%`,
+                          inlineSize: `${((Math.min(entry.end, duration) - Math.min(entry.start, duration)) / duration) * 100}%`,
+                          blockSize: 6,
+                          backgroundColor: getSeverityInfo(entry.severity_tier).background,
+                          opacity: 0.85,
+                        }}
+                      />
+                    ))}
                   {timeline.map((entry, i) => {
                     const info = getSeverityInfo(entry.severity_tier);
                     const range =
@@ -518,6 +598,15 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
+          {timeline.length > 0 && (
+            <p className="flex items-center gap-2" style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
+              <span
+                aria-hidden="true"
+                style={{ display: "inline-block", inlineSize: 16, blockSize: 6, backgroundColor: "var(--rcs-sev-3-bg)" }}
+              />
+              Flagged section. Select a marker to jump to it.
+            </p>
+          )}
           {hiddenMarks > 0 && (
             <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
               {hiddenMarks} flagged moment{hiddenMarks === 1 ? " is" : "s are"} after the end of this video, so{" "}
@@ -552,13 +641,13 @@ export function ReviewWorkspace({
           )}
 
 
-          <div className="flex flex-col items-start gap-4">
-            <Button onClick={onContinue}>{continueLabel}</Button>
+          <div className="rcs-action-bar">
             {onBack && (
               <Button kind="tertiary" onClick={onBack}>
-                ← Back to AI Analysis Summary
+                ← Back to AI summary
               </Button>
             )}
+            <Button onClick={onContinue}>{continueLabel}</Button>
           </div>
         </div>
 
@@ -570,7 +659,7 @@ export function ReviewWorkspace({
               <div>
                 <p className="rcs-support-guide-title">Wellbeing check-in: not urgent</p>
                 <p className="rcs-helper">
-                  Talk to your manager or ask for a break. Your case stays open and nothing is paused.
+                  Talk to your Manager or ask for a break. Your case stays open.
                 </p>
                 {onTalkToManager && (
                   <Button kind="tertiary" size="sm" onClick={onTalkToManager} style={{ marginTop: 8 }}>
@@ -581,7 +670,7 @@ export function ReviewWorkspace({
               <div>
                 <p className="rcs-support-guide-title">SOS: stop now</p>
                 <p className="rcs-helper">
-                  Use the red SOS button on the video. The content is hidden at once, your manager is alerted and a
+                  Use the red SOS button on the video. The content is hidden at once, your Manager is alerted and a
                   cooldown starts.
                 </p>
               </div>
@@ -589,7 +678,7 @@ export function ReviewWorkspace({
           )}
           <div className="flex flex-col gap-2 p-4" style={{ backgroundColor: "var(--cds-layer-01)" }}>
             {aiFailed || !caseDetail.severity_tier ? (
-              <p style={secondaryText}>Severity unknown — AI analysis unavailable for this case</p>
+              <p style={secondaryText}>Severity unknown. AI analysis is unavailable for this case.</p>
             ) : (
               <>
                 <div>
@@ -610,17 +699,17 @@ export function ReviewWorkspace({
                 </AccordionItem>
               )}
               {caseDetail.flagged_entities && caseDetail.flagged_entities.length > 0 && (
-                <AccordionItem title="Flagged entities" open>
+                <AccordionItem title="Flagged entities">
                   <EntityPills entities={caseDetail.flagged_entities} />
                 </AccordionItem>
               )}
               {caseDetail.transcript && caseDetail.transcript.length > 0 && (
-                <AccordionItem title="Transcript" open>
+                <AccordionItem title="Transcript">
                   <TranscriptList transcript={caseDetail.transcript} currentTime={position} />
                 </AccordionItem>
               )}
               {caseDetail.audio_intensity && caseDetail.audio_intensity.length > 0 && (
-                <AccordionItem title="Audio intensity" open>
+                <AccordionItem title="Audio intensity">
                   <AudioIntensityGraph values={caseDetail.audio_intensity} durationSeconds={duration} />
                 </AccordionItem>
               )}

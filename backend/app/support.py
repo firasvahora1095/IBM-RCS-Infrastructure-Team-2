@@ -18,6 +18,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api_schemas import CheckInRequest
 from app.auth import StaffSession, session_store
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case, WellbeingRequest
@@ -106,9 +107,25 @@ def open_request_counts(db: Session, auditor_id: str) -> dict:
     rows = db.scalars(
         select(WellbeingRequest).where(WellbeingRequest.auditor_id == auditor_id, WellbeingRequest.status == "OPEN")
     ).all()
+    midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+    on_break = False
+    for r in db.scalars(
+        select(WellbeingRequest).where(
+            WellbeingRequest.auditor_id == auditor_id,
+            WellbeingRequest.kind == "BREAK_REQUEST",
+            WellbeingRequest.status == "APPROVED",
+        )
+    ).all():
+        resolved = r.resolved_at
+        if resolved is not None and resolved.tzinfo is None:
+            resolved = resolved.replace(tzinfo=timezone.utc)
+        if resolved is not None and resolved >= midnight:
+            on_break = True
     return {
         "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
         "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
+        # A break the Manager approved today: shown as Unavailable (break), not Available.
+        "on_break": on_break,
     }
 
 
@@ -123,6 +140,25 @@ def unresolved_sos_auditors(db: Session) -> list[Auditor]:
                 Auditor.cooldown_ends_at.is_not(None),
             )
             .order_by(Auditor.cooldown_ends_at.desc())
+        ).all()
+    )
+
+
+def pending_check_in_auditors(db: Session) -> list[Auditor]:
+    """Auditors finishing an S4 case whose Manager check-in isn't recorded yet, oldest first.
+
+    SOS check-ins are not listed here: logging the SOS follow-up records them, and those Auditors are already
+    counted as open SOS. Until the check-in is logged the Auditor stays in cooldown, even after the timer ends.
+    """
+    return list(
+        db.scalars(
+            select(Auditor)
+            .where(
+                Auditor.cooldown_trigger == "S4",
+                Auditor.cooldown_check_in_done == 0,
+                Auditor.cooldown_ends_at.is_not(None),
+            )
+            .order_by(Auditor.cooldown_ends_at.asc())
         ).all()
     )
 
@@ -241,6 +277,48 @@ async def follow_up_request(
 ):
     resolve_request(db, request_id, "TALK_TO_MANAGER", "FOLLOWED_UP")
     return {"followed_up": True}
+
+
+@router.post("/api/manager/auditors/{auditor_id}/check-in")
+async def log_check_in(
+    auditor_id: str,
+    payload: CheckInRequest,
+    manager: StaffSession = Depends(require_manager),
+    db: Session = Depends(get_db),
+):
+    """Records the Manager's check-in after an S4 case, which lets the Auditor leave cooldown."""
+    row = auditor_exists(db, auditor_id)
+    if row.cooldown_trigger == "SOS" and not row.cooldown_check_in_done and row.cooldown_ends_at is not None:
+        raise HTTPException(status_code=409, detail="This is an SOS. Log the check-in in the SOS follow-up.")
+    if row.cooldown_trigger != "S4" or row.cooldown_check_in_done or row.cooldown_ends_at is None:
+        raise HTTPException(status_code=409, detail="No check-in is waiting for this Auditor.")
+    row.cooldown_check_in_done = 1
+    # The audit trail hangs off a case: the S4 case that earned the cooldown is the Auditor's latest completed one.
+    s4_case = db.scalars(
+        select(Case)
+        .where(
+            Case.assigned_auditor_id == auditor_id,
+            Case.severity_tier == "S4",
+            Case.status == "COMPLETE",
+            Case.completed_at.is_not(None),
+        )
+        .order_by(Case.completed_at.desc())
+        .limit(1)
+    ).first()
+    if s4_case is not None:
+        db.add(AuditLog(
+            case_id=s4_case.case_id,
+            actor=manager.staff_id,
+            action="CHECK_IN_LOGGED",
+            before_value={"check_in_done": False},
+            after_value={
+                "auditor_id": auditor_id,
+                "notes": payload.notes.strip(),
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            },
+        ))
+    db.commit()
+    return {"checked_in": True}
 
 
 def auditor_exists(db: Session, auditor_id: str) -> Auditor:

@@ -123,10 +123,17 @@ def install_routes(app, require_manager, require_internal_api_key):
         if row is None:
             raise HTTPException(404, "Call not found")
         digest = sha256(json.dumps(payload.model_dump(), sort_keys=True).encode()).hexdigest()
+        needs_leakage_check = row.checked_at is None and row.leakage_rule_version is None
+        needs_validation = row.validation_status == "NOT_CHECKED"
         if row.outcome != "STARTED":
-            if row.receipt_digest == digest:
+            if row.receipt_digest != digest:
+                raise HTTPException(409, "Conflicting receipt replay")
+            if row.outcome != "RECEIVED":
                 return {"entry_id": entry_id, "outcome": row.outcome}
-            raise HTTPException(409, "Conflicting receipt replay")
+            if not needs_leakage_check and not needs_validation:
+                return {"entry_id": entry_id, "outcome": row.outcome}
+            # Receipt and checks use separate transactions. An identical replay
+            # must resume missing checks after interruption, retaining receipt time.
         from app.video_analysis import VISION_ANALYSIS_PROMPT, parse_watsonx_frame_output
         db.rollback()
         recorder = GovernanceRecorder(sessionmaker(bind=db.get_bind()))
@@ -139,11 +146,16 @@ def install_routes(app, require_manager, require_internal_api_key):
                 "model_id": payload.returned_model_id, "id": payload.provider_request_id,
                 "usage": {"prompt_tokens": payload.tokens_in, "completion_tokens": payload.tokens_out}}, receipt_digest=digest)
             if payload.content is not None:
-                recorder.check_leakage(entry_id, payload.content, VISION_ANALYSIS_PROMPT)
-                try:
-                    parse_watsonx_frame_output(payload.content)
-                except (ValueError, TypeError, KeyError) as error:
-                    recorder.invalid(entry_id, error)
+                if needs_leakage_check:
+                    try:
+                        recorder.check_leakage(entry_id, payload.content, VISION_ANALYSIS_PROMPT)
+                    except ValueError as error:
+                        raise HTTPException(409, str(error)) from error
+                if needs_validation:
+                    try:
+                        parse_watsonx_frame_output(payload.content)
+                    except (ValueError, TypeError, KeyError) as error:
+                        recorder.invalid(entry_id, error)
             # Content contract parsing alone does not establish persisted attribution.
         return {"entry_id": entry_id, "outcome": payload.event}
 

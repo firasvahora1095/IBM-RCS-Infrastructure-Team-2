@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
-import { Button, InlineNotification } from "@carbon/react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Accordion, AccordionItem, Button, InlineNotification } from "@carbon/react";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { RawContentAccess } from "../../components/manager/RawContentAccess";
 import { ManagerLayout } from "../../components/layout/ManagerLayout";
-import { Figure, LoadState, ManagerBreadcrumb, Panel } from "../../components/manager/ManagerBits";
-import { secondaryText } from "../../components/manager/managerStyles";
+import { Figure, LoadState, ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { acknowledgeSosAlert, getSosAlert } from "../../services";
 import { ApiError, NETWORK_ERROR_MESSAGE } from "../../services/types";
-import { getSeverityInfo } from "../../design-tokens/severity";
+import { SeverityTag } from "../../components/severity/SeverityTag";
+import { Section } from "../../components/ui/Blocks";
+import { StatusTag } from "../../components/ui/StatusTag";
+import { SOS_TONE } from "../../design-tokens/statusTones";
 import { SOS_STATUS_LABEL, SOS_TRIGGER_LABEL } from "../../design-tokens/managerLabels";
 import { useAuth } from "../../hooks/useAuth";
 import { useStaffQuery } from "../../hooks/useStaffQuery";
@@ -14,8 +18,14 @@ import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
 import { notifySosChanged } from "../../hooks/useSosSummary";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 
+function nextStepText(status: string, name: string): string {
+  if (status === "UNACKNOWLEDGED") return `Acknowledge this alert to show that you are following up, then speak with ${name}.`;
+  if (status === "IN_PROGRESS") return `After speaking with ${name}, log what you did and how they are. That resolves the alert.`;
+  return "This alert is resolved.";
+}
+
 /**
- * SOS Alert Detail (Manager Figma 103:197): the affected Auditor's exposure
+ * SOS alert Detail (Manager Figma 103:197): the affected Auditor's exposure
  * and the triggering case's AI context, as text only — no footage, no
  * thumbnail (MR-SOS-05). Acknowledging records that follow-up has begun
  * (MR-SOS-04). Raw content stays behind a separate, deliberate,
@@ -52,55 +62,17 @@ export function ManagerSosAlertPage() {
     <ManagerLayout showNav={false} showSosBanner={false}>
       {sessionModal}
       <ManagerBreadcrumb
-        trail={[{ label: "SOS Inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
+        trail={[{ label: "Overview", to: "/manager" }, { label: "SOS inbox", to: "/manager/sos" }, { label: data?.auditor_name ?? "SOS alert" }]}
       />
       <LoadState error={error} loading={!data && !error} what="this SOS alert" />
       {data && (
         <>
-          <InlineNotification
-            kind={data.status === "RESOLVED" ? "info" : "error"}
-            lowContrast={data.status !== "UNACKNOWLEDGED"}
-            hideCloseButton
-            title={`SOS alert — ${data.auditor_name} — ${formatRelativeTime(data.triggered_at, now)}`}
-            subtitle={(SOS_STATUS_LABEL[data.status] ?? "Open").toLowerCase()}
-            style={{ maxWidth: "100%" }}
+          {/* Who, when and where it stands, before anything else. */}
+          <PageHeader
+            title={data.auditor_name}
+            subtitle={`SOS raised ${formatRelativeTime(data.triggered_at, now)}`}
+            meta={<StatusTag tone={SOS_TONE[data.status]}>{SOS_STATUS_LABEL[data.status] ?? "Open"}</StatusTag>}
           />
-
-          <Panel>
-            <h1 style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600 }}>{data.auditor_name}</h1>
-            <dl className="flex flex-wrap gap-12">
-              <Figure
-                label="Today's exposure"
-                value={`${Math.round(data.exposure_minutes_today)} / ${data.exposure_limit_minutes} min`}
-              />
-              <Figure label="Triggering case" value={data.case_id} />
-              <Figure label="Raised by" value={SOS_TRIGGER_LABEL[data.trigger]} />
-              <Figure
-                label="AI severity"
-                value={
-                  data.severity_tier
-                    ? `${data.severity_tier} · ${getSeverityInfo(data.severity_tier).label} — CVI ${data.effective_severity_score}`
-                    : "Unknown"
-                }
-              />
-            </dl>
-            <hr style={{ border: 0, borderTop: "1px solid var(--cds-border-subtle-01)", margin: 0 }} />
-            <h2 style={{ fontSize: 14, fontWeight: 600 }}>AI narrative summary (text only — no raw footage shown)</h2>
-            <p style={{ fontSize: 14, lineHeight: "20px", whiteSpace: "pre-line" }}>
-              {data.narrative_summary ?? "No narrative summary is available for this case."}
-            </p>
-            {data.follow_up_notes && (
-              <>
-                <h2 style={{ fontSize: 14, fontWeight: 600 }}>Follow-up logged</h2>
-                <p style={{ fontSize: 14, lineHeight: "20px" }}>{data.follow_up_notes}</p>
-              </>
-            )}
-            <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-secondary)" }}>
-              This screen never auto-plays or thumbnails the triggering case&apos;s video, consistent with responding to
-              the SOS without requiring raw source-video viewing by default. If genuinely needed, raw-content access is
-              a separate, deliberate path.
-            </p>
-          </Panel>
 
           {actionError && (
             <InlineNotification
@@ -114,26 +86,74 @@ export function ManagerSosAlertPage() {
             />
           )}
 
-          <div>
-            {data.status === "UNACKNOWLEDGED" && (
-              <Button disabled={isAcknowledging} onClick={acknowledge}>
-                {isAcknowledging ? "Acknowledging…" : "Acknowledge"}
+          {/* The one next step, with its one button. */}
+          <Section id="next-step" title="Next step" description={nextStepText(data.status, data.auditor_name)}>
+            {/* The step and the way to more context side by side: the dark button acts, the outlined one only looks. */}
+            <div className="flex flex-wrap items-center gap-3">
+              {data.status === "UNACKNOWLEDGED" && (
+                <Button disabled={isAcknowledging} onClick={acknowledge}>
+                  {isAcknowledging ? "Acknowledging…" : "Acknowledge"}
+                </Button>
+              )}
+              {data.status === "IN_PROGRESS" && <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>}
+              <Button kind="tertiary" onClick={() => navigate(`/manager/auditors/${encodeURIComponent(data.auditor_id)}`)}>
+                Auditor record
               </Button>
+            </div>
+            {data.status === "RESOLVED" && data.follow_up_notes && (
+              <p className="rcs-body">
+                <strong>Follow-up logged:</strong> {data.follow_up_notes}
+              </p>
             )}
-            {data.status === "IN_PROGRESS" && <Button onClick={() => navigate(followUpUrl)}>Log follow-up</Button>}
-          </div>
+            {data.status !== "RESOLVED" &&
+              (data.severity_tier === "S4" ||
+                data.severity_tier === "S3" ||
+                data.exposure_minutes_today >= 0.8 * data.exposure_limit_minutes) && (
+                <InlineNotification
+                  kind="warning"
+                  lowContrast
+                  hideCloseButton
+                  title={data.severity_tier === "S4" ? "Critical case." : "Higher risk."}
+                  subtitle={`${data.severity_tier === "S4" ? "A check-in is mandatory. " : ""}Consider whether ${data.auditor_name} should stop their shift or have their remaining cases moved.`}
+                  style={{ maxWidth: "100%" }}
+                />
+              )}
+          </Section>
 
-          <p style={{ ...secondaryText, fontSize: 12 }}>
-            Structured signals not enough to decide?
-            <br />
-            <RouterLink
-              className="cds--link"
-              style={{ fontSize: 12 }}
-              to={`/manager/cases/${encodeURIComponent(data.case_id)}/raw?from=${encodeURIComponent(`/manager/sos/${alertId}`)}`}
-            >
-              View raw content (exceptional access, same protections as an Auditor)
-            </RouterLink>
-          </p>
+          <Section id="at-a-glance" title="At a glance">
+            <dl className="rcs-glance">
+              <Figure
+                label="Today's exposure"
+                value={`${Math.round(data.exposure_minutes_today)} / ${data.exposure_limit_minutes} min`}
+              />
+              <Figure label="Triggering case" value={data.case_id} />
+              <Figure label="Raised by" value={SOS_TRIGGER_LABEL[data.trigger]} />
+              <Figure
+                label="AI severity"
+                value={
+                  data.severity_tier ? (
+                    <span className="rcs-align-row">
+                      <SeverityTag tier={data.severity_tier} size="sm" />
+                      <span className="rcs-helper" title="CVI: the AI's severity score, from 0 to 100.">
+                        CVI {data.effective_severity_score}
+                      </span>
+                    </span>
+                  ) : (
+                    "Unknown"
+                  )
+                }
+              />
+            </dl>
+          </Section>
+
+          {/* Closed until asked for: the text can describe distressing content, so it is not put in front of anyone by default. */}
+          <Accordion>
+            <AccordionItem title="Summary of the case (text only, no footage)">
+              <p className="rcs-readable">{data.narrative_summary ?? "No summary is available for this case."}</p>
+            </AccordionItem>
+          </Accordion>
+
+          <RawContentAccess caseId={data.case_id} returnTo={`/manager/sos/${alertId}`} />
         </>
       )}
     </ManagerLayout>

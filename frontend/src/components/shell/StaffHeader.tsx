@@ -1,8 +1,9 @@
-import { Header, HeaderName, HeaderGlobalBar, Tag, Theme } from "@carbon/react";
+import { Header, HeaderGlobalBar, Tag, Theme } from "@carbon/react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import type { SosSummary } from "../../services/types";
 import { useAuth, ROLE_HOME, type StaffRole } from "../../hooks/useAuth";
 import { DemoDataBadge } from "./DemoDataBadge";
+import { AppBrand, UserMenu } from "./AppBrand";
 import { DemoScenarioMenu } from "./DemoScenarioMenu";
 import { ExposureBar } from "../exposure/ExposureBar";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
@@ -30,9 +31,11 @@ interface StaffHeaderProps {
  * exposure data, so there's never a made-up number.
  */
 export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
-  const { staffId, logout } = useAuth();
+  const { staffId, displayName, isSuperAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const label = ROLE_LABEL[role];
+  // A Super Auditor is an Auditor with extra duties; the header says so, with a name rather than a login ID.
+  const whoLabel = role === "auditor" && isSuperAdmin ? "Super Auditor" : label;
   const { wellbeing } = useMyWellbeing();
 
   function handleSignOut() {
@@ -45,16 +48,12 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
 
   return (
     <Theme theme="g100">
-      <Header aria-label={`RCS — ${label}`}>
-        {/* On phones the header has room for the essentials only: the role
-            label, the staff ID and the word "today" drop out below the sm/lg
-            breakpoints, and the exposure bar narrows, so nothing runs off
-            the edge of the fixed 48px bar. */}
-        <HeaderName href={ROLE_HOME[role]} prefix="" aria-label={`RCS — ${label}`}>
-          RCS<span className="hidden sm:inline">{` — ${label}`}</span>
-        </HeaderName>
+      <Header aria-label={`RCS — ${label}`} className="rcs-app-header">
+        {/* On phones the header keeps the essentials: the area label, the name and the word "today" drop out
+            below the sm/lg breakpoints, and the exposure bar narrows, so nothing runs off the fixed 48px bar. */}
+        <AppBrand area={label} href={ROLE_HOME[role]} />
         <DemoDataBadge />
-        <HeaderGlobalBar className="min-w-0 items-center gap-2 pr-2 sm:gap-6 sm:pr-6">
+        <HeaderGlobalBar className="rcs-app-actions">
           {role === "auditor" && wellbeing && (
             <ExposureBar
               surface="dark"
@@ -68,44 +67,24 @@ export function StaffHeader({ role, sosSummary }: StaffHeaderProps) {
             />
           )}
           {role === "manager" && sosSummary && sosSummary.unresolved_count > 0 && (
-            <RouterLink
-              to="/manager/sos"
-              aria-label={`${sosSummary.unresolved_count} SOS ${sosSummary.unresolved_count === 1 ? "alert" : "alerts"}`}
-              style={{ textDecoration: "none" }}
-            >
+            <RouterLink to="/manager/sos" style={{ textDecoration: "none" }}>
               <Tag type="red" size="md" style={{ cursor: "pointer", margin: 0, whiteSpace: "nowrap" }}>
                 {sosSummary.unresolved_count} SOS
                 <span className="hidden sm:inline">{sosSummary.unresolved_count === 1 ? " alert" : " alerts"}</span>
               </Tag>
             </RouterLink>
           )}
-          {staffId && (
-            <span
-              className="hidden lg:inline"
-              style={{ fontSize: 14, color: "var(--cds-text-primary)", whiteSpace: "nowrap" }}
-            >
-              {label}: {staffId}
-            </span>
-          )}
-          <AiBuddy />
+          <span className="rcs-header-divider" aria-hidden="true" />
           <DemoScenarioMenu role={role} />
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="cursor-pointer"
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--cds-text-primary)",
-              fontSize: 14,
-              fontFamily: "inherit",
-              textDecoration: "underline",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Sign out
-          </button>
+          <AiBuddy />
+          {staffId && (
+            <UserMenu
+              name={displayName || staffId}
+              role={whoLabel}
+              detail={displayName ? staffId : undefined}
+              onSignOut={handleSignOut}
+            />
+          )}
         </HeaderGlobalBar>
       </Header>
     </Theme>

@@ -1,47 +1,43 @@
-import { NavLink } from "react-router-dom";
-import { MANAGER_SECTIONS } from "./managerSections";
-
-const tabBase = {
-  display: "inline-block",
-  padding: "14px 4px 12px",
-  fontSize: 14,
-  lineHeight: "18px",
-  textDecoration: "none",
-  borderBottom: "2px solid transparent",
-} as const;
+import type { ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { activeSection, MANAGER_SECTIONS } from "./managerSections";
 
 /**
- * The Manager TopNav (Figma component "TopNav=Manager", node 94:132): all
- * the Manager sections, each a real route (Task 103).
+ * The Manager TopNav (Figma component "TopNav=Manager", node 94:132): the five
+ * Manager sections, each a real route (Task 103).
  *
- * Real links (NavLink) rather than buttons, because these navigate between
- * pages; NavLink also sets aria-current="page" on the active section.
+ * Real links rather than buttons, because these navigate between pages. The
+ * active section is worked out from the path so that sub-pages (an SOS alert,
+ * a reassignment decision) keep the section they belong to marked with
+ * aria-current="page".
  */
-export function ManagerTopNav() {
+export function ManagerTopNav({ end, counts = {} }: { end?: ReactNode; counts?: Record<string, number> }) {
+  const active = activeSection(useLocation().pathname);
   return (
-    <nav
-      aria-label="Manager sections"
-      className="flex flex-wrap gap-2 px-6 sm:px-8"
-      style={{
-        backgroundColor: "var(--cds-background)",
-        borderBottom: "1px solid var(--cds-border-subtle-01)",
-      }}
+    <div
+      className="rcs-app-tabbar"
     >
-      {MANAGER_SECTIONS.map((tab) => (
-        <NavLink
-          key={tab.path}
-          to={tab.path}
-          end={tab.end}
-          style={({ isActive }) => ({
-            ...tabBase,
-            color: isActive ? "var(--cds-text-primary)" : "var(--cds-text-secondary)",
-            fontWeight: isActive ? 600 : 400,
-            borderBottomColor: isActive ? "var(--cds-border-interactive)" : "transparent",
-          })}
-        >
-          {tab.label}
-        </NavLink>
-      ))}
-    </nav>
+      <nav aria-label="Manager sections" className="rcs-app-tabs">
+        {MANAGER_SECTIONS.map((tab) => {
+          const isActive = tab.path === active;
+          return (
+            <Link
+              key={tab.path}
+              to={tab.path}
+              aria-current={isActive ? "page" : undefined}
+              className="rcs-app-tab"
+            >
+              {tab.label}
+              {(counts[tab.path] ?? 0) > 0 && (
+                <span className="rcs-subnav-count rcs-subnav-count--neutral">
+                  {counts[tab.path]}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+      {end}
+    </div>
   );
 }

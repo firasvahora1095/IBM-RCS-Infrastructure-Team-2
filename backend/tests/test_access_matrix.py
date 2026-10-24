@@ -23,24 +23,24 @@ from app.main import app
 from app.models import Auditor, Base, Case
 
 PASSWORD = "correct horse battery staple"
-ROLES = ("anonymous", "standard auditor", "super admin", "manager")
-LOGIN = {"standard auditor": "auditor-1", "super admin": "superadmin-1", "manager": "manager-1"}
+ROLES = ("anonymous", "standard auditor", "super auditor", "manager")
+LOGIN = {"standard auditor": "auditor-1", "super auditor": "superauditor-1", "manager": "manager-1"}
 
 # (label, method, path, json body, expected status for ROLES in order)
 MATRIX = [
-    # What only the Super Admin gets
+    # What only the Super Auditor gets
     ("see every open case (queue metadata)", "GET", "/api/auditor/all-cases", None, (401, 403, 200, 403)),
     ("take an unowned case (S)", "POST", "/api/auditor/cases/FREE1/take", None, (401, 403, 200, 403)),
-    # Shared between the Super Admin and the Manager
+    # Shared between the Super Auditor and the Manager
     ("make an unowned case available (S)", "POST", "/api/cases/FREE1/make-available", None, (401, 403, 200, 200)),
-    # What every Auditor, the Super Admin included, has
+    # What every Auditor, the Super Auditor included, has
     ("own queue", "GET", "/api/auditor/cases", None, (401, 200, 200, 403)),
     ("open a case they own", "GET", "/api/auditor/cases/OWNED1", None, (401, 200, 404, 403)),
     ("open a case someone else owns", "GET", "/api/auditor/cases/OWNED2", None, (401, 404, 404, 403)),
     ("list cases released for claiming", "GET", "/api/auditor/available-cases", None, (401, 200, 200, 403)),
     ("claim a released case (S)", "POST", "/api/auditor/cases/POOL1/claim", None, (401, 200, 200, 403)),
     ("own wellbeing and exposure", "GET", "/api/auditor/wellbeing", None, (401, 200, 200, 403)),
-    # What only a Manager has: the Super Admin does not
+    # What only a Manager has: the Super Auditor does not
     ("manager case oversight", "GET", "/api/manager/cases", None, (401, 403, 403, 200)),
     ("manager auditor overview", "GET", "/api/manager/auditors", None, (401, 403, 403, 200)),
     ("manager SOS inbox", "GET", "/api/manager/sos-alerts", None, (401, 403, 403, 200)),
@@ -91,7 +91,7 @@ class AccessMatrixTests(unittest.TestCase):
             for staff_id, role, sa in (
                 ("auditor-1", "auditor", False),
                 ("auditor-2", "auditor", False),
-                ("superadmin-1", "auditor", True),
+                ("superauditor-1", "auditor", True),
                 ("manager-1", "manager", False),
             ):
                 db.add(
@@ -141,8 +141,8 @@ class AccessMatrixTests(unittest.TestCase):
     def test_the_super_admin_is_still_bound_by_wellbeing_when_taking_a_case(self) -> None:
         self.seed()
         with self.Session.begin() as db:
-            db.get(Auditor, "superadmin-1").exposure_minutes = 120
-        r = self.client.request("POST", "/api/auditor/cases/FREE1/take", headers=self.headers("super admin"))
+            db.get(Auditor, "superauditor-1").exposure_minutes = 120
+        r = self.client.request("POST", "/api/auditor/cases/FREE1/take", headers=self.headers("super auditor"))
         self.assertEqual(r.status_code, 409)
 
 

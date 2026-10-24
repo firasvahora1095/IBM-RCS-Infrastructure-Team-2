@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Dropdown, InlineNotification, Select, SelectItem, TextArea, TextInput } from "@carbon/react";
-import { ClientHeader } from "../../components/shell/ClientHeader";
-import { StaffPage } from "../../components/layout/StaffPage";
+import { ClientLayout } from "../../components/layout/ClientLayout";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { ManagerBreadcrumb } from "../../components/manager/ManagerBits";
 import { clientListReports, clientSendMessage } from "../../services";
@@ -68,86 +67,85 @@ export function ClientNewMessagePage() {
   }
 
   return (
-    <>
-      <ClientHeader />
-      <StaffPage maxWidth={720}>
-        <PageHeader
-          breadcrumb={<ManagerBreadcrumb trail={[{ label: "Messages", to: "/client/messages" }, { label: "New message" }]} />}
-          title="Contact RCS"
-          subtitle={MESSAGE_RESPONSE_PROMISE}
-        />
-        <form
-          className="flex flex-col gap-6"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
+    <ClientLayout maxWidth={720}>
+      <PageHeader
+        breadcrumb={
+          <ManagerBreadcrumb trail={[{ label: "Messages", to: "/client/messages" }, { label: "New message" }]} />
+        }
+        title="Contact RCS"
+        subtitle={MESSAGE_RESPONSE_PROMISE}
+      />
+      <form
+        className="flex flex-col gap-6"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <Select
+          id="message-topic"
+          labelText="What is it about?"
+          value={topic}
+          invalid={tried && missing.topic}
+          invalidText="Choose what your message is about."
+          onChange={(e) => setTopic(e.target.value as ClientMessageTopic)}
         >
-          <Select
-            id="message-topic"
-            labelText="What is it about?"
-            value={topic}
-            invalid={tried && missing.topic}
-            invalidText="Choose what your message is about."
-            onChange={(e) => setTopic(e.target.value as ClientMessageTopic)}
-          >
-            <SelectItem value="" text="Choose a topic" disabled hidden />
-            {TOPICS.map((t) => (
-              <SelectItem key={t} value={t} text={MESSAGE_TOPIC_LABEL[t]} />
-            ))}
-          </Select>
-          <Dropdown
-            id="message-report"
-            titleText="Related report (optional)"
-            label="No specific report"
-            items={reportOptions}
-            itemToString={(item) => item?.label ?? ""}
-            selectedItem={reportOptions.find((o) => o.report_id === reportId) ?? NO_REPORT}
-            onChange={({ selectedItem }) => setReportId(selectedItem?.report_id ?? "")}
+          <SelectItem value="" text="Choose a topic" disabled hidden />
+          {TOPICS.map((t) => (
+            <SelectItem key={t} value={t} text={MESSAGE_TOPIC_LABEL[t]} />
+          ))}
+        </Select>
+        <Dropdown
+          id="message-report"
+          titleText="Related report (optional)"
+          label="No specific report"
+          items={reportOptions}
+          itemToString={(item) => item?.label ?? ""}
+          selectedItem={reportOptions.find((o) => o.report_id === reportId) ?? NO_REPORT}
+          onChange={({ selectedItem }) => setReportId(selectedItem?.report_id ?? "")}
+        />
+        <TextInput
+          id="message-subject"
+          labelText="Subject"
+          maxLength={MESSAGE_MAX_SUBJECT}
+          value={subject}
+          invalid={tried && missing.subject}
+          invalidText="Add a subject."
+          onChange={(e) => setSubject(e.target.value)}
+        />
+        <TextArea
+          id="message-body"
+          labelText="Message"
+          helperText="Please don't include personal details about the people in a reported post."
+          rows={6}
+          maxCount={MESSAGE_MAX_BODY}
+          enableCounter
+          value={body}
+          invalid={tried && missing.body}
+          invalidText="Write your message."
+          onChange={(e) => setBody(e.target.value)}
+        />
+        {error && (
+          <InlineNotification
+            kind="error"
+            lowContrast
+            hideCloseButton
+            role="alert"
+            title="Your message wasn't sent."
+            subtitle={error}
+            style={{ maxWidth: "100%" }}
           />
-          <TextInput
-            id="message-subject"
-            labelText="Subject"
-            maxLength={MESSAGE_MAX_SUBJECT}
-            value={subject}
-            invalid={tried && missing.subject}
-            invalidText="Add a subject."
-            onChange={(e) => setSubject(e.target.value)}
-          />
-          <TextArea
-            id="message-body"
-            labelText="Message"
-            helperText="Please don't include personal details about the people in a reported post."
-            rows={6}
-            maxCount={MESSAGE_MAX_BODY}
-            enableCounter
-            value={body}
-            invalid={tried && missing.body}
-            invalidText="Write your message."
-            onChange={(e) => setBody(e.target.value)}
-          />
-          {error && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              hideCloseButton
-              role="alert"
-              title="Your message wasn't sent."
-              subtitle={error}
-              style={{ maxWidth: "100%" }}
-            />
-          )}
-          <div className="flex flex-wrap gap-3">
-            <Button kind="ghost" onClick={() => navigate("/client/messages")}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={sending}>
-              {sending ? "Sending…" : "Send message"}
-            </Button>
-          </div>
-        </form>
-      </StaffPage>
-    </>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button kind="tertiary" onClick={() => navigate("/client/messages")}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={sending}>
+            {sending ? "Sending…" : "Send message"}
+          </Button>
+        </div>
+      </form>
+    </ClientLayout>
   );
 }

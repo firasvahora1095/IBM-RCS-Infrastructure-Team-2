@@ -74,7 +74,7 @@ class FallbackReleaseTests(unittest.TestCase):
         with self.Session.begin() as db:
             db.add_all(
                 [
-                    Auditor(auditor_id="superadmin-1", login_hash=self.password_hash, role="auditor", is_super_admin=True),
+                    Auditor(auditor_id="superauditor-1", login_hash=self.password_hash, role="auditor", is_super_admin=True),
                     Auditor(auditor_id="auditor-1", login_hash=self.password_hash, role="auditor"),
                     Auditor(auditor_id="auditor-2", login_hash=self.password_hash, role="auditor"),
                     Auditor(auditor_id="manager-1", login_hash=self.password_hash, role="manager"),
@@ -132,7 +132,7 @@ class FallbackReleaseTests(unittest.TestCase):
         self.set_auditor("auditor-1", cooldown_ends_at=NOW + timedelta(minutes=20))
         self.set_auditor("auditor-2", exposure_minutes=120.0)
         self.park("NOW1", minutes_ago=0)
-        self.assertEqual(self.release(), [])  # nobody eligible: it waits, visible to the Super Admin
+        self.assertEqual(self.release(), [])  # nobody eligible: it waits, visible to the Super Auditor
         self.set_auditor("auditor-1", cooldown_ends_at=None)
         self.assertEqual(self.release(), [("NOW1", "auditor-1")])  # no delay once someone is free
 
@@ -155,9 +155,9 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_the_super_admin_can_still_take_a_case_before_it_is_placed(self) -> None:
         self.park("FRESH1", minutes_ago=2)
-        self.assertEqual(self.client.post("/api/auditor/cases/FRESH1/take", headers=self.headers("superadmin-1")).status_code, 200)
+        self.assertEqual(self.client.post("/api/auditor/cases/FRESH1/take", headers=self.headers("superauditor-1")).status_code, 200)
         self.assertEqual(self.release(), [])
-        self.assertEqual(self.owner("FRESH1"), "superadmin-1")
+        self.assertEqual(self.owner("FRESH1"), "superauditor-1")
 
     # --- same rule as normal assignment -------------------------------------------
 
@@ -230,9 +230,9 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_a_case_that_already_has_an_owner_is_not_touched(self) -> None:
         self.park("OLD1", minutes_ago=30)
-        self.client.post("/api/auditor/cases/OLD1/take", headers=self.headers("superadmin-1"))
+        self.client.post("/api/auditor/cases/OLD1/take", headers=self.headers("superauditor-1"))
         self.assertEqual(self.release(), [])
-        self.assertEqual(self.owner("OLD1"), "superadmin-1")
+        self.assertEqual(self.owner("OLD1"), "superauditor-1")
 
     def test_running_it_twice_places_a_case_once(self) -> None:
         self.park("OLD1", minutes_ago=30)
@@ -243,7 +243,7 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_opening_the_fallback_queue_places_due_cases_first(self) -> None:
         self.park("OLD1", minutes_ago=30)
-        rows = self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()
+        rows = self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()
         row = next(r for r in rows if r["case_id"] == "OLD1")
         self.assertIn(row["assigned_auditor_id"], {"auditor-1", "auditor-2"})
         self.assertIsNone(row["auto_release_at"])
@@ -256,7 +256,7 @@ class FallbackReleaseTests(unittest.TestCase):
 
     def test_the_queue_says_when_a_case_will_be_placed_so_nobody_has_to_watch_it(self) -> None:
         self.park("FRESH1", minutes_ago=2)
-        rows = self.client.get("/api/auditor/all-cases", headers=self.headers("superadmin-1")).json()
+        rows = self.client.get("/api/auditor/all-cases", headers=self.headers("superauditor-1")).json()
         row = next(r for r in rows if r["case_id"] == "FRESH1")
         due = datetime.fromisoformat(row["auto_release_at"])
         self.assertAlmostEqual((due - (NOW - timedelta(minutes=2))).total_seconds(), 5 * 60, delta=2)

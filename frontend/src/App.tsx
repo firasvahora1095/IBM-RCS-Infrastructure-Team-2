@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AppHeader } from "./components/shell/AppHeader";
+import { PublicTabs } from "./components/shell/PublicTabs";
 import { ProtectedRoute } from "./components/shell/ProtectedRoute";
 import { ScrollToTop } from "./components/shell/ScrollToTop";
+import { PageTitle } from "./components/shell/PageTitle";
 import { UploadPage } from "./pages/normal-user/UploadPage";
 import { CaseIdConfirmationPage } from "./pages/normal-user/CaseIdConfirmationPage";
 import { StatusLookupPage } from "./pages/normal-user/StatusLookupPage";
+import { ContactPage } from "./pages/normal-user/ContactPage";
 import { StaffLoginPage } from "./pages/staff/StaffLoginPage";
 import { AuditorDashboardPage } from "./pages/auditor/AuditorDashboardPage";
 import { AuditorCaseDetailPage } from "./pages/auditor/AuditorCaseDetailPage";
@@ -20,6 +23,7 @@ import { ManagerDeclinedQueuePage } from "./pages/manager/ManagerDeclinedQueuePa
 import { ManagerCaseReviewPage } from "./pages/manager/ManagerCaseReviewPage";
 import { ManagerReassignmentPage } from "./pages/manager/ManagerReassignmentPage";
 import { ManagerExceptionalAccessPage } from "./pages/manager/ManagerExceptionalAccessPage";
+import { ManagerInsightsPage } from "./pages/manager/ManagerInsightsPage";
 import { ManagerValidationPage } from "./pages/manager/ManagerValidationPage";
 import { ManagerDeliveriesPage } from "./pages/manager/ManagerDeliveriesPage";
 import { ManagerDeliveryDetailPage } from "./pages/manager/ManagerDeliveryDetailPage";
@@ -36,6 +40,7 @@ import { CommunityHubModerationPage } from "./pages/marketing/CommunityHubModera
 import { ClientHomeRedirect } from "./components/shell/ClientHomeRedirect";
 import { ClientRoute } from "./components/shell/ClientRoute";
 import { RcsLandingPage } from "./pages/marketing/RcsLandingPage";
+import { TeamPage } from "./pages/marketing/TeamPage";
 import { OrganisationOnboardingPage } from "./pages/marketing/OrganisationOnboardingPage";
 import { CommunityHubPage } from "./pages/marketing/CommunityHubPage";
 import { FlowHubPage } from "./pages/marketing/FlowHubPage";
@@ -44,7 +49,7 @@ import { ClientReportsPage } from "./pages/client/ClientReportsPage";
 import { ClientReportViewPage } from "./pages/client/ClientReportViewPage";
 
 /**
- * Public pages share the IBM Content Safety Reporting header through this
+ * Public pages share the RCS — Reporting header through this
  * layout route. It stays mounted while moving between public pages, so the
  * header doesn't flicker on navigation.
  */
@@ -52,6 +57,7 @@ function PublicLayout() {
   return (
     <>
       <AppHeader />
+      <PublicTabs />
       <Outlet />
     </>
   );
@@ -60,22 +66,25 @@ function PublicLayout() {
 /**
  * Routes for the Sprint 2 P0 scope (Task 58's five, plus the flow's own
  * confirmation step):
- *   "/"                  — public upload (no account needed)
- *   "/case-confirmation" — public case ID confirmation after an upload
- *   "/status"            — public status lookup by Case ID
+ *   "/"                  — the RCS landing page
+ *   "/report"            — public upload (no account needed)
+ *   "/report/confirmation" — public case ID confirmation after an upload
+ *   "/report/status"     — public status lookup by Case ID
+ *   "/report/contact"    — contact us, with help
  *   "/staff/login"       — shared staff login; no header, matching Figma
  *   "/auditor"           — Auditor dashboard (auditor role only)
  *   "/auditor/cases/:id" — Auditor case review: content warning → summary → workspace → severity → confirmation
  *   "/auditor/cooldown"  — Auditor cooldown after a high-severity case or SOS
- *   "/manager"                          — Oversight Dashboard (manager role only, as are all below)
+ *   "/manager"                          — Overview (manager role only, as are all below)
+ *   "/manager/insights"                 — Insights: case flow, AI and Auditor decisions, outcomes, delivery health
  *   "/manager/audit-logs"              — Saved audit history
  *   "/manager/auditors/:auditorId"      — Auditor Detail / exposure limit / check-ins
  *   "/manager/cases"                    — Consolidated Case Oversight
  *   "/manager/cases/:caseId/review"     — Case Review Detail
  *   "/manager/cases/:caseId/reassign"   — Reassignment decision
  *   "/manager/cases/:caseId/raw"        — Exceptional raw-content access
- *   "/manager/sos", "/manager/sos/:alertId", "/manager/sos/:alertId/follow-up" — SOS Inbox, detail, follow-up
- *   "/manager/reassignment"             — Declined / Reassignment Queue
+ *   "/manager/sos", "/manager/sos/:alertId", "/manager/sos/:alertId/follow-up" — SOS inbox, detail, follow-up
+ *   "/manager/reassignment"             — Declined / Reassignment queue
  *   "/manager/validation"               — Validation View (placeholder data)
  *
  * Staff pages render their own header (Auditor/Manager variants), because
@@ -86,14 +95,20 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<UploadPage />} />
-        <Route path="/case-confirmation" element={<CaseIdConfirmationPage />} />
-        <Route path="/status" element={<StatusLookupPage />} />
+        <Route path="/report" element={<UploadPage />} />
+        <Route path="/report/confirmation" element={<CaseIdConfirmationPage />} />
+        <Route path="/report/status" element={<StatusLookupPage />} />
+        <Route path="/report/contact" element={<ContactPage />} />
       </Route>
+      {/* The front door is the RCS page; the old public addresses keep working. */}
+      <Route path="/" element={<RcsLandingPage />} />
+      <Route path="/status" element={<Navigate to="/report/status" replace />} />
+      <Route path="/case-confirmation" element={<Navigate to="/report/confirmation" replace />} />
       {/* B2B front (flow stages 1–3): the RCS product page, organisation set-up,
           and a simulated CommunityHub page with the report button. /flow is the demo guide. */}
       <Route path="/rcs" element={<RcsLandingPage />} />
       <Route path="/rcs/get-started" element={<OrganisationOnboardingPage />} />
+      <Route path="/rcs/team" element={<TeamPage />} />
       <Route path="/communityhub" element={<CommunityHubPage />} />
       {/* CommunityHub's own moderation tool (simulated look, real case-results data). */}
       <Route path="/communityhub/moderation" element={<CommunityHubModerationPage />} />
@@ -208,6 +223,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="manager">
             <ManagerDeclinedQueuePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/insights"
+        element={
+          <ProtectedRoute allowedRole="manager">
+            <ManagerInsightsPage />
           </ProtectedRoute>
         }
       />
@@ -338,6 +361,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <PageTitle />
       <AppRoutes />
     </BrowserRouter>
   );

@@ -1,4 +1,4 @@
-"""Fallback queue: the Super Admin Auditor and "Make available to Auditors".
+"""Fallback queue: the Super Auditor and "Make available to Auditors".
 
 Sprint 3 feedback (extra-features 1.6): a case must never be lost because no
 standard Auditor can take it right now, and a fallback reviewer must be able to
@@ -6,15 +6,15 @@ see every open case. The rules, kept in one place:
 
 * Visibility is not ownership. `cases.case_visibility` says who may see a case
   in a queue; `cases.assigned_auditor_id` says who owns it. A case can be
-  visible to the Super Admin without changing its owner.
-* Normal weighted assignment is unchanged and never picks the Super Admin.
+  visible to the Super Auditor without changing its owner.
+* Normal weighted assignment is unchanged and never picks the Super Auditor.
 * If no standard Auditor is eligible, the case is kept (not rejected), left
-  unassigned and visible to the Super Admin only.
-* The Super Admin or a Manager can release an unassigned case to standard
+  unassigned and visible to the Super Auditor only.
+* The Super Auditor or a Manager can release an unassigned case to standard
   Auditors, who then see queue metadata only and claim it if they are eligible.
 * Only the owner can open the full review, so raw content is never exposed by
   visibility alone.
-* The Super Admin is still an Auditor for wellbeing: nobody, including them, is
+* The Super Auditor is still an Auditor for wellbeing: nobody, including them, is
   given a case while in cooldown, at the exposure limit or with an open SOS.
 """
 
@@ -57,12 +57,12 @@ def unavailable_reason(db: Session, auditor: Auditor, now: datetime | None = Non
 
 
 def fallback_hold_minutes() -> int:
-    """How long a parked case waits for the Super Admin before the system places it.
+    """How long a parked case waits for the Super Auditor before the system places it.
 
     The team decided on 0: no delay that nobody specified. A case waits safely and is visible to the
-    Super Admin at once; the moment a standard Auditor is eligible it is placed by the weighted rule,
-    unless the Super Admin has already taken it. FALLBACK_HOLD_MINUTES can add a delay if a client
-    ever asks for the Super Admin to have a first look of a stated length.
+    Super Auditor at once; the moment a standard Auditor is eligible it is placed by the weighted rule,
+    unless the Super Auditor has already taken it. FALLBACK_HOLD_MINUTES can add a delay if a client
+    ever asks for the Super Auditor to have a first look of a stated length.
     """
     try:
         return max(0, int(os.getenv("FALLBACK_HOLD_MINUTES", "0")))
@@ -92,7 +92,7 @@ def release_waiting_cases(db: Session, now: datetime | None = None) -> list[tupl
 
     A case the system parked (no standard Auditor was eligible) is placed once its hold has passed
     and a standard Auditor is eligible, using the same ordering and the same wellbeing blocks as
-    normal assignment: not in cooldown, under the exposure limit, no open SOS. The Super Admin is
+    normal assignment: not in cooldown, under the exposure limit, no open SOS. The Super Auditor is
     never chosen. A case with the Manager, released for claiming, or without a queued time is left
     alone. Returns (case_id, auditor_id) for each case placed; the caller commits.
     """
@@ -127,7 +127,7 @@ def release_waiting_cases(db: Session, now: datetime | None = None) -> list[tupl
 
 
 def mark_fallback(db: Session, case: Case) -> None:
-    """No standard Auditor could take this case: keep it, unowned, visible to the Super Admin only."""
+    """No standard Auditor could take this case: keep it, unowned, visible to the Super Auditor only."""
     case.assigned_auditor_id = None
     case.status = "AI_PROCESSING"
     case.case_visibility = SUPER_ADMIN_ONLY
@@ -162,7 +162,8 @@ def queue_row(case: Case) -> dict:
         "assigned_auditor_id": None if case.manager_flag else case.assigned_auditor_id,
         "case_visibility": case.case_visibility,
         "manager_flag": case.manager_flag,
-        # When the system will place it by itself; the Super Admin does not need to act before then.
+        "created_at": case.created_at.isoformat() if case.created_at else None,
+        # When the system will place it by itself; the Super Auditor does not need to act before then.
         "auto_release_at": (auto_release_at(case).isoformat() if auto_release_at(case) else None),
     }
 
@@ -219,7 +220,7 @@ def _require_auditor(session: StaffSession, db: Session) -> Auditor:
 def _require_super_admin(session: StaffSession, db: Session) -> Auditor:
     auditor = _require_auditor(session, db)
     if not auditor.is_super_admin:
-        raise HTTPException(status_code=403, detail="Super Admin access required")
+        raise HTTPException(status_code=403, detail="Super Auditor access required")
     return auditor
 
 
@@ -234,7 +235,7 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         session: StaffSession = Depends(get_current_session),
         db: Session = Depends(get_db),
     ):
-        """Every open case, for the Super Admin: queue metadata and who owns each one."""
+        """Every open case, for the Super Auditor: queue metadata and who owns each one."""
         _require_super_admin(session, db)
         release_waiting_cases(db)
         db.commit()
@@ -284,7 +285,7 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         session: StaffSession = Depends(get_current_session),
         db: Session = Depends(get_db),
     ):
-        """Super Admin takes a case no one owns. A case a standard Auditor already owns goes through the Manager."""
+        """Super Auditor takes a case no one owns. A case a standard Auditor already owns goes through the Manager."""
         admin = _require_super_admin(session, db)
         case = _get_case(db, case_id, for_update=True)
         if case.manager_flag:
@@ -327,7 +328,7 @@ def install_routes(app: FastAPI, get_current_session) -> None:
         session: StaffSession = Depends(get_current_session),
         db: Session = Depends(get_db),
     ):
-        """Release an unowned case to eligible standard Auditors. Super Admin or Manager only."""
+        """Release an unowned case to eligible standard Auditors. Super Auditor or Manager only."""
         if session.role == "manager":
             actor = session.staff_id
         else:

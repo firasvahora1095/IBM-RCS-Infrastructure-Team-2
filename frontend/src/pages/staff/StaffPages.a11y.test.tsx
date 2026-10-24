@@ -29,7 +29,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     vi.spyOn(services, "staffLogin").mockRejectedValueOnce(new ApiError("Invalid credentials", 401));
     fireEvent.change(screen.getByLabelText("Staff ID"), { target: { value: "auditor-1" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
-    fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await screen.findByText("Incorrect staff ID or password.");
     expect(await axe()).toHaveNoViolations();
   });
@@ -60,7 +60,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
       watson_severity_score: 71,
       effective_severity_score: 71,
       severity_tier: "S3",
-      narrative_summary: "Mock: physical altercation detected between two people.",
+      narrative_summary: "physical altercation detected between two people.",
       incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
       transcript: [{ time: 13, text: "[raised voices]" }],
       audio_intensity: [0.2, 0.6, 0.3],
@@ -83,14 +83,14 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
 
     fireEvent.click(consent);
     fireEvent.click(screen.getByRole("button", { name: "Proceed" }));
-    await screen.findByText("Mock: physical altercation detected between two people.");
+    await screen.findByText("physical altercation detected between two people.");
     expect(await axe()).toHaveNoViolations();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
     await screen.findByRole("slider", { name: "Blur intensity" });
     expect(await axe()).toHaveNoViolations();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to severity & comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rate severity" }));
     await screen.findByRole("heading", { name: "Severity & comment" });
     expect(await axe()).toHaveNoViolations();
   });
@@ -113,7 +113,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
       watson_severity_score: 71,
       effective_severity_score: 71,
       severity_tier: "S3",
-      narrative_summary: "Mock: physical altercation detected between two people.",
+      narrative_summary: "physical altercation detected between two people.",
       incident_timeline: [{ start: 12, end: 20, severity_tier: "S3", tag: "physical_violence" }],
       flag_reason: "Graphic violence",
     });
@@ -128,7 +128,7 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
     act(() => {
       window.dispatchEvent(new Event(DEMO_AI_FAILURE_EVENT));
     });
-    await screen.findByText("We’ve paused this case and notified your manager.");
+    await screen.findByText("We’ve paused this case and notified your Manager.");
     expect(await axe()).toHaveNoViolations();
   });
 
@@ -146,13 +146,14 @@ describe("Staff pages — automated accessibility (Task 99)", () => {
   });
 
   it.each([
-    ["Intelligence Dashboard", "/manager", "Manager Intelligence Dashboard"],
+    ["Overview", "/manager", "Overview"],
+    ["Insights", "/manager/insights", "Insights"],
     ["Auditor Detail", "/manager/auditors/auditor-4", "Reese Patel"],
-    ["Case Oversight", "/manager/cases", "Consolidated Case Oversight"],
-    ["SOS Inbox", "/manager/sos", "SOS Inbox"],
-    ["SOS Alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
+    ["Cases", "/manager/cases", "Cases"],
+    ["SOS inbox", "/manager/sos", "SOS inbox"],
+    ["SOS alert Detail", "/manager/sos/SOS-demo0001", "Marcus Webb"],
     ["SOS Follow-up", "/manager/sos/SOS-demo0003/follow-up", "Log follow-up — Reese Patel"],
-    ["Reassignment Queue", "/manager/reassignment", "Reassignment Queue"],
+    ["Reassignment queue", "/manager/reassignment", "Reassignment queue"],
     ["Case Review Detail", "/manager/cases/AR-2026-00398/review", "Case AR-2026-00398"],
     ["Reassignment decision", "/manager/cases/AR-2026-00398/reassign", "Reassignment decision — AR-2026-00398"],
     ["Validation & Audit", "/manager/validation", "Validation & Audit"],

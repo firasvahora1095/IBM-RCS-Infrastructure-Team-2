@@ -6,6 +6,9 @@ import { formatTimestamp } from "../../utils/formatTimestamp";
 import { timelineTooltipAlign } from "../../utils/tooltipAlign";
 import { SeverityTag } from "./SeverityTag";
 
+/** The AI's tag codes in words, as the content warning writes them: "weapon_present" is "weapon present". */
+const tagWords = (tag: string) => tag.replace(/_/g, " ");
+
 interface IncidentTimelineProps {
   entries: IncidentTimelineEntry[];
   /** The video's real length, when the data source provides it. */
@@ -29,11 +32,11 @@ const FALLBACK_WIDTH_PX = 1104;
 const mono = "'IBM Plex Mono', monospace";
 
 /**
- * The proportional incident timeline on the AI Analysis Summary (Figma
+ * The proportional incident timeline on the AI summary (Figma
  * 437:232, Sprint 2 Week 2 Task 78). Every flagged moment sits at its true
  * position along the track:
  * - a point detection (start === end) is a dot with a tick, labelled with
- *   its time and tag, e.g. "01:15 · weapon_present", as in Figma;
+ *   its time and tag, e.g. "01:15 · weapon present" (written as words, as the content warning shows it);
  * - a range is a segment coloured by severity tier, as wide as its duration
  *   (restored after a merge collapsed ranges back to dots; see the Sprint 2
  *   live-build visual QA, P1 §2.2);
@@ -119,7 +122,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
       <ol className="cds--visually-hidden">
         {positioned.map(({ entry, group }, i) => (
           <li key={i}>
-            {`${entry.start === entry.end ? `At ${formatTimestamp(entry.start)}` : `${formatTimestamp(entry.start)} to ${formatTimestamp(entry.end)}`}, ${group.map((item) => `${item.tag ? `${item.tag}, ` : ""}${item.severity_tier} ${getSeverityInfo(item.severity_tier).label}`).join("; ")}`}
+            {`${entry.start === entry.end ? `At ${formatTimestamp(entry.start)}` : `${formatTimestamp(entry.start)} to ${formatTimestamp(entry.end)}`}, ${group.map((item) => `${item.tag ? `${tagWords(item.tag)}, ` : ""}${item.severity_tier} ${getSeverityInfo(item.severity_tier).label}`).join("; ")}`}
           </li>
         ))}
       </ol>
@@ -152,7 +155,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         {withRows.map(({ entry, group, isPoint, leftPct, widthPct, labelLeftPx, row }, i) => {
           const info = getSeverityInfo(entry.severity_tier);
           // Shown on hover: when, what the AI flagged, and how severe (e.g. "00:30–01:04 · physical_violence · S3 High").
-          const title = `${timeLabel(entry)} · ${group.map((item) => item.tag ?? "Flagged").join(", ")} · ${entry.severity_tier} ${info.label}`;
+          const title = `${timeLabel(entry)} · ${group.map((item) => (item.tag ? tagWords(item.tag) : "Flagged")).join(", ")} · ${entry.severity_tier} ${info.label}`;
           return (
             <div key={i} style={{ display: "contents" }}>
               {isPoint ? (
@@ -203,7 +206,7 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
                 {group.map((item, tagIndex) =>
                   item.tag ? (
                     <span key={tagIndex} style={{ fontSize: 11, color: "var(--cds-text-secondary)" }}>
-                      {item.tag}
+                      {tagWords(item.tag)}
                     </span>
                   ) : (
                     <SeverityTag key={tagIndex} tier={item.severity_tier} size="sm" />
@@ -215,11 +218,11 @@ export function IncidentTimeline({ entries, durationSeconds }: IncidentTimelineP
         })}
       </div>
 
-      <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
-        Every AI-flagged moment gets a marker, however brief — no minimum-duration threshold.
-        {!knownDuration &&
-          " The scale ends shortly after the last flagged moment; the video's full length isn't available yet."}
-      </p>
+      {!knownDuration && (
+        <p style={{ fontSize: 12, lineHeight: "16px", color: "var(--cds-text-helper)" }}>
+          The scale ends shortly after the last flagged moment; the video&apos;s full length isn&apos;t available yet.
+        </p>
+      )}
     </div>
   );
 }

@@ -150,6 +150,16 @@ class AiBuddyTests(unittest.TestCase):
         self.assertEqual(summary["final_outcome"], "Violation Found")
         self.assertEqual(summary["delivery_status"], "NEEDS_ATTENTION")
 
+    def test_a_completed_case_the_auditor_confirmed_shows_the_ai_tier_as_final(self) -> None:
+        with self.Session.begin() as db:
+            case = db.get(Case, "AR-2026-00500")
+            case.auditor_severity_score = None
+            case.status = "COMPLETE"
+            ai_tier = case.severity_tier
+        with self.Session() as db:
+            summary = lookup_case(db, "manager", "manager-1", "AR-2026-00500")
+        self.assertEqual(summary["final_auditor_severity"], ai_tier)
+
     def test_a_case_with_the_manager_never_names_who_declined_it(self) -> None:
         with self.Session.begin() as db:
             db.get(Case, "AR-2026-00500").manager_flag = "DECLINED"

@@ -19,10 +19,13 @@ def safe_audit_value(value):
     return {k: v for k, v in value.items() if k in SAFE_FIELDS} if isinstance(value, dict) else None
 
 
-def summary(db, comparisons, *, case_id=None, context="live", leakage=None, from_at=None,
+def summary(db, comparisons, *, case_ids=None, case_id=None, context="live", leakage=None, from_at=None,
             to_at=None, before=None, limit=25, ai_tier=None, auditor_tier=None, override=None,
             comparison_offset=0):
     query = select(GovernanceLogEntry).where(GovernanceLogEntry.context == context)
+    if case_ids is not None:
+        # One client's cases only.
+        query = query.where(GovernanceLogEntry.case_id.in_(case_ids))
     if case_id:
         query = query.where(GovernanceLogEntry.case_id == case_id)
     if leakage:

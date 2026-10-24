@@ -1,4 +1,5 @@
 import type {
+  ClientOrganisation,
   AuditLogHistory,
   AuditLogQuery,
   AuditorCaseDetail,
@@ -11,6 +12,7 @@ import type {
   BuddyReply,
   BuddyTurn,
   CaseResult,
+  CaseResultsSummary,
   ClientAccount,
   ClientLoginResponse,
   PlatformAction,
@@ -440,6 +442,15 @@ export async function logSosFollowUp(
   return parseJsonOrThrow<{ resolved: true }>(r);
 }
 
+export async function logCheckIn(auditorId: string, token: string, notes: string): Promise<{ checked_in: true }> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/auditors/${encodeURIComponent(auditorId)}/check-in`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+  return parseJsonOrThrow<{ checked_in: true }>(r);
+}
+
 export async function listDeclinedCases(token: string): Promise<DeclinedCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/manager/declined-cases`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -735,6 +746,11 @@ export async function clientListCaseResults(token: string): Promise<CaseResult[]
   return parseJsonOrThrow<CaseResult[]>(r);
 }
 
+export async function clientCaseResultsSummary(token: string): Promise<CaseResultsSummary> {
+  const r = await fetch(`${API_BASE_URL}/api/client/case-results/summary`, { headers: bearer(token) });
+  return parseJsonOrThrow<CaseResultsSummary>(r);
+}
+
 export async function clientRecordPlatformAction(
   deliveryId: string,
   token: string,
@@ -775,7 +791,7 @@ export async function getGovernanceCase(caseId: string, token: string): Promise<
   return parseJsonOrThrow<GovernanceCase>(r);
 }
 
-// ---- Fallback queue (Super Admin, extra-features 1.6) ----
+// ---- Fallback queue (Super Auditor, extra-features 1.6) ----
 
 export async function getAllOpenCases(token: string): Promise<FallbackCaseRow[]> {
   const r = await fetch(`${API_BASE_URL}/api/auditor/all-cases`, { headers: bearer(token), cache: "no-store" });
@@ -809,4 +825,10 @@ export async function makeCaseAvailable(caseId: string, token: string): Promise<
     headers: bearer(token),
   });
   return parseJsonOrThrow<{ available: true }>(r);
+}
+
+/** The clients RCS serves, for the Manager's client selector. */
+export async function listClients(token: string): Promise<ClientOrganisation[]> {
+  const r = await fetch(`${API_BASE_URL}/api/manager/clients`, { headers: bearer(token) });
+  return parseJsonOrThrow<ClientOrganisation[]>(r);
 }
