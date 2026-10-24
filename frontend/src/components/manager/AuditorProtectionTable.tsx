@@ -6,6 +6,7 @@ import { ExposureBar } from "../exposure/ExposureBar";
 import { ExposureStateTag } from "./ManagerBits";
 import { StatusTag } from "../ui/StatusTag";
 import { cooldownSummary } from "../../design-tokens/managerLabels";
+import { formatClockTime } from "../../utils/formatRelativeTime";
 import {
   AVAILABILITY_LABEL,
   AVAILABILITY_TONE,
@@ -132,9 +133,14 @@ export function AuditorProtectionTable({ rows, now }: { rows: AuditorOverviewRow
                         // Nothing to act on: plain text, not a green badge.
                         <span style={{ color: "var(--cds-text-secondary)" }}>{AVAILABILITY_LABEL[availability]}</span>
                       ) : (
-                        <StatusTag tone={AVAILABILITY_TONE[availability]} size="sm">
-                          {AVAILABILITY_LABEL[availability]}
-                        </StatusTag>
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusTag tone={AVAILABILITY_TONE[availability]} size="sm">
+                            {AVAILABILITY_LABEL[availability]}
+                          </StatusTag>
+                          {availability === "ON_BREAK" && row.open_requests?.break_ends_at && (
+                            <span className="rcs-helper">Back at {formatClockTime(row.open_requests.break_ends_at)}</span>
+                          )}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell style={{ textAlign: "right", color: "var(--cds-icon-secondary)" }}>

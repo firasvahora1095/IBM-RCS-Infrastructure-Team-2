@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { notifyWellbeingChanged, useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { StatusTag } from "../ui/StatusTag";
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { WELLBEING_STATUS_LABEL, WELLBEING_TONE } from "../../design-tokens/statusTones";
 import { formatClockTime } from "../../utils/formatRelativeTime";
 
@@ -34,7 +35,7 @@ const OPTIONS: { kind: WellbeingRequestKind; title: string; outcome: string }[] 
   {
     kind: "BREAK_REQUEST",
     title: "Take a break",
-    outcome: "Your Manager is notified. You get no new cases until you're back, and a case you're reviewing stays with you.",
+    outcome: `Your Manager approves it, then you get ${BREAK_MINUTES} minutes with no new cases. A case you're reviewing stays with you.`,
   },
 ];
 
@@ -60,7 +61,20 @@ export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: Wel
   const [sent, setSent] = useState<WellbeingRequestKind | null>(null);
 
   const requests: WellbeingRequestRecord[] = wellbeing?.requests ?? [];
+  // An approved break runs for BREAK_MINUTES and then ends by itself. The data source only sends break_ends_at while one
+  // is running, so only the newest approved break can still be in progress.
+  const runningBreakId = wellbeing?.break_ends_at
+    ? requests.find((r) => r.kind === "BREAK_REQUEST" && r.status === "APPROVED")?.id
+    : undefined;
+  const statusLabel = (r: WellbeingRequestRecord) =>
+    r.kind === "BREAK_REQUEST" && r.status === "APPROVED"
+      ? r.id === runningBreakId
+        ? `On a break until ${timeOf(wellbeing!.break_ends_at!)}`
+        : "Break over"
+      : WELLBEING_STATUS_LABEL[r.status];
+  // One break at a time: it isn't offered again while one is waiting for the Manager or still running.
   const openKinds = new Set(requests.filter((r) => r.status === "OPEN").map((r) => r.kind));
+  if (runningBreakId) openKinds.add("BREAK_REQUEST");
   const available = OPTIONS.filter((o) => !openKinds.has(o.kind));
 
   function fail(err: unknown) {
@@ -131,7 +145,7 @@ export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: Wel
           subtitle={
             sent === "TALK_TO_MANAGER"
               ? "Your Manager will reach out to you today."
-              : "Your Manager has been notified and will check in with you."
+              : `Your Manager has been notified. Once they approve it, you get a ${BREAK_MINUTES}-minute break with no new cases.`
           }
           style={{ maxWidth: "100%" }}
         />
@@ -156,7 +170,7 @@ export function WellbeingCheckIn({ caseId, onSessionExpired, bare = false }: Wel
                 <div className="flex items-center gap-3">
                   <span className="flex items-center">
                     <StatusTag tone={r.status === "OPEN" ? "neutral" : WELLBEING_TONE[r.status]}>
-                      {WELLBEING_STATUS_LABEL[r.status]}
+                      {statusLabel(r)}
                     </StatusTag>
                   </span>
                   {r.status === "OPEN" && (

@@ -114,6 +114,37 @@ describe("AuditorCaseDetailPage", () => {
     expect(services.getAuditorCaseDetail).toHaveBeenCalledWith("AR-2026-00417", "abc123");
   });
 
+  it("pins every flagged marker on the timeline in place, so none drifts past the video column", async () => {
+    // Carbon's popover rule sets position: relative. Left to the stylesheet, each marker joined the flow and every later
+    // marker sat another marker-width to the right, so on a long timeline the last ones ran off the end of the player.
+    vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce({
+      ...MOCK_CASE,
+      video_duration_seconds: 135,
+      incident_timeline: [
+        { start: 10, end: 10, severity_tier: "S2", tag: "weapon_use" },
+        { start: 28, end: 40, severity_tier: "S3", tag: "physical_violence" },
+        { start: 52, end: 52, severity_tier: "S3", tag: "weapon_use" },
+        { start: 78, end: 96, severity_tier: "S3", tag: "group_confrontation" },
+        { start: 118, end: 135, severity_tier: "S4", tag: "physical_violence" },
+        { start: 134, end: 134, severity_tier: "S2", tag: "weapon_use" },
+      ],
+    });
+    renderPage();
+    await openWorkspace();
+
+    const row = screen.getByRole("group", { name: "Flagged moments" });
+    // The tooltip text names each marker button, so find them by their own class.
+    const markers = Array.from(row.querySelectorAll<HTMLElement>(".rcs-tick-button"));
+    expect(markers).toHaveLength(6);
+    for (const marker of markers) {
+      const tick = marker.closest(".rcs-tick") as HTMLElement;
+      expect(tick.style.position).toBe("absolute");
+    }
+    // Each sits at its own share of the row: the last (134 of 135 seconds) is at the far end, not pushed beyond it.
+    const lastTick = markers[5].closest(".rcs-tick") as HTMLElement;
+    expect(lastTick.style.left).toMatch(/^calc\(99\.\d+% - 8px/);
+  });
+
   it("doesn't offer a review while AI analysis is still running", async () => {
     vi.spyOn(services, "getAuditorCaseDetail").mockResolvedValueOnce({
       ...MOCK_CASE,

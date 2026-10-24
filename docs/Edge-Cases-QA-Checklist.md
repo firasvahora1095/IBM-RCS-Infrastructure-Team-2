@@ -70,7 +70,7 @@
 | # | Scenario | Expected behaviour | Result | Notes |
 |---|---|---|---|---|
 | 6.1 | Navigate to detail page for an Auditor ID that does not exist | Clear 404 message; no 500 error | Pass | "Case not found" 404 shown |
-| 6.2 | Approve a break request | Auditor navigated back after approval | Pass | **Open question:** should a cooldown-like protection apply to the Auditor after break is approved or requested? Not currently specified — needs alignment with BA/Aleeya |
+| 6.2 | Approve a break request | Auditor navigated back after approval | Pass | **Answered (24 Oct 2026):** a break is 15 minutes from approval, blocks new cases while it runs, and ends by itself. Rule and reasoning: `docs/ux/wellbeing-break-rule.md`. (Original open question: should a cooldown-like protection apply to the Auditor after break is approved or requested? Not specified — needs alignment with BA/Aleeya.) |
 
 ---
 

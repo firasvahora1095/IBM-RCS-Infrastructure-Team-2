@@ -189,7 +189,9 @@
     display: none;
   }
 }
-.rcs-tick {
+// Carbon's .cds--popover-container sets position: relative; naming it too keeps this rule ahead of it. The marker row
+// also pins position inline (ReviewWorkspace), so it can't drift into the flow again.
+.cds--popover-container.rcs-tick {
   position: absolute;
   inset-block-start: 0;
 }

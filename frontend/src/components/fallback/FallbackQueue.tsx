@@ -216,8 +216,9 @@ export function FallbackQueueSection({
           Fallback queue
         </h2>
         <p style={{ fontSize: 14, lineHeight: "20px", color: "var(--cds-text-secondary)" }}>
-          Cases wait here when no Auditor is free, and are placed automatically the moment one is. Take one only if it
-          can&apos;t wait.
+          Cases wait here when no Auditor is free, and are placed automatically the moment one is. You can see every open
+          case, and take one nobody owns if it can&apos;t wait. Moving a case an Auditor is working on is the
+          Manager&apos;s job.
         </p>
       </div>
 

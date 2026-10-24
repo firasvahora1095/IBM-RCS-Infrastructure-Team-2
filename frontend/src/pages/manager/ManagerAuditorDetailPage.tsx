@@ -17,6 +17,7 @@ import { useStaffQuery } from "../../hooks/useStaffQuery";
 import { useInPlaceSessionExpiry } from "../../hooks/useInPlaceSessionExpiry";
 import { cooldownSummary, SOS_STATUS_LABEL } from "../../design-tokens/managerLabels";
 import { WELLBEING_TONE, SOS_TONE } from "../../design-tokens/statusTones";
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { getSeverityInfo } from "../../design-tokens/severity";
 import { mapOutcomeToDisplay } from "../../design-tokens/outcomeLabels";
 import { formatWeekdayTime } from "../../utils/formatRelativeTime";
@@ -115,6 +116,17 @@ export function ManagerAuditorDetailPage() {
     count: data?.recent_cases.filter((c) => c.severity_tier === tier).length ?? 0,
   })).filter((t) => t.count > 0);
   const openRequests = data?.wellbeing_requests.filter((r) => r.status === "OPEN").length ?? 0;
+  // An approved break runs for BREAK_MINUTES and then ends by itself; only the newest approved one can still be running.
+  const breakEnds = data?.open_requests?.break_ends_at ?? null;
+  const runningBreakId = breakEnds
+    ? data?.wellbeing_requests.find((r) => r.kind === "BREAK_REQUEST" && r.status === "APPROVED")?.id
+    : undefined;
+  const requestStatusLabel = (r: WellbeingRequestRecord) =>
+    r.kind === "BREAK_REQUEST" && r.status === "APPROVED"
+      ? r.id === runningBreakId
+        ? `On a break until ${formatClockTime(breakEnds!)}`
+        : "Break over"
+      : REQUEST_STATUS_LABEL[r.status];
   // An S4 cooldown holds the Auditor until the Manager checks in; an SOS is checked in through its follow-up.
   const checkInOwed = Boolean(
     data?.cooldown?.trigger === "S4" && data.cooldown.requires_check_in && !data.cooldown.check_in_completed_at,
@@ -215,11 +227,11 @@ export function ManagerAuditorDetailPage() {
                             {actingId === r.id
                               ? "Saving…"
                               : r.kind === "BREAK_REQUEST"
-                                ? "Approve break"
+                                ? `Approve ${BREAK_MINUTES}-minute break`
                                 : "Mark as followed up"}
                           </Button>
                         ) : (
-                          <StatusTag tone={WELLBEING_TONE[r.status]}>{REQUEST_STATUS_LABEL[r.status]}</StatusTag>
+                          <StatusTag tone={WELLBEING_TONE[r.status]}>{requestStatusLabel(r)}</StatusTag>
                         )}
                       </div>
                     </li>

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.breaks import breaks_in_progress
 from app.models import AuditLog, Auditor, Case
 
 
@@ -132,8 +133,12 @@ def list_assignment_candidates(db: Session) -> list[AuditorCandidate]:
     )
     latest_assignments = _latest_assignment_events(db)
 
+    on_break = breaks_in_progress(db, now)
     candidates = []
     for auditor in auditors:
+        # An approved break: no new cases until it ends (the case they hold stays with them)
+        if auditor.auditor_id in on_break:
+            continue
         # Reset daily exposure if workday boundary has passed
         maybe_reset_daily_exposure(db, auditor)
         # Exclude auditors in active cooldown

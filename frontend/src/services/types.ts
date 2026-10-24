@@ -205,6 +205,8 @@ export interface AuditorWellbeing {
   cases_reviewed_today?: number;
   /** Optional — the Auditor's own support requests today, newest first, so a request survives a reload and can be withdrawn. */
   requests?: WellbeingRequestRecord[];
+  /** When an approved break ends, while one is running (it lasts BREAK_MINUTES and ends by itself). Otherwise null. */
+  break_ends_at?: string | null;
 }
 
 export interface CooldownState {
@@ -254,7 +256,7 @@ export interface AuditorOverviewRow {
   /** Optional — an unresolved SOS from this Auditor, so the dashboard row shows it. */
   open_sos?: boolean;
   /** Optional — support requests still waiting for the Manager, so they're visible without opening the Auditor. */
-  open_requests?: { break_requests: number; talk_requests: number; on_break?: boolean };
+  open_requests?: { break_requests: number; talk_requests: number; on_break?: boolean; break_ends_at?: string | null };
 }
 
 /** Unresolved SOS alerts, for the persistent banner and header badge (MR-SOS-03). */

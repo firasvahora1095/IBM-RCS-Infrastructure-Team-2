@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import StaffSession
 from app.assignment import list_assignment_candidates, maybe_reset_daily_exposure, pick_best
+from app.breaks import break_ends_at, minutes_left
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case
 
@@ -40,7 +41,7 @@ AVAILABLE_TO_AUDITORS = "AVAILABLE_TO_AUDITORS"
 
 
 def unavailable_reason(db: Session, auditor: Auditor, now: datetime | None = None) -> str | None:
-    """Why this Auditor can't be given a case now, or None. Same three rules as Manager reassignment."""
+    """Why this Auditor can't be given a case now, or None. Same rules as Manager reassignment, plus an approved break."""
     now = now or datetime.now(timezone.utc)
     maybe_reset_daily_exposure(db, auditor)
     if float(auditor.exposure_minutes or 0) >= int(auditor.exposure_limit_minutes or 120):
@@ -53,6 +54,10 @@ def unavailable_reason(db: Session, auditor: Auditor, now: datetime | None = Non
             return "You are in a mandatory cooldown."
     if _has_open_sos(db, auditor.auditor_id):
         return "You have an open SOS alert."
+    ends = break_ends_at(db, auditor.auditor_id, now)
+    if ends is not None:
+        left = minutes_left(ends, now)
+        return f"You are on a break for another {left} minute{'' if left == 1 else 's'}."
     return None
 
 

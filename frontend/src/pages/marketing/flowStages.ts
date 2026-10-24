@@ -57,7 +57,7 @@ export const STAGES: Stage[] = [
   {
     n: "06b",
     title: "Fallback review when no Auditor is free",
-    body: "Cases no Auditor can take wait in the fallback queue. The Super Auditor places them or reviews them.",
+    body: "Cases no Auditor can take wait in the fallback queue and are placed automatically the moment one is free. The Super Auditor sees every open case and can take one that can't wait. Moving a case an Auditor is working on is the Manager's job.",
     persona: "Super Auditor",
     to: "/auditor",
     signIn: isMockData ? "superauditor-1" : "superauditor-01",

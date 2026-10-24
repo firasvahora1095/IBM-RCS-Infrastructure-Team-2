@@ -22,7 +22,8 @@ import type { AuditorCaseListItem, InternalCaseStatus } from "../../services/typ
 import { useAuth } from "../../hooks/useAuth";
 import { useMyWellbeing } from "../../hooks/useMyWellbeing";
 import { useSessionExpiryHandler } from "../../hooks/useSessionExpiryHandler";
-import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { formatClockTime, formatRelativeTime } from "../../utils/formatRelativeTime";
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { StatTile } from "../../components/ui/StatTile";
 import { StatusTag } from "../../components/ui/StatusTag";
 import { WellbeingCheckIn } from "../../components/wellbeing/WellbeingCheckIn";
@@ -140,11 +141,14 @@ export function AuditorDashboardPage() {
     : null;
   // A live countdown while a cooldown runs; the clock only ticks when it's needed.
   const [clock, setClock] = useState(() => Date.now());
+  // An approved break runs for BREAK_MINUTES and ends by itself, so Status flips back to Available without a reload.
+  const breakEndsMs = wellbeing?.break_ends_at ? Date.parse(wellbeing.break_ends_at) : null;
+  const onBreak = breakEndsMs !== null && breakEndsMs > clock;
   useEffect(() => {
-    if (!inCooldown) return;
+    if (!inCooldown && !onBreak) return;
     const id = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [inCooldown]);
+  }, [inCooldown, onBreak]);
   const secondsLeft =
     inCooldown && cooldown ? Math.max(0, Math.ceil((Date.parse(cooldown.ends_at) - clock) / 1000)) : 0;
   const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
@@ -152,7 +156,6 @@ export function AuditorDashboardPage() {
     cooldown?.trigger === "SOS" ? "Started after your SOS" : `Triggered by ${cooldown?.trigger ?? ""} exposure`;
   // A break the Auditor has asked for, or the Manager has approved, changes what Status says.
   const breakRequested = (wellbeing?.requests ?? []).some((r) => r.kind === "BREAK_REQUEST" && r.status === "OPEN");
-  const onBreak = (wellbeing?.requests ?? []).some((r) => r.kind === "BREAK_REQUEST" && r.status === "APPROVED");
   const waitingForCheckIn = Boolean(cooldown?.requires_check_in && !cooldown.check_in_completed_at);
   // Ready to review means AI analysis is finished and the Auditor hasn't started yet (§1.5).
   const readyCount = openCases.filter((c) => c.status === "READY_FOR_REVIEW").length;
@@ -363,7 +366,9 @@ export function AuditorDashboardPage() {
                 </span>
                 {(onBreak || breakRequested) && (
                   <span className="rcs-stat-helper">
-                    {onBreak ? "Approved by your Manager. No new cases until you're back." : "Waiting for your Manager."}
+                    {onBreak
+                      ? `Approved by your Manager, until ${formatClockTime(wellbeing!.break_ends_at!)}. No new cases until then. A case you hold stays with you.`
+                      : `Waiting for your Manager. Once approved, your break lasts ${BREAK_MINUTES} minutes.`}
                   </span>
                 )}
               </div>

@@ -1,3 +1,4 @@
+import { BREAK_MINUTES } from "../../design-tokens/breakRules";
 import { safeHttpUrl } from "../../utils/safeUrl";
 import { ACCEPTED_VIDEO_EXTENSIONS } from "../../design-tokens/videoFormats";
 import { mapStatusToPublicLabel } from "../../design-tokens/statusLabels";
@@ -158,14 +159,33 @@ function inCooldown(staff: MockStaff, now = Date.now()): boolean {
   return Date.parse(cd.ends_at) > now || (cd.requires_check_in && !cd.check_in_completed_at);
 }
 
+/** When this Auditor's approved break ends (ms), or null if they aren't on one. It ends by itself after BREAK_MINUTES. */
+function breakEndsAt(db: MockDb, staffId: string, now = Date.now()): number | null {
+  let latest: number | null = null;
+  for (const r of db.wellbeingRequests) {
+    if (r.auditor_id !== staffId || r.kind !== "BREAK_REQUEST" || r.status !== "APPROVED" || !r.resolved_at) continue;
+    const ends = Date.parse(r.resolved_at) + BREAK_MINUTES * 60_000;
+    if (ends > now && (latest === null || ends > latest)) latest = ends;
+  }
+  return latest;
+}
+
+/** The same moment as an ISO time, for the payloads. */
+function breakEndsIso(db: MockDb, staffId: string): string | null {
+  const ends = breakEndsAt(db, staffId);
+  return ends === null ? null : new Date(ends).toISOString();
+}
+
 /**
  * AR-AS-02: lowest (0.6 × exposure ratio + 0.4 × case ratio) wins; ties go to
- * whoever waited longest. At-limit (AR-WB-03) and cooling-down (AR-WB-04)
+ * whoever waited longest. At-limit (AR-WB-03), cooling-down (AR-WB-04) and on-a-break
  * Auditors are skipped.
  */
 function selectAuditor(db: MockDb): string | null {
   const eligible = db.staff.filter(
-    (s) => s.role === "auditor" && !s.is_super_admin && exposureMinutes(s) < s.exposure_limit_minutes && !inCooldown(s),
+    (s) => s.role === "auditor" && !s.is_super_admin && exposureMinutes(s) < s.exposure_limit_minutes &&
+      !inCooldown(s) &&
+      breakEndsAt(db, s.staff_id) === null,
   );
   if (eligible.length === 0) return null;
   const score = (s: MockStaff) => 0.6 * (exposureMinutes(s) / 120) + 0.4 * (s.active_case_count / 10);
@@ -222,12 +242,17 @@ function requireSession(db: MockDb, token: string, role: "auditor" | "manager") 
   return session;
 }
 
-/** The same three blocks as Manager reassignment: limit, cooldown, open SOS. Applies to the Super Auditor too. */
+/** The same blocks as Manager reassignment: limit, cooldown, open SOS, and an approved break. Applies to the Super Auditor too. */
 function unavailableReason(db: MockDb, member: MockStaff): string | null {
   if (exposureMinutes(member) >= member.exposure_limit_minutes) return "You have reached your daily exposure limit.";
   if (inCooldown(member)) return "You are in a mandatory cooldown.";
   if (db.cases.some((c) => c.assigned_auditor === member.staff_id && c.manager_flag === "SOS")) {
     return "You have an open SOS alert.";
+  }
+  const breakEnd = breakEndsAt(db, member.staff_id);
+  if (breakEnd !== null) {
+    const left = Math.max(1, Math.ceil((breakEnd - Date.now()) / 60_000));
+    return `You are on a break for another ${left} minute${left === 1 ? "" : "s"}.`;
   }
   return null;
 }
@@ -502,15 +527,9 @@ function overviewRow(db: MockDb, staff: MockStaff): AuditorOverviewRow {
       talk_requests: db.wellbeingRequests.filter(
         (r) => r.auditor_id === staff.staff_id && r.kind === "TALK_TO_MANAGER" && r.status === "OPEN",
       ).length,
-      // A break the Manager approved today.
-      on_break: db.wellbeingRequests.some(
-        (r) =>
-          r.auditor_id === staff.staff_id &&
-          r.kind === "BREAK_REQUEST" &&
-          r.status === "APPROVED" &&
-          r.resolved_at !== null &&
-          new Date(r.resolved_at).toDateString() === new Date().toDateString(),
-      ),
+      // A break the Manager approved that is still running: it ends by itself after BREAK_MINUTES.
+      on_break: breakEndsAt(db, staff.staff_id) !== null,
+      break_ends_at: breakEndsIso(db, staff.staff_id),
     },
   };
 }
@@ -1122,6 +1141,7 @@ export const mockDataService: DataService = {
         exposure_limit_minutes: me.exposure_limit_minutes,
         cooldown: me.cooldown,
         cases_reviewed_today: completedToday(db, me.staff_id).length,
+        break_ends_at: breakEndsIso(db, me.staff_id),
         requests: db.wellbeingRequests
           .filter((r) => r.auditor_id === me.staff_id && Date.parse(r.created_at) >= startOfToday())
           .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
@@ -1446,7 +1466,7 @@ export const mockDataService: DataService = {
               headroom_minutes: headroom,
               limited_headroom: headroom < LIMITED_HEADROOM_MINUTES,
               fallback_reviewer: st.is_super_admin === true,
-              available: headroom > 0 && !inCooldown(st),
+              available: headroom > 0 && !inCooldown(st) && breakEndsAt(db, st.staff_id) === null,
             };
           })
           // The fallback reviewer can be picked but is listed after the standard Auditors.
@@ -1473,7 +1493,8 @@ export const mockDataService: DataService = {
         !target ||
         forcedUnavailable ||
         exposureMinutes(target) >= target.exposure_limit_minutes ||
-        inCooldown(target)
+        inCooldown(target) ||
+        breakEndsAt(db, target.staff_id) !== null
       ) {
         throw new ApiError("This Auditor is no longer available — please choose another.", 409);
       }
