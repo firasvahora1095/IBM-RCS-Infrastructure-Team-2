@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api_schemas import CheckInRequest
+from app.breaks import break_ends_at
 from app.auth import StaffSession, session_store
 from app.db import get_db
 from app.models import AuditLog, Auditor, Case, WellbeingRequest
@@ -107,25 +108,13 @@ def open_request_counts(db: Session, auditor_id: str) -> dict:
     rows = db.scalars(
         select(WellbeingRequest).where(WellbeingRequest.auditor_id == auditor_id, WellbeingRequest.status == "OPEN")
     ).all()
-    midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
-    on_break = False
-    for r in db.scalars(
-        select(WellbeingRequest).where(
-            WellbeingRequest.auditor_id == auditor_id,
-            WellbeingRequest.kind == "BREAK_REQUEST",
-            WellbeingRequest.status == "APPROVED",
-        )
-    ).all():
-        resolved = r.resolved_at
-        if resolved is not None and resolved.tzinfo is None:
-            resolved = resolved.replace(tzinfo=timezone.utc)
-        if resolved is not None and resolved >= midnight:
-            on_break = True
+    ends = break_ends_at(db, auditor_id)
     return {
         "break_requests": sum(1 for r in rows if r.kind == "BREAK_REQUEST"),
         "talk_requests": sum(1 for r in rows if r.kind == "TALK_TO_MANAGER"),
-        # A break the Manager approved today: shown as Unavailable (break), not Available.
-        "on_break": on_break,
+        # A break the Manager approved that is still running (it ends by itself): Unavailable (break), not Available.
+        "on_break": ends is not None,
+        "break_ends_at": _iso(ends),
     }
 
 

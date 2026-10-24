@@ -47,6 +47,7 @@ from app.api_schemas import (
 )
 from app.b2b import create_delivery_for_case, public_delivery_confirmed
 from app.b2b import router as b2b_router
+from app.breaks import break_ends_at, breaks_in_progress
 from app.support import (
     active_case_counts,
     auditor_exists,
@@ -1071,6 +1072,8 @@ async def get_my_wellbeing(
         "cooldown": cooldown,
         "cases_reviewed_today": len(completed_today(db, auditor.staff_id)),
         "requests": requests_for(db, auditor.staff_id, since=start_of_today()),
+        # An approved break that is still running; it ends by itself (app/breaks.py)
+        "break_ends_at": (lambda ends: ends.isoformat() if ends else None)(break_ends_at(db, auditor.staff_id)),
     }
 
 
@@ -1531,6 +1534,7 @@ async def get_auditor_detail(
             for c in recent
         ],
         "wellbeing_requests": requests_for(db, auditor_id),
+        "open_requests": open_request_counts(db, auditor_id),
         "sos_history": sos_history(db, auditor_id),
         "last_active_at": max(
             (t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in last_active), default=None
@@ -1816,7 +1820,11 @@ async def get_reassignment_context(
         ).all()
     )
 
+    on_break_now = breaks_in_progress(db, now)
+
     def _is_available(a: "Auditor") -> bool:
+        if a.auditor_id in on_break_now:
+            return False
         if float(a.exposure_minutes or 0) >= int(a.exposure_limit_minutes or 120):
             return False
         ends_at = a.cooldown_ends_at
@@ -1866,6 +1874,8 @@ async def reassign_case(
     now = datetime.now(timezone.utc)
     if float(target.exposure_minutes or 0) >= int(target.exposure_limit_minutes or 120):
         raise HTTPException(status_code=409, detail="Auditor has reached their daily exposure limit")
+    if break_ends_at(db, auditor_id, now) is not None:
+        raise HTTPException(status_code=409, detail="Auditor is on a break")
     cooldown_ends = target.cooldown_ends_at
     if cooldown_ends is not None:
         if cooldown_ends.tzinfo is None:

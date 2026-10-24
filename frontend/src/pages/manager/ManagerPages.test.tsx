@@ -555,8 +555,9 @@ describe("Manager screens", () => {
   it("approves a break request from the Auditor record (MR-SOS-07)", async () => {
     renderAt("/manager/auditors/auditor-4");
     expect(await screen.findByText("Pattern flagged")).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Approve break" }));
-    expect(await screen.findByText("Break approved")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Approve 15-minute break" }));
+    // The break starts at approval, so the record says until when (it ends by itself).
+    expect(await screen.findByText(/^On a break until /)).toBeInTheDocument();
   });
 
   it("gates exceptional raw-content access behind the content warning, and logs it (MR-CR-08)", async () => {
