@@ -30,7 +30,7 @@ const DELIVERED = [
 ];
 
 const STACK = [
-  { group: "IBM AI", items: ["watsonx.ai", "Watson Speech to Text", "watsonx Orchestrate", "watsonx.governance"] },
+  { group: "IBM AI", items: ["watsonx.ai", "Watson Speech to Text", "watsonx Orchestrate"] },
   { group: "IBM Cloud", items: ["Code Engine", "Cloud Object Storage"] },
   { group: "Application", items: ["React", "TypeScript", "IBM Carbon", "Python", "FastAPI", "PostgreSQL"] },
   { group: "Delivery", items: ["Figma", "GitHub", "GitHub Actions", "Microsoft Planner"] },

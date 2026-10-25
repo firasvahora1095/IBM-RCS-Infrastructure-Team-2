@@ -221,8 +221,8 @@ const SECURITY: { icon: Icon; title: string; body: string }[] = [
   },
   {
     icon: Security,
-    title: "AI under governance",
-    body: "AI use is monitored with IBM watsonx.governance, and an Auditor is told when the AI could not analyse a video.",
+    title: "Every AI call is logged",
+    body: "Each AI request is recorded with its model and outcome and checked for prompt leakage, and Managers can review the log. An Auditor is told when the AI could not analyse a video.",
   },
 ];
 
@@ -230,7 +230,6 @@ const IBM_STACK = [
   "watsonx.ai",
   "Watson Speech to Text",
   "watsonx Orchestrate",
-  "watsonx.governance",
   "IBM Cloud Code Engine",
   "IBM Cloud Object Storage",
 ];
