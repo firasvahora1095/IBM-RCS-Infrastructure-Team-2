@@ -130,7 +130,7 @@ export const TEAM: TeamMember[] = [
       "Built the core PostgreSQL database (containerised, with SQLAlchemy models and case ID generation) and the first API, with authentication, validation and video upload.",
       "Implemented the watsonx vision call that analyses video frames, tested against Llama 4 Maverick, with streamed frame analysis and fallback handling.",
       "Aggregated the frame results into a case score and a narrative summary that follows the BA's language guidelines.",
-      "Connected watsonx.governance: scoring records, a secured fallback API and prompt-leakage detection.",
+      "Built the governance audit trail agreed with the Client in place of watsonx.governance: a record of every watsonx call, prompt-leakage detection and a secured API.",
       "Built the audit-log database and API, database backup and persistence, and ran the final audit-log and demo-data check.",
     ],
     skills: ["Python", "IBM Cloud Object Storage", "Watson Speech to Text", "watsonx.ai", "PostgreSQL", "REST APIs", "pytest"],
