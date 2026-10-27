@@ -56,6 +56,11 @@
 * [06 - IBM-RCS Infrastructure_Sprint3_Week2_Team_Meeting_Minutes](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week2_Team_Meeting_Minutes.docx?d=w8220b01094ec449db113174ee84a3314&csf=1&web=1&e=QSLRXK)
 * [06 - IBM-RCS Infrastructure_Sprint3_Week2_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week2/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week2_Team_Meeting_Recording.mp4?d=w0af2e969bea44cb5ae2231a1a7a53f8c&csf=1&web=1&e=W1SkNb)
 
+# Sprint 3 - Week 3 Meetings & Documentation
+* [06 - IBM-RCS Infrastructure_Sprint3_Week3_Team_Meeting_Agenda](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week3_Team_Meeting_Agenda.docx?d=waf064d142db24936a42068f5b0f9b0fc&csf=1&web=1&e=yquDiV)
+* [06 - IBM-RCS Infrastructure_Sprint3_Week3_Team_Meeting_Minutes](https://rmiteduau.sharepoint.com/:w:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week3_Team_Meeting_Minutes.docx?d=wa29e9e30e6184cbca403408f705b58dc&csf=1&web=1&e=jn4XuS)
+* [06 - IBM-RCS Infrastructure_Sprint3_Week3_Team_Meeting_Recording](https://rmiteduau.sharepoint.com/:v:/r/sites/CapstoneProgrammingProject2026-06-IBM-RCSInfrastructureTeam2/Shared%20Documents/Sprint3-Week3/06%20-%20IBM-RCS%20Infrastructure_Sprint3_Week3_Team_Meeting_Recording.mp4?d=w5257ac1f41df416fa2c5634d59a7a0ad&csf=1&web=1&e=a7HG8i)
+
 # Final Presentation Slides & Handover Documentation
 * [06 - IBM-RCS Infrastructure_Final_Presentation_Slides](https://rmiteduau-my.sharepoint.com/:p:/g/personal/s4083552_rmit_edu_vn/IQBS3CUy8LlVQo3tsGE3qVsOAY0hYEUh8gfzDVEOLw3JZpA?e=mQvnyk)
 * [06 - IBM-RCS Infrastructure_Handover](https://rmiteduau-my.sharepoint.com/:w:/g/personal/s4083552_rmit_edu_vn/IQCSyypTA3FnSK6KkCuudtr1AYlkdOevifyQdHkz7X716-U?e=guoUjI)
